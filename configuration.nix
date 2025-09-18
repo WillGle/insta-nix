@@ -11,16 +11,16 @@
 
   # ───────── Environment vars ─────────
   environment.variables = {
-    GTK_IM_MODULE = "fcitx";
-    QT_IM_MODULE  = "fcitx";
-    XMODIFIERS    = "@im=fcitx";
-
     # UI
     XCURSOR_THEME = "Bibata-Modern-Ice";
     XCURSOR_SIZE  = "24";
     QT_FONT_DPI   = "144";
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
+   
+    GTK_IM_MODULE = lib.mkForce "";
+    QT_IM_MODULE  = lib.mkForce "";
+    XMODIFIERS    = lib.mkForce "";
   };
   # ───────── Bootloader ─────────
   boot.loader.systemd-boot.enable = true;
@@ -112,7 +112,7 @@
       pkgs.fcitx5-configtool
       pkgs.fcitx5-gtk
       pkgs.libsForQt5.fcitx5-qt   
-      pkgs.kdePackages.fcitx5-qt 
+      pkgs.kdePackages.fcitx5-qt
     ];
   };
 
@@ -125,7 +125,7 @@
     enable32Bit = true;
     extraPackages = with pkgs; [
       vulkan-loader vulkan-tools vulkan-validation-layers
-      libva libva-utils vaapiVdpau
+      libva libva-utils vaapiVdpau mesa
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
       libva libva-utils vaapiVdpau
@@ -166,6 +166,9 @@
       xdg-desktop-portal-hyprland
       xdg-desktop-portal-gtk
     ];
+    config = {
+      common.default = [ "hyprland" "gtk" ];
+    };
   };
 
   # ───────── User ─────────
