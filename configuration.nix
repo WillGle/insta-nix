@@ -107,10 +107,15 @@
   services.xserver.xkb = { layout = "us"; variant = ""; };
 
   i18n.inputMethod = {
-    enable  = true;
-    type    = "fcitx5";
-    fcitx5.addons = with pkgs; [ fcitx5-unikey fcitx5-qt fcitx5-gtk fcitx5-configtool ];
-  };
+  enable = true;
+  type = "fcitx5";
+  fcitx5.addons = with pkgs; [
+    fcitx5-unikey
+    fcitx5-configtool
+    fcitx5-qt5
+    fcitx5-gtk
+    ];
+  };  
 
   # ───────── Virtualization ─────────
   virtualisation.docker.enable = true;
