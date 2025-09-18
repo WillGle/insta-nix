@@ -14,7 +14,12 @@
     XCURSOR_THEME = "Bibata-Modern-Ice";
     XCURSOR_SIZE  = "24";
 
-    GTK_IM_MODULE = lib.mkForce "";
+    # IME for all toolkits
+    GTK_IM_MODULE = "fcitx";
+    QT_IM_MODULE  = "fcitx";
+    XMODIFIERS    = "@im=fcitx";
+
+    # your current Qt scaling settings
     QT_FONT_DPI = "144";
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
@@ -104,7 +109,7 @@
   i18n.inputMethod = {
     enable  = true;
     type    = "fcitx5";
-    fcitx5.addons = with pkgs; [ fcitx5-unikey fcitx5-configtool ];
+    fcitx5.addons = with pkgs; [ fcitx5-unikey fcitx5-qt fcitx5-gtk fcitx5-configtool ];
   };
 
   # ───────── Virtualization ─────────
