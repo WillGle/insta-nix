@@ -11,20 +11,17 @@
 
   # ───────── Environment vars ─────────
   environment.variables = {
-    XCURSOR_THEME = "Bibata-Modern-Ice";
-    XCURSOR_SIZE  = "24";
-
-    # IME for all toolkits
     GTK_IM_MODULE = "fcitx";
     QT_IM_MODULE  = "fcitx";
     XMODIFIERS    = "@im=fcitx";
 
-    # your current Qt scaling settings
-    QT_FONT_DPI = "144";
+    # UI
+    XCURSOR_THEME = "Bibata-Modern-Ice";
+    XCURSOR_SIZE  = "24";
+    QT_FONT_DPI   = "144";
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
   };
-
   # ───────── Bootloader ─────────
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -106,16 +103,18 @@
   # ───────── Input ─────────
   services.xserver.xkb = { layout = "us"; variant = ""; };
 
+  # Input method
   i18n.inputMethod = {
-  enable = true;
-  type = "fcitx5";
-  fcitx5.addons = with pkgs; [
-    fcitx5-unikey
-    fcitx5-configtool
-    fcitx5-qt5
-    fcitx5-gtk
+    enable = true;
+    type   = "fcitx5";
+    fcitx5.addons = [
+      pkgs.fcitx5-unikey
+      pkgs.fcitx5-configtool
+      pkgs.fcitx5-gtk
+      pkgs.libsForQt5.fcitx5-qt   
+      pkgs.kdePackages.fcitx5-qt 
     ];
-  };  
+  };
 
   # ───────── Virtualization ─────────
   virtualisation.docker.enable = true;
@@ -295,7 +294,7 @@
     vlc
     gnome-disk-utility
     xournalpp
-    libreoffice
+    libreoffice-fresh
     guvcview
     gthumb
     nomacs
@@ -308,8 +307,8 @@
     mangohud
 
     # Input (VN)
-    fcitx5-configtool
-    fcitx5-unikey
+   # fcitx5-configtool
+   # fcitx5-unikey
 
     # Shell & prompt
     fish
