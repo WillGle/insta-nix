@@ -245,6 +245,7 @@
     fastfetch
     htop
     kanshi
+    jq
     lm_sensors
     nautilus
     pciutils
@@ -264,6 +265,7 @@
     v4l-utils
     libheif
     libavif
+    wlr-randr
 
     # Audio & network
     alsa-utils
