@@ -166,32 +166,8 @@
     remotePlay.openFirewall = true;
     dedicatedServer.openFirewall = true;
   };
+  
   programs.gamemode.enable = true;
-  security.rtkit.enable = true;
-
-  # ───────── XDG Portals ─────────
-  xdg.portal = {
-    enable = true;
-    wlr.enable = false; # prefer Hyprland-specific portal
-    extraPortals = with pkgs; [
-      xdg-desktop-portal-hyprland
-      xdg-desktop-portal-gtk
-    ];
-    config = {
-      common.default = [ "hyprland" "gtk" ];
-    };
-  };
-
-  # ───────── Audio ─────────
-  services.pulseaudio.enable = false;
-  services.pipewire = {
-    enable = true;
-    audio.enable = true;
-    pulse.enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    jack.enable = false;
-  };
 
   # ───────── Bluetooth ─────────
   hardware.bluetooth.enable = true;
