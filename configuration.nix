@@ -10,6 +10,12 @@
   };
 
   # ───────── Environment vars ─────────
+  environment.variables = {
+    GTK_IM_MODULE = lib.mkForce null;
+    QT_IM_MODULE  = lib.mkForce null;
+  };
+
+
   environment.sessionVariables = {
     # UI
     XCURSOR_THEME = "Bibata-Modern-Ice";
@@ -18,12 +24,14 @@
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
 
-    # Input Method
-    GTK_IM_MODULE = "fcitx";
-    QT_IM_MODULE  = "fcitx";
-    XMODIFIERS    = "@im=fcitx";
-    INPUT_METHOD  = "fcitx";
-  };
+    # Input
+    INPUT_METHOD = "fcitx";
+    XMODIFIERS   = "@im=fcitx"; # giúp app X11 qua XWayland gõ được
+
+    # ép UNSET hai biến gây cảnh báo Wayland:
+    GTK_IM_MODULE = null;
+    QT_IM_MODULE  = null;
+  }; 
 
   # ───────── Bootloader ─────────
   boot.loader.systemd-boot.enable = true;
@@ -108,7 +116,8 @@
 
   # Input method
   i18n.inputMethod = {
-    enabled = "fcitx5";
+    enable = true;
+    type = "fcitx5";
     fcitx5.addons = with pkgs; [
       fcitx5-unikey
       fcitx5-configtool
@@ -246,7 +255,7 @@
     eza
     fastfetch
     htop
-    kanshi
+    # kanshi
     jq
     lm_sensors
     nautilus
@@ -331,32 +340,7 @@
   ];
 
   # ───────── User services ─────────
-  systemd.user.services.kanshi = {
-    description = "Kanshi monitor profile daemon";
-    wantedBy = [ "default.target" ];
-    after     = [ "default.target" ];
-    serviceConfig = {
-      ExecStart = "${pkgs.kanshi}/bin/kanshi";
-      Restart = "on-failure";
-    };
-  };
 
-  systemd.user.services.waybar = {
-    description = "Waybar";
-    wantedBy = [ "default.target" ];
-    after    = [ "default.target" ];
-    serviceConfig = {
-      ExecStartPre = "${pkgs.bash}/bin/sh -c 'for i in $(seq 1 100); do ${pkgs.hyprland}/bin/hyprctl -j monitors >/dev/null 2>&1 && exit 0; sleep 0.05; done; echo hyprctl not ready; exit 1'";
-      ExecStart   = "${pkgs.waybar}/bin/waybar";
-      Restart     = "on-failure";
-      RestartSec  = 1;
-      Environment = [
-        "XDG_CURRENT_DESKTOP=Hyprland"
-        "SHELL=${pkgs.bash}/bin/bash"
-        "PATH=/run/current-system/sw/bin:${pkgs.bash}/bin:${pkgs.coreutils}/bin:${pkgs.util-linux}/bin:${pkgs.gawk}/bin"
-      ];
-    };
-  };
 
 # ───────── Nix (flakes) ─────────
 nix.settings = {
