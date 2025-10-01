@@ -11,7 +11,6 @@
     jack.enable = false;
   };
 
-  # ĐÚNG: dùng security.rtkit (không phải services.rtkit)
   security.rtkit.enable = true;
 
   # Bluetooth
