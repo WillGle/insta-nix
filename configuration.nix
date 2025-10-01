@@ -182,22 +182,6 @@
     };
   };
 
-  # ───────── User ─────────
-  users.users.will = {
-    isNormalUser = true;
-    description = "will";
-    shell = pkgs.fish;
-    extraGroups = [
-      "networkmanager" "wheel" "video" "input"
-      "seat" "audio" "bluetooth" "docker"
-    ];
-    packages = with pkgs; [ ];
-  };
-
-  # ───────── Shell / Prompt ─────────
-  programs.fish.enable = true;
-  programs.starship.enable = true;
-
   # ───────── Audio ─────────
   services.pulseaudio.enable = false;
   services.pipewire = {
