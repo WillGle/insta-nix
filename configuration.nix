@@ -111,22 +111,6 @@
     corefonts
   ];
 
-  # ───────── Input ─────────
-  services.xserver.xkb = { layout = "us"; variant = ""; };
-
-  # Input method
-  i18n.inputMethod = {
-    enable = true;
-    type = "fcitx5";
-    fcitx5.addons = with pkgs; [
-      fcitx5-unikey
-      fcitx5-configtool
-      fcitx5-gtk
-      libsForQt5.fcitx5-qt   # Qt5 IM module
-      qt6Packages.fcitx5-qt  # Qt6 IM module
-    ];
-  };
-
   # ───────── Virtualization ─────────
   virtualisation.docker.enable = true;
 
@@ -143,8 +127,6 @@
     ];
   };
 
-  services.xserver = { enable = true; videoDrivers = [ "amdgpu" ]; };
-
   # ───────── Display Manager / WM ─────────
   programs.hyprland.enable = true;
 
@@ -159,19 +141,6 @@
 
   # Tell the display manager which session to start by default
   services.displayManager.defaultSession = "hyprland";
-
-  # ───────── Gaming ─────────
-  programs.steam = {
-    enable = true;
-    remotePlay.openFirewall = true;
-    dedicatedServer.openFirewall = true;
-  };
-  
-  programs.gamemode.enable = true;
-
-  # ───────── Bluetooth ─────────
-  hardware.bluetooth.enable = true;
-  services.blueman.enable = true;
 
   # ───────── Core Services ─────────
   services.dbus.enable = true;
