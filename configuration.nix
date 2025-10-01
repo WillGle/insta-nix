@@ -10,18 +10,21 @@
   };
 
   # ───────── Environment vars ─────────
-  environment.variables = {
+  environment.sessionVariables = {
     # UI
     XCURSOR_THEME = "Bibata-Modern-Ice";
     XCURSOR_SIZE  = "24";
     QT_FONT_DPI   = "144";
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
-   
-    GTK_IM_MODULE = lib.mkForce "";
-    QT_IM_MODULE  = lib.mkForce "";
-    XMODIFIERS    = lib.mkForce "";
+
+    # Input Method
+    GTK_IM_MODULE = "fcitx";
+    QT_IM_MODULE  = "fcitx";
+    XMODIFIERS    = "@im=fcitx";
+    INPUT_METHOD  = "fcitx";
   };
+
   # ───────── Bootloader ─────────
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -48,8 +51,8 @@
       PLATFORM_PROFILE_ON_AC  = "performance";
       PLATFORM_PROFILE_ON_BAT = "low-power";
 
-      # STOP_CHARGE_THRESH_BAT0 = "1"; # ~80%
-      STOP_CHARGE_THRESH_BAT0 = "0";   # full
+       STOP_CHARGE_THRESH_BAT0 = "1"; # ~80%
+     # STOP_CHARGE_THRESH_BAT0 = "0";   # full
     };
   };
 
@@ -105,14 +108,13 @@
 
   # Input method
   i18n.inputMethod = {
-    enable = true;
-    type   = "fcitx5";
-    fcitx5.addons = [
-      pkgs.fcitx5-unikey
-      pkgs.fcitx5-configtool
-      pkgs.fcitx5-gtk
-      pkgs.libsForQt5.fcitx5-qt   
-      pkgs.kdePackages.fcitx5-qt
+    enabled = "fcitx5";
+    fcitx5.addons = with pkgs; [
+      fcitx5-unikey
+      fcitx5-configtool
+      fcitx5-gtk
+      libsForQt5.fcitx5-qt   # Qt5 IM module
+      qt6Packages.fcitx5-qt  # Qt6 IM module
     ];
   };
 
@@ -276,6 +278,7 @@
     pipewire
     protonvpn-gui
     upower
+    pulseaudio
 
     # SDDM themes
     catppuccin-sddm
