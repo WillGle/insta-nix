@@ -12,7 +12,6 @@
     hyprland
     hyprpaper
     hyprshot
-    rofi-wayland
     sway
     swayidle
     swaylock
