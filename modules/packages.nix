@@ -20,6 +20,9 @@
 
     # Utilities
     acpid
+    poppler_utils
+    ffmpegthumbnailer
+    gnome-epub-thumbnailer
     cliphist
     eza
     fastfetch
@@ -83,6 +86,7 @@
     guvcview
     gthumb
     nomacs
+    evince
 
     # Gaming tools
     mesa-demos

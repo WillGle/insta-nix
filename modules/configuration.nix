@@ -77,6 +77,9 @@
   security.polkit.enable = true;
   services.udisks2.enable = true;
   services.gvfs.enable = true;
+  # Tracker = indexing + thumbnail pipeline Nautilus relies on
+  services.gnome.tracker.enable = true;
+  services.gnome.tracker-miners.enable = true;
 
   # Nix settings (flakes + GC)
   nix.settings = {
