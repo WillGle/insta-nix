@@ -47,6 +47,7 @@
     libheif
     libavif
     wlr-randr
+    tree
 
     # Audio & network
     alsa-utils
