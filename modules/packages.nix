@@ -87,6 +87,7 @@
     gthumb
     nomacs
     evince
+    zotero
 
     # Gaming tools
     mesa-demos
