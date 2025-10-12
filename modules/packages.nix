@@ -70,6 +70,8 @@
     adwaita-icon-theme
     brave
     deadbeef
+    deadbeef-with-plugins
+    sonic-visualiser
     docker
     firefox
     gsimplecal
