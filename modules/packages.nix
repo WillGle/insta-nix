@@ -71,6 +71,7 @@
     brave
     deadbeef
     deadbeef-with-plugins
+    discord
     sonic-visualiser
     docker
     firefox
