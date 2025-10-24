@@ -3,7 +3,7 @@
   # X.org driver
   services.xserver.videoDrivers = [ "amdgpu" ];
 
-  # Vulkan/VA-API giống bản gốc (nixos-25.05)
+  # Vulkan/VA-API
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
