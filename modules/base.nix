@@ -8,27 +8,13 @@
     options = [ "defaults" "noatime" ];
   };
 
-  # ───────── Environment vars ─────────
-  # Keep these null to avoid IM warnings/overrides
-  environment.variables = {
-    GTK_IM_MODULE = lib.mkForce null;
-    QT_IM_MODULE  = lib.mkForce null;
-  };
-
-  # If any other module tries to set these, mkForce keeps them unset.
+  # ───────── Session/UI vars ─────────
   environment.sessionVariables = {
-    # UI
     XCURSOR_THEME = "Bibata-Modern-Ice";
     XCURSOR_SIZE  = "24";
     QT_FONT_DPI   = "144";
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
-
-    # Input
-    INPUT_METHOD = lib.mkForce null;
-    XMODIFIERS   = lib.mkForce null;
-    GTK_IM_MODULE = lib.mkForce null;
-    QT_IM_MODULE  = lib.mkForce null;
   };
 
   # ───────── Bootloader ─────────
@@ -61,12 +47,6 @@
   security.polkit.enable = true;
   services.udisks2.enable = true;
   services.gvfs.enable = true;
-
-  # sudo rule for tlp
-  security.sudo.extraRules = [{
-    users = [ "will" ];
-    commands = [{ command = "/run/current-system/sw/bin/tlp"; options = [ "NOPASSWD" ]; }];
-  }];
 
   # ───────── Nix (flakes) ─────────
   nix.settings = {

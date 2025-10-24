@@ -1,12 +1,10 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
-  # XKB layout
   services.xserver = {
     enable = true;
-    xkb = { layout = "us"; variant = ""; };
+    xkb.layout = "us";
   };
 
-  # Hyprland + SDDM
   programs.hyprland.enable = true;
   services.displayManager.sessionPackages = [ pkgs.hyprland ];
   services.displayManager.sddm = {
@@ -16,7 +14,6 @@
   };
   services.displayManager.defaultSession = "hyprland";
 
-  # XDG portals (ưu tiên hyprland + gtk) như bản gốc
   xdg.portal = {
     enable = true;
     wlr.enable = false;
@@ -24,21 +21,19 @@
       xdg-desktop-portal-hyprland
       xdg-desktop-portal-gtk
     ];
-    config = {
-      common.default = [ "hyprland" "gtk" ];
+    config.common.default = [ "hyprland" "gtk" ];
+  };
+
+  i18n.inputMethod = {
+    type = "fcitx5";
+    enable = true;
+    fcitx5 = {
+      addons = with pkgs; [ fcitx5-unikey fcitx5-bamboo fcitx5-gtk ];
+      waylandFrontend = true;
     };
   };
 
-  # Input method (fcitx5 + addons đúng như bản gốc)
-  i18n.inputMethod = {
-    enable = true;
-    type = "fcitx5";
-    fcitx5.addons = with pkgs; [
-      fcitx5-unikey
-      fcitx5-configtool
-      fcitx5-gtk
-      libsForQt5.fcitx5-qt
-      qt6Packages.fcitx5-qt
-    ];
+  environment.sessionVariables = {
+    XMODIFIERS = "@im=fcitx";
   };
 }

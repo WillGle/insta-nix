@@ -66,7 +66,6 @@
     sddm-sugar-dark
 
     # Apps
-    ibus-engines.bamboo
     adwaita-icon-theme
     brave
     deadbeef
