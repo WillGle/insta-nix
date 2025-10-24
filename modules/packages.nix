@@ -61,16 +61,15 @@
     pulseaudio
 
     # SDDM themes
-    catppuccin-sddm
     sddm-astronaut
     sddm-chili-theme
     sddm-sugar-dark
 
     # Apps
+    ibus-engines.bamboo
     adwaita-icon-theme
     brave
     deadbeef
-    deadbeef-with-plugins
     discord
     sonic-visualiser
     docker

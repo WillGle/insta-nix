@@ -1,6 +1,6 @@
+# /etc/nixos/flake.nix
 {
   description = "NixOS config (split modules)";
-
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
 
   outputs = { self, nixpkgs, ... }:
@@ -12,7 +12,9 @@
       inherit system;
       modules = [
         ./hardware-configuration.nix
-        ./configuration.nix
+
+        # Host/base module (renamed from modules/configuration.nix)
+        ./modules/base.nix
 
         # Split modules
         ./modules/desktop.nix
@@ -23,6 +25,7 @@
         ./modules/users.nix
         ./modules/packages.nix
         ./modules/gaming.nix
+        ./modules/fonts.nix
       ];
     };
   };

@@ -1,19 +1,21 @@
-{ lib, config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
-  # Filesystems
+  # ───────── Filesystems ─────────
   fileSystems."/mnt/vault" = {
     device = "/dev/disk/by-uuid/GENERIC_VAULT_UUID";
     fsType = "ext4";
     options = [ "defaults" "noatime" ];
   };
 
-  # Environment vars
+  # ───────── Environment vars ─────────
+  # Keep these null to avoid IM warnings/overrides
   environment.variables = {
     GTK_IM_MODULE = lib.mkForce null;
     QT_IM_MODULE  = lib.mkForce null;
   };
 
+  # If any other module tries to set these, mkForce keeps them unset.
   environment.sessionVariables = {
     # UI
     XCURSOR_THEME = "Bibata-Modern-Ice";
@@ -23,25 +25,21 @@
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
 
     # Input
-    INPUT_METHOD = "fcitx";
-    XMODIFIERS   = "@im=fcitx";
-
-    GTK_IM_MODULE = null; # unset để tránh cảnh báo Wayland
-    QT_IM_MODULE  = null;
+    INPUT_METHOD = lib.mkForce null;
+    XMODIFIERS   = lib.mkForce null;
+    GTK_IM_MODULE = lib.mkForce null;
+    QT_IM_MODULE  = lib.mkForce null;
   };
 
-  # Bootloader / kernel
+  # ───────── Bootloader ─────────
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
-  # amd_pstate nằm ở modules/laptop-power.nix (boot.kernelParams)
+  boot.kernelParams = [ "amd_pstate=active" ];
 
-  # CPU / firmware
+  # ───────── CPU / FW ─────────
   hardware.cpu.amd.updateMicrocode = true;
 
-  # Virtualization
-  virtualisation.docker.enable = true;
-
-  # Locale / Time
+  # ───────── Locale / Time ─────────
   time.timeZone = "Asia/Ho_Chi_Minh";
   i18n.defaultLocale = "en_US.UTF-8";
   i18n.extraLocaleSettings = {
@@ -50,38 +48,27 @@
     LC_PAPER = "vi_VN"; LC_TELEPHONE = "vi_VN"; LC_TIME = "vi_VN";
   };
 
-  # Fonts (phần desktop sử dụng, nhưng để đồng bộ mình giữ ở base như bản gốc)
-  fonts.enableDefaultPackages = true;
-  fonts.fontconfig.enable = true;
-  fonts.packages = with pkgs; [
-    nerd-fonts.meslo-lg
-    nerd-fonts.fira-code
-    nerd-fonts.jetbrains-mono
-    noto-fonts
-    noto-fonts-cjk-sans
-    noto-fonts-emoji
-    roboto
-    unifont
-    freefont_ttf
-    ipaexfont
-    corefonts
-  ];
+  # ───────── Virtualization ─────────
+  virtualisation.docker.enable = true;
 
-  # Core services
+  # ───────── Core Services ─────────
   services.dbus.enable = true;
   services.openssh.enable = true;
   services.flatpak.enable = true;
   services.upower.enable = true;
   services.udev.enable = true;
-  services.acpid.enable = true;
+  services.acpid.enable = true;(fcitx removed)
   security.polkit.enable = true;
   services.udisks2.enable = true;
   services.gvfs.enable = true;
-  # Tracker = indexing + thumbnail pipeline Nautilus relies on
-  services.gnome.tracker.enable = true;
-  services.gnome.tracker-miners.enable = true;
 
-  # Nix settings (flakes + GC)
+  # sudo rule for tlp
+  security.sudo.extraRules = [{
+    users = [ "will" ];
+    commands = [{ command = "/run/current-system/sw/bin/tlp"; options = [ "NOPASSWD" ]; }];
+  }];
+
+  # ───────── Nix (flakes) ─────────
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     auto-optimise-store = true;
@@ -92,6 +79,7 @@
     options = "--delete-older-than 14d";
   };
 
+  # ───────── Nix settings ─────────
   nixpkgs.config.allowUnfree = true;
 
   system.stateVersion = "25.05";
