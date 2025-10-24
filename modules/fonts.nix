@@ -8,9 +8,11 @@
       nerd-fonts.meslo-lg
       nerd-fonts.fira-code
       nerd-fonts.jetbrains-mono
+
       noto-fonts
-      noto-fonts.cjk-sans
+      noto-fonts-cjk-sans     
       noto-fonts-emoji
+
       roboto
       unifont
       freefont_ttf
@@ -18,12 +20,12 @@
       corefonts
     ];
 
-    # (optional) pick defaults, tweak as you like:
+    # Optional defaults (family names must match installed fonts)
     fontconfig.defaultFonts = {
       monospace = [ "JetBrainsMono Nerd Font" "FiraCode Nerd Font" ];
       sansSerif = [ "Noto Sans" "Roboto" ];
       serif     = [ "Noto Serif" ];
       emoji     = [ "Noto Color Emoji" ];
-     };
+    };
   };
 }

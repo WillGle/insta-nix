@@ -57,7 +57,7 @@
   services.flatpak.enable = true;
   services.upower.enable = true;
   services.udev.enable = true;
-  services.acpid.enable = true;(fcitx removed)
+  services.acpid.enable = true;
   security.polkit.enable = true;
   services.udisks2.enable = true;
   services.gvfs.enable = true;
