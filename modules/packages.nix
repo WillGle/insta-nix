@@ -2,10 +2,15 @@
 {
   environment.systemPackages = with pkgs; [
     # Wayland & desktop
-    alacritty
     brightnessctl
     mission-center
     waybar
+    wlr-randr
+    wl-clipboard
+    wob
+    grim
+    slurp
+    xdg-utils
 
     # WM helpers
     dunst
@@ -17,11 +22,8 @@
     swaylock
     wofi
 
-    # Utilities
+    # System utilities
     acpid
-    poppler_utils
-    ffmpegthumbnailer
-    gnome-epub-thumbnailer
     cliphist
     eza
     fastfetch
@@ -33,69 +35,70 @@
     playerctl
     usbutils
     wget
-    wl-clipboard
-    wob
-    xdg-utils
-    grim
-    slurp
     udiskie
     dosfstools
     exfatprogs
     ntfs3g
-    ffmpeg
-    v4l-utils
+    gnome-disk-utility
+    poppler_utils
+    tree
+    docker
+
+    # Media tools/codecs
+    ffmpeg-full
+    ffmpegthumbnailer
+    gnome-epub-thumbnailer
     libheif
     libavif
-    wlr-randr
-    tree
+    v4l-utils
 
-    # Audio & network
+    # Audio
     alsa-utils
-    bind
-    blueman
-    networkmanagerapplet
     pavucontrol
     pipewire
-    protonvpn-gui
-    upower
     pulseaudio
+    qpwgraph
+
+    # Networking & Bluetooth
+    bind
+    networkmanagerapplet
+    protonvpn-gui
+    blueman
+
+    # Power
+    upower
+
+    # Themes
+    adwaita-icon-theme
+    bibata-cursors
 
     # SDDM themes
     sddm-astronaut
     sddm-chili-theme
     sddm-sugar-dark
 
-    # Apps
-    adwaita-icon-theme
-    brave
+    # Media apps
     deadbeef
-    discord
     sonic-visualiser
-    docker
+    obs-studio
+    mpv
+    vlc
+    guvcview
+    nomacs
+    evince
+
+    # Apps
+    brave
+    discord
     firefox
     gsimplecal
-    obs-studio
     obsidian
     signal-desktop
     vscode
-    steam
     wpsoffice
-    vlc
-    gnome-disk-utility
     xournalpp
     libreoffice-fresh
-    guvcview
-    gthumb
-    nomacs
-    evince
     zotero
-
-    # Gaming tools
-    mesa-demos
-    vulkan-tools
-    libva-utils
-    steam-run
-    mangohud
 
     # Shell & prompt
     fish
@@ -104,8 +107,5 @@
     starship
     bash
     gawk
-
-    # Cursors
-    bibata-cursors
   ];
 }

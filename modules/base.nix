@@ -8,15 +8,6 @@
     options = [ "defaults" "noatime" ];
   };
 
-  # ───────── Session/UI vars ─────────
-  environment.sessionVariables = {
-    XCURSOR_THEME = "Bibata-Modern-Ice";
-    XCURSOR_SIZE  = "24";
-    QT_FONT_DPI   = "144";
-    QT_SCALE_FACTOR = "1";
-    QT_AUTO_SCREEN_SCALE_FACTOR = "0";
-  };
-
   # ───────── Bootloader ─────────
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -48,11 +39,7 @@
   services.udisks2.enable = true;
   services.gvfs.enable = true;
 
-  # ───────── Nix (flakes) ─────────
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    auto-optimise-store = true;
-  };
+  # ───────── Nix maintenance ─────────
   nix.gc = {
     automatic = true;
     dates = "weekly";
