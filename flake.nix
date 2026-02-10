@@ -5,9 +5,14 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-24-11.url = "github:NixOS/nixpkgs/nixos-24.11";
+
+    home-manager = {
+      url = "github:nix-community/home-manager/release-25.11";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, nixpkgs-24-11, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, nixpkgs-24-11, home-manager, ... }:
   let
     system = "x86_64-linux";
     lib = nixpkgs.lib;
@@ -49,6 +54,15 @@
         ./modules/packages.nix
         ./modules/gaming.nix
         ./modules/fonts.nix
+
+        # ───────── Home Manager ─────────
+        home-manager.nixosModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.backupFileExtension = "backup";
+          home-manager.users.will = import ./home.nix;
+        }
       ];
     };
   };
