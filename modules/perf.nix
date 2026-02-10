@@ -19,6 +19,13 @@
     cores = 0;
   };
 
+  # Nix maintenance (moved from base.nix)
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 14d";
+  };
+
   # zram swap (tune memoryPercent).
   zramSwap = {
     enable = true;
@@ -33,7 +40,7 @@
 
   # CPU policy.
   powerManagement.enable = true;
-  powerManagement.cpuFreqGovernor = "schedutil";
+  # cpuFreqGovernor removed: redundant with amd_pstate=active
 
   # Power daemon (pick one).
   services.power-profiles-daemon.enable = true;

@@ -14,7 +14,6 @@
 
     # WM helpers
     dunst
-    hyprland
     hyprpaper
     hyprshot
     sway
@@ -23,7 +22,6 @@
     wofi
 
     # System utilities
-    acpid
     cliphist
     eza
     fastfetch
@@ -40,9 +38,8 @@
     exfatprogs
     ntfs3g
     gnome-disk-utility
-    poppler_utils
+    poppler-utils
     tree
-    docker
 
     # Media tools/codecs
     ffmpeg-full
@@ -55,18 +52,12 @@
     # Audio
     alsa-utils
     pavucontrol
-    pipewire
-    pulseaudio
     qpwgraph
 
     # Networking & Bluetooth
     bind
     networkmanagerapplet
     protonvpn-gui
-    blueman
-
-    # Power
-    upower
 
     # Themes
     adwaita-icon-theme
@@ -78,7 +69,6 @@
     sddm-sugar-dark
 
     # Media apps
-    deadbeef
     sonic-visualiser
     obs-studio
     mpv

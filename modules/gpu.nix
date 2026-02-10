@@ -9,10 +9,11 @@
     enable32Bit = true;
     extraPackages = with pkgs; [
       vulkan-loader vulkan-tools vulkan-validation-layers
-      libva libva-utils vaapiVdpau mesa
+      libva libva-utils libva-vdpau-driver mesa
+      rocmPackages.clr
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
-      libva libva-utils vaapiVdpau
+      libva libva-utils libva-vdpau-driver
     ];
   };
 }
