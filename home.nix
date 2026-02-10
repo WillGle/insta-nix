@@ -115,4 +115,48 @@
     source     = ./dotfiles/local-bin/waybar-refresh-toggle;
     executable = true;
   };
+
+  # ───────────────────────────────────────────────────────────────
+  # Phase 4: XDG & App Defaults
+  # ───────────────────────────────────────────────────────────────
+
+  # ───────── XDG User Directories ─────────
+  xdg.userDirs = {
+    enable      = true;
+    desktop     = "${config.home.homeDirectory}/Desktop";
+    download    = "${config.home.homeDirectory}/Downloads";
+    templates   = "${config.home.homeDirectory}/Templates";
+    publicShare = "${config.home.homeDirectory}/Public";
+    documents   = "${config.home.homeDirectory}/Documents";
+    music       = "${config.home.homeDirectory}/Music";
+    pictures    = "${config.home.homeDirectory}/Pictures";
+    videos      = "${config.home.homeDirectory}/Videos";
+  };
+
+  # ───────── Default Applications ─────────
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications = {
+      "text/html"                     = "brave-browser.desktop";
+      "x-scheme-handler/http"         = "brave-browser.desktop";
+      "x-scheme-handler/https"        = "brave-browser.desktop";
+      "x-scheme-handler/about"        = "brave-browser.desktop";
+      "x-scheme-handler/unknown"      = "brave-browser.desktop";
+      "x-scheme-handler/sgnl"         = "signal.desktop";
+      "x-scheme-handler/signalcaptcha" = "signal.desktop";
+      "text/plain"                    = "code.desktop";
+      "application/pdf"               = "draw.desktop";
+      "audio/vnd.wave"                = "deadbeef.desktop";
+      "audio/flac"                    = "deadbeef.desktop";
+      "audio/mp4"                     = "deadbeef.desktop";
+      "audio/x-dsf"                   = "deadbeef.desktop";
+      "image/jpeg"                    = "org.gnome.gThumb.desktop";
+      "application/wps-office.docx"   = "wps-office-wps.desktop";
+      "application/wps-office.xlsx"   = "calc.desktop";
+      "application/wps-office.pptx"   = "impress.desktop";
+    };
+  };
+
+  # ───────── Kanshi (Monitor Profiles) ─────────
+  xdg.configFile."kanshi/config".source = ./dotfiles/kanshi/config;
 }
