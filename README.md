@@ -20,6 +20,8 @@ The configuration is split into specialized modules for clarity:
   - **[packages.nix](modules/packages.nix)**: Global system package lists.
   - **[gaming.nix](modules/gaming.nix)**: Steam, GameMode, and gaming-related tools.
   - **[fonts.nix](modules/fonts.nix)**: Multi-font setup with Nerd Fonts and Emoji support (Noto).
+- **[home.nix](home.nix)**: Home Manager user config (Fish, Starship, Direnv, XDG, mimeapps).
+- **`dotfiles/`**: Source files for desktop environment configs (Hyprland, Waybar, Wofi, kanshi, scripts).
 
 ---
 
