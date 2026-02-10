@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+MON="eDP-1"
+hyprctl monitors | awk -v m="$MON" '
+  $0 ~ ("^Monitor " m) {f=1; next}
+  f && /@/ {match($0,/@([0-9.]+)/,a); if(a[1]){printf("%dHz\n", a[1]+0); exit}}
+'
+

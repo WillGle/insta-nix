@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Toggle ONLY the refresh rate between 60 and 120 for eDP-1.
+# Resolution/position/scale are fixed here so they never drift.
+
+set -euo pipefail
+
+MON="eDP-1"
+RES="3072x1920"
+POS="0x0"
+SCALE="1.5"
+
+# Read current refresh
+CUR=$(hyprctl monitors | awk -v m="$MON" '
+  $0 ~ ("^Monitor " m) {f=1; next}
+  f && /@/ {match($0,/@([0-9.]+)/,a); if(a[1]){print a[1]; exit}}
+')
+CUR=${CUR%.*}
+[ -z "${CUR:-}" ] && CUR=60
+
+# Pick target
+if [ "$CUR" = "60" ]; then TARGET=120; else TARGET=60; fi
+
+# Apply
+hyprctl keyword monitor "$MON,${RES}@${TARGET},${POS},${SCALE}" >/dev/null 2>&1

@@ -72,4 +72,47 @@
     enable = true;
     nix-direnv.enable = true;
   };
+
+  # ───────────────────────────────────────────────────────────────
+  # Phase 3: Desktop Environment
+  # ───────────────────────────────────────────────────────────────
+
+  # ───────── Hyprland ─────────
+  xdg.configFile."hypr/hyprland.conf".source    = ./dotfiles/hypr/hyprland.conf;
+  xdg.configFile."hypr/hyprpaper.conf".source   = ./dotfiles/hypr/hyprpaper.conf;
+  xdg.configFile."hypr/autostart.conf" = {
+    source     = ./dotfiles/hypr/autostart.conf;
+    executable = true;
+  };
+  xdg.configFile."hypr/toggle_waybar.sh" = {
+    source     = ./dotfiles/hypr/toggle_waybar.sh;
+    executable = true;
+  };
+  xdg.configFile."hypr/rotate_select.sh" = {
+    source     = ./dotfiles/hypr/rotate_select.sh;
+    executable = true;
+  };
+
+  # ───────── Waybar ─────────
+  xdg.configFile."waybar/config.jsonc".source = ./dotfiles/waybar/config.jsonc;
+  xdg.configFile."waybar/style.css".source    = ./dotfiles/waybar/style.css;
+  xdg.configFile."waybar/cliphist.sh" = {
+    source     = ./dotfiles/waybar/cliphist.sh;
+    executable = true;
+  };
+
+  # ───────── Wofi ─────────
+  xdg.configFile."wofi/config-app.ini".source  = ./dotfiles/wofi/config-app.ini;
+  xdg.configFile."wofi/config-clip.ini".source = ./dotfiles/wofi/config-clip.ini;
+  xdg.configFile."wofi/style.css".source       = ./dotfiles/wofi/style.css;
+
+  # ───────── Local Scripts (~/.local/bin) ─────────
+  home.file.".local/bin/waybar-refresh-label" = {
+    source     = ./dotfiles/local-bin/waybar-refresh-label;
+    executable = true;
+  };
+  home.file.".local/bin/waybar-refresh-toggle" = {
+    source     = ./dotfiles/local-bin/waybar-refresh-toggle;
+    executable = true;
+  };
 }
