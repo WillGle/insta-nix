@@ -15,9 +15,6 @@
   services.udisks2.enable = true;
   services.gvfs.enable = true;
 
-  # ───────── Dev Tools ─────────
-  programs.direnv.enable = true;
-
   # ───────── Locale / Time ─────────
   time.timeZone = "Asia/Ho_Chi_Minh";
   i18n.defaultLocale = "en_US.UTF-8";
