@@ -43,11 +43,10 @@
 
         ({ ... }: {
           nixpkgs.config.allowUnfree = true;
-          system.stateVersion = "25.05";
+          system.stateVersion = "25.11";
           environment.systemPackages = [
             pkgsUnstable.antigravity
             pkgs24_11.deadbeef
-            # nếu cần: pkgsUnstable.antigravity-fhs
           ];
         })
 

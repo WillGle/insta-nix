@@ -34,7 +34,7 @@
     enableFishIntegration = true;
     settings = {
       add_newline = false;
-      format = "[](#001f3f)\$username[](#001f3f)\$directory[](#004080)\$git_branch\$git_status[](black)\$python\$nodejs[](#ffffff)";
+      format = "[](#001f3f)\$username[](#001f3f)\$directory[](#004080)\$git_branch\$git_status[](black)\$python\$nodejs[](#ffffff)";
 
       username = {
         style_user = "bold white";
@@ -46,7 +46,7 @@
         format = "[ $path ]($style)";
       };
       git_branch = {
-        symbol = "";
+        symbol = "";
         style = "bold yellow";
         format = "[ $symbol $branch ]($style)";
       };
@@ -55,12 +55,12 @@
         format = "[$all_status]($style)";
       };
       python = {
-        symbol = "";
+        symbol = "";
         style = "yellow";
         format = "[ $symbol $version ]($style)";
       };
       nodejs = {
-        symbol = "";
+        symbol = "";
         style = "green";
         format = "[ $symbol $version ]($style)";
       };
@@ -80,6 +80,8 @@
   # ───────── Hyprland ─────────
   xdg.configFile."hypr/hyprland.conf".source    = ./dotfiles/hypr/hyprland.conf;
   xdg.configFile."hypr/hyprpaper.conf".source   = ./dotfiles/hypr/hyprpaper.conf;
+  xdg.configFile."hypr/hyprlock.conf".source    = ./dotfiles/hypr/hyprlock.conf;
+  xdg.configFile."hypr/hypridle.conf".source    = ./dotfiles/hypr/hypridle.conf;
   xdg.configFile."hypr/autostart.conf" = {
     source     = ./dotfiles/hypr/autostart.conf;
     executable = true;
@@ -113,6 +115,14 @@
   };
   home.file.".local/bin/waybar-refresh-toggle" = {
     source     = ./dotfiles/local-bin/waybar-refresh-toggle;
+    executable = true;
+  };
+  home.file.".local/bin/waybar-power-monitor" = {
+    source     = ./dotfiles/local-bin/waybar-power-monitor;
+    executable = true;
+  };
+  home.file.".local/bin/waybar-memory-info" = {
+    source     = ./dotfiles/local-bin/waybar-memory-info;
     executable = true;
   };
 

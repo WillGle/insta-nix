@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Waybar Memory Info - Top 5 RAM consumers
+# Outputs JSON for custom module
+
+# --- Icons (Nerd Font Hex) ---
+ICON_MEM=$(printf "\uf0c9")
+
+# Get used/total RAM in GiB
+used=$(free -g | awk '/Mem:/ {print $3}')
+total=$(free -g | awk '/Mem:/ {print $2}')
+perc=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100.0}')
+
+# Get top 5 processes by memory %
+top_procs=$(ps -eo comm,pmem --sort=-pmem | head -n 6 | tail -n 5 | awk '{printf "%-15s %s%%\\n", $1, $2}')
+
+printf '{"text":"%s %sG/%sG (%s%%)", "tooltip":"Top RAM Consumers:\\n------------------\\n%s", "class":"%s"}\n' \
+    "$ICON_MEM" "$used" "$total" "$perc" "$top_procs" "$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) print "warning"; else print "normal"}')"

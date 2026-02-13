@@ -1,45 +1,48 @@
+/* Wofi Compact Style - High Contrast & No-BS */
+
 window {
-    font-family: "Roboto", sans-serif;
-    font-size: 15px;
-    background-color: #1e1e2e;
+    font-family: "FiraCode Nerd Font", monospace;
+    font-size: 13px;
+    background-color: #0d0d0f;
     color: #ffffff;
-    border: 2px solid #89b4fa;
+    border: 2px solid #00cdbd;
     border-radius: 6px;
-    padding: 10px;
 }
 
 #outer-box {
-    margin: 0px;
-    padding: 10px;
-    spacing: 10px;
+    margin: 2px;
+    padding: 5px;
 }
 
 #input {
+    margin: 5px;
     padding: 6px 10px;
     border-radius: 4px;
     border: none;
-    background-color: #313244;
-    color: #cdd6f4;
-    font-size: 16px;
+    background-color: #1a1a1d;
+    color: #ffffff;
+    font-size: 14px;
 }
 
-#input:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px #89b4fa;
+#inner-box {
+    margin: 2px;
 }
 
 #entry {
-    padding: 8px;
-    margin: 4px 0;
+    padding: 6px 10px;
+    margin: 1px 0;
     border-radius: 4px;
-    background-color: #313244;
 }
 
 #entry:selected {
-    background-color: #89b4fa;
-    color: #1e1e2e;
+    background-color: #00cdbd;
+    color: #0d0d0f;
 }
 
 #text {
-    margin-left: 8px;
+    margin-left: 10px;
+}
+
+#img {
+    margin-right: 4px;
 }

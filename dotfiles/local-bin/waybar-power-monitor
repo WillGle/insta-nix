@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# Waybar consolidated hardware monitor
+# Usage: waybar-power-monitor gpu|cpu|pwr|prof|toggle
+
+MODE="${1:-pwr}"
+
+BAT_POWER="/sys/class/power_supply/BAT1/power_now"
+BAT_VOLT="/sys/class/power_supply/BAT1/voltage_now"
+BAT_CAP="/sys/class/power_supply/BAT1/capacity"
+BAT_STATUS="/sys/class/power_supply/BAT1/status"
+BAT_ENERGY_NOW="/sys/class/power_supply/BAT1/energy_now"
+BAT_ENERGY_FULL="/sys/class/power_supply/BAT1/energy_full"
+BAT_ENERGY_FULL_DESIGN="/sys/class/power_supply/BAT1/energy_full_design"
+BAT_CYCLE_COUNT="/sys/class/power_supply/BAT1/cycle_count"
+
+# --- Icons (Nerd Font Hex) ---
+ICON_CPU=$(printf "\uf2db")
+ICON_GPU=$(printf "\U000f08ae")
+ICON_BAT_100=$(printf "\uf240")
+ICON_BAT_80=$(printf "\uf241")
+ICON_BAT_60=$(printf "\uf242")
+ICON_BAT_40=$(printf "\uf243")
+ICON_BAT_20=$(printf "\uf244")
+ICON_PLUG=$(printf "\uf1e6")
+ICON_WATT=$(printf "\uf0e7")
+ICON_PERF=$(printf "\uf0e7")     # Bolt
+ICON_BALANCED=$(printf "\uf24e") # Scales
+ICON_SAVER=$(printf "\uf06c")   # Leaf
+
+# --- Helper Functions ---
+
+get_temp() {
+    local name="$1"
+    for d in /sys/class/hwmon/hwmon*; do
+        if [ "$(cat "$d/name" 2>/dev/null)" = "$name" ]; then
+            cat "$d/temp1_input" 2>/dev/null || echo 0
+            return
+        fi
+    done
+    echo 0
+}
+
+# --- Main Data Gathering ---
+
+# System Total Power & Voltage
+sys_uw=$(cat "$BAT_POWER" 2>/dev/null || echo 0)
+sys_w=$(awk -v uw="${sys_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
+volt_uv=$(cat "$BAT_VOLT" 2>/dev/null || echo 0)
+volt_v=$(awk -v uv="${volt_uv:-0}" "BEGIN{printf \"%.2f\", uv/1000000}")
+cap=$(cat "$BAT_CAP" 2>/dev/null || echo 0)
+stat=$(cat "$BAT_STATUS" 2>/dev/null || echo "Unknown")
+
+# Battery Time Estimation
+time_str=""
+if [ "${sys_uw:-0}" -gt 500000 ]; then # 0.5W minimum to avoid noise
+    e_now=$(cat "$BAT_ENERGY_NOW" 2>/dev/null || echo 0)
+    e_full=$(cat "$BAT_ENERGY_FULL" 2>/dev/null || echo 0)
+    
+    if [ "$stat" = "Discharging" ]; then
+        # Hours remaining
+        hours_raw=$(awk -v now="${e_now:-0}" -v uw="${sys_uw:-1}" "BEGIN{print now / uw}")
+    elif [ "$stat" = "Charging" ]; then
+        # Hours until full
+        hours_raw=$(awk -v full="${e_full:-0}" -v now="${e_now:-0}" -v uw="${sys_uw:-1}" "BEGIN{print (full - now) / uw}")
+    fi
+    
+    if [ -n "$hours_raw" ]; then
+        h_m=$(awk -v hr="$hours_raw" 'BEGIN{ 
+            if (hr > 0 && hr < 24) {
+                h = int(hr);
+                m = int((hr - h) * 60 + 0.5);
+                if (m == 60) { h++; m = 0; }
+                printf "%d:%02d", h, m;
+            }
+        }')
+        [ -n "$h_m" ] && time_str="[$h_m]"
+    fi
+fi
+
+# Battery Health & Capacity Metrics
+e_now=$(cat "$BAT_ENERGY_NOW" 2>/dev/null || echo 0)
+e_full=$(cat "$BAT_ENERGY_FULL" 2>/dev/null || echo 0)
+e_design=$(cat "$BAT_ENERGY_FULL_DESIGN" 2>/dev/null || echo 0)
+cycles=$(cat "$BAT_CYCLE_COUNT" 2>/dev/null || echo 0)
+
+wh_now=$(awk -v en="${e_now:-0}" "BEGIN{printf \"%.1f\", en/1000000}")
+wh_full=$(awk -v ef="${e_full:-0}" "BEGIN{printf \"%.1f\", ef/1000000}")
+health=$(awk -v ef="${e_full:-0}" -v ed="${e_design:-1}" "BEGIN{printf \"%.1f\", (ef/ed)*100}")
+
+# GPU Power & Temp
+gpu_w=0
+gpu_temp_raw=$(get_temp "amdgpu")
+for d in /sys/class/hwmon/hwmon*; do
+    if [ "$(cat "$d/name" 2>/dev/null)" = "amdgpu" ]; then
+        gpu_uw=$(cat "$d/power1_average" 2>/dev/null || echo 0)
+        gpu_w=$(awk -v uw="${gpu_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
+        break
+    fi
+done
+
+cpu_temp_raw=$(get_temp "k10temp")
+cpu_w=$(awk -v sw="${sys_w:-0}" -v gw="${gpu_w:-0}" "BEGIN{v=sw-gw; if(v<0) v=0; printf \"%.1f\", v}")
+
+# Battery Icon & Style Class
+icon="$ICON_BAT_100"
+if [ "${cap:-0}" -le 20 ]; then icon="$ICON_BAT_20"; fi
+if [ "${cap:-0}" -gt 20 ] && [ "${cap:-0}" -le 40 ]; then icon="$ICON_BAT_40"; fi
+if [ "${cap:-0}" -gt 40 ] && [ "${cap:-0}" -le 60 ]; then icon="$ICON_BAT_60"; fi
+if [ "${cap:-0}" -gt 60 ] && [ "${cap:-0}" -le 80 ]; then icon="$ICON_BAT_80"; fi
+if [ "$stat" = "Charging" ]; then icon="$ICON_PLUG"; fi
+
+b_cls="normal"
+if [ "${cap:-0}" -le 20 ]; then b_cls="critical"; fi
+if [ "$stat" = "Charging" ]; then b_cls="charging"; fi
+
+# --- Output Generation ---
+
+case "$MODE" in
+    gpu)
+        t_c=$(awk -v tr="${gpu_temp_raw:-0}" "BEGIN{printf \"%.1f\", tr/1000}")
+        t_cls=$(awk -v tr="${gpu_temp_raw:-0}" "BEGIN{if(tr>=90000) print \"critical\"; else if(tr>=70000) print \"hot\"; else if(tr>=50000) print \"warm\"; else print \"normal\"}")
+        w_cls=$(awk -v w="${gpu_w:-0}" "BEGIN{if(w>=50) print \"high\"; else if(w>=25) print \"medium\"; else print \"normal\"}")
+        
+        printf '{"text":"%s %s°C ⚡%sW", "tooltip":"GPU Performance\\nTemp: %s°C\\nPower: %sW", "class":["%s", "%s"]}\n' \
+            "$ICON_GPU" "$t_c" "$gpu_w" "$t_c" "$gpu_w" "$t_cls" "$w_cls"
+        ;;
+    cpu)
+        t_c=$(awk -v tr="${cpu_temp_raw:-0}" "BEGIN{printf \"%.1f\", tr/1000}")
+        t_cls=$(awk -v tr="${cpu_temp_raw:-0}" "BEGIN{if(tr>=90000) print \"critical\"; else if(tr>=70000) print \"hot\"; else if(tr>=50000) print \"warm\"; else print \"normal\"}")
+        w_cls=$(awk -v w="${cpu_w:-0}" "BEGIN{if(w>=55) print \"high\"; else if(w>=30) print \"medium\"; else print \"normal\"}")
+        
+        printf '{"text":"%s %s°C ⚡%sW", "tooltip":"CPU Performance\\nTemp: %s°C\\nPower: %sW (Est)", "class":["%s", "%s"]}\n' \
+            "$ICON_CPU" "$t_c" "$cpu_w" "$t_c" "$cpu_w" "$t_cls" "$w_cls"
+        ;;
+    pwr)
+        # Power Profile info (for tooltip only)
+        profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
+
+        # Determine Intake vs Consumption vs Battery Flow
+        if [ "$stat" = "Discharging" ]; then
+            w_in="0.0"
+            w_out="$sys_w"
+            w_batt=$(awk -v sw="${sys_w:-0}" "BEGIN{printf \"-%.1f\", sw}")
+        else
+            w_out=$(awk -v gw="${gpu_w:-0}" "BEGIN{printf \"%.1f\", gw + 5.0}") 
+            if [ "$stat" = "Charging" ]; then
+                w_in=$(awk -v out="${w_out:-0}" -v sw="${sys_w:-0}" "BEGIN{printf \"%.1f\", out + sw}")
+                w_batt=$(awk -v sw="${sys_w:-0}" "BEGIN{printf \"+%.1f\", sw}")
+            else
+                w_in="$w_out"
+                w_batt="0.0"
+            fi
+        fi
+
+        w_cls=$(awk -v win="${w_in:-0}" "BEGIN{if(win>=80) print \"high\"; else if(win>=40) print \"medium\"; else print \"normal\"}")
+        
+        # Power Flow display: ↓[In]W  ↑[Out]W  [BatIcon] [Cap]%
+        printf '{"text":"↓%sW  ↑%sW  %s  %s%%", "tooltip":"⚡ System Energy Flow\\n---------------------------\\nIntake (Wall):   %sW\\nConsumption:     %sW\\n  ├─ GPU:       %sW\\n  └─ CPU/Board: %sW (Est)\\n\\n🔋 Battery Status\\n---------------------------\\nBattery:        %s%% (%s)\\nHealth:         %s%%\\nCycles:         %s\\nCapacity:      %s / %s Wh\\nVoltage:        %sV\\nRemaining:      %s\\nProfile:        %s", "class":["%s", "%s", "power-flow"]}\n' \
+            "$w_in" "$w_out" "$icon" "$cap" \
+            "$w_in" "$w_out" "$gpu_w" "$(awk -v out="${w_out:-0}" -v gw="${gpu_w:-0}" "BEGIN{printf \"%.1f\", out - gw}")" \
+            "$cap" "$stat" "$health" "$cycles" "$wh_now" "$wh_full" "$volt_v" "${time_str:-N/A}" "$profile" \
+            "$w_cls" "$b_cls"
+        ;;
+    prof)
+        profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
+        case "$profile" in
+            performance)  p_icon="$ICON_PERF"; p_cls="perf" ;;
+            balanced)     p_icon="$ICON_BALANCED"; p_cls="normal" ;;
+            power-saver)  p_icon="$ICON_SAVER"; p_cls="saver" ;;
+            *)            p_icon="?"; p_cls="normal" ;;
+        esac
+        printf '{"text":" %s ", "tooltip":"Power Profile: %s\\nClick to cycle", "class":"%s"}\n' "$p_icon" "$profile" "$p_cls"
+        ;;
+    toggle)
+        p=$(/run/current-system/sw/bin/powerprofilesctl get)
+        case "$p" in
+            performance) /run/current-system/sw/bin/powerprofilesctl set balanced ;;
+            balanced)    /run/current-system/sw/bin/powerprofilesctl set power-saver ;;
+            power-saver) /run/current-system/sw/bin/powerprofilesctl set performance ;;
+        esac
+        pkill -RTMIN+2 waybar
+        ;;
+esac

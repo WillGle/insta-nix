@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
   programs.steam = {
     enable = true;
@@ -11,8 +11,6 @@
   # Gaming tools and helpers.
   environment.systemPackages = with pkgs; [
     mesa-demos
-    vulkan-tools
-    libva-utils
     steam-run
     mangohud
   ];

@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
   environment.systemPackages = with pkgs; [
     # Wayland & desktop
@@ -97,5 +97,8 @@
     starship
     bash
     gawk
+
+    # Auth agents
+    pantheon.pantheon-agent-polkit
   ];
 }

@@ -6,11 +6,13 @@
   };
 
   programs.hyprland.enable = true;
+  programs.hyprlock.enable = true;
+  services.hypridle.enable = true;
   services.displayManager.sessionPackages = [ pkgs.hyprland ];
   services.displayManager.sddm = {
     enable = true;
     wayland.enable = true;
-    theme = "sugar-dark";
+    theme = "sddm-astronaut-theme";
   };
   services.displayManager.defaultSession = "hyprland";
 
@@ -28,18 +30,20 @@
     enable = true;
     type = "fcitx5";
     fcitx5 = {
-      addons = with pkgs; [ qt6Packages.fcitx5-unikey fcitx5-bamboo fcitx5-gtk ];
+      addons = with pkgs; [ 
+        qt6Packages.fcitx5-unikey 
+        fcitx5-bamboo 
+        fcitx5-gtk 
+        libsForQt5.fcitx5-qt 
+      ];
       waylandFrontend = true;
     };
   };
 
-  # Session/UI variables (cursor and Qt scaling).
+  # Session/UI variables (Qt scaling).
   environment.sessionVariables = {
-    XCURSOR_THEME = "Bibata-Modern-Ice";
-    XCURSOR_SIZE = "24";
     QT_FONT_DPI = "144";
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
-    XMODIFIERS = "@im=fcitx";
   };
 }

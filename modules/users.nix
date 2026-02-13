@@ -8,7 +8,6 @@
       "networkmanager" "wheel" "video" "input"
       "seat" "audio" "bluetooth" "docker"
     ];
-    packages = with pkgs; [ ];
   };
 
   # Shell / prompt

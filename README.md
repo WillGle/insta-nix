@@ -25,28 +25,60 @@ The configuration is split into specialized modules for clarity:
 
 ---
 
-## Installation & Build
+## Maintenance & Daily Use
 
-### Local Application
+### Apply Changes
 
-To apply changes locally after editing:
+To apply configuration changes immediately:
 
 ```bash
 sudo nixos-rebuild switch --flake .#Laptop
 ```
 
-### Dry-Run Verification
-
-Verify evaluation and build without switching:
+To apply changes only for the next boot (useful for kernel/driver updates):
 
 ```bash
-nixos-rebuild dry-activate --flake .#Laptop
+sudo nixos-rebuild boot --flake .#Laptop
 ```
 
-### Update Flake Inputs
+### Update System
+
+1. Update sources (flake.lock): `nix flake update`
+2. Apply updates: `sudo nixos-rebuild switch --flake .#Laptop`
+
+### Troubleshooting & Rollback
+
+Switch to the previous generation if something breaks:
 
 ```bash
-nix flake update
+sudo nixos-rebuild switch --rollback
+```
+
+List system generations:
+
+```bash
+nix-env --list-generations --profile /nix/var/nix/profiles/system
+```
+
+### Cleanup & Disk Space
+
+Delete old generations to free up space:
+
+```bash
+# Delete older than 7 days
+sudo nix-collect-garbage --delete-older-than 7d
+# Full hard cleanup
+sudo nix-collect-garbage -d
+```
+
+### Package Search
+
+Search for available packages:
+
+```bash
+nix-env -qaP <name>
+# OR use nix-search if installed
+nix-search <name>
 ```
 
 ---
@@ -88,37 +120,35 @@ To install this configuration on a remote AMD laptop via SSH:
 
 - **Kernel**: Switched to `linuxPackages_zen` for better desktop responsiveness.
 - **P-State**: Running in `active` mode for optimal frequency scaling.
-- **Early KMS**: Driver `amdgpu` is nạp sớm (loaded in initrd) to prevent boot flickering.
+- **Early KMS**: Driver `amdgpu` is loaded in initrd to prevent boot flickering.
 - **ROCm**: Enabled for GPU-accelerated computing (AI/ML and OpenCL) in [gpu.nix](modules/gpu.nix).
 - **P-State EPP**: Managed via `power-profiles-daemon` for consistent and conflict-free frequency scaling.
 
-### Compatibility Overrides (Workarounds)
+### Premium Authentication UI
 
-Due to occasional build failures in the latest NixOS branch:
+- **SDDM**: Using `sddm-astronaut-theme` for a modern login experience.
+- **Lock Screen**: **Hyprlock** provides a high-performance, minimalist lock screen with wallpaper blur.
+- **Idle Management**: **Hypridle** handles screen dimming and automatic locking for efficiency.
+- **Polkit**: **Pantheon Polkit Agent** provides premium-feel elevation prompts.
 
-- **DeaDBeeF**: Pinned to **NixOS 24.11** branch. This bypasses a known compilation error in the `swift` dependency on 25.11.
+### Input Method (Vietnamese)
+
+- **Framework**: Fcitx5 with UniKey and Bamboo engines.
+- **Compatibility**: Environment variables managed in Hyprland for GTK, Qt5/6, and Electron support.
+- **Wayland Native**: Optimized by unsetting `GTK_IM_MODULE` to favor native Wayland protocols.
 
 ---
 
-## Future: Home Manager Transition
+## Home Manager (Active)
 
-To eventually manage `~/.config/` via Nix, follow these catchup steps:
+Home Manager is fully integrated as a NixOS flake module. It manages:
 
-### 1. The Strategy
+- **Shell**: Fish, Starship prompt, Direnv
+- **Desktop**: Hyprland, Waybar, Wofi, Kanshi configs
+- **Scripts**: `~/.local/bin/` waybar helpers
+- **XDG**: User directories, default applications
 
-- **Phase 1**: Add Home Manager as a Flake input.
-- **Phase 2**: Start with one app (e.g., `git` or `fish`) to test symlinking.
-- **Phase 3**: Move `Hyprland` and complex configs.
-
-### 2. Quick Catchup for Action
-
-- **ReadOnly**: Managed files in `~/.config/` will become read-only. Edit the Nix source, then rebuild.
-- **Backups**: Use `home-manager.backupFileExtension = "backup";` to avoid conflicts with existing config files.
-- **Commands**:
-
-  ```bash
-  nix flake update home-manager
-  ```
+Managed files in `~/.config/` are read-only. Edit sources in `dotfiles/`, then rebuild.
 
 ---
 

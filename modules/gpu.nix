@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
   # X.org driver
   services.xserver.videoDrivers = [ "amdgpu" ];

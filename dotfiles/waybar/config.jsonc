@@ -2,89 +2,85 @@
   "layer": "top",
   "position": "top",
   "height": 30,
-
-  "modules-left": ["custom/refresh_rate", "hyprland/workspaces"],
-  "modules-center": ["clock"],
-  "modules-right": [
-    "custom/gpu_temp",
-    "custom/cpu_temp",
-    "custom/separator",
-    "memory",
-    "custom/separator",
+  "modules-left": [
     "pulseaudio",
-    "custom/separator",
     "custom/power_profile",
-    "custom/separator",
-    "battery",
+    "custom/refresh_rate",
+    "hyprland/workspaces"
+  ],
+  "modules-center": [
+    "clock"
+  ],
+  "modules-right": [
+    "custom/gpu_info",
+    "custom/cpu_info",
+    "custom/watt_info",
+    "custom/memory_info",
     "tray"
   ],
-
-  "hyprland/workspaces": { "format": "{name}" },
-
+  "hyprland/workspaces": {
+    "format": "{name}"
+  },
   "clock": {
-    "format": "{:%a %d %b   %H:%M}",
-    "tooltip-format": "<big>{:%A, %d %B %Y}</big>\\n<tt>{calendar}</tt>",
+    "format": " {:%a %d %b  %H:%M}",
+    "tooltip-format": "<big>{:%A, %d %B %Y}</big>\n<tt>{calendar}</tt>",
     "on-click": "gsimplecal"
   },
-
-  // ─── Temperature widgets ───────────────────────────────────────────
-  "custom/cpu_temp": {
-    "exec": "for d in /sys/class/hwmon/hwmon*; do [ \"$(cat $d/name 2>/dev/null)\" = \"k10temp\" ] && awk 'BEGIN{raw=0; cls=\"normal\"} {raw=$1} END{tc=raw/1000; if(raw>=70000) cls=\"hot\"; else if(raw>=50000) cls=\"warm\"; printf \"{\\\"text\\\":\\\"CPU: %.1f°C\\\", \\\"class\\\":\\\"%s\\\"}\\n\", tc, cls }' \"$d/temp1_input\" && exit; done",
+  // ─── Memory (custom with top-process tooltip) ─────────────────────
+  "custom/memory_info": {
+    "exec": "~/.local/bin/waybar-memory-info",
     "return-type": "json",
-    "interval": 5,
-    "tooltip": false
+    "interval": 1,
+    "tooltip": true
   },
-
-  "custom/gpu_temp": {
-    "exec": "for d in /sys/class/hwmon/hwmon*; do [ \"$(cat $d/name 2>/dev/null)\" = \"amdgpu\" ] && awk 'BEGIN{raw=0; cls=\"normal\"} {raw=$1} END{tc=raw/1000; if(raw>=70000) cls=\"hot\"; else if(raw>=50000) cls=\"warm\"; printf \"{\\\"text\\\":\\\"GPU: %.1f°C\\\", \\\"class\\\":\\\"%s\\\"}\\n\", tc, cls }' \"$d/temp1_input\" && exit; done",
+  "custom/cpu_info": {
+    "exec": "~/.local/bin/waybar-power-monitor cpu",
     "return-type": "json",
-    "interval": 5,
-    "tooltip": false
+    "interval": 1,
+    "tooltip": true
   },
-
-
-  "custom/separator": { "format": " | ", "tooltip": false },
-
-  // ─── Memory widget ────────────────────────────────────────────────
-  "memory": {
-    "interval": 3,
-    "format": "{used:.1f}G/{total:.0f}G ({percentage}%)",
-    "states": { "warning": 70, "critical": 90 },
-    "tooltip-format": "Used : {used:.1f} GiB\\nAvail : {avail:.1f} GiB\\nSwap  : {swapUsed:.1f}/{swapTotal:.1f} GiB"
-  },
-
-  // ─── Audio widget ────────────────────────────────────────────────
+  // ─── Audio ────────────────────────────────────────────────────────
   "pulseaudio": {
-    "format": "{volume}% ",
-    "format-muted": "",
+    "format": "{icon}  {volume}%",
+    "format-bluetooth": " {volume}%",
+    "format-muted": "󰖁",
+    "format-bluetooth-muted": " 󰖁",
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "scroll-step": 1,
-    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+    "tooltip-format": "{icon} {volume}%",
+    "format-icons": {
+      "default": [
+        ""
+      ]
+    }
   },
-
-  // ─── Power profile (powerprofilesctl) ─────────────────────────────────────────
-  "custom/power_profile": {
-    "exec": "/run/current-system/sw/bin/powerprofilesctl get | sed 's/performance//; s/balanced//; s/power-saver//'",
-    "return-type": "text",
+  // ─── Hardware Monitors (consolidated temp + power) ────────────────
+  "custom/gpu_info": {
+    "exec": "~/.local/bin/waybar-power-monitor gpu",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": true
+  },
+  "custom/watt_info": {
+    "exec": "~/.local/bin/waybar-power-monitor pwr",
+    "return-type": "json",
     "interval": 2,
-    "on-click": "sh -c 'p=$(/run/current-system/sw/bin/powerprofilesctl get); case \"$p\" in performance) /run/current-system/sw/bin/powerprofilesctl set balanced ;; balanced) /run/current-system/sw/bin/powerprofilesctl set power-saver ;; power-saver) /run/current-system/sw/bin/powerprofilesctl set performance ;; esac'",
-    "tooltip-format": "Click to cycle performance → balanced → power-saver"
+    "tooltip": true
   },
-
-
-  // ─── Refresh rate  ───────────────────────────────────────────────
+  "custom/power_profile": {
+    "exec": "~/.local/bin/waybar-power-monitor prof",
+    "return-type": "json",
+    "interval": 30,
+    "signal": 2,
+    "on-click": "~/.local/bin/waybar-power-monitor toggle",
+    "tooltip": true
+  },
+  // ─── Refresh Rate ─────────────────────────────────────────────────
   "custom/refresh_rate": {
     "exec": "~/.local/bin/waybar-refresh-label",
     "return-type": "text",
     "interval": 1,
     "on-click": "~/.local/bin/waybar-refresh-toggle",
     "tooltip": false
-  },
-
-  // ─── Battery widget ──────────────────────────────────────────────
-  "battery": {
-    "format": "{capacity}% {icon}",
-    "format-icons": ["", "", "", "", ""],
-    "format-charging": "{capacity}% ⚡",
-    "states": { "critical": 20 }
   }
 }

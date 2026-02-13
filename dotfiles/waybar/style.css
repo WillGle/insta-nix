@@ -1,153 +1,174 @@
 /* =========================================================================
-   Waybar Enhanced Dark Theme – GTK‑compatible (rev4, FiraCode Nerd Font Icons)
+   Waybar Enhanced Dark Theme – GTK‑compatible (rev5, audited)
+   Waybar v0.14.0 • FiraCode Nerd Font Icons
    ========================================================================= */
 
 /* ---------- Color palette ------------------------------------------------ */
-@define-color bg       #0d0d0f;
-@define-color bg_alt   #1a1a1d;
-@define-color fg       #d0d0d0;
-@define-color accent   #00cdbd;
-@define-color warn     #ffb636;
-@define-color crit     #ff5555;
-@define-color sep      #555555;
+@define-color bg #0d0d0f;
+@define-color bg_alt #1a1a1d;
+@define-color fg #d0d0d0;
+@define-color accent #00cdbd;
+@define-color warn #ffb636;
+@define-color crit #ff5555;
+@define-color purple #c678dd;
 
 /* ---------- Global reset ------------------------------------------------- */
 * {
-  border        : none;
-  border-radius : 0;
-  padding       : 0 5px;
-  margin        : 0;
-  font-family   : "FiraCode Nerd Font", monospace;
-  font-weight   : bold;
-  font-size     : 13px;
-  background    : transparent;
-  color         : @fg;
+  border: none;
+  border-radius: 0;
+  padding: 0 5px;
+  margin: 0;
+  font-family: "FiraCode Nerd Font", monospace;
+  font-weight: bold;
+  font-size: 13px;
+  background: transparent;
+  color: @fg;
+  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
 }
 
 /* ---------- Waybar container -------------------------------------------- */
 window#waybar {
-  background     : rgba(13,13,15,0.66);
-  border-bottom  : 1px solid #333333;
-  box-shadow     : 0 2px 6px rgba(0,0,0,0.5);
-  min-height     : 30px;
+  background: rgba(13, 13, 15, 0.66);
+  border-bottom: 1px solid #333333;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  min-height: 30px;
 }
 
 /* ---------- Workspaces --------------------------------------------------- */
 #workspaces button {
-  padding       : 0 8px;
-  color         : #aaaaaa;
-  margin        : 0 2px;
-  border-radius : 0px;
+  padding: 0 8px;
+  color: #aaaaaa;
+  margin: 0 2px;
+  border-radius: 0px;
 }
 
 #workspaces button.focused {
-  color         : @bg;
-  background    : @accent;
-  font-weight   : 600;
+  color: @bg;
+  background: @accent;
+  font-weight: 600;
 }
 
 #workspaces button:hover {
-  background    : @bg_alt;
-  color         : @fg;
+  background: @bg_alt;
+  color: @fg;
 }
 
 /* ---------- Generic module container ------------------------------------ */
 #clock,
+#tray,
 #pulseaudio,
-#battery,
-#network,
-#bluetooth,
-#cpu,
-#memory,
-#custom-cpu_temp,
-#custom-gpu_temp,
-#custom-input_method {
-  padding       : 0 12px;
-  margin        : 0 4px;
-  background    : @bg_alt;
-  border-radius : 0px;
+#custom-memory_info,
+#custom-gpu_info,
+#custom-cpu_info,
+#custom-watt_info,
+#custom-power_profile,
+#custom-refresh_rate {
+  padding: 0 12px;
+  margin: 0 4px;
+  background: @bg_alt;
+  border-radius: 0px;
 }
 
 #clock:hover,
+#tray:hover,
 #pulseaudio:hover,
-#battery:hover,
-#network:hover,
-#bluetooth:hover {
-  background    : rgba(255,255,255,0.06);
+#custom-memory_info:hover,
+#custom-gpu_info:hover,
+#custom-cpu_info:hover,
+#custom-watt_info:hover,
+#custom-power_profile:hover,
+#custom-refresh_rate:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-/* ---------- Separator ---------------------------------------------------- */
-#custom-separator {
-  color         : @sep;
-  font-weight   : bold;
-  padding       : 0 5px;
+
+/* =========================================================================
+   State Classes
+   Priority: critical > hot > high > warm > medium > charging > normal
+   The script returns an array of classes, Waybar applies ALL matching styles.
+   ========================================================================= */
+
+/* --- Temperature states (text color) ------------------------------------ */
+#custom-gpu_info.warm,
+#custom-cpu_info.warm {
+  color: @warn;
 }
 
-/* ---------- Battery ------------------------------------------------------ */
-#battery {
-  border        : 2px solid rgba(255,255,255,0.07);
+#custom-gpu_info.hot,
+#custom-cpu_info.hot {
+  color: @crit;
+  font-weight: bold;
 }
 
-#battery.charging {
-  color         : @accent;
-  border-color  : @accent;
+#custom-gpu_info.critical,
+#custom-cpu_info.critical {
+  color: @purple;
+  font-weight: bold;
 }
 
-#battery.critical {
-  color         : @crit;
-  border-color  : @crit;
-  font-weight   : bold;
+/* --- Power states (top border accent) ----------------------------------- */
+#custom-gpu_info.medium,
+#custom-cpu_info.medium,
+#custom-watt_info.medium {
+  border-top: 2px solid @warn;
 }
 
-/* ---------- Temperature states ------------------------------------------ */
-#custom-cpu_temp.normal,
-#custom-gpu_temp.normal { color: @fg; }
-
-#custom-cpu_temp.warm,
-#custom-gpu_temp.warm   { color: @warn; }
-
-#custom-cpu_temp.hot,
-#custom-gpu_temp.hot    {
-  color       : @crit;
-  font-weight : bold;
+#custom-gpu_info.high,
+#custom-cpu_info.high,
+#custom-watt_info.high {
+  color: @crit;
+  font-weight: bold;
+  border-top: 2px solid @crit;
 }
 
-/* ---------- Memory states ----------------------------------------------- */
-#memory.warning  { color: @warn; }
-#memory.critical {
-  color       : @crit;
-  font-weight : bold;
+/* --- Battery states (bottom border accent) ------------------------------ */
+#custom-watt_info.charging {
+  color: @accent;
+  border-bottom: 2px solid @accent;
 }
 
-/* ---------- PulseAudio --------------------------------------------------- */
-#pulseaudio.muted { color: #888888; }
+#custom-watt_info.critical {
+  color: @crit;
+  border-bottom: 2px solid @crit;
+}
 
-/* ---------- Tooltip fix -------------------------------------------------- */
+/* --- Memory states ------------------------------------------------------ */
+#custom-memory_info.warning {
+  color: @warn;
+}
+
+#custom-memory_info.critical {
+  color: @crit;
+  font-weight: bold;
+}
+
+/* ---------- Audio info --------------------------------------------------- */
+#pulseaudio.muted {
+  color: #888888;
+}
+
+/* ---------- Power Profile states ----------------------------------------- */
+#custom-power_profile.perf {
+  color: @crit;
+  border-bottom: 2px solid @crit;
+}
+
+#custom-power_profile.saver {
+  color: @accent;
+  border-bottom: 2px solid @accent;
+}
+
+/* ---------- Tooltip ------------------------------------------------------ */
 tooltip {
-  background-color : @bg_alt;
-  border           : 1px solid @accent;
-  border-radius    : 6px;
-  padding          : 8px 12px;
-  color            : @fg;
-  font-size        : 12px;
+  background-color: @bg_alt;
+  border: 1px solid @accent;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: @fg;
+  font-size: 12px;
 }
 
-/* ---------- Network icon override ---------------------------------------- */
-#network {
-  /* Default state is wifi. Others can be styled by class if needed */
-}
-
-/* ---------- Bluetooth icon override -------------------------------------- */
-#bluetooth {
-  /* Style placeholder if needed later */
-}
-
-/* ---------- Input method module ------------------------------------------ */
-#custom-input_method {
-  font-weight : bold;
-}
-
-/* ---------- Popup Fix for NetworkManager -------------------------------- */
+/* ---------- Network Manager Popup Fix ----------------------------------- */
 .menu,
 .popup,
 .popup * {
@@ -157,6 +178,6 @@ tooltip {
 
 .popup menuitem:hover,
 .popup *:hover {
-  background-color: rgba(255, 255, 255, 0.1);  /* hoặc dùng @accent */
+  background-color: rgba(255, 255, 255, 0.1);
   color: @accent;
 }
