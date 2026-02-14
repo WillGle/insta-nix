@@ -1,8 +1,4 @@
-{
-  ...
-}:
-
-{
+_: {
   # Nix caches and build parallelism.
   # Nix settings moved to core.nix
 

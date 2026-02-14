@@ -1,8 +1,4 @@
-{
-  ...
-}:
-
-{
+_: {
   # ───────── Virtualization ─────────
   virtualisation.docker = {
     enable = true;

@@ -29,32 +29,32 @@
     # System utilities
     btop
     cliphist
+    dosfstools
+    exfatprogs
     eza
     fastfetch
+    gnome-disk-utility
     htop
     jq
     lm_sensors
     nautilus
+    ntfs3g
     pciutils
     playerctl
     pkgsUnstable.ryzenadj
+    poppler-utils
     stress-ng
+    tree
+    udiskie
     usbutils
     wget
-    udiskie
-    dosfstools
-    exfatprogs
-    ntfs3g
-    gnome-disk-utility
-    poppler-utils
-    tree
 
     # Media tools/codecs
     ffmpeg-full
     ffmpegthumbnailer
     gnome-epub-thumbnailer
-    libheif
     libavif
+    libheif
     v4l-utils
 
     # Audio
@@ -114,8 +114,8 @@
     pkgs24_11.deadbeef
 
     # Audit Tools (Rigidity)
+    deadnix
     nixfmt-rfc-style
     statix
-    deadnix
   ];
 }
