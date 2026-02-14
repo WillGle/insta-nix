@@ -167,7 +167,14 @@ To install this configuration on a remote AMD laptop via SSH:
 - **Ryzen SMU**: `ryzen-smu` kernel module enabled for advanced CPU metrics and control.
 - **Early KMS**: Driver `amdgpu` is loaded in initrd to prevent boot flickering.
 - **ROCm**: Enabled for GPU-accelerated computing (AI/ML and OpenCL) in [gpu.nix](modules/gpu.nix).
-- **Power Scripts**: Custom `waybar-power-monitor` in `~/.local/bin/` for real-time wattage monitoring and profile switching.
+
+### Custom Tooling: `waybar-power-monitor`
+
+A specialized script (`~/.local/bin/waybar-power-monitor`) monitors the Ryzen APU limits:
+
+- **`apu` Mode**: Combined CPU+GPU Temp, Package Power, and Frequency/Usage stats.
+- **`sys` Mode**: Calculated System/Screen power (Total - APU).
+- **`pwr` Mode**: Real-time Battery Charge/Discharge flow.
 
 ### Premium Authentication UI
 

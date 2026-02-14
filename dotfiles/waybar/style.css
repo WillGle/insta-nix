@@ -4,13 +4,13 @@
    ========================================================================= */
 
 /* ---------- Color palette ------------------------------------------------ */
-@define-color bg #0d0d0f;
-@define-color bg_alt #1a1a1d;
-@define-color fg #d0d0d0;
-@define-color accent #00cdbd;
-@define-color warn #ffb636;
-@define-color crit #ff5555;
-@define-color purple #c678dd;
+@define-color bg {{base}};
+@define-color bg_alt {{mantle}};
+@define-color fg {{text}};
+@define-color accent {{accent}};
+@define-color warn {{warning}};
+@define-color crit {{error}};
+@define-color purple {{purple}};
 
 /* ---------- Global reset ------------------------------------------------- */
 * {
@@ -28,28 +28,28 @@
 
 /* ---------- Waybar container -------------------------------------------- */
 window#waybar {
-  background: rgba(13, 13, 15, 0.66);
-  border-bottom: 1px solid #333333;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-  min-height: 30px;
+  background: rgba(13, 13, 15, 0.65);
+  /* Use #0d0d0f placeholder */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 28px;
 }
 
 /* ---------- Workspaces --------------------------------------------------- */
 #workspaces button {
-  padding: 0 8px;
-  color: #aaaaaa;
-  margin: 0 2px;
-  border-radius: 0px;
+  padding: 0 10px;
+  color: #888888;
+  margin: 0;
+  border-radius: 0;
 }
 
 #workspaces button.focused {
-  color: @bg;
-  background: @accent;
-  font-weight: 600;
+  color: @accent;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 2px solid @accent;
 }
 
 #workspaces button:hover {
-  background: @bg_alt;
+  background: rgba(255, 255, 255, 0.1);
   color: @fg;
 }
 
@@ -58,27 +58,25 @@ window#waybar {
 #tray,
 #pulseaudio,
 #custom-memory_info,
-#custom-gpu_info,
-#custom-cpu_info,
-#custom-watt_info,
+#custom-apu_info,
+#custom-power_flow,
 #custom-power_profile,
 #custom-refresh_rate {
-  padding: 0 12px;
-  margin: 0 4px;
-  background: @bg_alt;
-  border-radius: 0px;
+  padding: 0 10px;
+  margin: 0;
+  background: transparent;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 #clock:hover,
 #tray:hover,
 #pulseaudio:hover,
 #custom-memory_info:hover,
-#custom-gpu_info:hover,
-#custom-cpu_info:hover,
-#custom-watt_info:hover,
+#custom-apu_info:hover,
+#custom-power_flow:hover,
 #custom-power_profile:hover,
 #custom-refresh_rate:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 
@@ -89,45 +87,41 @@ window#waybar {
    ========================================================================= */
 
 /* --- Temperature states (text color) ------------------------------------ */
-#custom-gpu_info.warm,
-#custom-cpu_info.warm {
+#custom-apu_info.warm {
   color: @warn;
 }
 
-#custom-gpu_info.hot,
-#custom-cpu_info.hot {
+#custom-apu_info.hot {
   color: @crit;
   font-weight: bold;
 }
 
-#custom-gpu_info.critical,
-#custom-cpu_info.critical {
+#custom-apu_info.critical {
   color: @purple;
   font-weight: bold;
 }
 
 /* --- Power states (top border accent) ----------------------------------- */
-#custom-gpu_info.medium,
-#custom-cpu_info.medium,
-#custom-watt_info.medium {
+/* --- Power states (top border accent) ----------------------------------- */
+#custom-apu_info.medium,
+#custom-power_flow.medium {
   border-top: 2px solid @warn;
 }
 
-#custom-gpu_info.high,
-#custom-cpu_info.high,
-#custom-watt_info.high {
+#custom-apu_info.high,
+#custom-power_flow.high {
   color: @crit;
   font-weight: bold;
   border-top: 2px solid @crit;
 }
 
 /* --- Battery states (bottom border accent) ------------------------------ */
-#custom-watt_info.charging {
+#custom-power_flow.charging {
   color: @accent;
   border-bottom: 2px solid @accent;
 }
 
-#custom-watt_info.critical {
+#custom-power_flow.critical {
   color: @crit;
   border-bottom: 2px solid @crit;
 }

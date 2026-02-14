@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 # Waybar consolidated hardware monitor
-# Usage: waybar-power-monitor gpu|cpu|pwr|prof|toggle
+# Usage: waybar-power-monitor apu|sys|pwr|prof|toggle
 
 MODE="${1:-pwr}"
 
@@ -16,7 +17,7 @@ BAT_CYCLE_COUNT="/sys/class/power_supply/BAT1/cycle_count"
 
 # --- Icons (Nerd Font Hex) ---
 ICON_CPU=$(printf "\uf2db")
-ICON_GPU=$(printf "\U000f08ae")
+ICON_GPU=$(printf "\uf108")
 ICON_BAT_100=$(printf "\uf240")
 ICON_BAT_80=$(printf "\uf241")
 ICON_BAT_60=$(printf "\uf242")
@@ -36,18 +37,18 @@ apply_ryzen_settings() {
     case "$prof" in
         performance)
             # High Perf: 54W limit (Max cTDP), -20 All Core CO
-            # Pushing the silicon quality. If crash -> reduce to -15
-            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=54000 --fast-limit=54000 --slow-limit=54000 --tctl-temp=95 --vrm-current=70000 --vrmmax-current=90000 --set-coall=-20 2>/dev/null
+            # EPP: performance (bias towards high clocks)
+            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=54000 --fast-limit=54000 --slow-limit=54000 --tctl-temp=95 --vrm-current=70000 --vrmmax-current=90000 --set-coall=-20 2>/dev/null || true
             ;;
         balanced)
             # Balanced: 28W limit, -15 All Core CO
-            # Efficient daily driver
-            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=28000 --fast-limit=28000 --slow-limit=28000 --tctl-temp=85 --set-coall=-15 2>/dev/null
+            # EPP: balance_performance (responsive but efficient)
+            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=28000 --fast-limit=28000 --slow-limit=28000 --tctl-temp=85 --set-coall=-15 2>/dev/null || true
             ;;
         power-saver)
             # Saver: 15W limit, -20 All Core CO
-            # Maximum efficiency for battery life
-            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=15000 --fast-limit=15000 --slow-limit=15000 --tctl-temp=75 --set-coall=-20 2>/dev/null
+            # EPP: power (bias towards low clocks/idle)
+            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=15000 --fast-limit=15000 --slow-limit=15000 --tctl-temp=75 --set-coall=-20 2>/dev/null || true
             ;;
     esac
 }
@@ -56,11 +57,49 @@ get_temp() {
     local name="$1"
     for d in /sys/class/hwmon/hwmon*; do
         if [ "$(cat "$d/name" 2>/dev/null)" = "$name" ]; then
-            cat "$d/temp1_input" 2>/dev/null || echo 0
+            # Try multiple common temperature inputs (Edge/Junction usually safer/faster)
+            cat "$d/edge_input" 2>/dev/null || \
+            cat "$d/temp1_input" 2>/dev/null || \
+            cat "$d/junction_input" 2>/dev/null || \
+            echo 0
             return
         fi
     done
     echo 0
+}
+
+get_cpu_usage() {
+    # Calculate CPU usage over a short interval (0.1s)
+    # Read 1
+    read -r cpu a b c d e f g _ < /proc/stat
+    prev_idle=$e
+    prev_total=$((a+b+c+d+e+f+g))
+    sleep 0.1
+    # Read 2
+    read -r cpu a b c d e f g _ < /proc/stat
+    idle=$e
+    total=$((a+b+c+d+e+f+g))
+    
+    diff_idle=$((idle - prev_idle))
+    diff_total=$((total - prev_total))
+    
+    if [ "$diff_total" -eq 0 ]; then echo 0; else
+        echo $((100 * (diff_total - diff_idle) / diff_total))
+    fi
+}
+
+get_gpu_usage() {
+    cat /sys/class/drm/card0/device/gpu_busy_percent 2>/dev/null || echo 0
+}
+
+get_cpu_freq() {
+    # Average current frequency of all cores in GHz
+    awk '{sum+=$1} END {printf "%.1f", sum/NR/1000000}' /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
+}
+
+get_gpu_freq() {
+    # GPU Shader Clock in MHz
+    awk '{printf "%d", $1/1000000}' /sys/class/hwmon/hwmon0/freq1_input 2>/dev/null || echo 0
 }
 
 # --- Main Data Gathering ---
@@ -115,7 +154,8 @@ gpu_w=0
 gpu_temp_raw=$(get_temp "amdgpu")
 for d in /sys/class/hwmon/hwmon*; do
     if [ "$(cat "$d/name" 2>/dev/null)" = "amdgpu" ]; then
-        gpu_uw=$(cat "$d/power1_average" 2>/dev/null || echo 0)
+        # Try instantaneous input first (less likely to block), then average
+        gpu_uw=$(cat "$d/power1_input" 2>/dev/null || cat "$d/power1_average" 2>/dev/null || echo 0)
         gpu_w=$(awk -v uw="${gpu_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
         break
     fi
@@ -139,21 +179,46 @@ if [ "$stat" = "Charging" ]; then b_cls="charging"; fi
 # --- Output Generation ---
 
 case "$MODE" in
-    gpu)
-        t_c=$(awk -v tr="${gpu_temp_raw:-0}" "BEGIN{printf \"%.1f\", tr/1000}")
-        t_cls=$(awk -v tr="${gpu_temp_raw:-0}" "BEGIN{if(tr>=90000) print \"critical\"; else if(tr>=70000) print \"hot\"; else if(tr>=50000) print \"warm\"; else print \"normal\"}")
-        w_cls=$(awk -v w="${gpu_w:-0}" "BEGIN{if(w>=50) print \"high\"; else if(w>=25) print \"medium\"; else print \"normal\"}")
+    apu) # Formerly GPU
+        # APU Metrics: Power (Pkg), Temp (CPU & GPU), Usage, Freq
+        t_gpu_raw=$(get_temp "amdgpu")
+        t_cpu_raw=$(get_temp "k10temp")
         
-        printf '{"text":"%s %s°C ⚡%sW", "tooltip":"GPU Performance\\nTemp: %s°C\\nPower: %sW", "class":["%s", "%s"]}\n' \
-            "$ICON_GPU" "$t_c" "$gpu_w" "$t_c" "$gpu_w" "$t_cls" "$w_cls"
+        t_gpu=$(awk -v tr="${t_gpu_raw:-0}" "BEGIN{printf \"%.0f\", tr/1000}")
+        t_cpu=$(awk -v tr="${t_cpu_raw:-0}" "BEGIN{printf \"%.0f\", tr/1000}")
+        
+        # Usage & Freq
+        # Note: calling usage functions first as they might sleep
+        cpu_util=$(get_cpu_usage)
+        gpu_util=$(get_gpu_usage)
+        cpu_freq=$(get_cpu_freq)
+        gpu_freq=$(get_gpu_freq)
+
+        # Classes
+        t_cls="normal"
+        if [ "$t_cpu" -ge 85 ] || [ "$t_gpu" -ge 85 ]; then t_cls="critical";
+        elif [ "$t_cpu" -ge 70 ] || [ "$t_gpu" -ge 70 ]; then t_cls="hot";
+        fi
+        
+        # Format: [Chip] [CPU°] [GPU_Icon] [GPU°] [APU W]
+        # Tooltip: Usage, Freq, Detailed Power
+        printf '{"text":" %s°C %s %s°C ⚡%sW", "tooltip":"<b>APU (AMD CPU)</b>\\n----------------\\n<b>CPU:</b> %s%% @ %sGHz\\n<b>GPU:</b> %s%% @ %sMHz\\n\\n<b>Thermals:</b>\\nCPU Core: %s°C\\niGPU:     %s°C\\n\\n<b>Power (Package):</b> %sW", "class":["%s", "normal"]}\n' \
+            "$t_cpu" "$ICON_GPU" "$t_gpu" "$gpu_w" \
+            "$cpu_util" "$cpu_freq" \
+            "$gpu_util" "$gpu_freq" \
+            "$t_cpu" "$t_gpu" \
+            "$gpu_w" \
+            "$t_cls"
         ;;
-    cpu)
-        t_c=$(awk -v tr="${cpu_temp_raw:-0}" "BEGIN{printf \"%.1f\", tr/1000}")
-        t_cls=$(awk -v tr="${cpu_temp_raw:-0}" "BEGIN{if(tr>=90000) print \"critical\"; else if(tr>=70000) print \"hot\"; else if(tr>=50000) print \"warm\"; else print \"normal\"}")
-        w_cls=$(awk -v w="${cpu_w:-0}" "BEGIN{if(w>=55) print \"high\"; else if(w>=30) print \"medium\"; else print \"normal\"}")
+    sys) # Formerly CPU
+        # System Metrics: Screen/Board Power
+        # Calculated as: Total - APU
         
-        printf '{"text":"%s %s°C ⚡%sW", "tooltip":"CPU Performance\\nTemp: %s°C\\nPower: %sW (Est)", "class":["%s", "%s"]}\n' \
-            "$ICON_CPU" "$t_c" "$cpu_w" "$t_c" "$cpu_w" "$t_cls" "$w_cls"
+        p_cls="normal"
+        if [ "$(awk -v w="${cpu_w:-0}" 'BEGIN{if(w>15) print 1; else print 0}')" -eq 1 ]; then p_cls="high"; fi
+
+        printf '{"text":" ⚡%sW", "tooltip":"<b>System / Screen</b>\\n----------------\\nDisplay, WiFi, SSD, Mobo\\n\\n<b>Power Consumption:</b> %sW", "class":["%s", "normal"]}\n' \
+            "$cpu_w" "$cpu_w" "$p_cls"
         ;;
     pwr)
         # Power Profile info (for tooltip only)
@@ -169,6 +234,11 @@ case "$MODE" in
             if [ "$stat" = "Charging" ]; then
                 w_in=$(awk -v out="${w_out:-0}" -v sw="${sys_w:-0}" "BEGIN{printf \"%.1f\", out + sw}")
                 w_batt=$(awk -v sw="${sys_w:-0}" "BEGIN{printf \"+%.1f\", sw}")
+            elif [ "$stat" = "Full" ]; then
+                 w_in="$w_out"
+                 w_batt="0.0"
+                 # Ensure we show 100% properly
+                 cap="100"
             else
                 w_in="$w_out"
                 w_batt="0.0"
@@ -177,10 +247,10 @@ case "$MODE" in
 
         w_cls=$(awk -v win="${w_in:-0}" "BEGIN{if(win>=80) print \"high\"; else if(win>=40) print \"medium\"; else print \"normal\"}")
         
-        # Power Flow display: ↓[In]W  ↑[Out]W  [BatIcon] [Cap]%
-        printf '{"text":"↓%sW  ↑%sW  %s  %s%%", "tooltip":"⚡ System Energy Flow\\n---------------------------\\nIntake (Wall):   %sW\\nConsumption:     %sW\\n  ├─ GPU:       %sW\\n  └─ CPU/Board: %sW (Est)\\n\\n🔋 Battery Status\\n---------------------------\\nBattery:        %s%% (%s)\\nHealth:         %s%%\\nCycles:         %s\\nCapacity:      %s / %s Wh\\nVoltage:        %sV\\nRemaining:      %s\\nProfile:        %s", "class":["%s", "%s", "power-flow"]}\n' \
-            "$w_in" "$w_out" "$icon" "$cap" \
-            "$w_in" "$w_out" "$gpu_w" "$(awk -v out="${w_out:-0}" -v gw="${gpu_w:-0}" "BEGIN{printf \"%.1f\", out - gw}")" \
+        # Power Flow display:  [Sys]W  ↓[In]W  ↑[Out]W  [BatIcon] [Cap]%
+        printf '{"text":" %sW  ↓%sW  ↑%sW  %s  %s%%", "tooltip":"⚡ System Energy Flow\\n---------------------------\\nIntake (Wall):   %sW\\nConsumption:     %sW\\n  ├─ APU (Pkg):     %sW\\n  └─ Sys/Screen:  %sW (Est)\\n\\n🔋 Battery Status\\n---------------------------\\nBattery:        %s%% (%s)\\nHealth:         %s%%\\nCycles:         %s\\nCapacity:      %s / %s Wh\\nVoltage:        %sV\\nRemaining:      %s\\nProfile:        %s", "class":["%s", "%s", "power-flow"]}\n' \
+            "$cpu_w" "$w_in" "$w_out" "$icon" "$cap" \
+            "$w_in" "$w_out" "$gpu_w" "$cpu_w" \
             "$cap" "$stat" "$health" "$cycles" "$wh_now" "$wh_full" "$volt_v" "${time_str:-N/A}" "$profile" \
             "$w_cls" "$b_cls"
         ;;

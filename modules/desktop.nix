@@ -1,5 +1,7 @@
 {
   pkgs,
+  lib,
+  config,
   ...
 }:
 {
@@ -15,12 +17,14 @@
       sddm = {
         enable = true;
         wayland.enable = true;
+        theme = "sddm-astronaut-theme";
         package = pkgs.kdePackages.sddm;
         extraPackages = with pkgs; [
           kdePackages.qtmultimedia
           kdePackages.qtsvg
           kdePackages.qtvirtualkeyboard
           kdePackages.qt5compat
+          sddm-astronaut
         ];
       };
       defaultSession = "hyprland";

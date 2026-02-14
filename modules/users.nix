@@ -1,4 +1,9 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 {
   users.users.will = {
     isNormalUser = true;
@@ -17,10 +22,8 @@
     ];
   };
 
-  # Shell / prompt delegated to Home Manager
-  # programs.fish.enable = true;
-  # programs.starship.enable = true;
-  programs.fish.enable = true; # Keep system-wide fish enabling, but config in HM
+  # Shell enabled system-wide, but configured in Home Manager
+  programs.fish.enable = true;
 
   # sudo rule for tlp (only if tlp is enabled)
   security.sudo.extraRules = [

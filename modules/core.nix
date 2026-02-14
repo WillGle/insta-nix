@@ -1,5 +1,7 @@
 {
+  pkgs,
   lib,
+  config,
   ...
 }:
 
@@ -33,6 +35,15 @@
   };
 
   nixpkgs.config.allowUnfree = true;
+
+  # ───────── Console ─────────
+  console = {
+    font = "Lat2-Terminus16";
+    colors = [
+      "0d1117" "f85149" "3fb950" "d29922" "58a6ff" "bc8cff" "39c5cf" "b1b8c0"
+      "6e7681" "ff7b72" "56d364" "e3b341" "79c0ff" "d2a8ff" "56d4dd" "f0f6fc"
+    ];
+  };
 
   # ───────── System State Version ─────────
   system.stateVersion = "25.11";

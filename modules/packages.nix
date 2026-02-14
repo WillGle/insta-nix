@@ -1,5 +1,7 @@
 {
   pkgs,
+  lib,
+  config,
   pkgsUnstable,
   ...
 }:
@@ -20,6 +22,7 @@
     dunst
     hyprpaper
     hyprshot
+    hyprlock
     sway
     swayidle
     swaylock
@@ -84,7 +87,7 @@
     sonic-visualiser
     vlc
 
-    # Apps (Restored for stability)
+    # Apps
     brave
     discord
     firefox

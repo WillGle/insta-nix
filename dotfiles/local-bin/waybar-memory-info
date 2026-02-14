@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 # Waybar Memory Info - Top 5 RAM consumers
 # Outputs JSON for custom module
 

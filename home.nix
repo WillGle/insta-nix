@@ -33,6 +33,7 @@
         source = ./dotfiles/local-bin/waybar-memory-info;
         executable = true;
       };
+      ".config/fastfetch/config.jsonc".source = ./dotfiles/fastfetch/config.jsonc;
     };
   };
 
@@ -50,8 +51,8 @@
         # Enable Vietnamese input environment for fcitx5
         set -xU INPUT_METHOD fcitx
 
-        # Run fastfetch at shell startup
-        fastfetch
+        # Run fastfetch at shell startup with custom config
+        fastfetch --config ~/.config/fastfetch/config.jsonc
       '';
       shellAliases = {
         ll = "eza -la --icons";
@@ -66,35 +67,59 @@
       enableFishIntegration = true;
       settings = {
         add_newline = false;
-        format = "[](${osConfig.theme.colors.base})\$username[](${osConfig.theme.colors.base})\$directory[](${osConfig.theme.colors.mantle})\$git_branch\$git_status[](black)\$python\$nodejs[](${osConfig.theme.colors.text})";
+        format = " $os[](${osConfig.theme.colors.accent})$username[](bg:${osConfig.theme.colors.mantle} fg:${osConfig.theme.colors.accent})$directory[](fg:${osConfig.theme.colors.mantle} bg:${osConfig.theme.colors.base})$git_branch$git_status[](fg:${osConfig.theme.colors.base} bg:${osConfig.theme.colors.mantle})$python$nodejs$memory_usage$battery[](fg:${osConfig.theme.colors.mantle}) ";
 
+        os = {
+          disabled = false;
+          style = "bold white";
+          symbols.NixOS = " ";
+        };
         username = {
-          style_user = "bold white";
-          format = "[ $user ]($style)";
+          style_user = "bold white bg:${osConfig.theme.colors.accent}";
+          format = "[$user]($style)";
           show_always = true;
         };
         directory = {
-          style = "bold white";
+          style = "bold white bg:${osConfig.theme.colors.mantle}";
           format = "[ $path ]($style)";
+          truncation_length = 3;
+          truncation_symbol = "…/";
         };
         git_branch = {
           symbol = "";
-          style = "bold yellow";
+          style = "bold yellow bg:${osConfig.theme.colors.base}";
           format = "[ $symbol $branch ]($style)";
         };
         git_status = {
-          style = "green";
+          style = "green bg:${osConfig.theme.colors.base}";
           format = "[$all_status]($style)";
         };
         python = {
           symbol = "";
-          style = "yellow";
+          style = "yellow bg:${osConfig.theme.colors.mantle}";
           format = "[ $symbol $version ]($style)";
         };
         nodejs = {
           symbol = "";
-          style = "green";
+          style = "green bg:${osConfig.theme.colors.mantle}";
           format = "[ $symbol $version ]($style)";
+        };
+        memory_usage = {
+          disabled = false;
+          threshold = 75;
+          format = "[ 󰍛 $percentage ](bold purple bg:${osConfig.theme.colors.mantle})";
+        };
+        battery = {
+          full_symbol = "󰁹 ";
+          charging_symbol = "󰂄 ";
+          discharging_symbol = "󰂃 ";
+          display = [
+            {
+              threshold = 30;
+              style = "bold red bg:${osConfig.theme.colors.mantle}";
+            }
+          ];
+          format = "[ $symbol$percentage ](bold green bg:${osConfig.theme.colors.mantle})";
         };
       };
     };
@@ -150,7 +175,14 @@
     # ───────── Config Files ─────────
     configFile = {
       # Hyprland
-      "hypr/hyprland.conf".source = ./dotfiles/hypr/hyprland.conf;
+      "hypr/hyprland.conf".text =
+        let
+          conf = builtins.readFile ./dotfiles/hypr/hyprland.conf;
+        in
+        builtins.replaceStrings
+          [ "exec-once = /nix/store/4qk1a19d4ry8hfk69dv5lzd42shr6dk4-pantheon-agent-polkit-8.0.1/libexec/policykit-1-pantheon/io.elementary.desktop.agent-polkit" ]
+          [ "# Polkit agent started via systemd user service" ]
+          conf;
       "hypr/hyprpaper.conf".source = ./dotfiles/hypr/hyprpaper.conf;
       "hypr/hyprlock.conf".source = ./dotfiles/hypr/hyprlock.conf;
       "hypr/hypridle.conf".source = ./dotfiles/hypr/hypridle.conf;
@@ -176,13 +208,13 @@
         in
         builtins.replaceStrings
           [
-            "#0d0d0f"
-            "#1a1a1d"
-            "#d0d0d0"
-            "#00cdbd"
-            "#ffb636"
-            "#ff5555"
-            "#c678dd"
+            "{{base}}"
+            "{{mantle}}"
+            "{{text}}"
+            "{{accent}}"
+            "{{warning}}"
+            "{{error}}"
+            "{{purple}}"
           ]
           [
             c.base
@@ -206,6 +238,22 @@
 
       # Kanshi
       "kanshi/config".source = ./dotfiles/kanshi/config;
+    };
+  };
+
+  # ───────── Systemd User Services ─────────
+  systemd.user.services.pantheon-polkit-agent = {
+    Unit = {
+      Description = "Pantheon Polkit Agent";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.pantheon.pantheon-agent-polkit}/libexec/policykit-1-pantheon/io.elementary.desktop.agent-polkit";
+      Restart = "on-failure";
+    };
+    Install = {
+      WantedBy = [ "graphical-session.target" ];
     };
   };
 }

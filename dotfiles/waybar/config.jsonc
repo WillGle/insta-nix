@@ -12,9 +12,8 @@
     "clock"
   ],
   "modules-right": [
-    "custom/gpu_info",
-    "custom/cpu_info",
-    "custom/watt_info",
+    "custom/apu_info",
+    "custom/power_flow",
     "custom/memory_info",
     "tray"
   ],
@@ -29,12 +28,6 @@
   // ─── Memory (custom with top-process tooltip) ─────────────────────
   "custom/memory_info": {
     "exec": "~/.local/bin/waybar-memory-info",
-    "return-type": "json",
-    "interval": 1,
-    "tooltip": true
-  },
-  "custom/cpu_info": {
-    "exec": "~/.local/bin/waybar-power-monitor cpu",
     "return-type": "json",
     "interval": 1,
     "tooltip": true
@@ -55,13 +48,14 @@
     }
   },
   // ─── Hardware Monitors (consolidated temp + power) ────────────────
-  "custom/gpu_info": {
-    "exec": "~/.local/bin/waybar-power-monitor gpu",
+  "custom/apu_info": {
+    "exec": "waybar-power-monitor apu",
     "return-type": "json",
-    "interval": 1,
+    "format": "{}",
+    "interval": 2,
     "tooltip": true
   },
-  "custom/watt_info": {
+  "custom/power_flow": {
     "exec": "~/.local/bin/waybar-power-monitor pwr",
     "return-type": "json",
     "interval": 2,
