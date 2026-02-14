@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 MON="eDP-1"
 hyprctl monitors | awk -v m="$MON" '
   $0 ~ ("^Monitor " m) {f=1; next}

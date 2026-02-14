@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Post-Reboot Verification Script for Ryzen Optimization
+
+echo "----------------------------------------------------------------"
+echo "🔍 System Optimization Verification"
+echo "----------------------------------------------------------------"
+
+# 1. Check Kernel Version
+UNAME=$(uname -r)
+echo "🐧 Kernel Version: $UNAME"
+if [[ "$UNAME" == *"zen"* ]]; then
+    echo "✅ Zen Kernel Active"
+else
+    echo "⚠️ Warning: Zen Kernel NOT Active"
+fi
+
+
+# 2. Check Ryzen SMU Module
+if lsmod | grep -q "ryzen_smu"; then
+    echo "✅ ryzen_smu Module Loaded"
+else
+    echo "❌ ryzen_smu Module Failed to Load!"
+    echo "   (This prevents Undervolting/Curve Optimizer)"
+fi
+
+# 3. Check RyzenAdj Status
+echo "----------------------------------------------------------------"
+echo "⚡ RyzenAdj Metrics (Current):"
+sudo ryzenadj -i | grep -E "stapm_limit|fast_limit|slow_limit|tctl_temp|Curve Optimizer"
+echo "----------------------------------------------------------------"
+
+# 4. Stress Test Option
+read -p "🚀 Do you want to run a 30-second Stress Test? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "🔥 Running Stress Test (CPU)... Monitor temps in btop!"
+    echo "   (Open a new terminal and run 'btop' now if you want to watch)"
+    sleep 2
+    stress-ng --cpu 16 --timeout 30s --metrics-brief
+    echo "✅ Stress Test Complete."
+else
+    echo "ℹ️  Skipping stress test."
+fi
+
+echo "----------------------------------------------------------------"
+echo "To toggle power modes, run: /etc/nixos/dotfiles/local-bin/waybar-power-monitor toggle"

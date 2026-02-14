@@ -12,57 +12,74 @@
     };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, nixpkgs-24-11, home-manager, ... }:
-  let
-    system = "x86_64-linux";
-    lib = nixpkgs.lib;
+  outputs =
+    {
+      nixpkgs,
+      nixpkgs-unstable,
+      nixpkgs-24-11,
+      home-manager,
+      ...
+    }@inputs:
+    let
+      system = "x86_64-linux";
+      inherit (nixpkgs) lib;
 
-    pkgsUnstable = import nixpkgs-unstable {
-      inherit system;
-      config.allowUnfreePredicate = pkg:
-        builtins.elem (lib.getName pkg) [ "antigravity" ];
+      # Import specialized package sets
+      pkgsUnstable = import nixpkgs-unstable {
+        inherit system;
+        config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "antigravity" ];
+      };
+
+      pkgs24_11 = import nixpkgs-24-11 {
+        inherit system;
+        config.allowUnfree = true;
+      };
+
+    in
+    {
+      nixosConfigurations.Laptop = lib.nixosSystem {
+        inherit system;
+
+        # Pass specialized package sets and inputs to all modules
+        specialArgs = {
+          inherit inputs;
+          inherit pkgsUnstable pkgs24_11;
+        };
+
+        modules = [
+          # Hardware & Core
+          ./hardware-configuration.nix
+          ./modules/core.nix
+          ./modules/i18n.nix
+
+          # System Modules
+          ./modules/boot.nix
+          ./modules/services.nix
+          ./modules/perf.nix
+          ./modules/desktop.nix
+          ./modules/networking.nix
+          ./modules/gpu.nix
+          ./modules/audio.nix
+          ./modules/users.nix
+          ./modules/packages.nix
+          ./modules/gaming.nix
+          ./modules/fonts.nix
+
+          # Home Manager
+          home-manager.nixosModules.home-manager
+          {
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              backupFileExtension = "backup";
+              users.will = import ./home.nix;
+              extraSpecialArgs = {
+                inherit inputs;
+                inherit pkgsUnstable pkgs24_11;
+              };
+            };
+          }
+        ];
+      };
     };
-
-    pkgs24_11 = import nixpkgs-24-11 {
-      inherit system;
-      config.allowUnfree = true;
-    };
-  in {
-    nixosConfigurations.Laptop = lib.nixosSystem {
-      inherit system;
-      modules = [
-        ./hardware-configuration.nix
-        ./modules/boot.nix
-        ./modules/services.nix
-        ./modules/perf.nix
-        ./modules/desktop.nix
-        ./modules/networking.nix
-        ./modules/gpu.nix
-        ./modules/audio.nix
-        ./modules/users.nix
-
-        ({ ... }: {
-          nixpkgs.config.allowUnfree = true;
-          system.stateVersion = "25.11";
-          environment.systemPackages = [
-            pkgsUnstable.antigravity
-            pkgs24_11.deadbeef
-          ];
-        })
-
-        ./modules/packages.nix
-        ./modules/gaming.nix
-        ./modules/fonts.nix
-
-        # ───────── Home Manager ─────────
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.backupFileExtension = "backup";
-          home-manager.users.will = import ./home.nix;
-        }
-      ];
-    };
-  };
 }

@@ -1,4 +1,7 @@
-{ config, lib, pkgs, ... }:
+{
+  pkgs,
+  ...
+}:
 {
   fonts = {
     enableDefaultPackages = true;
@@ -10,7 +13,7 @@
       nerd-fonts.jetbrains-mono
 
       noto-fonts
-      noto-fonts-cjk-sans     
+      noto-fonts-cjk-sans
       noto-fonts-color-emoji
 
       roboto
@@ -22,10 +25,16 @@
 
     # Optional defaults (family names must match installed fonts)
     fontconfig.defaultFonts = {
-      monospace = [ "JetBrainsMono Nerd Font" "FiraCode Nerd Font" ];
-      sansSerif = [ "Noto Sans" "Roboto" ];
-      serif     = [ "Noto Serif" ];
-      emoji     = [ "Noto Color Emoji" ];
+      monospace = [
+        "JetBrainsMono Nerd Font"
+        "FiraCode Nerd Font"
+      ];
+      sansSerif = [
+        "Noto Sans"
+        "Roboto"
+      ];
+      serif = [ "Noto Serif" ];
+      emoji = [ "Noto Color Emoji" ];
     };
   };
 }

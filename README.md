@@ -17,15 +17,59 @@ The configuration is split into specialized modules for clarity:
   - **[audio.nix](modules/audio.nix)**: PipeWire, Bluetooth, and Blueman.
   - **[networking.nix](modules/networking.nix)**: NetworkManager with systemd-resolved and firewall rules.
   - **[users.nix](modules/users.nix)**: User account definitions and shell (fish/starship).
-  - **[packages.nix](modules/packages.nix)**: Global system package lists.
+  - **[packages.nix](modules/packages.nix)**: System utilities (CLI) and Audit tools (`statix`, `deadnix`).
   - **[gaming.nix](modules/gaming.nix)**: Steam, GameMode, and gaming-related tools.
   - **[fonts.nix](modules/fonts.nix)**: Multi-font setup with Nerd Fonts and Emoji support (Noto).
-- **[home.nix](home.nix)**: Home Manager user config (Fish, Starship, Direnv, XDG, mimeapps).
+- **[home.nix](home.nix)**: Home Manager user config. Manages:
+  - **User Apps**: Browsers (Brave), Dev tools (VSCode), Office (WPS), Media (Obsidian).
+  - **Shell**: Fish, Starship, Direnv.
+  - **Desktop**: Hyprland, Waybar, Wofi, XDG defaults.
 - **`dotfiles/`**: Source files for desktop environment configs (Hyprland, Waybar, Wofi, kanshi, scripts).
 
 ---
 
-## Maintenance & Daily Use
+## Maintenance & Code Quality
+
+### Audit & Rigidity
+
+The configuration follows a strict "Rigidity - Stability - Standardize - Unification" philosophy.
+
+- **Formatting**: All `.nix` files are formatted with `nixfmt`.
+- **Linting**: Enforced via `statix` (logic checks) and `deadnix` (unused code removal).
+- **Strict Scripts**: All shell scripts use `set -euo pipefail` for safety.
+
+Run the audit suite:
+
+```bash
+nix shell nixpkgs#statix nixpkgs#deadnix nixpkgs#nixfmt-rfc-style nixpkgs#git --command bash -c "statix check . && deadnix . && nixfmt --check \$(git ls-files '*.nix')"
+```
+
+### Verification Steps
+
+Run these commands to validate the system state:
+
+1. **Lint & Format**: Ensures code rigidity.
+
+   ```bash
+   nix shell nixpkgs#statix nixpkgs#deadnix nixpkgs#nixfmt-rfc-style nixpkgs#git --command bash -c "statix check . && deadnix . && nixfmt --check \$(git ls-files '*.nix')"
+   ```
+
+   *> Note: Uses `git ls-files` to ignore build artifacts (like `result/`).*
+
+2. **System Build**: Ensures the configuration is valid and builds.
+
+   ```bash
+   nixos-rebuild build --flake .#Laptop
+   ```
+
+3. **Script Runtime**: Verifies shell script stability.
+
+   ```bash
+   dotfiles/local-bin/waybar-memory-info
+   dotfiles/local-bin/verify-optimization
+   ```
+
+### Daily Use
 
 ### Apply Changes
 
@@ -43,7 +87,7 @@ sudo nixos-rebuild boot --flake .#Laptop
 
 ### Update System
 
-1. Update sources (flake.lock): `nix flake update`
+1. Update sources (flake.lock): `sudo nix flake update`
 2. Apply updates: `sudo nixos-rebuild switch --flake .#Laptop`
 
 ### Troubleshooting & Rollback
@@ -120,9 +164,10 @@ To install this configuration on a remote AMD laptop via SSH:
 
 - **Kernel**: Switched to `linuxPackages_zen` for better desktop responsiveness.
 - **P-State**: Running in `active` mode for optimal frequency scaling.
+- **Ryzen SMU**: `ryzen-smu` kernel module enabled for advanced CPU metrics and control.
 - **Early KMS**: Driver `amdgpu` is loaded in initrd to prevent boot flickering.
 - **ROCm**: Enabled for GPU-accelerated computing (AI/ML and OpenCL) in [gpu.nix](modules/gpu.nix).
-- **P-State EPP**: Managed via `power-profiles-daemon` for consistent and conflict-free frequency scaling.
+- **Power Scripts**: Custom `waybar-power-monitor` in `~/.local/bin/` for real-time wattage monitoring and profile switching.
 
 ### Premium Authentication UI
 
@@ -154,5 +199,5 @@ Managed files in `~/.config/` are read-only. Edit sources in `dotfiles/`, then r
 
 ## Notes
 
-- **Power Management**: The system uses `amd_pstate=active`. Use `powerprofilesctl` to switch modes.
+- **Power Management**: The system uses `amd_pstate=active`. Profile switching and monitoring are handled by the custom `waybar-power-monitor` script (toggle via Waybar icon or CLI).
 - **Maintenance**: Nix Garbage Collection runs weekly automatically, keeping the last 14 days of generations.

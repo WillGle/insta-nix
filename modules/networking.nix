@@ -1,4 +1,6 @@
-{ config, lib, pkgs, ... }:
+{
+  ...
+}:
 {
   networking = {
     hostName = "Laptop";
@@ -9,7 +11,10 @@
     firewall = {
       enable = true;
       checkReversePath = "loose";
-      trustedInterfaces = [ "proton0" "ipv6leakintrf0" ];
+      trustedInterfaces = [
+        "proton0"
+        "ipv6leakintrf0"
+      ];
     };
     resolvconf.enable = false;
   };
@@ -17,7 +22,10 @@
   services.resolved = {
     enable = true;
     dnssec = "false";
-    fallbackDns = [ "1.1.1.1" "8.8.8.8" ];
+    fallbackDns = [
+      "1.1.1.1"
+      "8.8.8.8"
+    ];
     domains = [ "~." ];
   };
 

@@ -1,15 +1,20 @@
-{ config, lib, pkgs, ... }:
+{
+  pkgs,
+  pkgsUnstable,
+  pkgs24_11,
+  ...
+}:
 {
   environment.systemPackages = with pkgs; [
     # Wayland & desktop
     brightnessctl
-    mission-center
-    waybar
-    wlr-randr
-    wl-clipboard
-    wob
     grim
+    mission-center
     slurp
+    waybar
+    wl-clipboard
+    wlr-randr
+    wob
     xdg-utils
 
     # WM helpers
@@ -22,6 +27,7 @@
     wofi
 
     # System utilities
+    btop
     cliphist
     eza
     fastfetch
@@ -31,6 +37,8 @@
     nautilus
     pciutils
     playerctl
+    pkgsUnstable.ryzenadj
+    stress-ng
     usbutils
     wget
     udiskie
@@ -69,36 +77,45 @@
     sddm-sugar-dark
 
     # Media apps
-    sonic-visualiser
-    obs-studio
-    mpv
-    vlc
-    guvcview
-    nomacs
     evince
+    guvcview
+    mpv
+    nomacs
+    obs-studio
+    sonic-visualiser
+    vlc
 
-    # Apps
+    # Apps (Restored for stability)
     brave
     discord
     firefox
     gsimplecal
+    libreoffice-fresh
     obsidian
     signal-desktop
     vscode
     wpsoffice
     xournalpp
-    libreoffice-fresh
     zotero
 
     # Shell & prompt
+    bash
     fish
+    gawk
     git
     gnome-console
     starship
-    bash
-    gawk
 
     # Auth agents
     pantheon.pantheon-agent-polkit
+
+    # Specific Versions
+    pkgsUnstable.antigravity
+    pkgs24_11.deadbeef
+
+    # Audit Tools (Rigidity)
+    nixfmt-rfc-style
+    statix
+    deadnix
   ];
 }

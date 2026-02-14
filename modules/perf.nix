@@ -1,30 +1,10 @@
-{ config, lib, pkgs, ... }:
+{
+  ...
+}:
 
 {
   # Nix caches and build parallelism.
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-
-    # Explicit cache and key for cache.nixos.org.
-    substituters = lib.mkAfter [
-      "https://cache.nixos.org"
-    ];
-    trusted-public-keys = lib.mkAfter [
-      "cache.nixos.org-1:6NCHdD59X3yjrwW3CvkxuV2L0GyGq5qF5S727Z6IQkQ="
-    ];
-
-    # Store dedup and build parallelism.
-    auto-optimise-store = true;
-    max-jobs = "auto";
-    cores = 0;
-  };
-
-  # Nix maintenance (moved from base.nix)
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 14d";
-  };
+  # Nix settings moved to core.nix
 
   # zram swap (tune memoryPercent).
   zramSwap = {

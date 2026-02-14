@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # Waybar Memory Info - Top 5 RAM consumers
 # Outputs JSON for custom module
 
