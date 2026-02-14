@@ -27,8 +27,8 @@
       "msr"
       "ryzen_smu"
     ];
-    kernelPackages = pkgs.linuxPackages_zen;
-    extraModulePackages = [ pkgs.linuxPackages_zen.ryzen-smu ];
+    kernelPackages = pkgs.linuxPackages;
+    extraModulePackages = [ pkgs.linuxPackages.ryzen-smu ];
 
     initrd.kernelModules = [ "amdgpu" ];
     blacklistedKernelModules = [ "lenovo_wmi_gamezone" ];

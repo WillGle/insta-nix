@@ -1,9 +1,4 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}:
+{ pkgs, ... }:
 {
   users.users.will = {
     isNormalUser = true;
@@ -22,34 +17,21 @@
     ];
   };
 
-  # Shell / prompt
-  programs.fish.enable = true;
-  programs.starship.enable = true;
+  # Shell / prompt delegated to Home Manager
+  # programs.fish.enable = true;
+  # programs.starship.enable = true;
+  programs.fish.enable = true; # Keep system-wide fish enabling, but config in HM
 
   # sudo rule for tlp (only if tlp is enabled)
-  # sudo rule for tlp (only if tlp is enabled)
-  # sudo rule for tlp (only if tlp is enabled)
-  security.sudo.extraRules =
-    (lib.optionals config.services.tlp.enable [
-      {
-        users = [ "will" ];
-        commands = [
-          {
-            command = "/run/current-system/sw/bin/tlp";
-            options = [ "NOPASSWD" ];
-          }
-        ];
-      }
-    ])
-    ++ [
-      {
-        users = [ "will" ];
-        commands = [
-          {
-            command = "/run/current-system/sw/bin/ryzenadj";
-            options = [ "NOPASSWD" ];
-          }
-        ];
-      }
-    ];
+  security.sudo.extraRules = [
+    {
+      users = [ "will" ];
+      commands = [
+        {
+          command = "/run/current-system/sw/bin/ryzenadj";
+          options = [ "NOPASSWD" ];
+        }
+      ];
+    }
+  ];
 }

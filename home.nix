@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  osConfig,
+  ...
+}:
 
 {
   home = {
@@ -61,7 +66,7 @@
       enableFishIntegration = true;
       settings = {
         add_newline = false;
-        format = "[](#001f3f)\$username[](#001f3f)\$directory[](#004080)\$git_branch\$git_status[](black)\$python\$nodejs[](#ffffff)";
+        format = "[](${osConfig.theme.colors.base})\$username[](${osConfig.theme.colors.base})\$directory[](${osConfig.theme.colors.mantle})\$git_branch\$git_status[](black)\$python\$nodejs[](${osConfig.theme.colors.text})";
 
         username = {
           style_user = "bold white";
@@ -134,14 +139,11 @@
         "x-scheme-handler/signalcaptcha" = "signal.desktop";
         "text/plain" = "code.desktop";
         "application/pdf" = "draw.desktop";
-        "audio/vnd.wave" = "deadbeef.desktop";
-        "audio/flac" = "deadbeef.desktop";
-        "audio/mp4" = "deadbeef.desktop";
-        "audio/x-dsf" = "deadbeef.desktop";
+
         "image/jpeg" = "org.gnome.gThumb.desktop";
         "application/wps-office.docx" = "wps-office-wps.desktop";
-        "application/wps-office.xlsx" = "calc.desktop";
-        "application/wps-office.pptx" = "impress.desktop";
+        "application/wps-office.xlsx" = "wps-office-et.desktop";
+        "application/wps-office.pptx" = "wps-office-wpp.desktop";
       };
     };
 
@@ -167,7 +169,31 @@
 
       # Waybar
       "waybar/config.jsonc".source = ./dotfiles/waybar/config.jsonc;
-      "waybar/style.css".source = ./dotfiles/waybar/style.css;
+      "waybar/style.css".text =
+        let
+          css = builtins.readFile ./dotfiles/waybar/style.css;
+          c = osConfig.theme.colors;
+        in
+        builtins.replaceStrings
+          [
+            "#0d0d0f"
+            "#1a1a1d"
+            "#d0d0d0"
+            "#00cdbd"
+            "#ffb636"
+            "#ff5555"
+            "#c678dd"
+          ]
+          [
+            c.base
+            c.mantle
+            c.text
+            c.accent
+            c.warning
+            c.error
+            c.purple
+          ]
+          css;
       "waybar/cliphist.sh" = {
         source = ./dotfiles/waybar/cliphist.sh;
         executable = true;

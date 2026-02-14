@@ -16,21 +16,10 @@ _: {
 
   # CPU policy.
   powerManagement.enable = true;
-  # cpuFreqGovernor removed: redundant with amd_pstate=active
 
   # Power daemon (pick one).
   services.power-profiles-daemon.enable = true;
 
-  # Optional: TLP for charge thresholds.
-  # services.power-profiles-daemon.enable = false;
-  # services.tlp = {
-  #   enable = true;
-  #   settings.STOP_CHARGE_THRESH_BAT0 = "80"; # Set to "0" for full charge.
-  # };
-
   # SSD trim.
   services.fstrim.enable = true;
-
-  # Optional: ccache for repeated C/C++ builds.
-  # programs.ccache.enable = true;
 }

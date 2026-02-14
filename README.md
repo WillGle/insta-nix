@@ -10,7 +10,7 @@ The configuration is split into specialized modules for clarity:
 - **[hardware-configuration.nix](hardware-configuration.nix)**: Hardware-specific generated config (UUIDs, boot modules).
 - **`modules/`**:
   - **[boot.nix](modules/boot.nix)**: EFI Bootloader (systemd-boot), mount points, and kernel params.
-  - **[services.nix](modules/services.nix)**: Core daemons (SSH, Docker, Flatpak) and Locale settings.
+  - **[services.nix](modules/services.nix)**: Core daemons (SSH, Docker, Flatpak, Power Profiles) and Locale settings.
   - **[perf.nix](modules/perf.nix)**: Performance tuning (zram, AMD P-State Active), and Nix GC.
   - **[desktop.nix](modules/desktop.nix)**: Hyprland, SDDM, fcitx5, and Wayland session variables.
   - **[gpu.nix](modules/gpu.nix)**: AMDGPU kernel driver and hardware acceleration (VA-API/Vulkan).
@@ -162,7 +162,7 @@ To install this configuration on a remote AMD laptop via SSH:
 
 ### Hardware Optimizations (AMD Ryzen)
 
-- **Kernel**: Switched to `linuxPackages_zen` for better desktop responsiveness.
+- **Kernel**: Switched to `pkgs.linuxPackages` (Stable) for maximum system stability and reliability.
 - **P-State**: Running in `active` mode for optimal frequency scaling.
 - **Ryzen SMU**: `ryzen-smu` kernel module enabled for advanced CPU metrics and control.
 - **Early KMS**: Driver `amdgpu` is loaded in initrd to prevent boot flickering.

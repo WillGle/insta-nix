@@ -1,7 +1,6 @@
 {
   pkgs,
   pkgsUnstable,
-  pkgs24_11,
   ...
 }:
 {
@@ -100,18 +99,15 @@
 
     # Shell & prompt
     bash
-    fish
     gawk
     git
     gnome-console
-    starship
 
     # Auth agents
     pantheon.pantheon-agent-polkit
 
     # Specific Versions
     pkgsUnstable.antigravity
-    pkgs24_11.deadbeef
 
     # Audit Tools (Rigidity)
     deadnix

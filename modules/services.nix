@@ -1,10 +1,4 @@
 _: {
-  # ───────── Virtualization ─────────
-  virtualisation.docker = {
-    enable = true;
-    storageDriver = "overlay2";
-  };
-
   # ───────── Core Services ─────────
   services = {
     dbus.enable = true;

@@ -12,12 +12,10 @@
     hypridle.enable = true;
 
     displayManager = {
-      sessionPackages = [ pkgs.hyprland ];
       sddm = {
         enable = true;
-        package = pkgs.kdePackages.sddm;
         wayland.enable = true;
-        theme = "sddm-astronaut-theme";
+        package = pkgs.kdePackages.sddm;
         extraPackages = with pkgs; [
           kdePackages.qtmultimedia
           kdePackages.qtsvg
@@ -27,6 +25,12 @@
       };
       defaultSession = "hyprland";
     };
+  };
+
+  programs.hyprland = {
+    enable = true;
+    # package = inputs.hyprland.packages.${pkgs.system}.hyprland; # Use if using flake input
+    # portalPackage = inputs.hyprland.packages.${pkgs.system}.xdg-desktop-portal-hyprland; # Use if using flake input
   };
 
   xdg.portal = {

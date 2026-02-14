@@ -4,7 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-24-11.url = "github:NixOS/nixpkgs/nixos-24.11";
 
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
@@ -16,7 +15,6 @@
     {
       nixpkgs,
       nixpkgs-unstable,
-      nixpkgs-24-11,
       home-manager,
       ...
     }@inputs:
@@ -26,11 +24,6 @@
 
       # Import specialized package sets
       pkgsUnstable = import nixpkgs-unstable {
-        inherit system;
-        config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "antigravity" ];
-      };
-
-      pkgs24_11 = import nixpkgs-24-11 {
         inherit system;
         config.allowUnfree = true;
       };
@@ -43,7 +36,7 @@
         # Pass specialized package sets and inputs to all modules
         specialArgs = {
           inherit inputs;
-          inherit pkgsUnstable pkgs24_11;
+          inherit pkgsUnstable;
         };
 
         modules = [
@@ -62,6 +55,8 @@
           ./modules/audio.nix
           ./modules/users.nix
           ./modules/packages.nix
+          ./modules/virtualisation.nix
+          ./modules/theme.nix
           ./modules/gaming.nix
           ./modules/fonts.nix
 
@@ -75,7 +70,7 @@
               users.will = import ./home.nix;
               extraSpecialArgs = {
                 inherit inputs;
-                inherit pkgsUnstable pkgs24_11;
+                inherit pkgsUnstable;
               };
             };
           }

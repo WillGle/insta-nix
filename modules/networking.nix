@@ -1,4 +1,5 @@
 _: {
+  # ───────── Networking ─────────
   networking = {
     hostName = "Laptop";
     networkmanager = {
@@ -13,9 +14,12 @@ _: {
         "ipv6leakintrf0"
       ];
     };
+    # Strict DNS / VPN Leak Protection
+    # Disabling resolvconf to let systemd-resolved handle DNS exclusively (prevents leaks).
     resolvconf.enable = false;
   };
 
+  # ───────── DNS / Resolver ─────────
   services.resolved = {
     enable = true;
     dnssec = "false";

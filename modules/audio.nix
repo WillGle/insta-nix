@@ -1,4 +1,5 @@
 _: {
+  # ───────── Audio ─────────
   # PipeWire (PulseAudio disabled)
   services = {
     pulseaudio.enable = false;
