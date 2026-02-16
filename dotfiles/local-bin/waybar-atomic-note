@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Waybar Atomic Note Display Script
+# Idle: [Priority][Task] [Remaining]
+# Hover: Top 5 Tasks
+
+TASK_FILE="$HOME/.atomic_tasks"
+[ ! -f "$TASK_FILE" ] && echo '{"text": ""}' && exit 0
+
+# Read all tasks
+tasks=()
+while IFS= read -r line; do
+    [ -n "$line" ] && tasks+=("$line")
+done < "$TASK_FILE"
+
+count=${#tasks[@]}
+
+if [ "$count" -eq 0 ]; then
+    printf '{"text": "󰠮 Empty", "tooltip": "No active tasks", "class": "empty"}\n'
+    exit 0
+fi
+
+# Top task for main display
+top_task="${tasks[0]}"
+remaining=$((count - 1))
+
+# Format the text for Waybar: "[Priority][Task] [N remain]"
+display_text="$top_task"
+if [ "$remaining" -gt 0 ]; then
+    display_text="$top_task   ($remaining)"
+fi
+
+# Tooltip: Top 5 tasks
+tooltip="<b>Atomic Tasks</b>\n------------------\n"
+for ((i=0; i<5 && i<count; i++)); do
+    tooltip+="${tasks[i]}\n"
+done
+
+if [ "$count" -gt 5 ]; then
+    tooltip+="... and $((count - 5)) more"
+fi
+
+# Determine priority class (checks for [A], [B], [C] at start)
+class="normal"
+if [[ "$top_task" =~ ^\[[Aa]\] ]]; then class="urgent"; fi
+if [[ "$top_task" =~ ^\[[Bb]\] ]]; then class="warning"; fi
+
+printf '{"text": "󰠮 %s", "tooltip": "%s", "class": "%s"}\n' "$display_text" "$tooltip" "$class"

@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  lib,
   osConfig,
   ...
 }:
@@ -31,6 +32,14 @@
       };
       ".local/bin/waybar-memory-info" = {
         source = ./dotfiles/local-bin/waybar-memory-info;
+        executable = true;
+      };
+      ".local/bin/atomic-note" = {
+        source = ./dotfiles/local-bin/atomic-note;
+        executable = true;
+      };
+      ".local/bin/waybar-atomic-note" = {
+        source = ./dotfiles/local-bin/waybar-atomic-note;
         executable = true;
       };
       ".config/fastfetch/config.jsonc".source = ./dotfiles/fastfetch/config.jsonc;
@@ -124,6 +133,68 @@
       };
     };
 
+    # ───────── Foot Terminal ─────────
+    foot = {
+      enable = true;
+      settings = {
+        main = {
+          font = "JetBrainsMono Nerd Font:size=11";
+          pad = "15x15"; # Comfortable padding
+        };
+        colors = {
+          alpha = 0.95; # Subtle transparency
+          background = lib.removePrefix "#" osConfig.theme.colors.base;
+          foreground = lib.removePrefix "#" osConfig.theme.colors.text;
+          regular0 = lib.removePrefix "#" osConfig.theme.colors.mantle;  # black
+          regular1 = lib.removePrefix "#" osConfig.theme.colors.error;   # red
+          regular2 = lib.removePrefix "#" osConfig.theme.colors.success; # green
+          regular3 = lib.removePrefix "#" osConfig.theme.colors.warning; # yellow
+          regular4 = lib.removePrefix "#" osConfig.theme.colors.accent;  # blue
+          regular5 = lib.removePrefix "#" osConfig.theme.colors.purple;  # magenta
+          regular6 = "39c5cf";                    # cyan
+          regular7 = lib.removePrefix "#" osConfig.theme.colors.text;    # white
+        };
+      };
+    };
+
+    # ───────── Yazi & Plugins ─────────
+    yazi = {
+      enable = true;
+      enableFishIntegration = true;
+      settings = {
+        manager = {
+          show_hidden = true;
+          sort_by = "mtime";
+          sort_dir_first = true;
+          linemode = "size";
+        };
+        preview = {
+          max_width = 1000;
+          max_height = 1000;
+        };
+      };
+      theme = {
+        flavor = {
+          use = "default";
+        };
+        manager = {
+          border_symbol = "│";
+          hovered = { fg = "black"; bg = osConfig.theme.colors.accent; };
+          preview_hovered = { underline = true; };
+        };
+      };
+    };
+
+    # ───────── Zoxide & FZF ─────────
+    zoxide = {
+      enable = true;
+      enableFishIntegration = true;
+    };
+    fzf = {
+      enable = true;
+      enableFishIntegration = true;
+    };
+
     # ───────── Direnv ─────────
     direnv = {
       enable = true;
@@ -201,13 +272,13 @@
         in
         builtins.replaceStrings
           [
-            "{{base}}"
-            "{{mantle}}"
-            "{{text}}"
-            "{{accent}}"
-            "{{warning}}"
-            "{{error}}"
-            "{{purple}}"
+            "_BASE_"
+            "_MANTLE_"
+            "_TEXT_"
+            "_ACCENT_"
+            "_WARNING_"
+            "_ERROR_"
+            "_PURPLE_"
           ]
           [
             c.base

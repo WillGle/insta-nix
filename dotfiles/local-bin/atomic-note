@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Simple Atomic Note Manager
+# Managed by NixOS Home Manager
+
+TASK_FILE="$HOME/.atomic_tasks"
+touch "$TASK_FILE"
+
+case "$1" in
+    add)
+        if [ -n "$2" ]; then
+            echo "$2" >> "$TASK_FILE"
+        else
+            # Use wofi for quick add if no argument
+            note=$(wofi --dmenu --prompt "Atomic Note Add:" --lines 1)
+            [ -n "$note" ] && echo "$note" >> "$TASK_FILE"
+        fi
+        ;;
+    edit)
+        # Use xdg-open to open your preferred text editor
+        xdg-open "$TASK_FILE"
+        ;;
+    list)
+        cat "$TASK_FILE"
+        ;;
+    clear)
+        > "$TASK_FILE"
+        ;;
+    *)
+        # Default action: Toggle menu or edit
+        xdg-open "$TASK_FILE"
+        ;;
+esac
+
+# Signal waybar to refresh
+pkill -RTMIN+10 waybar

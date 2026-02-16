@@ -3,18 +3,19 @@
   "position": "top",
   "height": 30,
   "modules-left": [
-    "pulseaudio",
+    "clock",
     "custom/power_profile",
-    "custom/refresh_rate",
+    "pulseaudio",
     "hyprland/workspaces"
   ],
   "modules-center": [
-    "clock"
+    "custom/atomic_note"
   ],
   "modules-right": [
+    "custom/refresh_rate",
+    "custom/memory_info",
     "custom/apu_info",
     "custom/power_flow",
-    "custom/memory_info",
     "tray"
   ],
   "hyprland/workspaces": {
@@ -76,5 +77,14 @@
     "interval": 1,
     "on-click": "~/.local/bin/waybar-refresh-toggle",
     "tooltip": false
+  },
+  "custom/atomic_note": {
+    "exec": "~/.local/bin/waybar-atomic-note",
+    "max-length": 45,
+    "return-type": "json",
+    "interval": 1,
+    "on-click": "~/.local/bin/atomic-note edit",
+    "signal": 5,
+    "tooltip": true
   }
 }

@@ -18,6 +18,7 @@
     kanshi
     wob
     xdg-utils
+    foot
 
     # WM helpers
     dunst
@@ -47,6 +48,12 @@
     udiskie
     usbutils
     wget
+    imagemagick
+    chafa
+    zoxide
+    fzf
+    fd
+    ripgrep
 
     # Media tools/codecs
     ffmpeg-full

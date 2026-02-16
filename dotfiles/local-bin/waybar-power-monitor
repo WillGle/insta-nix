@@ -162,7 +162,13 @@ for d in /sys/class/hwmon/hwmon*; do
 done
 
 cpu_temp_raw=$(get_temp "k10temp")
-cpu_w=$(awk -v sw="${sys_w:-0}" -v gw="${gpu_w:-0}" "BEGIN{v=sw-gw; if(v<0) v=0; printf \"%.1f\", v}")
+cpu_w=$(awk -v sw="${sys_w:-0}" -v gw="${gpu_w:-0}" -v stat="$stat" 'BEGIN{
+    if(stat == "Charging" || stat == "Full") {
+        print "5.0";
+    } else {
+        v=sw-gw; if(v<0) v=0; printf "%.1f", v;
+    }
+}')
 
 # Battery Icon & Style Class
 icon="$ICON_BAT_100"
@@ -202,8 +208,10 @@ case "$MODE" in
         
         # Format: [Chip] [CPU°] [GPU_Icon] [GPU°] [APU W]
         # Tooltip: Usage, Freq, Detailed Power
-        printf '{"text":" %s°C %s %s°C ⚡%sW", "tooltip":"<b>APU (AMD CPU)</b>\\n----------------\\n<b>CPU:</b> %s%% @ %sGHz\\n<b>GPU:</b> %s%% @ %sMHz\\n\\n<b>Thermals:</b>\\nCPU Core: %s°C\\niGPU:     %s°C\\n\\n<b>Power (Package):</b> %sW", "class":["%s", "normal"]}\n' \
-            "$t_cpu" "$ICON_GPU" "$t_gpu" "$gpu_w" \
+        # Format: [Chip Icon] [CPU°] [GPU Icon] [GPU°] [CPU Freq] [APU W]
+        # Tooltip: Usage, Freq, Detailed Power
+        printf '{"text":" %s°C %s %s°C %sGHz %sW", "tooltip":"<b>APU (AMD CPU)</b>\\n----------------\\n<b>CPU:</b> %s%% @ %sGHz\\n<b>GPU:</b> %s%% @ %sMHz\\n\\n<b>Thermals:</b>\\nCPU Core: %s°C\\niGPU:     %s°C\\n\\n<b>Power (Package):</b> %sW", "class":["%s", "normal"]}\n' \
+            "$t_cpu" "$ICON_GPU" "$t_gpu" "$cpu_freq" "$gpu_w" \
             "$cpu_util" "$cpu_freq" \
             "$gpu_util" "$gpu_freq" \
             "$t_cpu" "$t_gpu" \
@@ -247,10 +255,10 @@ case "$MODE" in
 
         w_cls=$(awk -v win="${w_in:-0}" "BEGIN{if(win>=80) print \"high\"; else if(win>=40) print \"medium\"; else print \"normal\"}")
         
-        # Power Flow display:  [Sys]W  ↓[In]W  ↑[Out]W  [BatIcon] [Cap]%
-        printf '{"text":" %sW  ↓%sW  ↑%sW  %s  %s%%", "tooltip":"⚡ System Energy Flow\\n---------------------------\\nIntake (Wall):   %sW\\nConsumption:     %sW\\n  ├─ APU (Pkg):     %sW\\n  └─ Sys/Screen:  %sW (Est)\\n\\n🔋 Battery Status\\n---------------------------\\nBattery:        %s%% (%s)\\nHealth:         %s%%\\nCycles:         %s\\nCapacity:      %s / %s Wh\\nVoltage:        %sV\\nRemaining:      %s\\nProfile:        %s", "class":["%s", "%s", "power-flow"]}\n' \
-            "$cpu_w" "$w_in" "$w_out" "$icon" "$cap" \
-            "$w_in" "$w_out" "$gpu_w" "$cpu_w" \
+        # Power Flow display: ↓[In]W  ↑[Out]W  [BatIcon] [Cap]%
+        printf '{"text":"↓%sW  ↑%sW  %s  %s%%", "tooltip":"⚡ System Energy Flow\\n---------------------------\\nIntake (Wall):   %sW\\nConsumption:     %sW\\n  └─ APU (Pkg):     %sW\\n\\n🔋 Battery Status\\n---------------------------\\nBattery:        %s%% (%s)\\nHealth:         %s%%\\nCycles:         %s\\nCapacity:      %s / %s Wh\\nVoltage:        %sV\\nRemaining:      %s\\nProfile:        %s", "class":["%s", "%s", "power-flow"]}\n' \
+            "$w_in" "$w_out" "$icon" "$cap" \
+            "$w_in" "$w_out" "$gpu_w" \
             "$cap" "$stat" "$health" "$cycles" "$wh_now" "$wh_full" "$volt_v" "${time_str:-N/A}" "$profile" \
             "$w_cls" "$b_cls"
         ;;

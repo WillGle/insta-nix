@@ -19,5 +19,5 @@ ghz=$(awk '{sum+=$1} END {printf "%.1f", sum/NR/1000000}' /sys/devices/system/cp
 # Get top 5 processes by memory %
 top_procs=$(ps -eo comm,pmem --sort=-pmem | head -n 6 | tail -n 5 | awk '{printf "%-15s %s%%\\n", $1, $2}')
 
-printf '{"text":"%s %sGHz  %s %sG/%sG (%s%%)", "tooltip":"Top RAM Consumers:\\n------------------\\n%s", "class":"%s"}\n' \
-    "$ICON_CPU" "$ghz" "$ICON_MEM" "$used" "$total" "$perc" "$top_procs" "$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) print "warning"; else print "normal"}')"
+printf '{"text":"%s %sG/%sG (%s%%)", "tooltip":"Top RAM Consumers:\\n------------------\\n%s", "class":"%s"}\n' \
+    "$ICON_MEM" "$used" "$total" "$perc" "$top_procs" "$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) print "warning"; else print "normal"}')"
