@@ -5,6 +5,7 @@
   "modules-left": [
     "clock",
     "custom/power_profile",
+    "custom/refresh_rate",
     "pulseaudio",
     "hyprland/workspaces"
   ],
@@ -12,7 +13,6 @@
     "custom/atomic_note"
   ],
   "modules-right": [
-    "custom/refresh_rate",
     "custom/memory_info",
     "custom/apu_info",
     "custom/power_flow",
