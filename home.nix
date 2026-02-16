@@ -142,7 +142,7 @@
           pad = "15x15"; # Comfortable padding
         };
         colors = {
-          alpha = 0.95; # Subtle transparency
+          alpha = 0.99; # Subtle transparency
           background = lib.removePrefix "#" osConfig.theme.colors.base;
           foreground = lib.removePrefix "#" osConfig.theme.colors.text;
           regular0 = lib.removePrefix "#" osConfig.theme.colors.mantle;  # black
@@ -162,7 +162,7 @@
       enable = true;
       enableFishIntegration = true;
       settings = {
-        manager = {
+        mgr = {
           show_hidden = true;
           sort_by = "mtime";
           sort_dir_first = true;
@@ -177,7 +177,7 @@
         flavor = {
           use = "default";
         };
-        manager = {
+        mgr = {
           border_symbol = "│";
           hovered = { fg = "black"; bg = osConfig.theme.colors.accent; };
           preview_hovered = { underline = true; };
