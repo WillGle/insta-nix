@@ -181,11 +181,11 @@ A specialized script (`~/.local/bin/waybar-power-monitor`) monitors the Ryzen AP
 - **SDDM**: Using `sddm-astronaut-theme` for a modern login experience.
 - **Lock Screen**: **Hyprlock** provides a high-performance, minimalist lock screen with wallpaper blur.
 - **Idle Management**: **Hypridle** handles screen dimming and automatic locking for efficiency.
-- **Polkit**: **Pantheon Polkit Agent** provides premium-feel elevation prompts.
+- **Polkit**: **Pantheon Polkit Agent** provides premium-feel elevation prompts (managed via systemd user service).
 
 ### Input Method (Vietnamese)
 
-- **Framework**: Fcitx5 with UniKey and Bamboo engines.
+- **Framework**: Fcitx5 with **UniKey** engine (optimized for reliability).
 - **Compatibility**: Environment variables managed in Hyprland for GTK, Qt5/6, and Electron support.
 - **Wayland Native**: Optimized by unsetting `GTK_IM_MODULE` to favor native Wayland protocols.
 
@@ -193,14 +193,15 @@ A specialized script (`~/.local/bin/waybar-power-monitor`) monitors the Ryzen AP
 
 ## Home Manager (Active)
 
-Home Manager is fully integrated as a NixOS flake module. It manages:
+Home Manager is fully integrated as a NixOS flake module, serving as the **Single Source of Truth (SSOT)** for user configurations. It manages:
 
-- **Shell**: Fish, Starship prompt, Direnv
-- **Desktop**: Hyprland, Waybar, Wofi, Kanshi configs
-- **Scripts**: `~/.local/bin/` waybar helpers
-- **XDG**: User directories, default applications
+- **Shell**: Fish, Starship prompt, Direnv.
+- **Display**: **Kanshi** manages dynamic monitor profiles and high-DPI scaling (e.g., 1.5x for laptop panel).
+- **Compositor**: Hyprland (direct execution of core services like Kanshi/Waybar).
+- **Dotfiles**: Authoritative source in `dotfiles/` directory, symlinked to `~/.config/`.
+- **XDG**: User directories and default application associations.
 
-Managed files in `~/.config/` are read-only. Edit sources in `dotfiles/`, then rebuild.
+Managed files in `~/.config/` are read-only to ensure system rigidity. Edit sources in `dotfiles/`, then rebuild.
 
 ---
 

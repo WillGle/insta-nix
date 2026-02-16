@@ -15,17 +15,14 @@
     waybar
     wl-clipboard
     wlr-randr
+    kanshi
     wob
     xdg-utils
 
     # WM helpers
     dunst
     hyprpaper
-    hyprshot
     hyprlock
-    sway
-    swayidle
-    swaylock
     wofi
 
     # System utilities
@@ -59,6 +56,31 @@
     libheif
     v4l-utils
 
+    # Extended Codecs
+    faac
+    faad2
+    fdk_aac
+    flac
+    lame
+    libmad
+    libogg
+    libvorbis
+    opusTools
+    libdvdcss
+    libdvdread
+    libdvdnav
+    x264
+    x265
+
+    # GStreamer
+    gst_all_1.gstreamer
+    gst_all_1.gst-plugins-base
+    gst_all_1.gst-plugins-good
+    gst_all_1.gst-plugins-bad
+    gst_all_1.gst-plugins-ugly
+    gst_all_1.gst-libav
+    gst_all_1.gst-vaapi
+
     # Audio
     alsa-utils
     pavucontrol
@@ -72,33 +94,26 @@
     # Themes
     adwaita-icon-theme
     bibata-cursors
-
-    # SDDM themes
     sddm-astronaut
-    sddm-chili-theme
-    sddm-sugar-dark
 
     # Media apps
     evince
     guvcview
     mpv
-    nomacs
+    gthumb
     obs-studio
     sonic-visualiser
     vlc
 
     # Apps
     brave
-    discord
     firefox
     gsimplecal
     libreoffice-fresh
-    obsidian
-    signal-desktop
-    vscode
     wpsoffice
     xournalpp
     zotero
+    vscode
 
     # Shell & prompt
     bash

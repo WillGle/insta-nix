@@ -5,6 +5,9 @@
   ...
 }:
 {
+  # Shell enabled system-wide (Required for login shell)
+  programs.fish.enable = true;
+
   users.users.will = {
     isNormalUser = true;
     description = "will";
@@ -21,9 +24,6 @@
       "render"
     ];
   };
-
-  # Shell enabled system-wide, but configured in Home Manager
-  programs.fish.enable = true;
 
   # sudo rule for tlp (only if tlp is enabled)
   security.sudo.extraRules = [

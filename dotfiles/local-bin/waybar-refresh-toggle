@@ -4,10 +4,13 @@
 
 set -euo pipefail
 
-MON="eDP-1"
-RES="3072x1920"
+# Dynamic detection
+MON=$(hyprctl monitors -j | jq -r '.[0].name')
+WIDTH=$(hyprctl monitors -j | jq -r '.[0].width')
+HEIGHT=$(hyprctl monitors -j | jq -r '.[0].height')
+RES="${WIDTH}x${HEIGHT}"
 POS="0x0"
-SCALE="1.5"
+SCALE=$(hyprctl monitors -j | jq -r '.[0].scale')
 
 # Read current refresh
 CUR=$(hyprctl monitors | awk -v m="$MON" '

@@ -175,14 +175,7 @@
     # ───────── Config Files ─────────
     configFile = {
       # Hyprland
-      "hypr/hyprland.conf".text =
-        let
-          conf = builtins.readFile ./dotfiles/hypr/hyprland.conf;
-        in
-        builtins.replaceStrings
-          [ "exec-once = /nix/store/4qk1a19d4ry8hfk69dv5lzd42shr6dk4-pantheon-agent-polkit-8.0.1/libexec/policykit-1-pantheon/io.elementary.desktop.agent-polkit" ]
-          [ "# Polkit agent started via systemd user service" ]
-          conf;
+      "hypr/hyprland.conf".source = ./dotfiles/hypr/hyprland.conf;
       "hypr/hyprpaper.conf".source = ./dotfiles/hypr/hyprpaper.conf;
       "hypr/hyprlock.conf".source = ./dotfiles/hypr/hyprlock.conf;
       "hypr/hypridle.conf".source = ./dotfiles/hypr/hypridle.conf;
