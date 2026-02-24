@@ -2,7 +2,7 @@
 
 {
   # ───────── Audio ─────────
-  # PipeWire (PulseAudio disabled)
+  security.rtkit.enable = true;
   services = {
     pulseaudio.enable = false;
     pipewire = {
@@ -20,22 +20,6 @@
               "node.restore-default-node" = true;
             };
           };
-          "20-bluez-priority" = {
-            "monitor.bluez.rules" = [
-              {
-                matches = [
-                  {
-                    "node.name" = "~bluez_output.*";
-                  }
-                ];
-                actions = {
-                  update-props = {
-                    "node.priority" = 1010; # Higher than internal sinks (usually 1000)
-                  };
-                };
-              }
-            ];
-          };
         };
       };
     };
@@ -44,10 +28,11 @@
   # ───────── Bluetooth Configuration ─────────
   hardware.bluetooth = {
     enable = true;
-    powerOnBoot = true; # Powers up the default Bluetooth controller on boot
+    powerOnBoot = true;
     settings = {
       General = {
-        Experimental = true; # Enables some extra features like battery percentage
+        Enable = "Source,Sink,Media,Socket";
+        Experimental = true;
       };
     };
   };
