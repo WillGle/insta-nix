@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, config, ... }:
 
 {
   # ───────── Nix Configuration ─────────
@@ -20,6 +20,8 @@
     auto-optimise-store = true;
     max-jobs = "auto";
     cores = 0;
+    keep-outputs = true;
+    keep-derivations = true;
   };
 
   # Nix garbage collection
@@ -34,9 +36,23 @@
   # ───────── Console ─────────
   console = {
     font = "Lat2-Terminus16";
-    colors = [
-      "0d1117" "f85149" "3fb950" "d29922" "58a6ff" "bc8cff" "39c5cf" "b1b8c0"
-      "6e7681" "ff7b72" "56d364" "e3b341" "79c0ff" "d2a8ff" "56d4dd" "f0f6fc"
+    colors = with config.theme.colors; [
+      (lib.removePrefix "#" base)
+      (lib.removePrefix "#" error)
+      (lib.removePrefix "#" success)
+      (lib.removePrefix "#" warning)
+      (lib.removePrefix "#" accent)
+      (lib.removePrefix "#" purple)
+      (lib.removePrefix "#" cyan)
+      "b1b8c0" # light grey
+      "6e7681" # dark grey
+      (lib.removePrefix "#" error)
+      (lib.removePrefix "#" success)
+      (lib.removePrefix "#" warning)
+      (lib.removePrefix "#" accent)
+      (lib.removePrefix "#" purple)
+      (lib.removePrefix "#" cyan)
+      (lib.removePrefix "#" text)
     ];
   };
 

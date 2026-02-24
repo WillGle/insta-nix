@@ -14,7 +14,6 @@
         enable = true;
         wayland.enable = true;
         theme = "sddm-astronaut-theme";
-        package = pkgs.kdePackages.sddm;
         extraPackages = with pkgs; [
           kdePackages.qtmultimedia
           kdePackages.qtsvg
@@ -44,6 +43,20 @@
       "hyprland"
       "gtk"
     ];
+  };
+
+  # ───────── Input Method (Vietnamese) ─────────
+  i18n.inputMethod = {
+    enable = true;
+    type = "fcitx5";
+    fcitx5 = {
+      addons = with pkgs; [
+        qt6Packages.fcitx5-unikey
+        fcitx5-gtk
+        libsForQt5.fcitx5-qt
+      ];
+      waylandFrontend = true;
+    };
   };
 
 }

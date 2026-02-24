@@ -57,11 +57,10 @@
         # Suppress default fish welcome message
         set fish_greeting
 
-        # Enable Vietnamese input environment for fcitx5
-        set -xU INPUT_METHOD fcitx
-
         # Run fastfetch at shell startup with custom config
         fastfetch --config ~/.config/fastfetch/config.jsonc
+
+        echo "For fast terminal file check - Yazi"
       '';
       shellAliases = {
         ll = "eza -la --icons";
@@ -145,14 +144,14 @@
           alpha = 0.99; # Subtle transparency
           background = lib.removePrefix "#" osConfig.theme.colors.base;
           foreground = lib.removePrefix "#" osConfig.theme.colors.text;
-          regular0 = lib.removePrefix "#" osConfig.theme.colors.mantle;  # black
-          regular1 = lib.removePrefix "#" osConfig.theme.colors.error;   # red
+          regular0 = lib.removePrefix "#" osConfig.theme.colors.mantle; # black
+          regular1 = lib.removePrefix "#" osConfig.theme.colors.error; # red
           regular2 = lib.removePrefix "#" osConfig.theme.colors.success; # green
           regular3 = lib.removePrefix "#" osConfig.theme.colors.warning; # yellow
-          regular4 = lib.removePrefix "#" osConfig.theme.colors.accent;  # blue
-          regular5 = lib.removePrefix "#" osConfig.theme.colors.purple;  # magenta
-          regular6 = "39c5cf";                    # cyan
-          regular7 = lib.removePrefix "#" osConfig.theme.colors.text;    # white
+          regular4 = lib.removePrefix "#" osConfig.theme.colors.accent; # blue
+          regular5 = lib.removePrefix "#" osConfig.theme.colors.purple; # magenta
+          regular6 = lib.removePrefix "#" osConfig.theme.colors.cyan; # cyan
+          regular7 = lib.removePrefix "#" osConfig.theme.colors.text; # white
         };
       };
     };
@@ -171,6 +170,7 @@
         preview = {
           max_width = 1000;
           max_height = 1000;
+          preview_method = "sixel";
         };
       };
       theme = {
@@ -179,8 +179,13 @@
         };
         mgr = {
           border_symbol = "│";
-          hovered = { fg = "black"; bg = osConfig.theme.colors.accent; };
-          preview_hovered = { underline = true; };
+          hovered = {
+            fg = "black";
+            bg = osConfig.theme.colors.accent;
+          };
+          preview_hovered = {
+            underline = true;
+          };
         };
       };
     };
@@ -200,7 +205,16 @@
       enable = true;
       nix-direnv.enable = true;
     };
+
+    # ───────── Waybar ─────────
+    waybar = {
+      enable = true;
+      systemd.enable = false;
+    };
   };
+
+  # ───────── Udiskie (Automounting) ─────────
+  # services.udiskie.enable = true;
 
   # ───────────────────────────────────────────────────────────────
   # Phase 3 & 4: Desktop Environment & XDG
@@ -295,26 +309,30 @@
         executable = true;
       };
 
+      # Kanshi
+      "kanshi/config".source = ./dotfiles/kanshi/config;
+
       # Wofi
       "wofi/config-app.ini".source = ./dotfiles/wofi/config-app.ini;
       "wofi/config-clip.ini".source = ./dotfiles/wofi/config-clip.ini;
       "wofi/style.css".source = ./dotfiles/wofi/style.css;
-
-      # Kanshi
-      "kanshi/config".source = ./dotfiles/kanshi/config;
     };
   };
 
   # ───────── Systemd User Services ─────────
-  systemd.user.services.pantheon-polkit-agent = {
+  systemd.user.services.polkit-agent = {
     Unit = {
-      Description = "Pantheon Polkit Agent";
+      Description = "Polkit Authentication Agent";
       PartOf = [ "graphical-session.target" ];
-      After = [ "graphical-session.target" ];
+      After = [ "graphical-session-pre.target" ];
+      Wants = [ "graphical-session-pre.target" ];
     };
     Service = {
-      ExecStart = "${pkgs.pantheon.pantheon-agent-polkit}/libexec/policykit-1-pantheon/io.elementary.desktop.agent-polkit";
+      ExecStart = "${pkgs.lxqt.lxqt-policykit}/bin/lxqt-policykit-agent";
       Restart = "on-failure";
+      RestartSec = "3s";
+      StartLimitBurst = 3;
+      StartLimitIntervalSec = "30s";
     };
     Install = {
       WantedBy = [ "graphical-session.target" ];

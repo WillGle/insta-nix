@@ -9,22 +9,19 @@ The configuration is split into specialized modules for clarity:
 - **[flake.nix](flake.nix)**: Entry point. Defines inputs (NixOS 25.11 stable & Unstable) and host configuration.
 - **[hardware-configuration.nix](hardware-configuration.nix)**: Hardware-specific generated config (UUIDs, boot modules).
 - **`modules/`**:
-  - **[boot.nix](modules/boot.nix)**: EFI Bootloader (systemd-boot), mount points, and kernel params.
-  - **[services.nix](modules/services.nix)**: Core daemons (SSH, Docker, Flatpak, Power Profiles) and Locale settings.
-  - **[perf.nix](modules/perf.nix)**: Performance tuning (zram, AMD P-State Active), and Nix GC.
-  - **[desktop.nix](modules/desktop.nix)**: Hyprland, SDDM, fcitx5, and Wayland session variables.
-  - **[gpu.nix](modules/gpu.nix)**: AMDGPU kernel driver and hardware acceleration (VA-API/Vulkan).
-  - **[audio.nix](modules/audio.nix)**: PipeWire, Bluetooth, and Blueman.
-  - **[networking.nix](modules/networking.nix)**: NetworkManager with systemd-resolved and firewall rules.
-  - **[users.nix](modules/users.nix)**: User account definitions and shell (fish/starship).
-  - **[packages.nix](modules/packages.nix)**: System utilities (CLI) and Audit tools (`statix`, `deadnix`).
-  - **[gaming.nix](modules/gaming.nix)**: Steam, GameMode, and gaming-related tools.
-  - **[fonts.nix](modules/fonts.nix)**: Multi-font setup with Nerd Fonts and Emoji support (Noto).
-- **[home.nix](home.nix)**: Home Manager user config. Manages:
-  - **User Apps**: Browsers (Brave), Dev tools (VSCode), Office (WPS), Media (Obsidian).
-  - **Shell**: Fish, Starship, Direnv.
-  - **Desktop**: Hyprland, Waybar, Wofi, XDG defaults.
-- **`dotfiles/`**: Source files for desktop environment configs (Hyprland, Waybar, Wofi, kanshi, scripts).
+  - **[core.nix](modules/core.nix)**: System-wide defaults, GC protection, and TTY palette.
+  - **[desktop.nix](modules/desktop.nix)**: Hyprland, SDDM, Polkit UI, and centralized Fcitx5 config.
+  - **[connectivity.nix](modules/connectivity.nix)**: Hardened Networking (DNS over TLS, DNSSEC), Audio (PipeWire), and Bluetooth.
+  - **[hardware.nix](modules/hardware.nix)**: Kernel pinning (LTS 6.12), P-State, Ryzenadj, and disk mounting.
+  - **[services.nix](modules/services.nix)**: Hardened SSH, Tailscale, and other system daemons.
+  - **[users.nix](modules/users.nix)**: User account definitions and specialized sudo rules.
+  - **[packages.nix](modules/packages.nix)**: Core system utilities, CLI tools, and theme assets.
+  - **[apps.nix](modules/apps.nix)**: GUI applications, media tools, and browsers.
+  - **[theme.nix](modules/theme.nix)**: Centralized "Source of Truth" for system-wide hex colors.
+  - **[gaming.nix](modules/gaming.nix)**: Steam and gaming optimization tools.
+  - **[fonts.nix](modules/fonts.nix)**: Nerd Fonts and emoji support.
+- **[home.nix](home.nix)**: Home Manager user config (Foot, waybar, and per-user dotfile mapping).
+- **`dotfiles/`**: Source files for desktop environment configs (Hyprland, Waybar, Wofi, kanshi).
 
 ---
 
@@ -158,15 +155,19 @@ To install this configuration on a remote AMD laptop via SSH:
 
 ---
 
-## Advanced Architecture Notes
+### System Hardening & Security
+
+- **DNS over TLS**: All DNS queries are encrypted via `systemd-resolved` (Cloudflare) with DNSSEC validation.
+- **SSH Protocol**: Hardened to port 2222 with password authentication disabled and root login restricted.
+- **Kernel Pinning**: Locked to the **LTS 6.12** series to ensure the AMD platform and `ryzen-smu` modules remain stable between updates.
+- **GC Protection**: Configuration uses `keep-outputs` to prevent the garbage collector from breaking system rollbacks.
 
 ### Hardware Optimizations (AMD Ryzen)
 
-- **Kernel**: Switched to `pkgs.linuxPackages` (Stable) for maximum system stability and reliability.
 - **P-State**: Running in `active` mode for optimal frequency scaling.
 - **Ryzen SMU**: `ryzen-smu` kernel module enabled for advanced CPU metrics and control.
 - **Early KMS**: Driver `amdgpu` is loaded in initrd to prevent boot flickering.
-- **ROCm**: Enabled for GPU-accelerated computing (AI/ML and OpenCL) in [gpu.nix](modules/gpu.nix).
+- **ROCm**: Enabled for GPU-accelerated computing (AI/ML and OpenCL) in [connectivity.nix](modules/connectivity.nix).
 
 ### Custom Tooling: `waybar-power-monitor`
 
@@ -176,18 +177,17 @@ A specialized script (`~/.local/bin/waybar-power-monitor`) monitors the Ryzen AP
 - **`sys` Mode**: Calculated System/Screen power (Total - APU).
 - **`pwr` Mode**: Real-time Battery Charge/Discharge flow.
 
-### Premium Authentication UI
+### Premium Authentication & Desktop UI
 
-- **SDDM**: Using `sddm-astronaut-theme` for a modern login experience.
+- **SDDM**: Using `sddm-astronaut-theme` (Qt5 stable) for a modern, reliable login experience.
 - **Lock Screen**: **Hyprlock** provides a high-performance, minimalist lock screen with wallpaper blur.
-- **Idle Management**: **Hypridle** handles screen dimming and automatic locking for efficiency.
-- **Polkit**: **Pantheon Polkit Agent** provides premium-feel elevation prompts (managed via systemd user service).
+- **Polkit UI**: **LXQt PolicyKit** provides dependable elevation prompts integrated via systemd.
+- **XWayland**: Scaling and cursors are synchronized using `xrdb` to ensure legacy applications look premium on high-DPI panels.
 
 ### Input Method (Vietnamese)
 
-- **Framework**: Fcitx5 with **UniKey** engine (optimized for reliability).
-- **Compatibility**: Environment variables managed in Hyprland for GTK, Qt5/6, and Electron support.
-- **Wayland Native**: Optimized by unsetting `GTK_IM_MODULE` to favor native Wayland protocols.
+- **Framework**: Fcitx5 with **UniKey** engine centered in `desktop.nix`.
+- **Centralization**: All fmod and environment variables are managed at the system level for total consistency across GTK, Qt, and Electron apps.
 
 ---
 
@@ -196,8 +196,8 @@ A specialized script (`~/.local/bin/waybar-power-monitor`) monitors the Ryzen AP
 Home Manager is fully integrated as a NixOS flake module, serving as the **Single Source of Truth (SSOT)** for user configurations. It manages:
 
 - **Shell**: Fish, Starship prompt, Direnv.
-- **Display**: **Kanshi** manages dynamic monitor profiles and high-DPI scaling (e.g., 1.5x for laptop panel).
-- **Compositor**: Hyprland (direct execution of core services like Kanshi/Waybar).
+- **Display Management**: **Kanshi** manages dynamic monitor profiles with manual `exec-once` invocation for stability.
+- **Native Waybar**: Fully styled via Home Manager with dynamic color injection from [theme.nix](modules/theme.nix).
 - **Dotfiles**: Authoritative source in `dotfiles/` directory, symlinked to `~/.config/`.
 - **XDG**: User directories and default application associations.
 

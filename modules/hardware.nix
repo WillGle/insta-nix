@@ -4,10 +4,10 @@
   # ───────── Services (GPU, Perf) ─────────
   services = {
     xserver.videoDrivers = [ "amdgpu" ];
-    
+
     # Power daemon (pick one).
     power-profiles-daemon.enable = true;
-    
+
     # SSD trim.
     fstrim.enable = true;
   };
@@ -41,7 +41,9 @@
       "defaults"
       "noatime"
       "nofail"
+      "x-systemd.automount"
       "x-systemd.device-timeout=5s"
+      "x-systemd.idle-timeout=60"
     ];
   };
 
@@ -56,8 +58,8 @@
       "msr"
       "ryzen_smu"
     ];
-    kernelPackages = pkgs.linuxPackages;
-    extraModulePackages = [ pkgs.linuxPackages.ryzen-smu ];
+    kernelPackages = pkgs.linuxPackages_6_12;
+    extraModulePackages = [ pkgs.linuxPackages_6_12.ryzen-smu ];
 
     initrd.kernelModules = [ "amdgpu" ];
     blacklistedKernelModules = [ "lenovo_wmi_gamezone" ];
@@ -68,6 +70,7 @@
     enable = true;
     algorithm = "zstd";
     memoryPercent = 37; # Target ~10GB (37% of 27GB visible RAM)
+    priority = 100;
   };
 
   boot.kernel.sysctl = {

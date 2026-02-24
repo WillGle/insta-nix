@@ -13,6 +13,7 @@
         warning = "#d29922"; # Deep Gold
         error = "#f85149"; # Vivid Red
         purple = "#bc8cff"; # Bright Purple
+        cyan = "#39c5cf"; # Bright Cyan
       };
       description = "System color palette";
     };

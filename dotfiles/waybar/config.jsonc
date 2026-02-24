@@ -41,8 +41,14 @@
     "format-bluetooth-muted": " 󰖁",
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "scroll-step": 1,
-    "tooltip-format": "{icon} {volume}%",
+    "tooltip-format": "{desc} {volume}%",
     "format-icons": {
+      "headphone": "",
+      "hands-free": "",
+      "headset": "",
+      "phone": "",
+      "portable": "",
+      "car": "",
       "default": [
         ""
       ]

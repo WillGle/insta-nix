@@ -20,7 +20,7 @@
     ];
   };
 
-  # sudo rule for tlp (only if tlp is enabled)
+  # Passwordless sudo for ryzenadj (manual AMD power tuning)
   security.sudo.extraRules = [
     {
       users = [ "will" ];

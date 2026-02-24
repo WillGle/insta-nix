@@ -5,6 +5,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # ⚠️  When upgrading nixpkgs branch (e.g. nixos-25.11 → nixos-26.05),
+    #     update the home-manager URL to the matching release branch.
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -52,6 +54,7 @@
           ./modules/desktop.nix
           ./modules/users.nix
           ./modules/packages.nix
+          ./modules/apps.nix
           ./modules/theme.nix
           ./modules/gaming.nix
           ./modules/fonts.nix
