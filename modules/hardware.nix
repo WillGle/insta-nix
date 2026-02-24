@@ -58,7 +58,7 @@
   zramSwap = {
     enable = true;
     algorithm = "zstd";
-    memoryPercent = 50; # Tune 25-75 depending on RAM and swap behavior.
+    memoryPercent = 37; # Target ~10GB (37% of 27GB visible RAM)
   };
 
   boot.kernel.sysctl = {
