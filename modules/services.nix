@@ -9,6 +9,7 @@ _: {
     acpid.enable = true;
     udisks2.enable = true;
     gvfs.enable = true;
+    tailscale.enable = true;
   };
 
   security.polkit.enable = true;

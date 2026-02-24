@@ -50,23 +50,4 @@
     ];
   };
 
-  i18n.inputMethod = {
-    enable = true;
-    type = "fcitx5";
-    fcitx5 = {
-      addons = with pkgs; [
-        qt6Packages.fcitx5-unikey
-        fcitx5-gtk
-        libsForQt5.fcitx5-qt
-      ];
-      waylandFrontend = true;
-    };
-  };
-
-  # Session/UI variables (Qt scaling).
-  environment.sessionVariables = {
-    QT_FONT_DPI = "144";
-    QT_SCALE_FACTOR = "1";
-    QT_AUTO_SCREEN_SCALE_FACTOR = "0";
-  };
 }

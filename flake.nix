@@ -43,19 +43,15 @@
           # Hardware & Core
           ./hardware-configuration.nix
           ./modules/core.nix
+          ./modules/hardware.nix
           ./modules/i18n.nix
 
           # System Modules
-          ./modules/boot.nix
+          ./modules/connectivity.nix
           ./modules/services.nix
-          ./modules/perf.nix
           ./modules/desktop.nix
-          ./modules/networking.nix
-          ./modules/gpu.nix
-          ./modules/audio.nix
           ./modules/users.nix
           ./modules/packages.nix
-          ./modules/virtualisation.nix
           ./modules/theme.nix
           ./modules/gaming.nix
           ./modules/fonts.nix

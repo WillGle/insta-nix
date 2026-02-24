@@ -1,12 +1,12 @@
 # ===== Laptop only =====
-profile laptop {
-  output eDP-1 mode 3072x1920@60Hz scale 1.5 position 0,0
-}
+# profile laptop {
+#   output eDP-1 enable scale 1.5 position 0,0
+# }
 # Restart: systemctl --user restart kanshi
 # ===== External LEFT of laptop =====
 # Toggle ONE of these external lines (HDMI or DP) and ONE width.
 profile external-left {
-  output eDP-1 mode 3072x1920@60Hz scale 1.5 position 0,0
+  output eDP-1 enable scale 1.5 position 0,0
 
   # HDMI:
   # output HDMI-A-1 enable position -1920,0
@@ -22,7 +22,7 @@ profile external-left {
 # ===== External RIGHT of laptop =====
 # Toggle ONE line (HDMI or DP). 2048 = laptop logical width (3072/1.5).
 profile external-right {
-  output eDP-1 mode 3072x1920@60Hz scale 1.5 position 0,0
+  output eDP-1 enable scale 1.5 position 0,0
   output HDMI-A-1 enable position 2048,0
   # output DP-1  enable position 2048,0
 }

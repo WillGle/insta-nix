@@ -1,9 +1,4 @@
-{
-  pkgs,
-  lib,
-  config,
-  ...
-}:
+{ pkgs, ... }:
 {
   # Shell enabled system-wide (Required for login shell)
   programs.fish.enable = true;
