@@ -1,9 +1,18 @@
 { pkgs, ... }:
 
 {
-  # ───────── Vulkan/VA-API (GPU) ─────────
-  services.xserver.videoDrivers = [ "amdgpu" ];
+  # ───────── Services (GPU, Perf) ─────────
+  services = {
+    xserver.videoDrivers = [ "amdgpu" ];
+    
+    # Power daemon (pick one).
+    power-profiles-daemon.enable = true;
+    
+    # SSD trim.
+    fstrim.enable = true;
+  };
 
+  # ───────── Vulkan/VA-API (GPU) ─────────
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
@@ -68,12 +77,6 @@
 
   # CPU policy.
   powerManagement.enable = true;
-
-  # Power daemon (pick one).
-  services.power-profiles-daemon.enable = true;
-
-  # SSD trim.
-  services.fstrim.enable = true;
 
   # ───────── Virtualization ─────────
   virtualisation.docker = {
