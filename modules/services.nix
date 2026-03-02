@@ -20,6 +20,13 @@ _: {
     udisks2.enable = true;
     gvfs.enable = true;
     tailscale.enable = true;
+
+    # ───────── AI / LLM ─────────
+    ollama = {
+      enable = true;
+      # Use Vulkan for the AMD GPU APU (ROCm crashes with exit status 2)
+      acceleration = "vulkan";
+    };
   };
 
   security.polkit.enable = true;

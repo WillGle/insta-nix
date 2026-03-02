@@ -4,78 +4,65 @@
   ...
 }:
 {
+  # ───────── CLI Tools & System Utilities ─────────
   environment.systemPackages = with pkgs; [
-    # Wayland & desktop
+    # Wayland & WM helpers
     brightnessctl
+    cliphist
+    dunst
     grim
-    mission-center
+    hyprlock
+    hyprpaper
+    playerctl
     slurp
     wl-clipboard
     wlr-randr
     wob
-    xdg-utils
-    foot
-
-    # WM helpers
-    dunst
-    hyprpaper
-    hyprlock
     wofi
+    xdg-utils
 
-    # System utilities
+    # CLI utilities
     btop
-    cliphist
-    dosfstools
-    exfatprogs
+    chafa
     eza
     fastfetch
-    gnome-disk-utility
+    fd
+    gawk
     htop
+    imagemagick
     jq
     lm_sensors
-    nautilus
-    ntfs3g
-    pciutils
-    playerctl
-    pkgsUnstable.ryzenadj
     poppler-utils
+    ripgrep
     stress-ng
     tree
-    usbutils
     wget
-    imagemagick
-    chafa
-    zoxide
-    fzf
-    fd
-    ripgrep
 
-    # Shell & prompt
+    # Filesystem
+    dosfstools
+    exfatprogs
+    ntfs3g
+    pciutils
+    udiskie
+    usbutils
+
+    # Shell & version control
     bash
-    gawk
     git
-    gnome-console
+
+    # Networking (CLI)
+    bind
 
     # Auth agents
     lxqt.lxqt-policykit
 
-    # Specific Versions
-    pkgsUnstable.antigravity
-
-    # Audit Tools (Rigidity)
+    # Nix audit tools
     deadnix
     nixfmt-rfc-style
     statix
 
-    # Networking & Bluetooth
-    bind
-    networkmanagerapplet
-    protonvpn-gui
-    udiskie
-
-    # Themes
-    adwaita-icon-theme
-    bibata-cursors
-    sddm-astronaut
+    # Pinned versions
+    pkgsUnstable.antigravity
+    pkgsUnstable.ryzenadj
   ];
 }

@@ -50,6 +50,7 @@
 
           # System Modules
           ./modules/connectivity.nix
+          ./modules/audio.nix
           ./modules/services.nix
           ./modules/desktop.nix
           ./modules/users.nix

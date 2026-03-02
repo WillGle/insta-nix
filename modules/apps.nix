@@ -1,15 +1,47 @@
 { pkgs, ... }:
 {
+  # ───────── GUI Applications & Media ─────────
   environment.systemPackages = with pkgs; [
-    # Media tools/codecs
+    # Browsers
+    brave
+    firefox
+
+    # Office & productivity
+    gsimplecal
+    libreoffice-fresh
+    wpsoffice
+    xournalpp
+    zotero
+    vscode
+
+    # Media apps
+    evince
+    gthumb
+    guvcview
+    obs-studio
+    sonic-visualiser
+    vlc
+
+    # System GUI apps
+    gnome-console
+    gnome-disk-utility
+    mission-center
+    nautilus
+    networkmanagerapplet
+    pavucontrol
+    protonvpn-gui
+    qpwgraph
+
+    # Media tools & codecs
     ffmpeg-full
     ffmpegthumbnailer
     gnome-epub-thumbnailer
     libavif
     libheif
     v4l-utils
+    alsa-utils
 
-    # Extended Codecs
+    # Extended codecs
     faac
     faad2
     fdk_aac
@@ -33,29 +65,5 @@
     gst_all_1.gst-plugins-ugly
     gst_all_1.gst-libav
     gst_all_1.gst-vaapi
-
-    # Audio
-    alsa-utils
-    pavucontrol
-    qpwgraph
-
-    # Media apps
-    evince
-    guvcview
-    mpv
-    gthumb
-    obs-studio
-    sonic-visualiser
-    vlc
-
-    # Apps
-    brave
-    firefox
-    gsimplecal
-    libreoffice-fresh
-    wpsoffice
-    xournalpp
-    zotero
-    vscode
   ];
 }

@@ -254,6 +254,16 @@
         "application/wps-office.docx" = "wps-office-wps.desktop";
         "application/wps-office.xlsx" = "wps-office-et.desktop";
         "application/wps-office.pptx" = "wps-office-wpp.desktop";
+
+        "video/mp4" = "vlc.desktop";
+        "video/mpeg" = "vlc.desktop";
+        "video/x-matroska" = "vlc.desktop";
+        "video/webm" = "vlc.desktop";
+        "video/x-flv" = "vlc.desktop";
+        "video/quicktime" = "vlc.desktop";
+        "video/x-msvideo" = "vlc.desktop";
+        "video/x-ms-wmv" = "vlc.desktop";
+        "video/ogg" = "vlc.desktop";
       };
     };
 
