@@ -14,7 +14,7 @@ The configuration is split into specialized modules for clarity:
   - **[connectivity.nix](modules/connectivity.nix)**: Hardened Networking (Global DNS, Interface Metrics, Firewall) and Bluetooth.
   - **[audio.nix](modules/audio.nix)**: PipeWire, WirePlumber rules, and extended Bluetooth audio profiles.
   - **[hardware.nix](modules/hardware.nix)**: Kernel pinning (LTS 6.12), P-State, Ryzenadj, and disk mounting.
-  - **[services.nix](modules/services.nix)**: Hardened SSH, Tailscale, and other system daemons.
+  - **[services.nix](modules/services.nix)**: Hardened SSH, Tailscale, and **Local LLM (Ollama)**.
   - **[users.nix](modules/users.nix)**: User account definitions and specialized sudo rules.
   - **[packages.nix](modules/packages.nix)**: Pure CLI tools, shell integrations, and system utilities.
   - **[apps.nix](modules/apps.nix)**: GUI applications, media tools/codecs, and browsers.
@@ -168,7 +168,8 @@ To install this configuration on a remote AMD laptop via SSH:
 - **P-State**: Running in `active` mode for optimal frequency scaling.
 - **Ryzen SMU**: `ryzen-smu` kernel module enabled for advanced CPU metrics and control.
 - **Early KMS**: Driver `amdgpu` is loaded in initrd to prevent boot flickering.
-- **ROCm**: Enabled for GPU-accelerated computing (AI/ML and OpenCL) in [connectivity.nix](modules/connectivity.nix).
+- **ROCm/Vulkan**: Enabled for GPU-accelerated computing. Ollama is configured to use **Vulkan** for the AMD GPU to ensure stability and avoid ROCm-specific initialization crashes.
+- **Local LLM**: Ollama service is integrated into the system with 4 optimized models: `qwen3-coder:30b` (Deep coding), `deepseek-coder-v2:16b-lite` (Fast coding), `qwen2.5vl:7b` (Vision), and `qwen3:8b` (General chat).
 
 ### Custom Tooling: `waybar-power-monitor`
 
