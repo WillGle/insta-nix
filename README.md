@@ -11,13 +11,14 @@ The configuration is split into specialized modules for clarity:
 - **`modules/`**:
   - **[core.nix](modules/core.nix)**: System-wide defaults, GC protection, and TTY palette.
   - **[desktop.nix](modules/desktop.nix)**: Hyprland, SDDM, Polkit UI, and centralized Fcitx5 config.
-  - **[connectivity.nix](modules/connectivity.nix)**: Hardened Networking (DNS over TLS, DNSSEC), Audio (PipeWire), and Bluetooth.
+  - **[connectivity.nix](modules/connectivity.nix)**: Hardened Networking (Global DNS, Interface Metrics, Firewall) and Bluetooth.
+  - **[audio.nix](modules/audio.nix)**: PipeWire, WirePlumber rules, and extended Bluetooth audio profiles.
   - **[hardware.nix](modules/hardware.nix)**: Kernel pinning (LTS 6.12), P-State, Ryzenadj, and disk mounting.
   - **[services.nix](modules/services.nix)**: Hardened SSH, Tailscale, and other system daemons.
   - **[users.nix](modules/users.nix)**: User account definitions and specialized sudo rules.
-  - **[packages.nix](modules/packages.nix)**: Core system utilities, CLI tools, and theme assets.
-  - **[apps.nix](modules/apps.nix)**: GUI applications, media tools, and browsers.
-  - **[theme.nix](modules/theme.nix)**: Centralized "Source of Truth" for system-wide hex colors.
+  - **[packages.nix](modules/packages.nix)**: Pure CLI tools, shell integrations, and system utilities.
+  - **[apps.nix](modules/apps.nix)**: GUI applications, media tools/codecs, and browsers.
+  - **[theme.nix](modules/theme.nix)**: Theme assets, Qt scaling, and centralized system-wide hex colors.
   - **[gaming.nix](modules/gaming.nix)**: Steam and gaming optimization tools.
   - **[fonts.nix](modules/fonts.nix)**: Nerd Fonts and emoji support.
 - **[home.nix](home.nix)**: Home Manager user config (Foot, waybar, and per-user dotfile mapping).
@@ -157,7 +158,7 @@ To install this configuration on a remote AMD laptop via SSH:
 
 ### System Hardening & Security
 
-- **DNS over TLS**: All DNS queries are encrypted via `systemd-resolved` (Cloudflare) with DNSSEC validation.
+- **DNS Reliability**: DNS is managed globally via `systemd-resolved` (Cloudflare/Google) with route metrics explicitly prioritizing physical interfaces. DNS over TLS is disabled to prevent browser DoH conflicts and VPN route shadowing.
 - **SSH Protocol**: Hardened to port 2222 with password authentication disabled and root login restricted.
 - **Kernel Pinning**: Locked to the **LTS 6.12** series to ensure the AMD platform and `ryzen-smu` modules remain stable between updates.
 - **GC Protection**: Configuration uses `keep-outputs` to prevent the garbage collector from breaking system rollbacks.
