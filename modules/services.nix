@@ -1,4 +1,4 @@
-_: {
+{ pkgsUnstable, ... }: {
   # ───────── Core Services ─────────
   services = {
     dbus.enable = true;
@@ -24,6 +24,7 @@ _: {
     # ───────── AI / LLM ─────────
     ollama = {
       enable = true;
+      package = pkgsUnstable.ollama;
       # Use Vulkan for the AMD GPU APU (ROCm crashes with exit status 2)
       acceleration = "vulkan";
     };

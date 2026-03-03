@@ -32,11 +32,16 @@
     imagemagick
     jq
     lm_sensors
+    p7zip
     poppler-utils
     ripgrep
     stress-ng
     tree
+    unzip
     wget
+    xz
+    zip
+    zstd
 
     # Filesystem
     dosfstools

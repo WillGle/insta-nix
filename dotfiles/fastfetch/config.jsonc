@@ -49,7 +49,8 @@
         {
             "type": "display",
             "key": "󰍹 DP",
-            "keyColor": "blue"
+            "keyColor": "blue",
+            "compactType": "none"
         },
         {
             "type": "de",
@@ -117,7 +118,8 @@
         {
             "type": "disk",
             "key": " DK",
-            "keyColor": "green"
+            "keyColor": "green",
+            "folders": "/:/boot:/mnt:/run/media"
         },
         {
             "type": "battery",
