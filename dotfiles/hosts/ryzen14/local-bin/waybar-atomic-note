@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # Waybar Atomic Note Display Script
 # Idle: [Priority][Task] [Remaining]
 # Hover: Top 5 Tasks
 
 TASK_FILE="$HOME/.atomic_tasks"
-[ ! -f "$TASK_FILE" ] && echo '{"text": ""}' && exit 0
+[ ! -f "$TASK_FILE" ] && jq -cn --arg text "" '{text: $text}' && exit 0
 
 # Read all tasks
 tasks=()
@@ -15,7 +16,11 @@ done < "$TASK_FILE"
 count=${#tasks[@]}
 
 if [ "$count" -eq 0 ]; then
-    printf '{"text": "󰠮 Empty", "tooltip": "No active tasks", "class": "empty"}\n'
+    jq -cn \
+        --arg text "󰠮 Empty" \
+        --arg tooltip "No active tasks" \
+        --arg class "empty" \
+        '{text: $text, tooltip: $tooltip, class: $class}'
     exit 0
 fi
 
@@ -30,9 +35,9 @@ if [ "$remaining" -gt 0 ]; then
 fi
 
 # Tooltip: Top 5 tasks
-tooltip="<b>Atomic Tasks</b>\n------------------\n"
+tooltip=$'<b>Atomic Tasks</b>\n------------------\n'
 for ((i=0; i<5 && i<count; i++)); do
-    tooltip+="${tasks[i]}\n"
+    tooltip+="${tasks[i]}"$'\n'
 done
 
 if [ "$count" -gt 5 ]; then
@@ -44,4 +49,8 @@ class="normal"
 if [[ "$top_task" =~ ^\[[Aa]\] ]]; then class="urgent"; fi
 if [[ "$top_task" =~ ^\[[Bb]\] ]]; then class="warning"; fi
 
-printf '{"text": "󰠮 %s", "tooltip": "%s", "class": "%s"}\n' "$display_text" "$tooltip" "$class"
+jq -cn \
+    --arg text "󰠮 $display_text" \
+    --arg tooltip "$tooltip" \
+    --arg class "$class" \
+    '{text: $text, tooltip: $tooltip, class: $class}'

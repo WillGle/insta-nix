@@ -47,7 +47,7 @@ Your Yazi is supercharged with specialized CLI tools:
 
 ## 4. Tier 2: Intelligent Defaults
 
-Configured via Home Manager in `home.nix`:
+Configured via Home Manager in `home/base.nix`:
 
 - **Hidden Files**: Automatically shown by default.
 - **Sorting**: Files are sorted by **Modified Time** (`mtime`) by default (newest first).

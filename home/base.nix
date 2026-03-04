@@ -13,53 +13,22 @@
     stateVersion = "25.11";
 
     packages = with pkgs; [
-      # Apps moved back to packages.nix for system stability
+      # Apps moved to system modules for stability.
     ];
 
-    # ───────── Local Scripts (~/.local/bin) ─────────
     file = {
-      ".local/bin/waybar-refresh-label" = {
-        source = ./dotfiles/local-bin/waybar-refresh-label;
-        executable = true;
-      };
-      ".local/bin/waybar-refresh-toggle" = {
-        source = ./dotfiles/local-bin/waybar-refresh-toggle;
-        executable = true;
-      };
-      ".local/bin/waybar-power-monitor" = {
-        source = ./dotfiles/local-bin/waybar-power-monitor;
-        executable = true;
-      };
-      ".local/bin/waybar-memory-info" = {
-        source = ./dotfiles/local-bin/waybar-memory-info;
-        executable = true;
-      };
-      ".local/bin/atomic-note" = {
-        source = ./dotfiles/local-bin/atomic-note;
-        executable = true;
-      };
-      ".local/bin/waybar-atomic-note" = {
-        source = ./dotfiles/local-bin/waybar-atomic-note;
-        executable = true;
-      };
-      ".config/fastfetch/config.jsonc".source = ./dotfiles/fastfetch/config.jsonc;
+      ".config/fastfetch/config.jsonc".source = ../dotfiles/common/fastfetch/config.jsonc;
     };
   };
 
   programs = {
-    # Let Home Manager manage itself
     home-manager.enable = true;
 
-    # ───────── Fish Shell ─────────
     fish = {
       enable = true;
       interactiveShellInit = ''
-        # Suppress default fish welcome message
         set fish_greeting
-
-        # Run fastfetch at shell startup with custom config
         fastfetch --config ~/.config/fastfetch/config.jsonc
-
         echo "For fast terminal file check - Yazi"
       '';
       shellAliases = {
@@ -69,7 +38,6 @@
       };
     };
 
-    # ───────── Starship Prompt ─────────
     starship = {
       enable = true;
       enableFishIntegration = true;
@@ -101,6 +69,16 @@
         git_status = {
           style = "green bg:${osConfig.theme.colors.base}";
           format = "[$all_status]($style)";
+          conflicted = "= ";
+          ahead = "⇡ ";
+          behind = "⇣ ";
+          diverged = "⇕ ";
+          untracked = "? ";
+          stashed = "$ ";
+          modified = "! ";
+          staged = "+ ";
+          renamed = "» ";
+          deleted = "✘ ";
         };
         python = {
           symbol = "";
@@ -132,31 +110,29 @@
       };
     };
 
-    # ───────── Foot Terminal ─────────
     foot = {
       enable = true;
       settings = {
         main = {
           font = "JetBrainsMono Nerd Font:size=11";
-          pad = "15x15"; # Comfortable padding
+          pad = "15x15";
         };
         colors = {
-          alpha = 0.99; # Subtle transparency
+          alpha = 0.99;
           background = lib.removePrefix "#" osConfig.theme.colors.base;
           foreground = lib.removePrefix "#" osConfig.theme.colors.text;
-          regular0 = lib.removePrefix "#" osConfig.theme.colors.mantle; # black
-          regular1 = lib.removePrefix "#" osConfig.theme.colors.error; # red
-          regular2 = lib.removePrefix "#" osConfig.theme.colors.success; # green
-          regular3 = lib.removePrefix "#" osConfig.theme.colors.warning; # yellow
-          regular4 = lib.removePrefix "#" osConfig.theme.colors.accent; # blue
-          regular5 = lib.removePrefix "#" osConfig.theme.colors.purple; # magenta
-          regular6 = lib.removePrefix "#" osConfig.theme.colors.cyan; # cyan
-          regular7 = lib.removePrefix "#" osConfig.theme.colors.text; # white
+          regular0 = lib.removePrefix "#" osConfig.theme.colors.mantle;
+          regular1 = lib.removePrefix "#" osConfig.theme.colors.error;
+          regular2 = lib.removePrefix "#" osConfig.theme.colors.success;
+          regular3 = lib.removePrefix "#" osConfig.theme.colors.warning;
+          regular4 = lib.removePrefix "#" osConfig.theme.colors.accent;
+          regular5 = lib.removePrefix "#" osConfig.theme.colors.purple;
+          regular6 = lib.removePrefix "#" osConfig.theme.colors.cyan;
+          regular7 = lib.removePrefix "#" osConfig.theme.colors.text;
         };
       };
     };
 
-    # ───────── Yazi & Plugins ─────────
     yazi = {
       enable = true;
       enableFishIntegration = true;
@@ -190,40 +166,30 @@
       };
     };
 
-    # ───────── Zoxide & FZF ─────────
     zoxide = {
       enable = true;
       enableFishIntegration = true;
     };
+
     fzf = {
       enable = true;
       enableFishIntegration = true;
     };
 
-    # ───────── Direnv ─────────
     direnv = {
       enable = true;
       nix-direnv.enable = true;
     };
 
-    # ───────── Waybar ─────────
     waybar = {
       enable = true;
       systemd.enable = false;
     };
   };
 
-  # ───────── Udiskie (Automounting) ─────────
-  # services.udiskie.enable = true;
-
-  # ───────────────────────────────────────────────────────────────
-  # Phase 3 & 4: Desktop Environment & XDG
-  # ───────────────────────────────────────────────────────────────
-
   xdg = {
     enable = true;
 
-    # ───────── XDG User Directories ─────────
     userDirs = {
       enable = true;
       desktop = "${config.home.homeDirectory}/Desktop";
@@ -236,7 +202,6 @@
       videos = "${config.home.homeDirectory}/Videos";
     };
 
-    # ───────── Default Applications ─────────
     mimeApps = {
       enable = true;
       defaultApplications = {
@@ -265,87 +230,6 @@
         "video/x-ms-wmv" = "vlc.desktop";
         "video/ogg" = "vlc.desktop";
       };
-    };
-
-    # ───────── Config Files ─────────
-    configFile = {
-      # Hyprland
-      "hypr/hyprland.conf".source = ./dotfiles/hypr/hyprland.conf;
-      "hypr/hyprpaper.conf".source = ./dotfiles/hypr/hyprpaper.conf;
-      "hypr/hyprlock.conf".source = ./dotfiles/hypr/hyprlock.conf;
-      "hypr/hypridle.conf".source = ./dotfiles/hypr/hypridle.conf;
-      "hypr/autostart.conf" = {
-        source = ./dotfiles/hypr/autostart.conf;
-        executable = true;
-      };
-      "hypr/toggle_waybar.sh" = {
-        source = ./dotfiles/hypr/toggle_waybar.sh;
-        executable = true;
-      };
-      "hypr/rotate_select.sh" = {
-        source = ./dotfiles/hypr/rotate_select.sh;
-        executable = true;
-      };
-
-      # Waybar
-      "waybar/config.jsonc".source = ./dotfiles/waybar/config.jsonc;
-      "waybar/style.css".text =
-        let
-          css = builtins.readFile ./dotfiles/waybar/style.css;
-          c = osConfig.theme.colors;
-        in
-        builtins.replaceStrings
-          [
-            "_BASE_"
-            "_MANTLE_"
-            "_TEXT_"
-            "_ACCENT_"
-            "_WARNING_"
-            "_ERROR_"
-            "_PURPLE_"
-          ]
-          [
-            c.base
-            c.mantle
-            c.text
-            c.accent
-            c.warning
-            c.error
-            c.purple
-          ]
-          css;
-      "waybar/cliphist.sh" = {
-        source = ./dotfiles/waybar/cliphist.sh;
-        executable = true;
-      };
-
-      # Kanshi
-      "kanshi/config".source = ./dotfiles/kanshi/config;
-
-      # Wofi
-      "wofi/config-app.ini".source = ./dotfiles/wofi/config-app.ini;
-      "wofi/config-clip.ini".source = ./dotfiles/wofi/config-clip.ini;
-      "wofi/style.css".source = ./dotfiles/wofi/style.css;
-    };
-  };
-
-  # ───────── Systemd User Services ─────────
-  systemd.user.services.polkit-agent = {
-    Unit = {
-      Description = "Polkit Authentication Agent";
-      PartOf = [ "graphical-session.target" ];
-      After = [ "graphical-session-pre.target" ];
-      Wants = [ "graphical-session-pre.target" ];
-    };
-    Service = {
-      ExecStart = "${pkgs.lxqt.lxqt-policykit}/bin/lxqt-policykit-agent";
-      Restart = "on-failure";
-      RestartSec = "3s";
-      StartLimitBurst = 3;
-      StartLimitIntervalSec = "30s";
-    };
-    Install = {
-      WantedBy = [ "graphical-session.target" ];
     };
   };
 }

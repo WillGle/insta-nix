@@ -1,7 +1,6 @@
 { pkgs, ... }:
 
 {
-  # ───────── Services (GPU, Perf) ─────────
   services = {
     xserver.videoDrivers = [ "amdgpu" ];
 
@@ -12,7 +11,6 @@
     fstrim.enable = true;
   };
 
-  # ───────── Vulkan/VA-API (GPU) ─────────
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
@@ -33,21 +31,6 @@
     ];
   };
 
-  # ───────── Filesystems ─────────
-  fileSystems."/mnt/vault" = {
-    device = "/dev/disk/by-uuid/GENERIC_VAULT_UUID";
-    fsType = "ext4";
-    options = [
-      "defaults"
-      "noatime"
-      "nofail"
-      "x-systemd.automount"
-      "x-systemd.device-timeout=5s"
-      "x-systemd.idle-timeout=60"
-    ];
-  };
-
-  # ───────── Bootloader ─────────
   boot = {
     loader = {
       systemd-boot.enable = true;
@@ -65,7 +48,6 @@
     blacklistedKernelModules = [ "lenovo_wmi_gamezone" ];
   };
 
-  # ───────── Performance & Tuning ─────────
   zramSwap = {
     enable = true;
     algorithm = "zstd";
@@ -78,10 +60,8 @@
     "vm.swappiness" = 20;
   };
 
-  # CPU policy.
   powerManagement.enable = true;
 
-  # ───────── Virtualization ─────────
   virtualisation.docker = {
     enable = true;
     storageDriver = "overlay2";

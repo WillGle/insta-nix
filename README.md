@@ -1,213 +1,172 @@
-# NixOS Flake Configuration - Laptop
+# NixOS Flake Configuration (Multi-host)
 
-This repository contains the complete NixOS configuration for my **AMD Ryzen** laptop, structured for maintainability and performance using Flakes.
+This repository is organized for:
 
-## System Architecture
+- Multi-host management
+- Safe remote migration
+- Minimal complexity (shared base + host overlays)
 
-The configuration is split into specialized modules for clarity:
+It keeps backward-compatible flake output naming for the current laptop:
 
-- **[flake.nix](flake.nix)**: Entry point. Defines inputs (NixOS 25.11 stable & Unstable) and host configuration.
-- **[hardware-configuration.nix](hardware-configuration.nix)**: Hardware-specific generated config (UUIDs, boot modules).
-- **`modules/`**:
-  - **[core.nix](modules/core.nix)**: System-wide defaults, GC protection, and TTY palette.
-  - **[desktop.nix](modules/desktop.nix)**: Hyprland, SDDM, Polkit UI, and centralized Fcitx5 config.
-  - **[connectivity.nix](modules/connectivity.nix)**: Hardened Networking (Global DNS, Interface Metrics, Firewall) and Bluetooth.
-  - **[audio.nix](modules/audio.nix)**: PipeWire, WirePlumber rules, and extended Bluetooth audio profiles.
-  - **[hardware.nix](modules/hardware.nix)**: Kernel pinning (LTS 6.12), P-State, Ryzenadj, and disk mounting.
-  - **[services.nix](modules/services.nix)**: Hardened SSH, Tailscale, and **Local LLM (Ollama)**.
-  - **[users.nix](modules/users.nix)**: User account definitions and specialized sudo rules.
-  - **[packages.nix](modules/packages.nix)**: Pure CLI tools, shell integrations, and system utilities.
-  - **[apps.nix](modules/apps.nix)**: GUI applications, media tools/codecs, and browsers.
-  - **[theme.nix](modules/theme.nix)**: Theme assets, Qt scaling, and centralized system-wide hex colors.
-  - **[gaming.nix](modules/gaming.nix)**: Steam and gaming optimization tools.
-  - **[fonts.nix](modules/fonts.nix)**: Nerd Fonts and emoji support.
-- **[home.nix](home.nix)**: Home Manager user config (Foot, waybar, and per-user dotfile mapping).
-- **`dotfiles/`**: Source files for desktop environment configs (Hyprland, Waybar, Wofi, kanshi).
+- `Laptop`
+- `Laptop-bootstrap`
 
----
+## Current Architecture
 
-## Maintenance & Code Quality
-
-### Audit & Rigidity
-
-The configuration follows a strict "Rigidity - Stability - Standardize - Unification" philosophy.
-
-- **Formatting**: All `.nix` files are formatted with `nixfmt`.
-- **Linting**: Enforced via `statix` (logic checks) and `deadnix` (unused code removal).
-- **Strict Scripts**: All shell scripts use `set -euo pipefail` for safety.
-
-Run the audit suite:
-
-```bash
-nix shell nixpkgs#statix nixpkgs#deadnix nixpkgs#nixfmt-rfc-style nixpkgs#git --command bash -c "statix check . && deadnix . && nixfmt --check \$(git ls-files '*.nix')"
+```text
+/etc/nixos
+├── flake.nix
+├── profiles
+│   ├── common
+│   │   ├── core.nix
+│   │   ├── i18n.nix
+│   │   ├── users-will.nix
+│   │   ├── services-base.nix
+│   │   ├── connectivity-base.nix
+│   │   ├── ssh-strict.nix
+│   │   └── ssh-bootstrap.nix
+│   ├── roles
+│   │   ├── desktop-hypr.nix
+│   │   ├── workstation-apps.nix
+│   │   └── gaming.nix
+│   └── hardware
+│       └── amd-ryzen-laptop.nix
+├── hosts
+│   ├── ryzen14
+│   │   ├── default.nix
+│   │   ├── hardware-configuration.nix
+│   │   ├── storage.nix
+│   │   ├── networking.nix
+│   │   └── home-overlay.nix
+│   └── _template
+├── home
+│   ├── base.nix
+│   └── desktop-common.nix
+├── dotfiles
+│   ├── common
+│   │   ├── fastfetch
+│   │   ├── waybar
+│   │   └── wofi
+│   └── hosts/ryzen14
+│       ├── hypr
+│       ├── kanshi
+│       └── local-bin
+└── docs
+    ├── HOST_ONBOARDING.md
+    └── REMOTE_MIGRATION.md
 ```
 
-### Verification Steps
+## Composition Model
 
-Run these commands to validate the system state:
+- `profiles/common/*`: shared baseline, no host identity
+- `profiles/hardware/*`: hardware-class tuning, reusable by similar machines
+- `profiles/roles/*`: functional stacks (desktop, apps, gaming)
+- `hosts/<host>/*`: host identity (hostname, disk UUIDs, host networking, host HM overlay)
+- `home/base.nix`: shared Home Manager baseline
+- `home/desktop-common.nix`: shared desktop HM layer
+- `hosts/<host>/home-overlay.nix`: host-specific HM additions
 
-1. **Lint & Format**: Ensures code rigidity.
+## Flake Outputs
 
-   ```bash
-   nix shell nixpkgs#statix nixpkgs#deadnix nixpkgs#nixfmt-rfc-style nixpkgs#git --command bash -c "statix check . && deadnix . && nixfmt --check \$(git ls-files '*.nix')"
-   ```
+### `Laptop` (strict daily profile)
 
-   *> Note: Uses `git ls-files` to ignore build artifacts (like `result/`).*
+- SSH port: `2222`
+- `PermitRootLogin = "no"`
+- `PasswordAuthentication = false`
 
-2. **System Build**: Ensures the configuration is valid and builds.
+### `Laptop-bootstrap` (temporary remote install profile)
 
-   ```bash
-   nixos-rebuild build --flake .#Laptop
-   ```
+- SSH ports: `22`, `2222`
+- `PermitRootLogin = "prohibit-password"` (key-based rescue)
+- `PasswordAuthentication = false`
 
-3. **Script Runtime**: Verifies shell script stability.
+## Command Matrix
 
-   ```bash
-   dotfiles/local-bin/waybar-memory-info
-   dotfiles/local-bin/verify-optimization
-   ```
-
-### Daily Use
-
-### Apply Changes
-
-To apply configuration changes immediately:
+### Validate flake structure
 
 ```bash
-sudo nixos-rebuild switch --flake .#Laptop
+nix flake check --no-build --no-write-lock-file path:/etc/nixos
 ```
 
-To apply changes only for the next boot (useful for kernel/driver updates):
+### Build strict profile
 
 ```bash
-sudo nixos-rebuild boot --flake .#Laptop
+nixos-rebuild build --flake path:/etc/nixos#Laptop
 ```
 
-### Update System
-
-1. Update sources (flake.lock): `sudo nix flake update`
-2. Apply updates: `sudo nixos-rebuild switch --flake .#Laptop`
-
-### Troubleshooting & Rollback
-
-Switch to the previous generation if something breaks:
+### Build bootstrap profile
 
 ```bash
-sudo nixos-rebuild switch --rollback
+nixos-rebuild build --flake path:/etc/nixos#Laptop-bootstrap
 ```
 
-List system generations:
+### Apply strict profile
 
 ```bash
-nix-env --list-generations --profile /nix/var/nix/profiles/system
+sudo nixos-rebuild switch --flake /etc/nixos#Laptop
 ```
 
-### Cleanup & Disk Space
-
-Delete old generations to free up space:
+### Verify key runtime values
 
 ```bash
-# Delete older than 7 days
-sudo nix-collect-garbage --delete-older-than 7d
-# Full hard cleanup
-sudo nix-collect-garbage -d
+nix eval --raw path:/etc/nixos#nixosConfigurations.Laptop.config.networking.hostName
+nix eval --json path:/etc/nixos#nixosConfigurations.Laptop.config.services.openssh.ports
+nix eval --json path:/etc/nixos#nixosConfigurations.\"Laptop-bootstrap\".config.services.openssh.ports
 ```
 
-### Package Search
-
-Search for available packages:
+### Local lint/format hygiene
 
 ```bash
-nix-env -qaP <name>
-# OR use nix-search if installed
-nix-search <name>
+nix shell nixpkgs#statix nixpkgs#deadnix nixpkgs#nixfmt-rfc-style --command bash -lc \
+  'statix check . && deadnix . && nixfmt --check flake.nix $(find profiles hosts home -name "*.nix" | sort)'
 ```
 
----
+## Remote Migration Flow
 
-## Remote & Re-Installation Guide
+1. Boot target machine into NixOS installer with SSH enabled.
+2. Install bootstrap output:
 
-### Option 1: Manual Re-installation (Local)
+```bash
+npx nixos-anywhere --flake .#Laptop-bootstrap root@<ip>
+```
 
-1. Boot from a NixOS Live ISO.
-2. Partition and mount your drives.
-3. Clone this repository into `/mnt/etc/nixos`:
+3. Verify normal user access:
 
-   ```bash
-   git clone <repo-url> /mnt/etc/nixos
-   ```
+```bash
+ssh -p 2222 will@<ip>
+```
 
-4. Install:
+4. Harden to strict profile:
 
-   ```bash
-   nixos-install --flake /mnt/etc/nixos#Laptop
-   ```
+```bash
+sudo nixos-rebuild switch --flake /etc/nixos#Laptop
+```
 
-### Option 2: Remote Installation (via nixos-anywhere)
+5. Re-verify SSH on `2222`.
 
-To install this configuration on a remote AMD laptop via SSH:
+See full runbook: `docs/REMOTE_MIGRATION.md`
 
-1. Ensure the remote machine is booted into a NixOS installer with SSH enabled.
-2. From your development machine:
+## Adding a New Host
 
-   ```bash
-   npx nixos-anywhere --flake .#Laptop root@remote-ip
-   ```
+1. Copy template:
 
----
+```bash
+cp -r hosts/_template hosts/<host-id>
+```
 
-### System Hardening & Security
+2. Fill:
+- `hosts/<host-id>/hardware-configuration.nix`
+- `hosts/<host-id>/networking.nix`
+- `hosts/<host-id>/home-overlay.nix`
 
-- **DNS Reliability**: DNS is managed globally via `systemd-resolved` (Cloudflare/Google) with route metrics explicitly prioritizing physical interfaces. DNS over TLS is disabled to prevent browser DoH conflicts and VPN route shadowing.
-- **SSH Protocol**: Hardened to port 2222 with password authentication disabled and root login restricted.
-- **Kernel Pinning**: Locked to the **LTS 6.12** series to ensure the AMD platform and `ryzen-smu` modules remain stable between updates.
-- **GC Protection**: Configuration uses `keep-outputs` to prevent the garbage collector from breaking system rollbacks.
+3. Register new output(s) in `flake.nix`.
+4. Build and validate.
 
-### Hardware Optimizations (AMD Ryzen)
+Detailed guide: `docs/HOST_ONBOARDING.md`
 
-- **P-State**: Running in `active` mode for optimal frequency scaling.
-- **Ryzen SMU**: `ryzen-smu` kernel module enabled for advanced CPU metrics and control.
-- **Early KMS**: Driver `amdgpu` is loaded in initrd to prevent boot flickering.
-- **ROCm/Vulkan**: Enabled for GPU-accelerated computing. Ollama is configured to use **Vulkan** for the AMD GPU to ensure stability and avoid ROCm-specific initialization crashes.
-- **Local LLM**: Ollama service is integrated into the system with 4 optimized models: `qwen3-coder:30b` (Deep coding), `deepseek-coder-v2:16b-lite` (Fast coding), `qwen2.5vl:7b` (Vision), and `qwen3:8b` (General chat).
+## Operational Notes
 
-### Custom Tooling: `waybar-power-monitor`
-
-A specialized script (`~/.local/bin/waybar-power-monitor`) monitors the Ryzen APU limits:
-
-- **`apu` Mode**: Combined CPU+GPU Temp, Package Power, and Frequency/Usage stats.
-- **`sys` Mode**: Calculated System/Screen power (Total - APU).
-- **`pwr` Mode**: Real-time Battery Charge/Discharge flow.
-
-### Premium Authentication & Desktop UI
-
-- **SDDM**: Using `sddm-astronaut-theme` (Qt5 stable) for a modern, reliable login experience.
-- **Lock Screen**: **Hyprlock** provides a high-performance, minimalist lock screen with wallpaper blur.
-- **Polkit UI**: **LXQt PolicyKit** provides dependable elevation prompts integrated via systemd.
-- **XWayland**: Scaling and cursors are synchronized using `xrdb` to ensure legacy applications look premium on high-DPI panels.
-
-### Input Method (Vietnamese)
-
-- **Framework**: Fcitx5 with **UniKey** engine centered in `desktop.nix`.
-- **Centralization**: All fmod and environment variables are managed at the system level for total consistency across GTK, Qt, and Electron apps.
-
----
-
-## Home Manager (Active)
-
-Home Manager is fully integrated as a NixOS flake module, serving as the **Single Source of Truth (SSOT)** for user configurations. It manages:
-
-- **Shell**: Fish, Starship prompt, Direnv.
-- **Display Management**: **Kanshi** manages dynamic monitor profiles with manual `exec-once` invocation for stability.
-- **Native Waybar**: Fully styled via Home Manager with dynamic color injection from [theme.nix](modules/theme.nix).
-- **Dotfiles**: Authoritative source in `dotfiles/` directory, symlinked to `~/.config/`.
-- **XDG**: User directories and default application associations.
-
-Managed files in `~/.config/` are read-only to ensure system rigidity. Edit sources in `dotfiles/`, then rebuild.
-
----
-
-## Notes
-
-- **Power Management**: The system uses `amd_pstate=active`. Profile switching and monitoring are handled by the custom `waybar-power-monitor` script (toggle via Waybar icon or CLI).
-- **Maintenance**: Nix Garbage Collection runs weekly automatically, keeping the last 14 days of generations.
+- If your Git tree has untracked new files, `--flake .#...` may fail because `git+file` flakes only include tracked files.
+- Use `path:/etc/nixos#...` during local refactors, or stage files with `git add -A`.
+- Host-specific storage for Ryzen14 is defined in `hosts/ryzen14/storage.nix`.
+- Wallpaper is now local (`~/.config/hypr/wallpaper.png`) to avoid hard dependency on `/mnt/vault` at session startup.

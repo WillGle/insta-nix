@@ -28,7 +28,7 @@
   },
   // ─── Memory (custom with top-process tooltip) ─────────────────────
   "custom/memory_info": {
-    "exec": "~/.local/bin/waybar-memory-info",
+    "exec": "$HOME/.local/bin/waybar-memory-info",
     "return-type": "json",
     "interval": 1,
     "tooltip": true
@@ -56,40 +56,40 @@
   },
   // ─── Hardware Monitors (consolidated temp + power) ────────────────
   "custom/apu_info": {
-    "exec": "waybar-power-monitor apu",
+    "exec": "$HOME/.local/bin/waybar-power-monitor apu",
     "return-type": "json",
     "format": "{}",
     "interval": 2,
     "tooltip": true
   },
   "custom/power_flow": {
-    "exec": "~/.local/bin/waybar-power-monitor pwr",
+    "exec": "$HOME/.local/bin/waybar-power-monitor pwr",
     "return-type": "json",
     "interval": 2,
     "tooltip": true
   },
   "custom/power_profile": {
-    "exec": "~/.local/bin/waybar-power-monitor prof",
+    "exec": "$HOME/.local/bin/waybar-power-monitor prof",
     "return-type": "json",
     "interval": 30,
     "signal": 2,
-    "on-click": "~/.local/bin/waybar-power-monitor toggle",
+    "on-click": "$HOME/.local/bin/waybar-power-monitor toggle",
     "tooltip": true
   },
   // ─── Refresh Rate ─────────────────────────────────────────────────
   "custom/refresh_rate": {
-    "exec": "~/.local/bin/waybar-refresh-label",
+    "exec": "$HOME/.local/bin/waybar-refresh-label",
     "return-type": "text",
     "interval": 1,
-    "on-click": "~/.local/bin/waybar-refresh-toggle",
+    "on-click": "$HOME/.local/bin/waybar-refresh-toggle",
     "tooltip": false
   },
   "custom/atomic_note": {
-    "exec": "~/.local/bin/waybar-atomic-note",
+    "exec": "$HOME/.local/bin/waybar-atomic-note",
     "max-length": 45,
     "return-type": "json",
     "interval": 1,
-    "on-click": "~/.local/bin/atomic-note edit",
+    "on-click": "$HOME/.local/bin/atomic-note edit",
     "signal": 5,
     "tooltip": true
   }
