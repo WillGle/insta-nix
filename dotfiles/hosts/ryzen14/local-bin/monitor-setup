@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# monitor-setup: Quick toggle UI for monitor configuration using Wofi & Hyprland
+# Detect connected monitors
+export PATH="$PATH:/run/current-system/sw/bin"
+
+MONITORS=$(hyprctl monitors all -j)
+LAPTOP_MONITOR="eDP-1"
+# Find the first connected monitor that is NOT the laptop monitor
+EXTERNAL_MON=$(echo "$MONITORS" | jq -r ".[] | select(.name != \"$LAPTOP_MONITOR\") | .name" | head -n 1)
+
+if [ -z "$EXTERNAL_MON" ]; then
+    notify-send "Monitor Setup" "No external monitor detected."
+    exit 1
+fi
+
+# Define options
+declare -A OPTIONS
+OPTIONS=(
+    ["Extend Right (Scale 1)"]="hyprctl keyword monitor $EXTERNAL_MON, preferred, auto-right, 1"
+    ["Extend Left (Scale 1)"]="hyprctl keyword monitor $EXTERNAL_MON, preferred, auto-left, 1"
+    ["Extend Up (Scale 1)"]="hyprctl keyword monitor $EXTERNAL_MON, preferred, auto-up, 1"
+    ["Mirror Laptop"]="hyprctl keyword monitor $EXTERNAL_MON, preferred, auto, 1, mirror, $LAPTOP_MONITOR"
+    ["Presentation Mode (External Only)"]="hyprctl keyword monitor $EXTERNAL_MON, preferred, 0x0, 1; hyprctl keyword monitor $LAPTOP_MONITOR, disable"
+    ["Restore Laptop Only"]="hyprctl keyword monitor $LAPTOP_MONITOR, preferred, 0x0, 1.5; hyprctl keyword monitor $EXTERNAL_MON, disable"
+    ["Auto/Default"]="hyprctl keyword monitor $EXTERNAL_MON, preferred, auto, auto"
+)
+
+# Create the wofi menu from keys
+MENU=$(printf "%s\n" "${!OPTIONS[@]}" | wofi --dmenu --prompt="Configure $EXTERNAL_MON:" --lines 7 --width 400 --cache-file /dev/null -i)
+
+if [ -n "$MENU" ]; then
+    COMMAND="${OPTIONS[$MENU]}"
+    if [ -n "$COMMAND" ]; then
+        eval "$COMMAND"
+        notify-send "Monitor Setup" "Applied: $MENU"
+    fi
+fi

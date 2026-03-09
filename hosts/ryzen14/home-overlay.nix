@@ -4,6 +4,10 @@ _: {
       source = ../../dotfiles/hosts/ryzen14/local-bin/atomic-note;
       executable = true;
     };
+    ".local/bin/monitor-setup" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/monitor-setup;
+      executable = true;
+    };
     ".local/bin/waybar-atomic-note" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-atomic-note;
       executable = true;
