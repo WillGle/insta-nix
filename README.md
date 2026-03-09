@@ -16,21 +16,14 @@ It keeps backward-compatible flake output naming for the current laptop:
 ```text
 /etc/nixos
 ├── flake.nix
+├── flake.lock
+├── README.md
+├── ATOMIC_NOTE_USAGE.md
+├── YAZI_USAGE.md
 ├── profiles
-│   ├── common
-│   │   ├── core.nix
-│   │   ├── i18n.nix
-│   │   ├── users-will.nix
-│   │   ├── services-base.nix
-│   │   ├── connectivity-base.nix
-│   │   ├── ssh-strict.nix
-│   │   └── ssh-bootstrap.nix
-│   ├── roles
-│   │   ├── desktop-hypr.nix
-│   │   ├── workstation-apps.nix
-│   │   └── gaming.nix
-│   └── hardware
-│       └── amd-ryzen-laptop.nix
+│   ├── common/
+│   ├── roles/
+│   └── hardware/
 ├── hosts
 │   ├── ryzen14
 │   │   ├── default.nix
@@ -163,6 +156,28 @@ cp -r hosts/_template hosts/<host-id>
 4. Build and validate.
 
 Detailed guide: `docs/HOST_ONBOARDING.md`
+
+## Maintenance
+
+### Update flake inputs
+
+```bash
+nix flake update
+```
+
+### Garbage collection & Store optimization
+
+```bash
+# Delete older generations and optimize the store
+sudo nix-collect-garbage -d
+nix-store --optimize
+```
+
+### Check store for corruption
+
+```bash
+nix-store --verify --check-contents
+```
 
 ## Operational Notes
 
