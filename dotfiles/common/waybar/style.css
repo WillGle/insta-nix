@@ -63,6 +63,7 @@ window#waybar {
 #custom-apu_info,
 #custom-power_flow,
 #custom-power_profile,
+#custom-battery_mode,
 #custom-refresh_rate,
 #custom-atomic_note {
   padding: 0 10px;
@@ -78,6 +79,7 @@ window#waybar {
 #custom-apu_info:hover,
 #custom-power_flow:hover,
 #custom-power_profile:hover,
+#custom-battery_mode:hover,
 #custom-refresh_rate:hover,
 #custom-atomic_note:hover {
   background: rgba(255, 255, 255, 0.1);
@@ -151,6 +153,22 @@ window#waybar {
 #custom-power_profile.saver {
   color: @accent;
   border-bottom: 2px solid @accent;
+}
+
+/* ---------- Battery Mode states ----------------------------------------- */
+#custom-battery_mode.reserve-on {
+  color: @accent;
+  border-bottom: 2px solid @accent;
+}
+
+#custom-battery_mode.reserve-off {
+  color: @warn;
+  border-bottom: 2px solid @warn;
+}
+
+#custom-battery_mode.reserve-unknown {
+  color: @warn;
+  border-bottom: 2px solid @warn;
 }
 
 /* ---------- Tooltip ------------------------------------------------------ */

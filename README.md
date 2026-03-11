@@ -185,3 +185,6 @@ nix-store --verify --check-contents
 - Use `path:/etc/nixos#...` during local refactors, or stage files with `git add -A`.
 - Host-specific storage for Ryzen14 is defined in `hosts/ryzen14/storage.nix`.
 - Wallpaper is now local (`~/.config/hypr/wallpaper.png`) to avoid hard dependency on `/mnt/vault` at session startup.
+- Battery reserve mode defaults to `ON` at boot via `systemd.tmpfiles` (`conservation_mode=1`).
+- Waybar has a dedicated `battery mode` button between power profile and refresh-rate modules.
+- Right-click the `battery mode` button to toggle reserve mode at runtime; `system energy flow` remains read-only monitoring.

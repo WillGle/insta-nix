@@ -2,7 +2,7 @@
 set -euo pipefail
 export LC_ALL=C
 # Waybar consolidated hardware monitor
-# Usage: waybar-power-monitor apu|sys|pwr|prof|toggle
+# Usage: waybar-power-monitor apu|sys|pwr|prof|toggle|bmode|bmode-toggle
 
 MODE="${1:-pwr}"
 
@@ -14,6 +14,7 @@ BAT_ENERGY_NOW="/sys/class/power_supply/BAT1/energy_now"
 BAT_ENERGY_FULL="/sys/class/power_supply/BAT1/energy_full"
 BAT_ENERGY_FULL_DESIGN="/sys/class/power_supply/BAT1/energy_full_design"
 BAT_CYCLE_COUNT="/sys/class/power_supply/BAT1/cycle_count"
+RESERVE_NODE="/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode"
 
 # --- Icons (Nerd Font Hex) ---
 ICON_CPU=$(printf "\uf2db")
@@ -28,6 +29,9 @@ ICON_WATT=$(printf "\uf0e7")
 ICON_PERF=$(printf "\uf0e7")     # Bolt
 ICON_BALANCED=$(printf "\uf24e") # Scales
 ICON_SAVER=$(printf "\uf06c")   # Leaf
+ICON_RESERVE_ON="$ICON_SAVER"
+ICON_RESERVE_OFF="$ICON_PERF"
+ICON_RESERVE_UNKNOWN="?"
 
 # --- Helper Functions ---
 
@@ -100,6 +104,36 @@ get_cpu_freq() {
 get_gpu_freq() {
     # GPU Shader Clock in MHz
     awk '{printf "%d", $1/1000000}' /sys/class/hwmon/hwmon0/freq1_input 2>/dev/null || echo 0
+}
+
+get_reserve_state() {
+    local state
+
+    if state="$(sudo /run/current-system/sw/bin/toggle-battery-reserve status 2>/dev/null)"; then
+        case "$state" in
+            on|off)
+                echo "$state"
+                return 0
+                ;;
+        esac
+    fi
+
+    if [ -r "$RESERVE_NODE" ]; then
+        state="$(cat "$RESERVE_NODE" 2>/dev/null || true)"
+        case "$state" in
+            1)
+                echo "on"
+                return 0
+                ;;
+            0)
+                echo "off"
+                return 0
+                ;;
+        esac
+    fi
+
+    echo "unknown"
+    return 1
 }
 
 # --- Main Data Gathering ---
@@ -262,6 +296,33 @@ case "$MODE" in
             "$w_in" "$w_out" "$gpu_w" \
             "$cap" "$stat" "$health" "$cycles" "$wh_now" "$wh_full" "$volt_v" "${time_str:-N/A}" "$profile" \
             "$w_cls" "$b_cls"
+        ;;
+    bmode)
+        reserve_state="$(get_reserve_state || true)"
+        case "$reserve_state" in
+            on)
+                reserve_icon="$ICON_RESERVE_ON"
+                reserve_label="ON"
+                reserve_cls="reserve-on"
+                ;;
+            off)
+                reserve_icon="$ICON_RESERVE_OFF"
+                reserve_label="OFF"
+                reserve_cls="reserve-off"
+                ;;
+            *)
+                reserve_icon="$ICON_RESERVE_UNKNOWN"
+                reserve_label="UNKNOWN"
+                reserve_cls="reserve-unknown"
+                ;;
+        esac
+
+        printf '{"text":" %s ", "tooltip":"Battery Mode\\n---------------------------\\nReserve Mode:  %s\\n\\nRight-click: Toggle reserve mode\\nReboot default: Reserve ON", "class":["%s", "battery-mode"]}\n' \
+            "$reserve_icon" "$reserve_label" "$reserve_cls"
+        ;;
+    bmode-toggle)
+        sudo /run/current-system/sw/bin/toggle-battery-reserve toggle >/dev/null
+        pkill -RTMIN+4 waybar
         ;;
     prof)
         profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")

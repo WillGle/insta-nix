@@ -11,6 +11,12 @@
     fstrim.enable = true;
   };
 
+  # Manually engage Lenovo conservation mode (battery reserve mode).
+  # Keep default ON at boot while allowing runtime toggle via script/Waybar.
+  systemd.tmpfiles.rules = [
+    "w- /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode - - - - 1"
+  ];
+
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
