@@ -1,5 +1,7 @@
 { pkgs, ... }:
 {
+  # Shared option schemas (such as theme.*) belong in profiles/common.
+  # Role modules should only consume/override those options in config.
   config = {
     environment.systemPackages = with pkgs; [
       adwaita-icon-theme

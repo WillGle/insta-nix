@@ -5,12 +5,7 @@
     ./storage.nix
     ./networking.nix
 
-    ../../profiles/common/theme.nix
-    ../../profiles/common/core.nix
-    ../../profiles/common/i18n.nix
-    ../../profiles/common/users-will.nix
-    ../../profiles/common/services-base.nix
-    ../../profiles/common/connectivity-base.nix
+    ../../profiles/common/default.nix
 
     ../../profiles/hardware/amd-ryzen-laptop.nix
 

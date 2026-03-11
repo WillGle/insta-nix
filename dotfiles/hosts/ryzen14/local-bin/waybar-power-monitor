@@ -5,15 +5,10 @@ export LC_ALL=C
 # Usage: waybar-power-monitor apu|sys|pwr|prof|toggle|bmode|bmode-toggle
 
 MODE="${1:-pwr}"
-
-BAT_POWER="/sys/class/power_supply/BAT1/power_now"
-BAT_VOLT="/sys/class/power_supply/BAT1/voltage_now"
-BAT_CAP="/sys/class/power_supply/BAT1/capacity"
-BAT_STATUS="/sys/class/power_supply/BAT1/status"
-BAT_ENERGY_NOW="/sys/class/power_supply/BAT1/energy_now"
-BAT_ENERGY_FULL="/sys/class/power_supply/BAT1/energy_full"
-BAT_ENERGY_FULL_DESIGN="/sys/class/power_supply/BAT1/energy_full_design"
-BAT_CYCLE_COUNT="/sys/class/power_supply/BAT1/cycle_count"
+WARN_DIR="${XDG_RUNTIME_DIR:-/tmp}/waybar-power-monitor"
+BAT_DIR=""
+AMDGPU_HWMON=""
+GPU_BUSY_PATH=""
 
 # --- Icons (Nerd Font Hex) ---
 ICON_CPU=$(printf "\uf2db")
@@ -34,26 +29,226 @@ ICON_RESERVE_UNKNOWN="?"
 
 # --- Helper Functions ---
 
+log_warn() {
+    printf '[waybar-power-monitor] %s\n' "$*" >&2
+}
+
+warn_once() {
+    local key="$1"
+    local message="$2"
+    local marker
+    marker="$WARN_DIR/$key"
+
+    mkdir -p "$WARN_DIR"
+    if [ ! -e "$marker" ]; then
+        log_warn "$message"
+        : > "$marker"
+    fi
+}
+
+clear_warn() {
+    local key="$1"
+    rm -f "$WARN_DIR/$key" 2>/dev/null || true
+}
+
+detect_battery_dir() {
+    local d t
+    if [ -n "$BAT_DIR" ] && [ -d "$BAT_DIR" ]; then
+        return 0
+    fi
+
+    for d in /sys/class/power_supply/*; do
+        [ -d "$d" ] || continue
+        t="$(cat "$d/type" 2>/dev/null || true)"
+        if [ "$t" = "Battery" ]; then
+            BAT_DIR="$d"
+            clear_warn "battery_dir"
+            return 0
+        fi
+    done
+
+    BAT_DIR=""
+    warn_once "battery_dir" "battery node not found under /sys/class/power_supply"
+    return 1
+}
+
+battery_num() {
+    local node="$1"
+    local path
+    if detect_battery_dir; then
+        path="$BAT_DIR/$node"
+        if [ -r "$path" ]; then
+            clear_warn "battery_node_$node"
+            cat "$path"
+        else
+            warn_once "battery_node_$node" "missing battery node: $path"
+            echo 0
+        fi
+    else
+        echo 0
+    fi
+}
+
+battery_text() {
+    local node="$1"
+    local fallback="$2"
+    local path
+    if detect_battery_dir; then
+        path="$BAT_DIR/$node"
+        if [ -r "$path" ]; then
+            clear_warn "battery_text_$node"
+            cat "$path"
+        else
+            warn_once "battery_text_$node" "missing battery node: $path"
+            echo "$fallback"
+        fi
+    else
+        echo "$fallback"
+    fi
+}
+
+battery_num_optional() {
+    local node="$1"
+    local fallback="${2:-0}"
+    local path
+    if detect_battery_dir; then
+        path="$BAT_DIR/$node"
+        if [ -r "$path" ]; then
+            cat "$path"
+            return 0
+        fi
+    fi
+    echo "$fallback"
+}
+
+battery_power_uw() {
+    local current_uv current_ua
+    if detect_battery_dir; then
+        if [ -r "$BAT_DIR/power_now" ]; then
+            clear_warn "battery_power"
+            cat "$BAT_DIR/power_now"
+            return 0
+        fi
+
+        if [ -r "$BAT_DIR/current_now" ] && [ -r "$BAT_DIR/voltage_now" ]; then
+            clear_warn "battery_power"
+            current_ua="$(cat "$BAT_DIR/current_now" 2>/dev/null || echo 0)"
+            current_uv="$(cat "$BAT_DIR/voltage_now" 2>/dev/null || echo 0)"
+            awk -v ua="${current_ua:-0}" -v uv="${current_uv:-0}" 'BEGIN{printf "%.0f", (ua * uv) / 1000000}'
+            return 0
+        fi
+    fi
+
+    warn_once "battery_power" "missing battery power nodes: power_now or current_now+voltage_now"
+    echo 0
+}
+
+battery_energy_uwh() {
+    local kind="$1"
+    local energy_node="energy_${kind}"
+    local charge_node="charge_${kind}"
+    local voltage_node="voltage_now"
+    local charge_now voltage_now
+
+    if detect_battery_dir; then
+        if [ -r "$BAT_DIR/$energy_node" ]; then
+            clear_warn "battery_energy_$kind"
+            cat "$BAT_DIR/$energy_node" 2>/dev/null || echo 0
+            return 0
+        fi
+
+        if [ "$kind" = "full_design" ] && [ -r "$BAT_DIR/voltage_min_design" ]; then
+            voltage_node="voltage_min_design"
+        fi
+
+        if [ -r "$BAT_DIR/$charge_node" ] && [ -r "$BAT_DIR/$voltage_node" ]; then
+            clear_warn "battery_energy_$kind"
+            charge_now="$(cat "$BAT_DIR/$charge_node" 2>/dev/null || echo 0)"
+            voltage_now="$(cat "$BAT_DIR/$voltage_node" 2>/dev/null || echo 0)"
+            awk -v c="${charge_now:-0}" -v v="${voltage_now:-0}" 'BEGIN{printf "%.0f", (c * v) / 1000000}'
+            return 0
+        fi
+    fi
+
+    warn_once "battery_energy_$kind" "missing battery energy nodes for '$kind': $energy_node or $charge_node+$voltage_node"
+    echo 0
+}
+
+detect_amdgpu_hwmon() {
+    local d
+    if [ -n "$AMDGPU_HWMON" ] && [ -d "$AMDGPU_HWMON" ]; then
+        return 0
+    fi
+
+    for d in /sys/class/hwmon/hwmon*; do
+        if [ "$(cat "$d/name" 2>/dev/null || true)" = "amdgpu" ]; then
+            AMDGPU_HWMON="$d"
+            clear_warn "amdgpu_hwmon"
+            return 0
+        fi
+    done
+
+    AMDGPU_HWMON=""
+    warn_once "amdgpu_hwmon" "amdgpu hwmon node not found"
+    return 1
+}
+
+detect_gpu_busy_path() {
+    local p
+    if [ -n "$GPU_BUSY_PATH" ] && [ -r "$GPU_BUSY_PATH" ]; then
+        return 0
+    fi
+
+    for p in /sys/class/drm/card*/device/gpu_busy_percent; do
+        if [ -r "$p" ]; then
+            GPU_BUSY_PATH="$p"
+            clear_warn "gpu_busy_path"
+            return 0
+        fi
+    done
+
+    GPU_BUSY_PATH=""
+    warn_once "gpu_busy_path" "gpu_busy_percent node not found"
+    return 1
+}
+
+get_gpu_power_uw() {
+    if detect_amdgpu_hwmon; then
+        if [ -r "$AMDGPU_HWMON/power1_input" ]; then
+            clear_warn "gpu_power"
+            cat "$AMDGPU_HWMON/power1_input" 2>/dev/null || echo 0
+            return 0
+        fi
+
+        if [ -r "$AMDGPU_HWMON/power1_average" ]; then
+            clear_warn "gpu_power"
+            cat "$AMDGPU_HWMON/power1_average" 2>/dev/null || echo 0
+            return 0
+        fi
+    fi
+
+    warn_once "gpu_power" "missing amdgpu power node: power1_input/power1_average"
+    echo 0
+}
+
+warning_count() {
+    if [ -d "$WARN_DIR" ]; then
+        find "$WARN_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l
+    else
+        echo 0
+    fi
+}
+
 apply_ryzen_settings() {
     local prof="$1"
     # Optimized for AMD CPU (AMD)
-    case "$prof" in
-        performance)
-            # High Perf: 54W limit (Max cTDP), -20 All Core CO
-            # EPP: performance (bias towards high clocks)
-            sudo /run/current-system/sw/bin/ryzenadj-profile performance 2>/dev/null || true
-            ;;
-        balanced)
-            # Balanced: 28W limit, -15 All Core CO
-            # EPP: balance_performance (responsive but efficient)
-            sudo /run/current-system/sw/bin/ryzenadj-profile balanced 2>/dev/null || true
-            ;;
-        power-saver)
-            # Saver: 15W limit, -20 All Core CO
-            # EPP: power (bias towards low clocks/idle)
-            sudo /run/current-system/sw/bin/ryzenadj-profile power-saver 2>/dev/null || true
-            ;;
-    esac
+    if sudo -n /run/current-system/sw/bin/ryzenadj-profile "$prof" >/dev/null 2>&1; then
+        clear_warn "ryzenadj_$prof"
+        return 0
+    fi
+
+    warn_once "ryzenadj_$prof" "failed to apply ryzenadj-profile '$prof'"
+    return 1
 }
 
 get_temp() {
@@ -92,7 +287,11 @@ get_cpu_usage() {
 }
 
 get_gpu_usage() {
-    cat /sys/class/drm/card0/device/gpu_busy_percent 2>/dev/null || echo 0
+    if detect_gpu_busy_path; then
+        cat "$GPU_BUSY_PATH" 2>/dev/null || echo 0
+    else
+        echo 0
+    fi
 }
 
 get_cpu_freq() {
@@ -102,19 +301,30 @@ get_cpu_freq() {
 
 get_gpu_freq() {
     # GPU Shader Clock in MHz
-    awk '{printf "%d", $1/1000000}' /sys/class/hwmon/hwmon0/freq1_input 2>/dev/null || echo 0
+    if detect_amdgpu_hwmon; then
+        awk '{printf "%d", $1/1000000}' "$AMDGPU_HWMON/freq1_input" 2>/dev/null || echo 0
+    else
+        echo 0
+    fi
 }
 
 get_reserve_state() {
     local state
 
-    if state="$(sudo /run/current-system/sw/bin/toggle-battery-reserve status 2>/dev/null)"; then
+    if state="$(sudo -n /run/current-system/sw/bin/toggle-battery-reserve status 2>/dev/null)"; then
+        clear_warn "reserve_status"
         case "$state" in
             on|off)
+                clear_warn "reserve_value"
                 echo "$state"
                 return 0
                 ;;
+            *)
+                warn_once "reserve_value" "unexpected reserve status value: '$state'"
+                ;;
         esac
+    else
+        warn_once "reserve_status" "failed to read battery reserve mode via sudo"
     fi
 
     echo "unknown"
@@ -124,18 +334,18 @@ get_reserve_state() {
 # --- Main Data Gathering ---
 
 # System Total Power & Voltage
-sys_uw=$(cat "$BAT_POWER" 2>/dev/null || echo 0)
+sys_uw=$(battery_power_uw)
 sys_w=$(awk -v uw="${sys_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
-volt_uv=$(cat "$BAT_VOLT" 2>/dev/null || echo 0)
+volt_uv=$(battery_num "voltage_now")
 volt_v=$(awk -v uv="${volt_uv:-0}" "BEGIN{printf \"%.2f\", uv/1000000}")
-cap=$(cat "$BAT_CAP" 2>/dev/null || echo 0)
-stat=$(cat "$BAT_STATUS" 2>/dev/null || echo "Unknown")
+cap=$(battery_num "capacity")
+stat=$(battery_text "status" "Unknown")
 
 # Battery Time Estimation
 time_str=""
 if [ "${sys_uw:-0}" -gt 500000 ]; then # 0.5W minimum to avoid noise
-    e_now=$(cat "$BAT_ENERGY_NOW" 2>/dev/null || echo 0)
-    e_full=$(cat "$BAT_ENERGY_FULL" 2>/dev/null || echo 0)
+    e_now=$(battery_energy_uwh "now")
+    e_full=$(battery_energy_uwh "full")
     
     hours_raw=""
     if [ "$stat" = "Discharging" ]; then
@@ -160,26 +370,26 @@ if [ "${sys_uw:-0}" -gt 500000 ]; then # 0.5W minimum to avoid noise
 fi
 
 # Battery Health & Capacity Metrics
-e_now=$(cat "$BAT_ENERGY_NOW" 2>/dev/null || echo 0)
-e_full=$(cat "$BAT_ENERGY_FULL" 2>/dev/null || echo 0)
-e_design=$(cat "$BAT_ENERGY_FULL_DESIGN" 2>/dev/null || echo 0)
-cycles=$(cat "$BAT_CYCLE_COUNT" 2>/dev/null || echo 0)
+e_now=$(battery_energy_uwh "now")
+e_full=$(battery_energy_uwh "full")
+e_design="$(battery_num_optional "energy_full_design" "")"
+if [ -z "$e_design" ]; then
+    e_design="$(battery_energy_uwh "full_design")"
+fi
+cycles=$(battery_num_optional "cycle_count" "N/A")
 
 wh_now=$(awk -v en="${e_now:-0}" "BEGIN{printf \"%.1f\", en/1000000}")
 wh_full=$(awk -v ef="${e_full:-0}" "BEGIN{printf \"%.1f\", ef/1000000}")
-health=$(awk -v ef="${e_full:-0}" -v ed="${e_design:-1}" "BEGIN{printf \"%.1f\", (ef/ed)*100}")
+if [ "${e_design:-0}" -gt 0 ]; then
+    health_text="$(awk -v ef="${e_full:-0}" -v ed="${e_design:-1}" 'BEGIN{printf "%.1f%%", (ef/ed)*100}')"
+else
+    health_text="N/A"
+fi
 
 # GPU Power & Temp
-gpu_w=0
 gpu_temp_raw=$(get_temp "amdgpu")
-for d in /sys/class/hwmon/hwmon*; do
-    if [ "$(cat "$d/name" 2>/dev/null)" = "amdgpu" ]; then
-        # Try instantaneous input first (less likely to block), then average
-        gpu_uw=$(cat "$d/power1_input" 2>/dev/null || cat "$d/power1_average" 2>/dev/null || echo 0)
-        gpu_w=$(awk -v uw="${gpu_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
-        break
-    fi
-done
+gpu_uw=$(get_gpu_power_uw)
+gpu_w=$(awk -v uw="${gpu_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
 
 cpu_temp_raw=$(get_temp "k10temp")
 cpu_w=$(awk -v sw="${sys_w:-0}" -v gw="${gpu_w:-0}" -v stat="$stat" 'BEGIN{
@@ -201,6 +411,13 @@ if [ "$stat" = "Charging" ] || [ "$stat" = "Full" ] || [ "$stat" = "Not charging
 b_cls="normal"
 if [ "${cap:-0}" -le 20 ]; then b_cls="critical"; fi
 if [ "$stat" = "Charging" ]; then b_cls="charging"; fi
+warn_count="$(warning_count)"
+health_msg="Sensor health: OK"
+health_cls="healthy"
+if [ "${warn_count:-0}" -gt 0 ]; then
+    health_msg="Sensor health: Degraded (${warn_count} warning marker(s))"
+    health_cls="degraded"
+fi
 
 # --- Output Generation ---
 
@@ -230,13 +447,14 @@ case "$MODE" in
         # Tooltip: Usage, Freq, Detailed Power
         # Format: [Chip Icon] [CPU°] [GPU Icon] [GPU°] [CPU Freq] [APU W]
         # Tooltip: Usage, Freq, Detailed Power
-        printf '{"text":" %s°C %s %s°C %sGHz %sW", "tooltip":"<b>APU (AMD CPU)</b>\\n----------------\\n<b>CPU:</b> %s%% @ %sGHz\\n<b>GPU:</b> %s%% @ %sMHz\\n\\n<b>Thermals:</b>\\nCPU Core: %s°C\\niGPU:     %s°C\\n\\n<b>Power (Package):</b> %sW", "class":["%s", "normal"]}\n' \
+        printf '{"text":" %s°C %s %s°C %sGHz %sW", "tooltip":"<b>APU (AMD CPU)</b>\\n----------------\\n<b>CPU:</b> %s%% @ %sGHz\\n<b>GPU:</b> %s%% @ %sMHz\\n\\n<b>Thermals:</b>\\nCPU Core: %s°C\\niGPU:     %s°C\\n\\n<b>Power (Package):</b> %sW\\n\\n%s", "class":["%s", "normal", "%s"]}\n' \
             "$t_cpu" "$ICON_GPU" "$t_gpu" "$cpu_freq" "$gpu_w" \
             "$cpu_util" "$cpu_freq" \
             "$gpu_util" "$gpu_freq" \
             "$t_cpu" "$t_gpu" \
             "$gpu_w" \
-            "$t_cls"
+            "$health_msg" \
+            "$t_cls" "$health_cls"
         ;;
     sys) # Formerly CPU
         # System Metrics: Screen/Board Power
@@ -245,8 +463,8 @@ case "$MODE" in
         p_cls="normal"
         if [ "$(awk -v w="${cpu_w:-0}" 'BEGIN{if(w>15) print 1; else print 0}')" -eq 1 ]; then p_cls="high"; fi
 
-        printf '{"text":" ⚡%sW", "tooltip":"<b>System / Screen</b>\\n----------------\\nDisplay, WiFi, SSD, Mobo\\n\\n<b>Power Consumption:</b> %sW", "class":["%s", "normal"]}\n' \
-            "$cpu_w" "$cpu_w" "$p_cls"
+        printf '{"text":" ⚡%sW", "tooltip":"<b>System / Screen</b>\\n----------------\\nDisplay, WiFi, SSD, Mobo\\n\\n<b>Power Consumption:</b> %sW\\n\\n%s", "class":["%s", "normal", "%s"]}\n' \
+            "$cpu_w" "$cpu_w" "$health_msg" "$p_cls" "$health_cls"
         ;;
     pwr)
         # Power Profile info (for tooltip only)
@@ -276,11 +494,11 @@ case "$MODE" in
         w_cls=$(awk -v win="${w_in:-0}" "BEGIN{if(win>=80) print \"high\"; else if(win>=40) print \"medium\"; else print \"normal\"}")
         
         # Power Flow display: ↓[In]W  ↑[Out]W  [BatIcon] [Cap]%
-        printf '{"text":"↓%sW  ↑%sW  %s  %s%%", "tooltip":"⚡ System Energy Flow\\n---------------------------\\nIntake (Wall):   %sW\\nConsumption:     %sW\\n  └─ APU (Pkg):     %sW\\n\\n🔋 Battery Status\\n---------------------------\\nBattery:        %s%% (%s)\\nHealth:         %s%%\\nCycles:         %s\\nCapacity:      %s / %s Wh\\nVoltage:        %sV\\nRemaining:      %s\\nProfile:        %s", "class":["%s", "%s", "power-flow"]}\n' \
+        printf '{"text":"↓%sW  ↑%sW  %s  %s%%", "tooltip":"⚡ System Energy Flow\\n---------------------------\\nIntake (Wall):   %sW\\nConsumption:     %sW\\n  └─ APU (Pkg):     %sW\\n\\n🔋 Battery Status\\n---------------------------\\nBattery:        %s%% (%s)\\nHealth:         %s\\nCycles:         %s\\nCapacity:      %s / %s Wh\\nVoltage:        %sV\\nRemaining:      %s\\nProfile:        %s\\n\\n%s", "class":["%s", "%s", "power-flow", "%s"]}\n' \
             "$w_in" "$w_out" "$icon" "$cap" \
             "$w_in" "$w_out" "$gpu_w" \
-            "$cap" "$stat" "$health" "$cycles" "$wh_now" "$wh_full" "$volt_v" "${time_str:-N/A}" "$profile" \
-            "$w_cls" "$b_cls"
+            "$cap" "$stat" "$health_text" "$cycles" "$wh_now" "$wh_full" "$volt_v" "${time_str:-N/A}" "$profile" "$health_msg" \
+            "$w_cls" "$b_cls" "$health_cls"
         ;;
     bmode)
         reserve_state="$(get_reserve_state || true)"
@@ -306,8 +524,12 @@ case "$MODE" in
             "$reserve_icon" "$reserve_label" "$reserve_cls"
         ;;
     bmode-toggle)
-        sudo /run/current-system/sw/bin/toggle-battery-reserve toggle >/dev/null
-        pkill -RTMIN+4 waybar
+        if sudo -n /run/current-system/sw/bin/toggle-battery-reserve toggle >/dev/null 2>&1; then
+            clear_warn "reserve_toggle"
+            pkill -RTMIN+4 waybar
+        else
+            warn_once "reserve_toggle" "failed to toggle battery reserve mode via sudo"
+        fi
         ;;
     prof)
         profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
