@@ -1,1 +1,4 @@
 result
+.local/
+local-private/
+secrets-local/

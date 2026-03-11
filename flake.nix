@@ -47,8 +47,9 @@
       mkHost =
         {
           hostModule,
-          homeOverlay,
           sshModule,
+          enableHome ? false,
+          homeOverlay ? null,
         }:
         lib.nixosSystem {
           inherit system;
@@ -56,26 +57,29 @@
             inherit inputs;
             inherit pkgsUnstable;
           };
-          modules = [
-            hostModule
-            sshModule
-            home-manager.nixosModules.home-manager
-            (mkHomeModule homeOverlay)
-          ];
+          modules =
+            [
+              hostModule
+              sshModule
+            ]
+            ++ lib.optionals enableHome [
+              home-manager.nixosModules.home-manager
+              (mkHomeModule homeOverlay)
+            ];
         };
     in
     {
       nixosConfigurations = {
         Laptop = mkHost {
-          hostModule = ./hosts/ryzen14/default.nix;
-          homeOverlay = ./hosts/ryzen14/home-overlay.nix;
-          sshModule = ./profiles/common/ssh-strict.nix;
+          hostModule = ./hosts/personal/laptop.nix;
+          enableHome = true;
+          homeOverlay = ./hosts/personal/laptop-home.nix;
+          sshModule = ./profiles/shared/ssh-strict.nix;
         };
 
-        "Laptop-bootstrap" = mkHost {
-          hostModule = ./hosts/ryzen14/default.nix;
-          homeOverlay = ./hosts/ryzen14/home-overlay.nix;
-          sshModule = ./profiles/common/ssh-bootstrap.nix;
+        generic-installer = mkHost {
+          hostModule = ./hosts/generic/plank.nix;
+          sshModule = ./profiles/shared/ssh-plank.nix;
         };
       };
     };
