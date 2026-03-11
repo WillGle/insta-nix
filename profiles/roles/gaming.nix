@@ -2,8 +2,10 @@
 {
   programs.steam = {
     enable = true;
-    remotePlay.openFirewall = true;
-    dedicatedServer.openFirewall = true;
+    # Keep firewall surface minimal by default.
+    # Open ports explicitly in host modules when remote play/server is needed.
+    remotePlay.openFirewall = false;
+    dedicatedServer.openFirewall = false;
   };
 
   programs.gamemode.enable = true;

@@ -37,14 +37,14 @@
   services.resolved = {
     enable = true;
     dnssec = "allow-downgrade";
+    dnsovertls = "false";
+    llmnr = "false";
     fallbackDns = [
       "1.1.1.1"
       "8.8.8.8"
     ];
     extraConfig = ''
       DNS=1.1.1.1 1.0.0.1 8.8.8.8 8.8.4.4
-      DNSOverTLS=no
-      LLMNR=no
       MulticastDNS=no
     '';
   };

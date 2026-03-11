@@ -10,6 +10,7 @@ It keeps backward-compatible flake output naming for the current laptop:
 
 - `Laptop`
 - `Laptop-bootstrap`
+- `Laptop-dns-canary`
 
 ## Current Architecture
 
@@ -66,12 +67,22 @@ It keeps backward-compatible flake output naming for the current laptop:
 - SSH port: `2222`
 - `PermitRootLogin = "no"`
 - `PasswordAuthentication = false`
+- Effective firewall TCP ports (from this repo): `2222`
+- Effective firewall UDP ports (from this repo): none by default
 
 ### `Laptop-bootstrap` (temporary remote install profile)
 
 - SSH ports: `22`, `2222`
 - `PermitRootLogin = "prohibit-password"` (key-based rescue)
 - `PasswordAuthentication = false`
+- Effective firewall TCP ports (from this repo): `22`, `2222`
+- Effective firewall UDP ports (from this repo): none by default
+
+### `Laptop-dns-canary` (safe DNS test profile)
+
+- Same as strict profile for SSH/firewall posture.
+- Only DNS delta: `services.resolved.dnsovertls = "opportunistic"`
+- Intended for staged DNS testing before changing the daily profile.
 
 ## Command Matrix
 
@@ -93,6 +104,12 @@ nixos-rebuild build --flake path:/etc/nixos#Laptop
 nixos-rebuild build --flake path:/etc/nixos#Laptop-bootstrap
 ```
 
+### Build DNS canary profile
+
+```bash
+nixos-rebuild build --flake path:/etc/nixos#Laptop-dns-canary
+```
+
 ### Apply strict profile
 
 ```bash
@@ -105,6 +122,30 @@ sudo nixos-rebuild switch --flake /etc/nixos#Laptop
 nix eval --raw path:/etc/nixos#nixosConfigurations.Laptop.config.networking.hostName
 nix eval --json path:/etc/nixos#nixosConfigurations.Laptop.config.services.openssh.ports
 nix eval --json path:/etc/nixos#nixosConfigurations.\"Laptop-bootstrap\".config.services.openssh.ports
+nix eval --json path:/etc/nixos#nixosConfigurations.Laptop.config.networking.firewall.allowedTCPPorts
+nix eval --json path:/etc/nixos#nixosConfigurations.\"Laptop-bootstrap\".config.networking.firewall.allowedTCPPorts
+nix eval --json path:/etc/nixos#nixosConfigurations.Laptop.config.networking.firewall.allowedUDPPorts
+nix eval --json path:/etc/nixos#nixosConfigurations.\"Laptop-bootstrap\".config.networking.firewall.allowedUDPPorts
+nix eval --raw path:/etc/nixos#nixosConfigurations.Laptop.config.services.resolved.dnsovertls
+nix eval --raw path:/etc/nixos#nixosConfigurations.\"Laptop-dns-canary\".config.services.resolved.dnsovertls
+```
+
+### DNS canary rollout (recommended)
+
+```bash
+# 1) Non-persistent test (safe): applies until reboot
+sudo nixos-rebuild test --flake /etc/nixos#Laptop-dns-canary
+
+# 2) Smoke checks (run with VPN OFF and ON)
+resolvectl status
+resolvectl query nixos.org openai.com cloudflare.com
+dig +short @127.0.0.53 github.com
+
+# 3) If stable, persist canary temporarily
+sudo nixos-rebuild switch --flake /etc/nixos#Laptop-dns-canary
+
+# 4) Roll back immediately if DNS degrades
+sudo nixos-rebuild switch --rollback
 ```
 
 ### Local lint/format hygiene
@@ -185,6 +226,7 @@ nix-store --verify --check-contents
 - Use `path:/etc/nixos#...` during local refactors, or stage files with `git add -A`.
 - Host-specific storage for Ryzen14 is defined in `hosts/ryzen14/storage.nix`.
 - Wallpaper is now local (`~/.config/hypr/wallpaper.png`) to avoid hard dependency on `/mnt/vault` at session startup.
-- Battery reserve mode defaults to `ON` at boot via `systemd.tmpfiles` (`conservation_mode=1`).
+- Battery reserve mode defaults to `ON` at boot via `battery-reserve-default.service`, using dynamic node discovery under `/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode`.
+- Steam does not auto-open firewall ports; open game ports explicitly in host modules when needed.
 - Waybar has a dedicated `battery mode` button between power profile and refresh-rate modules.
 - Right-click the `battery mode` button to toggle reserve mode at runtime; `system energy flow` remains read-only monitoring.

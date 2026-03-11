@@ -1,4 +1,11 @@
-_: {
+{ config, ... }:
+let
+  homeDir = config.home.homeDirectory;
+  renderWithHome =
+    path:
+    builtins.replaceStrings [ "/home/will" ] [ homeDir ] (builtins.readFile path);
+in
+{
   home.file = {
     ".local/bin/atomic-note" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/atomic-note;
@@ -32,8 +39,8 @@ _: {
 
   xdg.configFile = {
     "hypr/hyprland.conf".source = ../../dotfiles/hosts/ryzen14/hypr/hyprland.conf;
-    "hypr/hyprpaper.conf".source = ../../dotfiles/hosts/ryzen14/hypr/hyprpaper.conf;
-    "hypr/hyprlock.conf".source = ../../dotfiles/hosts/ryzen14/hypr/hyprlock.conf;
+    "hypr/hyprpaper.conf".text = renderWithHome ../../dotfiles/hosts/ryzen14/hypr/hyprpaper.conf;
+    "hypr/hyprlock.conf".text = renderWithHome ../../dotfiles/hosts/ryzen14/hypr/hyprlock.conf;
     "hypr/hypridle.conf".source = ../../dotfiles/hosts/ryzen14/hypr/hypridle.conf;
     "hypr/wallpaper.png".source = ../../dotfiles/hosts/ryzen14/hypr/wallpaper.png;
     "hypr/autostart.conf" = {

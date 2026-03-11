@@ -49,6 +49,7 @@
           hostModule,
           homeOverlay,
           sshModule,
+          extraModules ? [ ],
         }:
         lib.nixosSystem {
           inherit system;
@@ -56,12 +57,14 @@
             inherit inputs;
             inherit pkgsUnstable;
           };
-          modules = [
-            hostModule
-            sshModule
-            home-manager.nixosModules.home-manager
-            (mkHomeModule homeOverlay)
-          ];
+          modules =
+            [
+              hostModule
+              sshModule
+              home-manager.nixosModules.home-manager
+              (mkHomeModule homeOverlay)
+            ]
+            ++ extraModules;
         };
     in
     {
@@ -76,6 +79,13 @@
           hostModule = ./hosts/ryzen14/default.nix;
           homeOverlay = ./hosts/ryzen14/home-overlay.nix;
           sshModule = ./profiles/common/ssh-bootstrap.nix;
+        };
+
+        "Laptop-dns-canary" = mkHost {
+          hostModule = ./hosts/ryzen14/default.nix;
+          homeOverlay = ./hosts/ryzen14/home-overlay.nix;
+          sshModule = ./profiles/common/ssh-strict.nix;
+          extraModules = [ ./profiles/common/connectivity-dns-canary.nix ];
         };
       };
     };

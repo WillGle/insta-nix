@@ -14,7 +14,6 @@ BAT_ENERGY_NOW="/sys/class/power_supply/BAT1/energy_now"
 BAT_ENERGY_FULL="/sys/class/power_supply/BAT1/energy_full"
 BAT_ENERGY_FULL_DESIGN="/sys/class/power_supply/BAT1/energy_full_design"
 BAT_CYCLE_COUNT="/sys/class/power_supply/BAT1/cycle_count"
-RESERVE_NODE="/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode"
 
 # --- Icons (Nerd Font Hex) ---
 ICON_CPU=$(printf "\uf2db")
@@ -113,20 +112,6 @@ get_reserve_state() {
         case "$state" in
             on|off)
                 echo "$state"
-                return 0
-                ;;
-        esac
-    fi
-
-    if [ -r "$RESERVE_NODE" ]; then
-        state="$(cat "$RESERVE_NODE" 2>/dev/null || true)"
-        case "$state" in
-            1)
-                echo "on"
-                return 0
-                ;;
-            0)
-                echo "off"
                 return 0
                 ;;
         esac

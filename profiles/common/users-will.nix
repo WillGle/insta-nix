@@ -45,29 +45,99 @@
     (pkgs.writeShellScriptBin "toggle-battery-reserve" ''
       set -euo pipefail
 
-      NODE="/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode"
       CMD="''${1:-toggle}"
+      WAIT_SECONDS=0
+      NODE_GLOB="/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode"
+      NODE=""
+
+      if [ "$#" -gt 0 ]; then
+        shift
+      fi
 
       usage() {
-        echo "Usage: toggle-battery-reserve [status|on|off|toggle]" >&2
+        echo "Usage: toggle-battery-reserve [status|on|off|toggle] [--wait SECONDS]" >&2
+      }
+
+      log() {
+        echo "[toggle-battery-reserve] $*" >&2
+      }
+
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --wait)
+            if [ "$#" -lt 2 ]; then
+              usage
+              exit 2
+            fi
+            WAIT_SECONDS="$2"
+            shift 2
+            ;;
+          -h|--help)
+            usage
+            exit 0
+            ;;
+          *)
+            usage
+            exit 2
+            ;;
+        esac
+      done
+
+      if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
+        log "invalid --wait value: $WAIT_SECONDS"
+        exit 2
+      fi
+
+      find_node_once() {
+        local candidate
+        for candidate in $NODE_GLOB; do
+          if [ -f "$candidate" ]; then
+            printf "%s\n" "$candidate"
+            return 0
+          fi
+        done
+        return 1
+      }
+
+      resolve_node() {
+        if [ -n "$NODE" ] && [ -f "$NODE" ]; then
+          printf "%s\n" "$NODE"
+          return 0
+        fi
+
+        local deadline now candidate
+        deadline=$(( $(date +%s) + WAIT_SECONDS ))
+
+        while :; do
+          if candidate="$(find_node_once)"; then
+            NODE="$candidate"
+            printf "%s\n" "$NODE"
+            return 0
+          fi
+
+          now=$(date +%s)
+          if [ "$now" -ge "$deadline" ]; then
+            log "conservation_mode node not found (searched $NODE_GLOB)"
+            return 1
+          fi
+          sleep 1
+        done
       }
 
       read_state_raw() {
-        if [ ! -f "$NODE" ]; then
-          echo "Error: conservation mode node not found at $NODE" >&2
-          return 1
-        fi
+        local node state
 
-        local state
-        if ! state="$(cat "$NODE" 2>/dev/null)"; then
-          echo "Error: failed to read $NODE" >&2
+        if ! node="$(resolve_node)"; then
+          return 1
+        elif ! state="$(cat "$node" 2>/dev/null)"; then
+          log "failed to read $node"
           return 1
         fi
 
         case "$state" in
           0|1) printf "%s\n" "$state" ;;
           *)
-            echo "Error: unexpected value '$state' in $NODE" >&2
+            log "unexpected value '$state' in $node"
             return 1
             ;;
         esac
@@ -75,14 +145,14 @@
 
       write_state_raw() {
         local target="$1"
+        local node
 
-        if [ ! -f "$NODE" ]; then
-          echo "Error: conservation mode node not found at $NODE" >&2
+        if ! node="$(resolve_node)"; then
           return 1
         fi
 
-        if ! printf "%s" "$target" > "$NODE" 2>/dev/null; then
-          echo "Error: failed to write $target to $NODE" >&2
+        if ! printf "%s" "$target" > "$node" 2>/dev/null; then
+          log "failed to write $target to $node"
           return 1
         fi
       }

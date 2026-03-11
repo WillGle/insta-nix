@@ -11,11 +11,23 @@
     fstrim.enable = true;
   };
 
-  # Manually engage Lenovo conservation mode (battery reserve mode).
-  # Keep default ON at boot while allowing runtime toggle via script/Waybar.
-  systemd.tmpfiles.rules = [
-    "w- /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode - - - - 1"
-  ];
+  # Keep Lenovo battery reserve mode ON at boot.
+  # Path discovery is dynamic inside toggle-battery-reserve.
+  systemd.services.battery-reserve-default = {
+    description = "Set Lenovo battery reserve mode to ON";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "systemd-udev-settle.service" ];
+    after = [
+      "systemd-modules-load.service"
+      "systemd-udev-settle.service"
+    ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "/run/current-system/sw/bin/toggle-battery-reserve on --wait 45";
+      StandardOutput = "journal";
+      StandardError = "journal";
+    };
+  };
 
   hardware.graphics = {
     enable = true;

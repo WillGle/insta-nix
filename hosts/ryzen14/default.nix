@@ -5,6 +5,7 @@
     ./storage.nix
     ./networking.nix
 
+    ../../profiles/common/theme.nix
     ../../profiles/common/core.nix
     ../../profiles/common/i18n.nix
     ../../profiles/common/users-will.nix
