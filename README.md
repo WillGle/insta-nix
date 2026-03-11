@@ -10,7 +10,6 @@ It keeps backward-compatible flake output naming for the current laptop:
 
 - `Laptop`
 - `Laptop-bootstrap`
-- `Laptop-dns-canary`
 
 ## Current Architecture
 
@@ -67,6 +66,7 @@ It keeps backward-compatible flake output naming for the current laptop:
 - SSH port: `2222`
 - `PermitRootLogin = "no"`
 - `PasswordAuthentication = false`
+- Resolver: `services.resolved.dnsovertls = "opportunistic"`
 - Effective firewall TCP ports (from this repo): `2222`
 - Effective firewall UDP ports (from this repo): none by default
 
@@ -77,12 +77,6 @@ It keeps backward-compatible flake output naming for the current laptop:
 - `PasswordAuthentication = false`
 - Effective firewall TCP ports (from this repo): `22`, `2222`
 - Effective firewall UDP ports (from this repo): none by default
-
-### `Laptop-dns-canary` (safe DNS test profile)
-
-- Same as strict profile for SSH/firewall posture.
-- Only DNS delta: `services.resolved.dnsovertls = "opportunistic"`
-- Intended for staged DNS testing before changing the daily profile.
 
 ## Command Matrix
 
@@ -104,12 +98,6 @@ nixos-rebuild build --flake path:/etc/nixos#Laptop
 nixos-rebuild build --flake path:/etc/nixos#Laptop-bootstrap
 ```
 
-### Build DNS canary profile
-
-```bash
-nixos-rebuild build --flake path:/etc/nixos#Laptop-dns-canary
-```
-
 ### Apply strict profile
 
 ```bash
@@ -127,25 +115,6 @@ nix eval --json path:/etc/nixos#nixosConfigurations.\"Laptop-bootstrap\".config.
 nix eval --json path:/etc/nixos#nixosConfigurations.Laptop.config.networking.firewall.allowedUDPPorts
 nix eval --json path:/etc/nixos#nixosConfigurations.\"Laptop-bootstrap\".config.networking.firewall.allowedUDPPorts
 nix eval --raw path:/etc/nixos#nixosConfigurations.Laptop.config.services.resolved.dnsovertls
-nix eval --raw path:/etc/nixos#nixosConfigurations.\"Laptop-dns-canary\".config.services.resolved.dnsovertls
-```
-
-### DNS canary rollout (recommended)
-
-```bash
-# 1) Non-persistent test (safe): applies until reboot
-sudo nixos-rebuild test --flake /etc/nixos#Laptop-dns-canary
-
-# 2) Smoke checks (run with VPN OFF and ON)
-resolvectl status
-resolvectl query nixos.org openai.com cloudflare.com
-dig +short @127.0.0.53 github.com
-
-# 3) If stable, persist canary temporarily
-sudo nixos-rebuild switch --flake /etc/nixos#Laptop-dns-canary
-
-# 4) Roll back immediately if DNS degrades
-sudo nixos-rebuild switch --rollback
 ```
 
 ### Local lint/format hygiene

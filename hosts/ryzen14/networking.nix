@@ -8,7 +8,6 @@ _: {
       checkReversePath = "loose";
       trustedInterfaces = [
         "proton0"
-        "ipv6leakintrf0"
         "tailscale0"
       ];
     };

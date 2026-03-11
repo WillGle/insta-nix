@@ -41,17 +41,17 @@ apply_ryzen_settings() {
         performance)
             # High Perf: 54W limit (Max cTDP), -20 All Core CO
             # EPP: performance (bias towards high clocks)
-            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=54000 --fast-limit=54000 --slow-limit=54000 --tctl-temp=95 --vrm-current=70000 --vrmmax-current=90000 --set-coall=-20 2>/dev/null || true
+            sudo /run/current-system/sw/bin/ryzenadj-profile performance 2>/dev/null || true
             ;;
         balanced)
             # Balanced: 28W limit, -15 All Core CO
             # EPP: balance_performance (responsive but efficient)
-            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=28000 --fast-limit=28000 --slow-limit=28000 --tctl-temp=85 --set-coall=-15 2>/dev/null || true
+            sudo /run/current-system/sw/bin/ryzenadj-profile balanced 2>/dev/null || true
             ;;
         power-saver)
             # Saver: 15W limit, -20 All Core CO
             # EPP: power (bias towards low clocks/idle)
-            sudo /run/current-system/sw/bin/ryzenadj --stapm-limit=15000 --fast-limit=15000 --slow-limit=15000 --tctl-temp=75 --set-coall=-20 2>/dev/null || true
+            sudo /run/current-system/sw/bin/ryzenadj-profile power-saver 2>/dev/null || true
             ;;
     esac
 }

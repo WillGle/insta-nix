@@ -37,7 +37,7 @@
   services.resolved = {
     enable = true;
     dnssec = "allow-downgrade";
-    dnsovertls = "false";
+    dnsovertls = "opportunistic";
     llmnr = "false";
     fallbackDns = [
       "1.1.1.1"

@@ -23,14 +23,13 @@
     ];
   };
 
-  # Passwordless sudo for ryzenadj (manual AMD power tuning)
-  # and battery reserve toggle script
+  # Passwordless sudo for approved power wrappers only.
   security.sudo.extraRules = [
     {
       users = [ "will" ];
       commands = [
         {
-          command = "/run/current-system/sw/bin/ryzenadj";
+          command = "/run/current-system/sw/bin/ryzenadj-profile";
           options = [ "NOPASSWD" ];
         }
         {
@@ -42,6 +41,49 @@
   ];
 
   environment.systemPackages = [
+    (pkgs.writeShellScriptBin "ryzenadj-profile" ''
+      set -euo pipefail
+
+      PROFILE="''${1:-}"
+
+      usage() {
+        echo "Usage: ryzenadj-profile [performance|balanced|power-saver]" >&2
+      }
+
+      case "$PROFILE" in
+        performance)
+          exec /run/current-system/sw/bin/ryzenadj \
+            --stapm-limit=54000 \
+            --fast-limit=54000 \
+            --slow-limit=54000 \
+            --tctl-temp=95 \
+            --vrm-current=70000 \
+            --vrmmax-current=90000
+          ;;
+
+        balanced)
+          exec /run/current-system/sw/bin/ryzenadj \
+            --stapm-limit=28000 \
+            --fast-limit=28000 \
+            --slow-limit=28000 \
+            --tctl-temp=85
+          ;;
+
+        power-saver)
+          exec /run/current-system/sw/bin/ryzenadj \
+            --stapm-limit=15000 \
+            --fast-limit=15000 \
+            --slow-limit=15000 \
+            --tctl-temp=75
+          ;;
+
+        *)
+          usage
+          exit 2
+          ;;
+      esac
+    '')
+
     (pkgs.writeShellScriptBin "toggle-battery-reserve" ''
       set -euo pipefail
 
