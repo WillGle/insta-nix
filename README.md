@@ -114,31 +114,6 @@ nix eval --json path:/etc/nixos#nixosConfigurations.generic-installer.config.ser
 - Public guide: `docs/PLANK_REMOTE_INSTALL.md`
 - Legacy notes: `docs/REMOTE_MIGRATION.md`
 
-## ROCm Rollout Precheck
-
-Use the phased pre-implementation checklist runner:
-
-```bash
-./scripts/rocm-rollout-precheck.sh
-```
-
-Run optional soak + framework canary:
-
-```bash
-./scripts/rocm-rollout-precheck.sh --run-soak --run-framework
-```
-
-Phase 4 framework canary notes:
-
-- uses pinned flake package `path:/etc/nixos#rocm-phase4-python`
-- retries twice on the same pin before failing gate 4
-- exports `HSA_OVERRIDE_GFX_VERSION=11.0.0` for `GENERIC_GPU` runtime reproducibility
-- writes extra diagnostics to `4/phase4-env-meta.log`
-
-Reference doc:
-
-- `docs/ROCM_ROLLOUT_CHECKLIST.md`
-
 ## AMD Performance Suite
 
 Run quantitative performance suite (CPU/GPU/GENERIC_PROJECT lanes):
@@ -195,6 +170,14 @@ Notes:
 - GENERIC_PROJECT primary KPI uses internal timing (`pytest passed in X.XXs` / GENERIC_PROJECT CSV `total_time`), with wall-time fallback marked as `WARN`.
 - GENERIC_PROJECT CLI lane is stabilized by repeat runs (`--cpda-cli-repeats`) and fixed BLAS/OMP threads (`--cpda-thread-count`).
 - `--secondary-kpi-mode=both` enforces strict secondary regression gating on both median and p95.
+
+## ROCm Archive + Retry Notes
+
+ROCm rollout scripts were removed from active configuration to prioritize stability after GPU reset/logout incidents during framework canary runs.
+
+For full incident history, safety gates, rollback rules, and fast-track retry runbook, use:
+
+- `docs/ROCM_RETRY_CHECKPOINT_20260313.md`
 
 ## Local-Private Remote Install Assets
 
