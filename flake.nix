@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-rocm.url = "github:NixOS/nixpkgs/71caefce12ba78d84fe618cf61644dce01cf3a96";
 
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
@@ -15,6 +16,7 @@
     {
       nixpkgs,
       nixpkgs-unstable,
+      nixpkgs-rocm,
       home-manager,
       ...
     }@inputs:
@@ -23,6 +25,11 @@
       inherit (nixpkgs) lib;
 
       pkgsUnstable = import nixpkgs-unstable {
+        inherit system;
+        config.allowUnfree = true;
+      };
+
+      pkgsRocm = import nixpkgs-rocm {
         inherit system;
         config.allowUnfree = true;
       };
@@ -69,6 +76,11 @@
         };
     in
     {
+      packages.${system} = {
+        # Pinned ROCm Python environment for Phase 4 canary checks.
+        rocm-phase4-python = pkgsRocm.python311.withPackages (ps: [ ps.torchWithRocm ]);
+      };
+
       nixosConfigurations = {
         Laptop = mkHost {
           hostModule = ./hosts/personal/laptop.nix;

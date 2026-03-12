@@ -115,6 +115,7 @@
       libva-vdpau-driver
       mesa
       rocmPackages.clr
+      rocmPackages.clr.icd
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
       libva
@@ -234,7 +235,9 @@
 
       # CLI utilities
       btop
+      btop-rocm
       chafa
+      cpupower-gui
       eza
       fastfetch
       fd
@@ -243,9 +246,19 @@
       imagemagick
       jq
       lm_sensors
+      linuxPackages.cpupower
+      nvtopPackages.amd
       p7zip
       poppler-utils
       ripgrep
+      rocmPackages.rocm-smi
+      ryzen-monitor-ng
+      vulkan-tools
+      vulkan-caps-viewer
+      clinfo
+      amdgpu_top
+      radeontop
+      rocmPackages.rocminfo
       stress-ng
       tree
       unzip

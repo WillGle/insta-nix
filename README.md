@@ -114,6 +114,88 @@ nix eval --json path:/etc/nixos#nixosConfigurations.generic-installer.config.ser
 - Public guide: `docs/PLANK_REMOTE_INSTALL.md`
 - Legacy notes: `docs/REMOTE_MIGRATION.md`
 
+## ROCm Rollout Precheck
+
+Use the phased pre-implementation checklist runner:
+
+```bash
+./scripts/rocm-rollout-precheck.sh
+```
+
+Run optional soak + framework canary:
+
+```bash
+./scripts/rocm-rollout-precheck.sh --run-soak --run-framework
+```
+
+Phase 4 framework canary notes:
+
+- uses pinned flake package `path:/etc/nixos#rocm-phase4-python`
+- retries twice on the same pin before failing gate 4
+- exports `HSA_OVERRIDE_GFX_VERSION=11.0.0` for `GENERIC_GPU` runtime reproducibility
+- writes extra diagnostics to `4/phase4-env-meta.log`
+
+Reference doc:
+
+- `docs/ROCM_ROLLOUT_CHECKLIST.md`
+
+## AMD Performance Suite
+
+Run quantitative performance suite (CPU/GPU/GENERIC_PROJECT lanes):
+
+```bash
+./scripts/amd-perf-suite.sh
+```
+
+Common variants:
+
+```bash
+# Balanced profile, 3 measured rounds
+./scripts/amd-perf-suite.sh --profile balanced --rounds 3
+
+# Include kernel log safety scan (recommended with sudo)
+sudo ./scripts/amd-perf-suite.sh --with-kernel-log
+
+# Baseline capture run (no compare, stable location in /var/lib)
+BASE="/var/lib/amd-perf-suite/baselines/safe-r5-$(date +%Y%m%d-%H%M%S)"
+sudo mkdir -p /var/lib/amd-perf-suite/baselines
+sudo env "HOME=$HOME" "USER=$USER" "PATH=$PATH" ./scripts/amd-perf-suite.sh \
+  --root "$BASE" \
+  --profile safe \
+  --rounds 5 \
+  --cpda-cli-repeats 5 \
+  --cpda-cli-cooldown-sec 2 \
+  --cpda-thread-count 16 \
+  --secondary-kpi-mode both \
+  --with-kernel-log \
+  --cpda-dir /home/will/dev/GENERIC_PROJECT
+
+# Promote baseline manually when gate is satisfied
+sudo ln -sfn "$BASE" /var/lib/amd-perf-suite/baselines/current-safe
+
+# Compare run (canonical baseline source for KPI scoring)
+sudo env "HOME=$HOME" "USER=$USER" "PATH=$PATH" ./scripts/amd-perf-suite.sh \
+  --profile safe \
+  --rounds 5 \
+  --cpda-cli-repeats 5 \
+  --cpda-cli-cooldown-sec 2 \
+  --cpda-thread-count 16 \
+  --secondary-kpi-mode both \
+  --with-kernel-log \
+  --compare /var/lib/amd-perf-suite/baselines/current-safe \
+  --cpda-dir /home/will/dev/GENERIC_PROJECT
+```
+
+Notes:
+
+- `--compare <root>` is the only baseline source for primary/secondary KPI scoring.
+- `--baseline-root <root>` is an alias of `--compare`.
+- Baseline governance policy is tracked in `manifest/baseline.json` (`baseline_policy`).
+- Without `--compare`, baseline-relative KPI entries are `WARN` (`no_baseline_mapping`) instead of hard-failing.
+- GENERIC_PROJECT primary KPI uses internal timing (`pytest passed in X.XXs` / GENERIC_PROJECT CSV `total_time`), with wall-time fallback marked as `WARN`.
+- GENERIC_PROJECT CLI lane is stabilized by repeat runs (`--cpda-cli-repeats`) and fixed BLAS/OMP threads (`--cpda-thread-count`).
+- `--secondary-kpi-mode=both` enforces strict secondary regression gating on both median and p95.
+
 ## Local-Private Remote Install Assets
 
 Store keys/runbooks locally (ignored from public repo) under:
