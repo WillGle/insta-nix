@@ -40,6 +40,22 @@
       alsa.enable = true;
       alsa.support32Bit = true;
       jack.enable = false;
+      extraConfig.pipewire."92-low-latency" = {
+        "context.properties" = {
+          "default.clock.rate" = 48000;
+          "default.clock.allowed-rates" = [
+            44100
+            48000
+            88200
+            96000
+            176400
+            192000
+          ];
+          "default.clock.quantum" = 1024;
+          "default.clock.min-quantum" = 32;
+          "default.clock.max-quantum" = 8192;
+        };
+      };
       wireplumber = {
         enable = true;
         extraConfig = {
@@ -84,6 +100,11 @@
       };
     };
   };
+
+  services.udev.extraRules = ''
+    # FiiO DAC (JadeAudio JA11 / SNOWSKY Melody) for WebHID access
+    ATTRS{idVendor}=="2972", ATTRS{idProduct}=="0126", MODE="0666", GROUP="users"
+  '';
 
   # Keep Lenovo battery reserve mode ON at boot.
   # Path discovery is dynamic inside toggle-battery-reserve.
@@ -235,6 +256,7 @@
       btop
       chafa
       cpupower-gui
+      curl
       eza
       fastfetch
       fd
@@ -249,6 +271,7 @@
       poppler-utils
       ripgrep
       ryzen-monitor-ng
+      pkgsUnstable.ollama-vulkan
       vulkan-tools
       vulkan-caps-viewer
       clinfo
@@ -276,6 +299,7 @@
 
       # Networking (CLI)
       bind
+      impala
 
       # Auth agents
       lxqt.lxqt-policykit
@@ -304,6 +328,8 @@
       obs-studio
       sonic-visualiser
       vlc
+      strawberry
+      wavpack
 
       # System GUI apps
       gnome-console

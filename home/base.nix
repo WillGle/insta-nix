@@ -26,15 +26,20 @@
 
     fish = {
       enable = true;
+      shellInit = ''
+        fish_add_path "$HOME/.cargo/bin"
+      '';
       interactiveShellInit = ''
         set fish_greeting
         fastfetch --config ~/.config/fastfetch/config.jsonc
         echo "For fast terminal file check - Yazi"
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
       '';
       shellAliases = {
         ll = "eza -la --icons";
         gs = "git status";
         ".." = "cd ..";
+        k = "kubectl";
       };
     };
 

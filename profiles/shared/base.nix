@@ -1,4 +1,4 @@
-{ lib, config, pkgsUnstable, ... }:
+{ lib, config, pkgs, pkgsUnstable, ... }:
 let
   hexColor = lib.types.strMatching "^#[0-9a-fA-F]{6}$";
   hasThemeColors = config ? theme && config.theme ? colors;
@@ -195,15 +195,20 @@ in
       udisks2.enable = true;
       gvfs.enable = true;
       tailscale.enable = true;
-
-      ollama = {
-        enable = true;
-        package = pkgsUnstable.ollama;
-        acceleration = "vulkan";
-      };
     };
 
     security.polkit.enable = true;
+    programs.nix-ld.enable = true;
+    programs.nix-ld.libraries = with pkgs; [
+      stdenv.cc.cc
+      zlib
+      fuse3
+      icu
+      nss
+      openssl
+      curl
+      expat
+    ];
 
     environment.etc."resolv.conf".source = "/run/systemd/resolve/stub-resolv.conf";
 

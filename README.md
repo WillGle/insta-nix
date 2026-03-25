@@ -171,6 +171,40 @@ Notes:
 - GENERIC_PROJECT CLI lane is stabilized by repeat runs (`--cpda-cli-repeats`) and fixed BLAS/OMP threads (`--cpda-thread-count`).
 - `--secondary-kpi-mode=both` enforces strict secondary regression gating on both median and p95.
 
+## Local LLM (On-Demand)
+
+Laptop now uses `ollama-vulkan` as an on-demand local LLM lane. There is no always-on `ollama.service` in the target config; wrappers start a temporary local server on `127.0.0.1:11434` and stop it when the shell or foreground app exits.
+
+Migrate the old service-owned model cache once:
+
+```bash
+sudo llm-ollama-migrate-models
+```
+
+Common commands:
+
+```bash
+# One-shot local chat/run
+llm-ollama-run qwen3.5:9b
+
+# Open an interactive shell backed by a temporary ollama server
+llm-ollama-shell
+
+# Run a foreground client or GUI and stop the server when it exits
+llm-ollama-with <command...>
+
+# Quick smoke check
+llm-ollama-with ollama list
+llm-ollama-with curl -s http://127.0.0.1:11434/api/version
+```
+
+Notes:
+
+- Wrappers fail fast if `127.0.0.1:11434` is already occupied instead of attaching to an unknown server.
+- GUI launchers should stay in the foreground; for commands that detach immediately, use the application's wait/foreground mode where available.
+- Prefer 7B-9B quantized models as the default interactive target on this machine.
+- 14B-16B models are expected to be slower; 30B-class models are not the default daily target.
+
 ## ROCm Archive + Retry Notes
 
 ROCm rollout scripts were removed from active configuration to prioritize stability after GPU reset/logout incidents during framework canary runs.
@@ -178,6 +212,7 @@ ROCm rollout scripts were removed from active configuration to prioritize stabil
 For full incident history, safety gates, rollback rules, and fast-track retry runbook, use:
 
 - `docs/ROCM_RETRY_CHECKPOINT_20260313.md`
+- `docs/ROCM_SUBAGENT_PROMPT.md`
 
 ## Local-Private Remote Install Assets
 
