@@ -173,37 +173,24 @@ Notes:
 
 ## Local LLM (On-Demand)
 
-Laptop now uses `ollama-vulkan` as an on-demand local LLM lane. There is no always-on `ollama.service` in the target config; wrappers start a temporary local server on `127.0.0.1:11434` and stop it when the shell or foreground app exits.
+`ollama` is the basic local CLI path on Laptop. `LM Studio` is also available if you want a GUI for downloading and testing models.
 
-Migrate the old service-owned model cache once:
+Basic Ollama commands:
 
 ```bash
-sudo llm-ollama-migrate-models
+ollama serve
+ollama run qwen3.5:9b
 ```
 
-Common commands:
+Launch LM Studio with:
 
 ```bash
-# One-shot local chat/run
-llm-ollama-run qwen3.5:9b
-
-# Open an interactive shell backed by a temporary ollama server
-llm-ollama-shell
-
-# Run a foreground client or GUI and stop the server when it exits
-llm-ollama-with <command...>
-
-# Quick smoke check
-llm-ollama-with ollama list
-llm-ollama-with curl -s http://127.0.0.1:11434/api/version
+lm-studio
 ```
 
 Notes:
 
-- Wrappers fail fast if `127.0.0.1:11434` is already occupied instead of attaching to an unknown server.
-- GUI launchers should stay in the foreground; for commands that detach immediately, use the application's wait/foreground mode where available.
 - Prefer 7B-9B quantized models as the default interactive target on this machine.
-- 14B-16B models are expected to be slower; 30B-class models are not the default daily target.
 
 ## ROCm Archive + Retry Notes
 

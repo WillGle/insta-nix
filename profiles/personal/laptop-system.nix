@@ -271,6 +271,7 @@
       poppler-utils
       ripgrep
       ryzen-monitor-ng
+      pkgsUnstable.lmstudio
       pkgsUnstable.ollama-vulkan
       vulkan-tools
       vulkan-caps-viewer
