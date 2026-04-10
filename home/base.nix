@@ -119,7 +119,7 @@
       enable = true;
       settings = {
         main = {
-          font = "JetBrainsMono Nerd Font:size=11";
+          font = "${osConfig.theme.fonts.mono.family}:size=${toString osConfig.theme.fonts.mono.size}";
           pad = "15x15";
         };
         colors = {
