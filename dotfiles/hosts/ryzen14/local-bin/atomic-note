@@ -3,8 +3,26 @@ set -euo pipefail
 
 TASK_FILE="${HOME}/.atomic_tasks"
 ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
+THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
 
 touch "$TASK_FILE"
+
+if [ -r "$THEME_STATIC_ENV" ]; then
+  # shellcheck disable=SC1090
+  . "$THEME_STATIC_ENV"
+fi
+
+ACTION_FG="${THEME_STATIC_BASE:-#11111b}"
+ACTION_ADD_BG="${THEME_STATIC_ACCENT:-#89b4fa}"
+ACTION_OPEN_BG="${THEME_STATIC_CYAN:-#74c7ec}"
+ACTION_CLEAR_BG="${THEME_STATIC_ERROR:-#f38ba8}"
+ACTION_EDIT_BG="${THEME_STATIC_PURPLE:-#cba6f7}"
+ACTION_MOVE_BG="${THEME_STATIC_WARNING:-#fab387}"
+ACTION_CANCEL_BG="${THEME_STATIC_SUBTEXT:-#6c7086}"
+TASK_CRITICAL_BG="${THEME_STATIC_ERROR:-#f38ba8}"
+TASK_HIGH_BG="${THEME_STATIC_WARNING:-#fab387}"
+TASK_MODERATE_BG="${THEME_STATIC_ACCENT:-#89b4fa}"
+TASK_LOW_BG="${THEME_STATIC_SUCCESS:-#a6e3a1}"
 
 refresh_waybar() {
   pkill -RTMIN+5 waybar >/dev/null 2>&1 || true
@@ -29,6 +47,210 @@ resolve_editor() {
   printf '%s\n' "vi"
 }
 
+trim_whitespace() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
+}
+
+normalize_priority() {
+  local raw="${1:-moderate}"
+  raw="$(trim_whitespace "${raw,,}")"
+  case "$raw" in
+    critical|crit|p0|a)
+      printf '%s\n' "critical"
+      ;;
+    high|p1|b)
+      printf '%s\n' "high"
+      ;;
+    moderate|medium|med|normal|default|p2|c|"")
+      printf '%s\n' "moderate"
+      ;;
+    low|p3|d)
+      printf '%s\n' "low"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+priority_label() {
+  case "$1" in
+    critical)
+      printf '%s\n' "Critical"
+      ;;
+    high)
+      printf '%s\n' "High"
+      ;;
+    moderate)
+      printf '%s\n' "Moderate"
+      ;;
+    low)
+      printf '%s\n' "Low"
+      ;;
+  esac
+}
+
+priority_icon() {
+  case "$1" in
+    critical)
+      printf '%s\n' "󰀦"
+      ;;
+    high)
+      printf '%s\n' "󰳟"
+      ;;
+    moderate)
+      printf '%s\n' "󰗠"
+      ;;
+    low)
+      printf '%s\n' "󰾆"
+      ;;
+  esac
+}
+
+priority_bg() {
+  case "$1" in
+    critical)
+      printf '%s\n' "$TASK_CRITICAL_BG"
+      ;;
+    high)
+      printf '%s\n' "$TASK_HIGH_BG"
+      ;;
+    moderate)
+      printf '%s\n' "$TASK_MODERATE_BG"
+      ;;
+    low)
+      printf '%s\n' "$TASK_LOW_BG"
+      ;;
+  esac
+}
+
+task_priority() {
+  local task="$1"
+  local lower="${task,,}"
+  case "$lower" in
+    \[critical\]*|\[a\]*)
+      printf '%s\n' "critical"
+      ;;
+    \[high\]*|\[b\]*)
+      printf '%s\n' "high"
+      ;;
+    \[moderate\]*|\[medium\]*|\[c\]*)
+      printf '%s\n' "moderate"
+      ;;
+    \[low\]*|\[d\]*)
+      printf '%s\n' "low"
+      ;;
+    *)
+      printf '%s\n' "moderate"
+      ;;
+  esac
+}
+
+task_body() {
+  local task="$1"
+  if [[ "$task" =~ ^\[(Critical|High|Moderate|Medium|Low|A|B|C|D)\][[:space:]]*(.*)$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[2]}"
+    return 0
+  fi
+  printf '%s\n' "$task"
+}
+
+format_task() {
+  local body="$1"
+  local priority="$2"
+  body="$(trim_whitespace "$body")"
+  if [ -z "$body" ]; then
+    return 1
+  fi
+  printf '[%s] %s\n' "$(priority_label "$priority")" "$body"
+}
+
+escape_markup() {
+  local value="${1//&/&amp;}"
+  value="${value//</&lt;}"
+  value="${value//>/&gt;}"
+  printf '%s\n' "$value"
+}
+
+chip_label() {
+  local icon="$1"
+  local bg="$2"
+  local label="$3"
+  printf '<span bgcolor="%s" foreground="%s"> %s </span>  %s\n' \
+    "$bg" \
+    "$ACTION_FG" \
+    "$icon" \
+    "$label"
+}
+
+task_label() {
+  local task="$1"
+  local priority
+  local body
+  priority="$(task_priority "$task")"
+  body="$(task_body "$task")"
+  printf '%s  %s\n' \
+    "$(chip_label "$(priority_icon "$priority")" "$(priority_bg "$priority")" "$(priority_label "$priority")")" \
+    "$(escape_markup "$body")"
+}
+
+select_priority() {
+  local prompt="$1"
+  local default_priority="${2:-moderate}"
+  local empty_mode="${3:-default}"
+  local critical_option
+  local high_option
+  local moderate_option
+  local low_option
+  local selection
+
+  critical_option="$(chip_label "$(priority_icon critical)" "$(priority_bg critical)" "Critical")"
+  high_option="$(chip_label "$(priority_icon high)" "$(priority_bg high)" "High")"
+  moderate_option="$(chip_label "$(priority_icon moderate)" "$(priority_bg moderate)" "Moderate")"
+  low_option="$(chip_label "$(priority_icon low)" "$(priority_bg low)" "Low")"
+
+  selection="$(
+    printf '%s\n%s\n%s\n%s\n' \
+      "$critical_option" \
+      "$high_option" \
+      "$moderate_option" \
+      "$low_option" \
+      | rofi -dmenu -i -markup-rows -p "$prompt" -config "$ROFI_CONFIG"
+  )"
+
+  case "$selection" in
+    "$critical_option")
+      printf '%s\n' "critical"
+      ;;
+    "$high_option")
+      printf '%s\n' "high"
+      ;;
+    "$moderate_option")
+      printf '%s\n' "moderate"
+      ;;
+    "$low_option")
+      printf '%s\n' "low"
+      ;;
+    "")
+      if [ "$empty_mode" = "empty" ]; then
+        printf '%s\n' ""
+      else
+        printf '%s\n' "$default_priority"
+      fi
+      ;;
+    *)
+      if [ "$empty_mode" = "empty" ]; then
+        printf '%s\n' ""
+      else
+        printf '%s\n' "$default_priority"
+      fi
+      ;;
+  esac
+}
+
 read_tasks() {
   mapfile -t TASKS < "$TASK_FILE"
 }
@@ -39,14 +261,39 @@ write_tasks() {
 
 add_task() {
   local note="${1:-}"
+  local priority_input="${2:-}"
+  local priority=""
   if [ -z "$note" ]; then
-    note="$(rofi_prompt "Atomic Note Add:")"
+    note="$(rofi_prompt "Task:")"
+    note="$(trim_whitespace "$note")"
+    if [ -z "$note" ]; then
+      return 0
+    fi
+    if [ -n "$priority_input" ] && priority="$(normalize_priority "$priority_input" 2>/dev/null)"; then
+      :
+    else
+      priority="$(select_priority "Priority:" "moderate" "empty")"
+      if [ -z "$priority" ]; then
+        return 0
+      fi
+    fi
+  else
+    note="$(trim_whitespace "$note")"
+    if [ -z "$note" ]; then
+      return 0
+    fi
+    if priority="$(normalize_priority "$priority_input" 2>/dev/null)"; then
+      :
+    else
+      priority="$(task_priority "$note")"
+      note="$(trim_whitespace "$(task_body "$note")")"
+    fi
   fi
 
-  if [ -n "$note" ]; then
-    printf '%s\n' "$note" >> "$TASK_FILE"
-    refresh_waybar
-  fi
+  local formatted
+  formatted="$(format_task "$note" "$priority")" || return 0
+  printf '%s\n' "$formatted" >> "$TASK_FILE"
+  refresh_waybar
 }
 
 open_file_in_terminal() {
@@ -101,41 +348,91 @@ edit_task_by_index() {
   fi
 
   local current="${TASKS[$index]}"
+  local current_body
+  local current_priority
+  current_body="$(task_body "$current")"
+  current_priority="$(task_priority "$current")"
   local updated
-  updated="$(printf '%s' "$current" | rofi -dmenu -p "Edit Task:" -config "$ROFI_CONFIG")"
+  updated="$(printf '%s' "$current_body" | rofi -dmenu -p "Edit Task:" -config "$ROFI_CONFIG")"
   if [ -z "$updated" ]; then
     return 0
   fi
 
-  TASKS[$index]="$updated"
+  TASKS[$index]="$(format_task "$updated" "$current_priority")"
+  write_tasks "${TASKS[@]}"
+  refresh_waybar
+}
+
+change_priority_by_index() {
+  local index="$1"
+  read_tasks
+  if [ "$index" -lt 0 ] || [ "$index" -ge "${#TASKS[@]}" ]; then
+    return 1
+  fi
+
+  local current="${TASKS[$index]}"
+  local current_body
+  local current_priority
+  local updated_priority
+  current_body="$(task_body "$current")"
+  current_priority="$(task_priority "$current")"
+  updated_priority="$(select_priority "Priority:" "$current_priority")"
+  TASKS[$index]="$(format_task "$current_body" "$updated_priority")"
   write_tasks "${TASKS[@]}"
   refresh_waybar
 }
 
 confirm_clear() {
   local choice
-  choice="$(printf 'No\nYes\n' | rofi -dmenu -i -p "Clear all tasks?" -config "$ROFI_CONFIG")"
-  [ "$choice" = "Yes" ]
+  local no_option
+  local yes_option
+  no_option="$(chip_label "󰜺" "$ACTION_CANCEL_BG" "No")"
+  yes_option="$(chip_label "󰄬" "$ACTION_CLEAR_BG" "Yes, clear all")"
+
+  choice="$(
+    printf '%s\n%s\n' "$no_option" "$yes_option" \
+      | rofi -dmenu -i -markup-rows -p "Clear all tasks?" -config "$ROFI_CONFIG"
+  )"
+  [ "$choice" = "$yes_option" ]
 }
 
 task_menu() {
   local index="$1"
   local task="$2"
   local choice
+  local done_option
+  local edit_option
+  local priority_option
+  local move_option
+  local cancel_option
+
+  done_option="$(chip_label "󰄬" "$ACTION_ADD_BG" "Mark done")"
+  edit_option="$(chip_label "󰏫" "$ACTION_EDIT_BG" "Edit task")"
+  priority_option="$(chip_label "󰦨" "$ACTION_OPEN_BG" "Change priority")"
+  move_option="$(chip_label "󰁝" "$ACTION_MOVE_BG" "Move to top")"
+  cancel_option="$(chip_label "󰜺" "$ACTION_CANCEL_BG" "Cancel")"
 
   choice="$(
-    printf 'Mark done\nEdit task\nMove to top\nCancel\n' \
-      | rofi -dmenu -i -p "Task: ${task}" -config "$ROFI_CONFIG"
+    printf '%s\n%s\n%s\n%s\n%s\n' \
+      "$done_option" \
+      "$edit_option" \
+      "$priority_option" \
+      "$move_option" \
+      "$cancel_option" \
+      | rofi -dmenu -i -markup-rows -p "Task: $(task_body "$task")" -config "$ROFI_CONFIG"
   )"
 
   case "$choice" in
-    "Mark done")
+    "$done_option")
       delete_task_by_index "$index"
       ;;
-    "Edit task")
+    "$edit_option")
       edit_task_by_index "$index"
       ;;
-    "Move to top")
+    "$priority_option")
+      change_priority_by_index "$index"
+      ;;
+    "$move_option")
       move_task_to_top "$index"
       ;;
     *)
@@ -148,52 +445,64 @@ rofi_menu() {
     read_tasks
 
     local options=()
-    options+=("Add task")
-    options+=("Open raw file")
-    options+=("Clear all")
+    local task_labels=()
+    local add_option
+    local open_option
+    local clear_option
+
+    add_option="$(chip_label "󰐕" "$ACTION_ADD_BG" "Add task")"
+    open_option="$(chip_label "󰈔" "$ACTION_OPEN_BG" "Open raw file")"
+    clear_option="$(chip_label "󰩹" "$ACTION_CLEAR_BG" "Clear all")"
+
+    options+=("$add_option")
+    options+=("$open_option")
+    options+=("$clear_option")
 
     local task
     for task in "${TASKS[@]}"; do
-      options+=("Task: ${task}")
+      local display_task
+      display_task="$(task_label "$task")"
+      task_labels+=("$display_task")
+      options+=("$display_task")
     done
 
     local selection
-    selection="$(printf '%s\n' "${options[@]}" | rofi -dmenu -i -p "Atomic Notes" -config "$ROFI_CONFIG")"
+    selection="$(
+      printf '%s\n' "${options[@]}" \
+        | rofi -dmenu -i -markup-rows -p "Atomic Notes" -config "$ROFI_CONFIG"
+    )"
 
     case "$selection" in
       "")
         return 0
         ;;
-      "Add task")
+      "$add_option")
         add_task
         ;;
-      "Open raw file")
+      "$open_option")
         open_file_in_terminal
         return 0
         ;;
-      "Clear all")
+      "$clear_option")
         if confirm_clear; then
           clear_tasks
         fi
         ;;
-      "Task: "*)
-        local selected_task="${selection#Task: }"
+      *)
         local idx=0
         local found=0
-        for task in "${TASKS[@]}"; do
-          if [ "$task" = "$selected_task" ]; then
-            task_menu "$idx" "$task"
+        local display_task
+        for display_task in "${task_labels[@]}"; do
+          if [ "$display_task" = "$selection" ]; then
+            task_menu "$idx" "${TASKS[$idx]}"
             found=1
             break
           fi
           idx=$((idx + 1))
         done
         if [ "$found" -eq 0 ]; then
-          return 1
+          return 0
         fi
-        ;;
-      *)
-        return 0
         ;;
     esac
   done

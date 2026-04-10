@@ -27,17 +27,22 @@ The Rofi menu lets you:
 - select an existing task and:
   - mark it done
   - edit it
+  - change its priority
   - move it to the top
+
+Action rows use colored chips and icons so they stay visually separate from normal tasks.
 
 ### Add a Task
 
 ```bash
-# Add a task with a priority tag ([A] is urgent, [B] is warning)
-atomic-note add "[A] Fix the production bug"
-atomic-note add "[B] Buy groceries"
+# Add a task with an explicit priority
+atomic-note add "Fix the production bug" critical
+atomic-note add "Reply to email thread" high
+atomic-note add "Refactor config comments" moderate
+atomic-note add "Tidy downloads" low
 ```
 
-If you run `atomic-note add` without text, it opens a Rofi prompt for quick entry.
+If you run `atomic-note add` without text, it opens a Rofi prompt for the task text and then a second Rofi menu to set the priority.
 
 ### List All Tasks
 
@@ -65,11 +70,15 @@ atomic-note file
 
 ## 3. Formatting & Priority
 
-The Waybar module looks for `[A]` or `[B]` at the beginning of your tasks to apply colors:
+Tasks are stored with a priority prefix:
 
-- **`[A]` (Urgent):** Red text and underline.
-- **`[B]` (Warning):** Orange/Peach text and underline.
+- **`[Critical]`:** Red
+- **`[High]`:** Orange/Amber
+- **`[Moderate]`:** Blue
+- **`[Low]`:** Green
 - **`Empty`:** Grayed out icon.
+
+The Waybar module and the Rofi menu both read these priority prefixes and style the task accordingly.
 
 ---
 *Tasks are stored in `~/.atomic_tasks`*

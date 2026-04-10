@@ -185,17 +185,29 @@ tooltip {
 }
 
 #custom-atomic_note {
-  color: @warning;
+  color: @accent;
 }
 
+#custom-atomic_note.critical,
 #custom-atomic_note.urgent {
   color: @error;
   border-bottom: 2px solid @error;
 }
 
+#custom-atomic_note.high,
 #custom-atomic_note.warning {
   color: @warning;
   border-bottom: 2px solid @warning;
+}
+
+#custom-atomic_note.moderate {
+  color: @accent;
+  border-bottom: 2px solid @accent;
+}
+
+#custom-atomic_note.low {
+  color: @success;
+  border-bottom: 2px solid @success;
 }
 
 #custom-atomic_note.empty {
