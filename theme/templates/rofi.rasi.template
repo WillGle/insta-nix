@@ -12,8 +12,8 @@
   
   background-color: transparent;
   text-color: @text;
-  font: "__UI_FONT__ __UI_FONT_SIZE__";
-  mono-font: "__MONO_FONT__ __MONO_FONT_SIZE__";
+  font: "__UI_FONT__ 10";
+  mono-font: "__MONO_FONT__ 10";
 }
 
 window {
