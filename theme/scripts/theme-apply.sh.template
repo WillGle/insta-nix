@@ -14,7 +14,10 @@ CMP_BIN="__CMP_BIN__"
 CAT_BIN="__CAT_BIN__"
 LS_BIN="__LS_BIN__"
 HEAD_BIN="__HEAD_BIN__"
+NOHUP_BIN="__NOHUP_BIN__"
 PKILL_BIN="__PKILL_BIN__"
+PGREP_BIN="__PGREP_BIN__"
+WAYBAR_BIN="__WAYBAR_BIN__"
 HYPRCTL_BIN="__HYPRCTL_BIN__"
 FIND_BIN="__FIND_BIN__"
 SORT_BIN="__SORT_BIN__"
@@ -100,6 +103,12 @@ apply_if_changed() {
   fi
 }
 
+ensure_waybar_running() {
+  if ! "$PGREP_BIN" -x waybar >/dev/null 2>&1; then
+    "$NOHUP_BIN" "$WAYBAR_BIN" >/dev/null 2>&1 &
+  fi
+}
+
 compute_state_hash() {
   {
     "$SHA256SUM_BIN" "$THEME_WALLPAPER"
@@ -113,11 +122,13 @@ STATE_FILE="$THEME_CACHE_DIR/state.sha256"
 PALETTE_FILE="$THEME_CACHE_DIR/palette.json"
 
 if [ -f "$STATE_FILE" ] && [ -f "$PALETTE_FILE" ] && [ "$("$CAT_BIN" "$STATE_FILE")" = "$STATE_HASH" ]; then
+  ensure_waybar_running
   exit 0
 fi
 
 PALETTE_TMP="$TMP_DIR/palette.json"
 if ! "$MATUGEN_BIN" image "$THEME_WALLPAPER" -m dark -j hex -q > "$PALETTE_TMP"; then
+  ensure_waybar_running
   exit 0
 fi
 
@@ -138,6 +149,7 @@ CYAN="$(read_color '.colors.secondary.default')"
 
 for value in "$BASE" "$MANTLE" "$TEXT" "$SUBTEXT" "$ACCENT" "$SUCCESS" "$WARNING" "$ERROR" "$PURPLE" "$CYAN"; do
   if [ -z "$value" ] || [ "$value" = "null" ]; then
+    ensure_waybar_running
     exit 0
   fi
 done
@@ -161,8 +173,12 @@ apply_if_changed "$TMP_DIR/hyprland-decoration.conf" "$THEME_RUNTIME_DIR/hyprlan
 printf '%s\n' "$STATE_HASH" > "$TMP_DIR/state.sha256"
 "$MV_BIN" "$TMP_DIR/state.sha256" "$STATE_FILE"
 
-if [ "$waybar_changed" -eq 1 ]; then
-  "$PKILL_BIN" -SIGUSR2 waybar >/dev/null 2>&1 || true
+if "$PGREP_BIN" -x waybar >/dev/null 2>&1; then
+  if [ "$waybar_changed" -eq 1 ]; then
+    "$PKILL_BIN" -SIGUSR2 waybar >/dev/null 2>&1 || true
+  fi
+else
+  ensure_waybar_running
 fi
 
 if [ "$hyprland_changed" -eq 1 ]; then
