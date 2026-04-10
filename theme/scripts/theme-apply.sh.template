@@ -155,19 +155,25 @@ for value in "$BASE" "$MANTLE" "$TEXT" "$SUBTEXT" "$ACCENT" "$SUCCESS" "$WARNING
 done
 
 render_template "$THEME_TEMPLATE_DIR/waybar.css.template" "$TMP_DIR/waybar.css"
-render_template "$THEME_TEMPLATE_DIR/wofi.css.template" "$TMP_DIR/wofi.css"
+render_template "$THEME_TEMPLATE_DIR/rofi.rasi.template" "$TMP_DIR/rofi.rasi"
 render_template "$THEME_TEMPLATE_DIR/hyprlock.conf.template" "$TMP_DIR/hyprlock.conf"
 render_template "$THEME_TEMPLATE_DIR/hyprland-decoration.conf.template" "$TMP_DIR/hyprland-decoration.conf"
+render_template "$THEME_TEMPLATE_DIR/swayosd.css.template" "$TMP_DIR/swayosd.css"
+render_template "$THEME_TEMPLATE_DIR/nvim-colors.lua.template" "$TMP_DIR/nvim-matugen.lua"
 
 waybar_changed=0
-wofi_changed=0
+rofi_changed=0
 hyprlock_changed=0
 hyprland_changed=0
+swayosd_changed=0
+nvim_changed=0
 
 apply_if_changed "$TMP_DIR/waybar.css" "$THEME_RUNTIME_DIR/waybar.css" waybar_changed
-apply_if_changed "$TMP_DIR/wofi.css" "$THEME_RUNTIME_DIR/wofi.css" wofi_changed
+apply_if_changed "$TMP_DIR/rofi.rasi" "$THEME_RUNTIME_DIR/rofi.rasi" rofi_changed
 apply_if_changed "$TMP_DIR/hyprlock.conf" "$THEME_RUNTIME_DIR/hyprlock.conf" hyprlock_changed
 apply_if_changed "$TMP_DIR/hyprland-decoration.conf" "$THEME_RUNTIME_DIR/hyprland-decoration.conf" hyprland_changed
+apply_if_changed "$TMP_DIR/swayosd.css" "$THEME_RUNTIME_DIR/swayosd.css" swayosd_changed
+apply_if_changed "$TMP_DIR/nvim-matugen.lua" "$THEME_RUNTIME_DIR/nvim-matugen.lua" nvim_changed
 
 "$MV_BIN" "$PALETTE_TMP" "$PALETTE_FILE"
 printf '%s\n' "$STATE_HASH" > "$TMP_DIR/state.sha256"

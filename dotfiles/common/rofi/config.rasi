@@ -1,0 +1,14 @@
+@theme "~/.config/rofi/theme.rasi"
+
+configuration {
+  modi: "drun,window";
+  show-icons: true;
+  drun-display-format: "{icon}  {name}";
+  display-drun: "Apps";
+  display-window: "Windows";
+  window-format: "{w}  {c}  {t}";
+  matching: "fuzzy";
+  sort: true;
+  cycle: false;
+  hover-select: false;
+}

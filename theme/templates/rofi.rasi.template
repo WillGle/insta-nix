@@ -1,0 +1,95 @@
+* {
+  base: __BASE__;
+  mantle: __MANTLE__;
+  text: __TEXT__;
+  subtext: __SUBTEXT__;
+  accent: __ACCENT__;
+  error: __ERROR__;
+  success: __SUCCESS__;
+  font: "__UI_FONT__ __UI_FONT_SIZE__";
+}
+
+window {
+  width: 42%;
+  border: 2px;
+  border-color: @accent;
+  border-radius: 18px;
+  background-color: @base;
+}
+
+mainbox {
+  spacing: 14px;
+  padding: 18px;
+  children: [ inputbar, message, listview ];
+}
+
+inputbar {
+  spacing: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background-color: @mantle;
+  text-color: @text;
+  children: [ prompt, entry ];
+}
+
+prompt {
+  text-color: @accent;
+}
+
+entry {
+  text-color: @text;
+  placeholder: "Search";
+  placeholder-color: @subtext;
+}
+
+message {
+  margin: 0 4px;
+}
+
+textbox {
+  text-color: @subtext;
+}
+
+listview {
+  lines: 10;
+  columns: 1;
+  fixed-height: false;
+  spacing: 8px;
+  scrollbar: false;
+  background-color: transparent;
+}
+
+element {
+  spacing: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background-color: transparent;
+  text-color: @text;
+  children: [ element-icon, element-text ];
+}
+
+element selected {
+  background-color: @mantle;
+  text-color: @accent;
+  border: 1px;
+  border-color: @accent;
+}
+
+element-icon {
+  size: 1.15em;
+  background-color: transparent;
+}
+
+element-text {
+  text-color: inherit;
+  vertical-align: 0.5;
+}
+
+error-message {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px;
+  border-color: @error;
+  background-color: @mantle;
+  text-color: @error;
+}

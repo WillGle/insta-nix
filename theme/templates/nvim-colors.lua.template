@@ -1,0 +1,70 @@
+vim.cmd("highlight clear")
+
+if vim.fn.exists("syntax_on") == 1 then
+  vim.cmd("syntax reset")
+end
+
+vim.o.background = "dark"
+vim.g.colors_name = "matugen"
+
+local palette = {
+  base = "__BASE__",
+  mantle = "__MANTLE__",
+  text = "__TEXT__",
+  subtext = "__SUBTEXT__",
+  accent = "__ACCENT__",
+  success = "__SUCCESS__",
+  warning = "__WARNING__",
+  error = "__ERROR__",
+  purple = "__PURPLE__",
+  cyan = "__CYAN__",
+}
+
+local set = vim.api.nvim_set_hl
+
+local groups = {
+  Normal = { fg = palette.text, bg = palette.base },
+  NormalFloat = { fg = palette.text, bg = palette.mantle },
+  FloatBorder = { fg = palette.accent, bg = palette.mantle },
+  SignColumn = { fg = palette.subtext, bg = palette.base },
+  LineNr = { fg = palette.subtext, bg = palette.base },
+  CursorLine = { bg = palette.mantle },
+  CursorLineNr = { fg = palette.accent, bg = palette.mantle, bold = true },
+  Visual = { bg = palette.mantle },
+  Search = { fg = palette.base, bg = palette.accent },
+  IncSearch = { fg = palette.base, bg = palette.warning },
+  StatusLine = { fg = palette.text, bg = palette.mantle },
+  StatusLineNC = { fg = palette.subtext, bg = palette.mantle },
+  WinSeparator = { fg = palette.mantle, bg = palette.base },
+  VertSplit = { fg = palette.mantle, bg = palette.base },
+  Pmenu = { fg = palette.text, bg = palette.mantle },
+  PmenuSel = { fg = palette.base, bg = palette.accent, bold = true },
+  Comment = { fg = palette.subtext, italic = true },
+  Constant = { fg = palette.cyan },
+  String = { fg = palette.success },
+  Character = { fg = palette.success },
+  Number = { fg = palette.warning },
+  Boolean = { fg = palette.warning, bold = true },
+  Identifier = { fg = palette.text },
+  Function = { fg = palette.accent },
+  Statement = { fg = palette.purple },
+  Conditional = { fg = palette.purple },
+  Repeat = { fg = palette.purple },
+  Keyword = { fg = palette.purple, bold = true },
+  Operator = { fg = palette.cyan },
+  PreProc = { fg = palette.warning },
+  Type = { fg = palette.cyan },
+  Special = { fg = palette.accent },
+  Todo = { fg = palette.base, bg = palette.warning, bold = true },
+  Error = { fg = palette.error, bg = palette.base, bold = true },
+  WarningMsg = { fg = palette.warning },
+  DiagnosticError = { fg = palette.error },
+  DiagnosticWarn = { fg = palette.warning },
+  DiagnosticInfo = { fg = palette.accent },
+  DiagnosticHint = { fg = palette.cyan },
+  DiagnosticOk = { fg = palette.success },
+}
+
+for name, spec in pairs(groups) do
+  set(0, name, spec)
+end

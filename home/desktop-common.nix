@@ -10,6 +10,7 @@ let
   themeApplyPath = "${themeRoot}/theme-apply";
   themeWallpaperPath = "${themeAssetsDir}/${theme.wallpaper.name}";
   themeCacheDir = "${config.home.homeDirectory}/${theme.runtime.cacheDir}";
+  runtimeLink = path: config.lib.file.mkOutOfStoreSymlink "${themeRuntimeDir}/${path}";
 
   strip = color: lib.removePrefix "#" color;
   replaceMany =
@@ -90,15 +91,24 @@ let
   ) ../theme/scripts/theme-lock.sh.template;
 in
 {
+  wayland.systemd.target = "default.target";
+
+  services.swayosd = {
+    enable = true;
+    stylePath = "${config.xdg.configHome}/swayosd/style.css";
+  };
+
   xdg.configFile = {
     "theme/templates".source = ../theme/templates;
     "theme/assets/${theme.wallpaper.name}".source = theme.wallpaper.source;
     "theme/fallback/waybar.css".text = renderTheme ../theme/templates/waybar.css.template;
-    "theme/fallback/wofi.css".text = renderTheme ../theme/templates/wofi.css.template;
+    "theme/fallback/rofi.rasi".text = renderTheme ../theme/templates/rofi.rasi.template;
     "theme/fallback/hyprlock.conf".text = renderTheme ../theme/templates/hyprlock.conf.template;
     "theme/fallback/hyprland-decoration.conf".text = renderTheme ../theme/templates/hyprland-decoration.conf.template;
+    "theme/fallback/swayosd.css".text = renderTheme ../theme/templates/swayosd.css.template;
+    "theme/fallback/nvim-matugen.lua".text = renderTheme ../theme/templates/nvim-colors.lua.template;
     "theme/static.env".text = ''
-      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v2"}
+      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v3"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
       THEME_CACHE_DIR=${lib.escapeShellArg themeCacheDir}
       THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
@@ -128,26 +138,40 @@ in
       executable = true;
     };
 
-    "wofi/config-app.ini".source = ../dotfiles/common/wofi/config-app.ini;
-    "wofi/config-clip.ini".source = ../dotfiles/common/wofi/config-clip.ini;
-    "wofi/style.css".text = ''
-      @import url("file://${themeFallbackDir}/wofi.css");
-      @import url("file://${themeRuntimeDir}/wofi.css");
+    "rofi/config.rasi".source = ../dotfiles/common/rofi/config.rasi;
+    "rofi/theme.rasi".source = runtimeLink "rofi.rasi";
+
+    "swayosd/style.css".source = runtimeLink "swayosd.css";
+
+    "nvim/colors/matugen.lua".source = runtimeLink "nvim-matugen.lua";
+    "nvim/plugin/matugen.lua".text = ''
+      vim.opt.termguicolors = true
+      pcall(vim.cmd.colorscheme, "matugen")
     '';
 
     "hypr/hyprpaper.conf".text = renderTheme ../theme/templates/hyprpaper.conf.template;
   };
 
-  home.file.".local/bin/theme-lock" = {
-    text = themeLockScript;
-    executable = true;
+  home.file = {
+    ".local/bin/theme-lock" = {
+      text = themeLockScript;
+      executable = true;
+    };
+    ".local/bin/rofi-show" = {
+      source = ../dotfiles/common/rofi/rofi-show.sh;
+      executable = true;
+    };
+    ".local/bin/rofi-clipboard" = {
+      source = ../dotfiles/common/rofi/rofi-clipboard.sh;
+      executable = true;
+    };
   };
 
-  home.activation.themeRuntimeSeed = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.themeRuntimeSeed = lib.hm.dag.entryBetween [ "reloadSystemd" ] [ "linkGeneration" ] ''
     mkdir -p "${themeCacheDir}" "${themeRuntimeDir}"
-    for file in waybar.css wofi.css hyprlock.conf hyprland-decoration.conf; do
+    for file in waybar.css rofi.rasi hyprlock.conf hyprland-decoration.conf swayosd.css nvim-matugen.lua; do
       if [ ! -e "${themeRuntimeDir}/$file" ]; then
-        : > "${themeRuntimeDir}/$file"
+        ${pkgs.coreutils}/bin/cp "${themeFallbackDir}/$file" "${themeRuntimeDir}/$file"
       fi
     done
     if [ ! -e "${themeCacheDir}/palette.json" ]; then

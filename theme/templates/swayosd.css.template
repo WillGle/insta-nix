@@ -1,0 +1,46 @@
+window#osd {
+  border-radius: 999px;
+  border: 2px solid __ACCENT__;
+  background: alpha(__BASE__, 0.92);
+}
+
+window#osd #container {
+  margin: 16px 18px;
+}
+
+window#osd image,
+window#osd label {
+  color: __TEXT__;
+}
+
+window#osd label {
+  font-family: "__UI_FONT__";
+  font-size: __UI_FONT_SIZE__px;
+  font-weight: 700;
+}
+
+window#osd progressbar:disabled,
+window#osd image:disabled {
+  opacity: 0.45;
+}
+
+window#osd progressbar {
+  min-height: 8px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+}
+
+window#osd trough {
+  min-height: inherit;
+  border-radius: inherit;
+  border: none;
+  background: alpha(__SUBTEXT__, 0.35);
+}
+
+window#osd progress {
+  min-height: inherit;
+  border-radius: inherit;
+  border: none;
+  background: __ACCENT__;
+}
