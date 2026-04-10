@@ -1,9 +1,26 @@
-{ config, ... }:
+{ config, osConfig, ... }:
 let
   homeDir = config.home.homeDirectory;
-  renderWithHome =
+  themeFallbackDir = "${config.xdg.configHome}/theme/fallback";
+  themeRuntimeDir = "${config.xdg.configHome}/theme/runtime";
+  renderHostConfig =
     path:
-    builtins.replaceStrings [ "/home/will" ] [ homeDir ] (builtins.readFile path);
+    builtins.replaceStrings
+      [
+        "/home/will"
+        "__CURSOR_NAME__"
+        "__CURSOR_SIZE__"
+        "__THEME_FALLBACK_DIR__"
+        "__THEME_RUNTIME_DIR__"
+      ]
+      [
+        homeDir
+        osConfig.theme.cursor.name
+        (toString osConfig.theme.cursor.size)
+        themeFallbackDir
+        themeRuntimeDir
+      ]
+      (builtins.readFile path);
 in
 {
   home.file = {
@@ -38,11 +55,8 @@ in
   };
 
   xdg.configFile = {
-    "hypr/hyprland.conf".source = ../../dotfiles/hosts/ryzen14/hypr/hyprland.conf;
-    "hypr/hyprpaper.conf".text = renderWithHome ../../dotfiles/hosts/ryzen14/hypr/hyprpaper.conf;
-    "hypr/hyprlock.conf".text = renderWithHome ../../dotfiles/hosts/ryzen14/hypr/hyprlock.conf;
+    "hypr/hyprland.conf".text = renderHostConfig ../../dotfiles/hosts/ryzen14/hypr/hyprland.conf;
     "hypr/hypridle.conf".source = ../../dotfiles/hosts/ryzen14/hypr/hypridle.conf;
-    "hypr/wallpaper.png".source = ../../dotfiles/hosts/ryzen14/hypr/wallpaper.png;
     "hypr/autostart.conf" = {
       source = ../../dotfiles/hosts/ryzen14/hypr/autostart.conf;
       executable = true;
