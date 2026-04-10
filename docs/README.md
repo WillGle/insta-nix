@@ -1,0 +1,17 @@
+# Documentation Index
+
+## Active Guides
+
+- [`guides/HOST_ONBOARDING.md`](./guides/HOST_ONBOARDING.md): use this when adding a new host or checking where host files belong.
+- [`guides/PLANK_REMOTE_INSTALL.md`](./guides/PLANK_REMOTE_INSTALL.md): use this when installing `generic-installer` on a remote machine.
+
+## Specialized Guides
+
+- [`guides/AMD_PERF_SUITE.md`](./guides/AMD_PERF_SUITE.md): use this when you need the optional AMD performance test workflow.
+- [`guides/LOCAL_LLM.md`](./guides/LOCAL_LLM.md): use this when running local LLM tools on `Laptop`.
+- [`STYLE.md`](./STYLE.md): use this when writing or editing documentation in this repo.
+
+## Archived Material
+
+- [`archive/REMOTE_MIGRATION.md`](./archive/REMOTE_MIGRATION.md): legacy remote migration note kept for historical reference.
+- [`archive/rocm/README.md`](./archive/rocm/README.md): index for archived ROCm investigation files and reports.
