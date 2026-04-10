@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# monitor-setup: Quick toggle UI for monitor configuration using Wofi & Hyprland
+# monitor-setup: Quick toggle UI for monitor configuration using Rofi & Hyprland
 # Detect connected monitors
 export PATH="$PATH:/run/current-system/sw/bin"
 
@@ -26,8 +26,8 @@ OPTIONS=(
     ["Auto/Default"]="hyprctl keyword monitor $EXTERNAL_MON, preferred, auto, auto"
 )
 
-# Create the wofi menu from keys
-MENU=$(printf "%s\n" "${!OPTIONS[@]}" | wofi --dmenu --prompt="Configure $EXTERNAL_MON:" --lines 7 --width 400 --cache-file /dev/null -i)
+# Create the rofi menu from keys
+MENU=$(printf "%s\n" "${!OPTIONS[@]}" | rofi -dmenu -i -p "Configure $EXTERNAL_MON:" -config ~/.config/rofi/config.rasi -theme-str 'listview { lines: 7; columns: 1; }' -theme-str 'window { width: 36%; }')
 
 if [ -n "$MENU" ]; then
     COMMAND="${OPTIONS[$MENU]}"

@@ -10,8 +10,8 @@ case "$1" in
         if [ -n "$2" ]; then
             echo "$2" >> "$TASK_FILE"
         else
-            # Use wofi for quick add if no argument
-            note=$(wofi --dmenu --prompt "Atomic Note Add:" --lines 1)
+            # Use rofi for quick add if no argument
+            note=$(printf '' | rofi -dmenu -p "Atomic Note Add:" -config ~/.config/rofi/config.rasi)
             [ -n "$note" ] && echo "$note" >> "$TASK_FILE"
         fi
         ;;
