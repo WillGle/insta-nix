@@ -1,8 +1,7 @@
 { config, osConfig, ... }:
 let
   homeDir = config.home.homeDirectory;
-  themeFallbackDir = "${config.xdg.configHome}/theme/fallback";
-  themeRuntimeDir = "${config.xdg.configHome}/theme/runtime";
+  themeGeneratedDir = "${config.xdg.configHome}/theme/generated";
   renderHostConfig =
     path:
     builtins.replaceStrings
@@ -10,15 +9,13 @@ let
         "/home/will"
         "__CURSOR_NAME__"
         "__CURSOR_SIZE__"
-        "__THEME_FALLBACK_DIR__"
-        "__THEME_RUNTIME_DIR__"
+        "__THEME_GENERATED_DIR__"
       ]
       [
         homeDir
         osConfig.theme.cursor.name
         (toString osConfig.theme.cursor.size)
-        themeFallbackDir
-        themeRuntimeDir
+        themeGeneratedDir
       ]
       (builtins.readFile path);
 in

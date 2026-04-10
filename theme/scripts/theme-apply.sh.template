@@ -4,14 +4,11 @@ set -euo pipefail
 MATUGEN_BIN="__MATUGEN_BIN__"
 JQ_BIN="__JQ_BIN__"
 SED_BIN="__SED_BIN__"
-AWK_BIN="__AWK_BIN__"
 MKTEMP_BIN="__MKTEMP_BIN__"
-SHA256SUM_BIN="__SHA256SUM_BIN__"
 MKDIR_BIN="__MKDIR_BIN__"
 MV_BIN="__MV_BIN__"
 RM_BIN="__RM_BIN__"
 CMP_BIN="__CMP_BIN__"
-CAT_BIN="__CAT_BIN__"
 LS_BIN="__LS_BIN__"
 HEAD_BIN="__HEAD_BIN__"
 NOHUP_BIN="__NOHUP_BIN__"
@@ -19,9 +16,6 @@ PKILL_BIN="__PKILL_BIN__"
 PGREP_BIN="__PGREP_BIN__"
 WAYBAR_BIN="__WAYBAR_BIN__"
 HYPRCTL_BIN="__HYPRCTL_BIN__"
-FIND_BIN="__FIND_BIN__"
-SORT_BIN="__SORT_BIN__"
-XARGS_BIN="__XARGS_BIN__"
 
 STATIC_ENV="__THEME_STATIC_ENV__"
 
@@ -36,17 +30,14 @@ if [ "${THEME_RUNTIME_ENABLE:-0}" != "1" ]; then
   exit 0
 fi
 
-if [ ! -f "$THEME_WALLPAPER" ]; then
-  exit 0
-fi
-
-"$MKDIR_BIN" -p "$THEME_CACHE_DIR" "$THEME_RUNTIME_DIR"
+"$MKDIR_BIN" -p "$THEME_GENERATED_DIR"
 
 TMP_DIR="$("$MKTEMP_BIN" -d)"
 trap '"$RM_BIN" -rf "$TMP_DIR"' EXIT INT TERM
 
-# Cleanup stale runtime files from previous versions
-"$RM_BIN" -f "$THEME_RUNTIME_DIR/wofi.css"
+log() {
+  printf '[theme-apply] %s\n' "$*" >&2
+}
 
 escape_sed() {
   printf '%s' "$1" | "$SED_BIN" 's/[\/&]/\\&/g'
@@ -54,6 +45,77 @@ escape_sed() {
 
 strip_hex() {
   printf '%s' "${1#\#}"
+}
+
+set_fallback_palette() {
+  BASE="$THEME_STATIC_BASE"
+  MANTLE="$THEME_STATIC_MANTLE"
+  TEXT="$THEME_STATIC_TEXT"
+  SUBTEXT="$THEME_STATIC_SUBTEXT"
+  ACCENT="$THEME_STATIC_ACCENT"
+  SUCCESS="$THEME_STATIC_SUCCESS"
+  WARNING="$THEME_STATIC_WARNING"
+  ERROR="$THEME_STATIC_ERROR"
+  PURPLE="$THEME_STATIC_PURPLE"
+  CYAN="$THEME_STATIC_CYAN"
+}
+
+set_dynamic_palette() {
+  local palette_tmp="$1"
+  local base mantle text subtext accent success warning error purple cyan
+
+  if ! "$MATUGEN_BIN" image "$THEME_WALLPAPER" -m dark -j hex -q > "$palette_tmp"; then
+    return 1
+  fi
+
+  base="$("$JQ_BIN" -r '.colors.surface.default' "$palette_tmp")"
+  mantle="$("$JQ_BIN" -r '.colors.surface_container.default' "$palette_tmp")"
+  text="$("$JQ_BIN" -r '.colors.on_surface.default' "$palette_tmp")"
+  subtext="$("$JQ_BIN" -r '.colors.on_surface_variant.default' "$palette_tmp")"
+  accent="$("$JQ_BIN" -r '.colors.primary.default' "$palette_tmp")"
+  success="$("$JQ_BIN" -r '.colors.secondary.default' "$palette_tmp")"
+  warning="$("$JQ_BIN" -r '.colors.tertiary.default' "$palette_tmp")"
+  error="$("$JQ_BIN" -r '.colors.error.default' "$palette_tmp")"
+  purple="$("$JQ_BIN" -r '.colors.tertiary.default' "$palette_tmp")"
+  cyan="$("$JQ_BIN" -r '.colors.secondary.default' "$palette_tmp")"
+
+  for value in "$base" "$mantle" "$text" "$subtext" "$accent" "$success" "$warning" "$error" "$purple" "$cyan"; do
+    if [ -z "$value" ] || [ "$value" = "null" ]; then
+      return 1
+    fi
+  done
+
+  BASE="$base"
+  MANTLE="$mantle"
+  TEXT="$text"
+  SUBTEXT="$subtext"
+  ACCENT="$accent"
+  SUCCESS="$success"
+  WARNING="$warning"
+  ERROR="$error"
+  PURPLE="$purple"
+  CYAN="$cyan"
+}
+
+write_fallback_palette_json() {
+  local output="$1"
+  cat > "$output" <<EOF
+{
+  "source": "static-fallback",
+  "colors": {
+    "base": "$THEME_STATIC_BASE",
+    "mantle": "$THEME_STATIC_MANTLE",
+    "text": "$THEME_STATIC_TEXT",
+    "subtext": "$THEME_STATIC_SUBTEXT",
+    "accent": "$THEME_STATIC_ACCENT",
+    "success": "$THEME_STATIC_SUCCESS",
+    "warning": "$THEME_STATIC_WARNING",
+    "error": "$THEME_STATIC_ERROR",
+    "purple": "$THEME_STATIC_PURPLE",
+    "cyan": "$THEME_STATIC_CYAN"
+  }
+}
+EOF
 }
 
 render_template() {
@@ -113,50 +175,20 @@ ensure_waybar_running() {
   fi
 }
 
-compute_state_hash() {
-  {
-    "$SHA256SUM_BIN" "$THEME_WALLPAPER"
-    "$SHA256SUM_BIN" "$STATIC_ENV"
-    "$FIND_BIN" -L "$THEME_TEMPLATE_DIR" -type f -print0 | "$SORT_BIN" -z | "$XARGS_BIN" -0 "$SHA256SUM_BIN"
-  } | "$SHA256SUM_BIN" | "$AWK_BIN" '{print $1}'
-}
-
-STATE_HASH="$(compute_state_hash)"
-STATE_FILE="$THEME_CACHE_DIR/state.sha256"
-PALETTE_FILE="$THEME_CACHE_DIR/palette.json"
-
-if [ -f "$STATE_FILE" ] && [ -f "$PALETTE_FILE" ] && [ "$("$CAT_BIN" "$STATE_FILE")" = "$STATE_HASH" ]; then
-  ensure_waybar_running
-  exit 0
-fi
-
 PALETTE_TMP="$TMP_DIR/palette.json"
-if ! "$MATUGEN_BIN" image "$THEME_WALLPAPER" -m dark -j hex -q > "$PALETTE_TMP"; then
-  ensure_waybar_running
-  exit 0
+PALETTE_SOURCE="dynamic"
+
+if [ ! -f "$THEME_WALLPAPER" ]; then
+  log "wallpaper not found, using static fallback palette"
+  PALETTE_SOURCE="fallback"
+  set_fallback_palette
+  write_fallback_palette_json "$PALETTE_TMP"
+elif ! set_dynamic_palette "$PALETTE_TMP"; then
+  log "matugen failed or returned an invalid palette, using static fallback palette"
+  PALETTE_SOURCE="fallback"
+  set_fallback_palette
+  write_fallback_palette_json "$PALETTE_TMP"
 fi
-
-read_color() {
-  "$JQ_BIN" -r "$1" "$PALETTE_TMP"
-}
-
-BASE="$(read_color '.colors.surface.default')"
-MANTLE="$(read_color '.colors.surface_container.default')"
-TEXT="$(read_color '.colors.on_surface.default')"
-SUBTEXT="$(read_color '.colors.on_surface_variant.default')"
-ACCENT="$(read_color '.colors.primary.default')"
-SUCCESS="$(read_color '.colors.secondary.default')"
-WARNING="$(read_color '.colors.tertiary.default')"
-ERROR="$(read_color '.colors.error.default')"
-PURPLE="$(read_color '.colors.tertiary.default')"
-CYAN="$(read_color '.colors.secondary.default')"
-
-for value in "$BASE" "$MANTLE" "$TEXT" "$SUBTEXT" "$ACCENT" "$SUCCESS" "$WARNING" "$ERROR" "$PURPLE" "$CYAN"; do
-  if [ -z "$value" ] || [ "$value" = "null" ]; then
-    ensure_waybar_running
-    exit 0
-  fi
-done
 
 render_template "$THEME_TEMPLATE_DIR/waybar.css.template" "$TMP_DIR/waybar.css"
 render_template "$THEME_TEMPLATE_DIR/rofi.rasi.template" "$TMP_DIR/rofi.rasi"
@@ -165,20 +197,14 @@ render_template "$THEME_TEMPLATE_DIR/hyprland-decoration.conf.template" "$TMP_DI
 render_template "$THEME_TEMPLATE_DIR/nvim-colors.lua.template" "$TMP_DIR/nvim-matugen.lua"
 
 waybar_changed=0
-rofi_changed=0
-hyprlock_changed=0
 hyprland_changed=0
-nvim_changed=0
 
-apply_if_changed "$TMP_DIR/waybar.css" "$THEME_RUNTIME_DIR/waybar.css" waybar_changed
-apply_if_changed "$TMP_DIR/rofi.rasi" "$THEME_RUNTIME_DIR/rofi.rasi" rofi_changed
-apply_if_changed "$TMP_DIR/hyprlock.conf" "$THEME_RUNTIME_DIR/hyprlock.conf" hyprlock_changed
-apply_if_changed "$TMP_DIR/hyprland-decoration.conf" "$THEME_RUNTIME_DIR/hyprland-decoration.conf" hyprland_changed
-apply_if_changed "$TMP_DIR/nvim-matugen.lua" "$THEME_RUNTIME_DIR/nvim-matugen.lua" nvim_changed
-
-"$MV_BIN" "$PALETTE_TMP" "$PALETTE_FILE"
-printf '%s\n' "$STATE_HASH" > "$TMP_DIR/state.sha256"
-"$MV_BIN" "$TMP_DIR/state.sha256" "$STATE_FILE"
+apply_if_changed "$TMP_DIR/waybar.css" "$THEME_GENERATED_DIR/waybar.css" waybar_changed
+apply_if_changed "$TMP_DIR/rofi.rasi" "$THEME_GENERATED_DIR/rofi.rasi" rofi_changed
+apply_if_changed "$TMP_DIR/hyprlock.conf" "$THEME_GENERATED_DIR/hyprlock.conf" hyprlock_changed
+apply_if_changed "$TMP_DIR/hyprland-decoration.conf" "$THEME_GENERATED_DIR/hyprland-decoration.conf" hyprland_changed
+apply_if_changed "$TMP_DIR/nvim-matugen.lua" "$THEME_GENERATED_DIR/nvim-matugen.lua" nvim_changed
+apply_if_changed "$PALETTE_TMP" "$THEME_GENERATED_DIR/palette.json" palette_changed
 
 if "$PGREP_BIN" -x waybar >/dev/null 2>&1; then
   if [ "$waybar_changed" -eq 1 ]; then
@@ -194,4 +220,8 @@ if [ "$hyprland_changed" -eq 1 ]; then
     export HYPRLAND_INSTANCE_SIGNATURE
   fi
   "$HYPRCTL_BIN" reload config-only >/dev/null 2>&1 || true
+fi
+
+if [ "$PALETTE_SOURCE" = "fallback" ]; then
+  log "applied static fallback palette"
 fi

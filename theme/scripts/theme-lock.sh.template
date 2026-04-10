@@ -2,12 +2,12 @@
 set -euo pipefail
 
 HYPRLOCK_BIN="__HYPRLOCK_BIN__"
-FALLBACK_CONFIG="__THEME_FALLBACK_DIR__/hyprlock.conf"
-RUNTIME_CONFIG="__THEME_RUNTIME_DIR__/hyprlock.conf"
+GENERATED_DIR="__THEME_GENERATED_DIR__"
+CONFIG="${GENERATED_DIR}/hyprlock.conf"
 
-CONFIG="$FALLBACK_CONFIG"
-if [ -s "$RUNTIME_CONFIG" ]; then
-  CONFIG="$RUNTIME_CONFIG"
+if [ ! -s "$CONFIG" ]; then
+  echo "theme-lock: missing generated Hyprlock config at $CONFIG" >&2
+  exit 1
 fi
 
 exec "$HYPRLOCK_BIN" --config "$CONFIG" "$@"

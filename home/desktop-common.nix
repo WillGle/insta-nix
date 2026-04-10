@@ -3,14 +3,12 @@ let
   theme = osConfig.theme;
   themeRoot = "${config.xdg.configHome}/theme";
   themeAssetsDir = "${themeRoot}/assets";
-  themeFallbackDir = "${themeRoot}/fallback";
-  themeRuntimeDir = "${themeRoot}/runtime";
+  themeGeneratedDir = "${themeRoot}/generated";
   themeTemplatesDir = "${themeRoot}/templates";
   themeStaticEnv = "${themeRoot}/static.env";
   themeApplyPath = "${themeRoot}/theme-apply";
   themeWallpaperPath = "${themeAssetsDir}/${theme.wallpaper.name}";
-  themeCacheDir = "${config.home.homeDirectory}/${theme.runtime.cacheDir}";
-  runtimeLink = path: config.lib.file.mkOutOfStoreSymlink "${themeRuntimeDir}/${path}";
+  generatedLink = path: config.lib.file.mkOutOfStoreSymlink "${themeGeneratedDir}/${path}";
 
   strip = color: lib.removePrefix "#" color;
   replaceMany =
@@ -53,23 +51,31 @@ let
     [ "__CURSOR_NAME__" theme.cursor.name ]
     [ "__CURSOR_SIZE__" (toString theme.cursor.size) ]
     [ "__WALLPAPER_PATH__" themeWallpaperPath ]
-    [ "__THEME_FALLBACK_DIR__" themeFallbackDir ]
-    [ "__THEME_RUNTIME_DIR__" themeRuntimeDir ]
+    [ "__THEME_GENERATED_DIR__" themeGeneratedDir ]
   ];
 
   renderTheme = file: replaceMany commonReplacements file;
+  waybarSeed = pkgs.writeText "theme-waybar.css" (renderTheme ../theme/templates/waybar.css.template);
+  rofiSeed = pkgs.writeText "theme-rofi.rasi" (renderTheme ../theme/templates/rofi.rasi.template);
+  hyprlockSeed = pkgs.writeText "theme-hyprlock.conf" (renderTheme ../theme/templates/hyprlock.conf.template);
+  hyprlandSeed =
+    pkgs.writeText "theme-hyprland-decoration.conf" (renderTheme ../theme/templates/hyprland-decoration.conf.template);
+  nvimSeed = pkgs.writeText "theme-nvim-matugen.lua" (renderTheme ../theme/templates/nvim-colors.lua.template);
+  paletteSeed = pkgs.writeText "theme-palette.json" (
+    builtins.toJSON {
+      source = "static-fallback";
+      colors = theme.colors;
+    }
+  );
   themeApplyScript = replaceMany [
     [ "__MATUGEN_BIN__" "${pkgs.matugen}/bin/matugen" ]
     [ "__JQ_BIN__" "${pkgs.jq}/bin/jq" ]
     [ "__SED_BIN__" "${pkgs.gnused}/bin/sed" ]
-    [ "__AWK_BIN__" "${pkgs.gawk}/bin/awk" ]
     [ "__MKTEMP_BIN__" "${pkgs.coreutils}/bin/mktemp" ]
-    [ "__SHA256SUM_BIN__" "${pkgs.coreutils}/bin/sha256sum" ]
     [ "__MKDIR_BIN__" "${pkgs.coreutils}/bin/mkdir" ]
     [ "__MV_BIN__" "${pkgs.coreutils}/bin/mv" ]
     [ "__RM_BIN__" "${pkgs.coreutils}/bin/rm" ]
     [ "__CMP_BIN__" "${pkgs.diffutils}/bin/cmp" ]
-    [ "__CAT_BIN__" "${pkgs.coreutils}/bin/cat" ]
     [ "__LS_BIN__" "${pkgs.coreutils}/bin/ls" ]
     [ "__HEAD_BIN__" "${pkgs.coreutils}/bin/head" ]
     [ "__NOHUP_BIN__" "${pkgs.coreutils}/bin/nohup" ]
@@ -77,9 +83,6 @@ let
     [ "__PGREP_BIN__" "${pkgs.procps}/bin/pgrep" ]
     [ "__WAYBAR_BIN__" "${pkgs.waybar}/bin/waybar" ]
     [ "__HYPRCTL_BIN__" "${pkgs.hyprland}/bin/hyprctl" ]
-    [ "__FIND_BIN__" "${pkgs.findutils}/bin/find" ]
-    [ "__SORT_BIN__" "${pkgs.coreutils}/bin/sort" ]
-    [ "__XARGS_BIN__" "${pkgs.findutils}/bin/xargs" ]
     [ "__THEME_STATIC_ENV__" themeStaticEnv ]
   ] ../theme/scripts/theme-apply.sh.template;
 
@@ -97,17 +100,11 @@ in
   xdg.configFile = {
     "theme/templates".source = ../theme/templates;
     "theme/assets/${theme.wallpaper.name}".source = theme.wallpaper.source;
-    "theme/fallback/waybar.css".text = renderTheme ../theme/templates/waybar.css.template;
-    "theme/fallback/rofi.rasi".text = renderTheme ../theme/templates/rofi.rasi.template;
-    "theme/fallback/hyprlock.conf".text = renderTheme ../theme/templates/hyprlock.conf.template;
-    "theme/fallback/hyprland-decoration.conf".text = renderTheme ../theme/templates/hyprland-decoration.conf.template;
-    "theme/fallback/nvim-matugen.lua".text = renderTheme ../theme/templates/nvim-colors.lua.template;
     "theme/static.env".text = ''
       THEME_GENERATOR_VERSION=${lib.escapeShellArg "v3"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
-      THEME_CACHE_DIR=${lib.escapeShellArg themeCacheDir}
       THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
-      THEME_RUNTIME_DIR=${lib.escapeShellArg themeRuntimeDir}
+      THEME_GENERATED_DIR=${lib.escapeShellArg themeGeneratedDir}
       THEME_WALLPAPER=${lib.escapeShellArg themeWallpaperPath}
       THEME_UI_FONT=${lib.escapeShellArg theme.fonts.ui.family}
       THEME_UI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.ui.size)}
@@ -117,6 +114,16 @@ in
       THEME_LOCK_FONT_BOLD=${lib.escapeShellArg theme.fonts.lock.boldFamily}
       THEME_LOCK_CLOCK_SIZE=${lib.escapeShellArg (toString theme.fonts.lock.clockSize)}
       THEME_LOCK_TEXT_SIZE=${lib.escapeShellArg (toString theme.fonts.lock.textSize)}
+      THEME_STATIC_BASE=${lib.escapeShellArg theme.colors.base}
+      THEME_STATIC_MANTLE=${lib.escapeShellArg theme.colors.mantle}
+      THEME_STATIC_TEXT=${lib.escapeShellArg theme.colors.text}
+      THEME_STATIC_SUBTEXT=${lib.escapeShellArg theme.colors.subtext}
+      THEME_STATIC_ACCENT=${lib.escapeShellArg theme.colors.accent}
+      THEME_STATIC_SUCCESS=${lib.escapeShellArg theme.colors.success}
+      THEME_STATIC_WARNING=${lib.escapeShellArg theme.colors.warning}
+      THEME_STATIC_ERROR=${lib.escapeShellArg theme.colors.error}
+      THEME_STATIC_PURPLE=${lib.escapeShellArg theme.colors.purple}
+      THEME_STATIC_CYAN=${lib.escapeShellArg theme.colors.cyan}
     '';
     "theme/theme-apply" = {
       text = themeApplyScript;
@@ -125,8 +132,7 @@ in
 
     "waybar/config.jsonc".source = ../dotfiles/common/waybar/config.jsonc;
     "waybar/style.css".text = ''
-      @import url("file://${themeFallbackDir}/waybar.css");
-      @import url("file://${themeRuntimeDir}/waybar.css");
+      @import url("file://${themeGeneratedDir}/waybar.css");
     '';
     "waybar/cliphist.sh" = {
       source = ../dotfiles/common/waybar/cliphist.sh;
@@ -134,10 +140,10 @@ in
     };
 
     "rofi/config.rasi".source = ../dotfiles/common/rofi/config.rasi;
-    "rofi/theme.rasi".source = runtimeLink "rofi.rasi";
+    "rofi/theme.rasi".source = generatedLink "rofi.rasi";
 
 
-    "nvim/colors/matugen.lua".source = runtimeLink "nvim-matugen.lua";
+    "nvim/colors/matugen.lua".source = generatedLink "nvim-matugen.lua";
     "nvim/plugin/matugen.lua".text = ''
       vim.opt.termguicolors = true
       pcall(vim.cmd.colorscheme, "matugen")
@@ -161,18 +167,25 @@ in
     };
   };
 
-  home.activation.themeRuntimeSeed = lib.hm.dag.entryBetween [ "reloadSystemd" ] [ "linkGeneration" ] ''
-    mkdir -p "${themeCacheDir}" "${themeRuntimeDir}"
-    for file in waybar.css rofi.rasi hyprlock.conf hyprland-decoration.conf nvim-matugen.lua; do
-      if [ ! -e "${themeRuntimeDir}/$file" ]; then
-        ${pkgs.coreutils}/bin/cp "${themeFallbackDir}/$file" "${themeRuntimeDir}/$file"
-      fi
-    done
-    if [ ! -e "${themeCacheDir}/palette.json" ]; then
-      : > "${themeCacheDir}/palette.json"
+  home.activation.themeGeneratedSeed = lib.hm.dag.entryBetween [ "reloadSystemd" ] [ "linkGeneration" ] ''
+    mkdir -p "${themeGeneratedDir}"
+    if [ ! -e "${themeGeneratedDir}/waybar.css" ]; then
+      ${pkgs.coreutils}/bin/cp "${waybarSeed}" "${themeGeneratedDir}/waybar.css"
     fi
-    if [ ! -e "${themeCacheDir}/state.sha256" ]; then
-      : > "${themeCacheDir}/state.sha256"
+    if [ ! -e "${themeGeneratedDir}/rofi.rasi" ]; then
+      ${pkgs.coreutils}/bin/cp "${rofiSeed}" "${themeGeneratedDir}/rofi.rasi"
+    fi
+    if [ ! -e "${themeGeneratedDir}/hyprlock.conf" ]; then
+      ${pkgs.coreutils}/bin/cp "${hyprlockSeed}" "${themeGeneratedDir}/hyprlock.conf"
+    fi
+    if [ ! -e "${themeGeneratedDir}/hyprland-decoration.conf" ]; then
+      ${pkgs.coreutils}/bin/cp "${hyprlandSeed}" "${themeGeneratedDir}/hyprland-decoration.conf"
+    fi
+    if [ ! -e "${themeGeneratedDir}/nvim-matugen.lua" ]; then
+      ${pkgs.coreutils}/bin/cp "${nvimSeed}" "${themeGeneratedDir}/nvim-matugen.lua"
+    fi
+    if [ ! -e "${themeGeneratedDir}/palette.json" ]; then
+      ${pkgs.coreutils}/bin/cp "${paletteSeed}" "${themeGeneratedDir}/palette.json"
     fi
   '';
 
