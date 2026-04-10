@@ -1,35 +1,224 @@
 #!/usr/bin/env bash
-# Simple Atomic Note Manager
-# Managed by NixOS Home Manager
+set -euo pipefail
 
-TASK_FILE="$HOME/.atomic_tasks"
+TASK_FILE="${HOME}/.atomic_tasks"
+ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
+
 touch "$TASK_FILE"
 
-case "$1" in
-    add)
-        if [ -n "$2" ]; then
-            echo "$2" >> "$TASK_FILE"
-        else
-            # Use rofi for quick add if no argument
-            note=$(printf '' | rofi -dmenu -p "Atomic Note Add:" -config ~/.config/rofi/config.rasi)
-            [ -n "$note" ] && echo "$note" >> "$TASK_FILE"
+refresh_waybar() {
+  pkill -RTMIN+5 waybar >/dev/null 2>&1 || true
+}
+
+rofi_prompt() {
+  local prompt="$1"
+  printf '' | rofi -dmenu -p "$prompt" -config "$ROFI_CONFIG"
+}
+
+resolve_editor() {
+  if [ -n "${EDITOR:-}" ]; then
+    printf '%s\n' "$EDITOR"
+    return 0
+  fi
+
+  if command -v nano >/dev/null 2>&1; then
+    printf '%s\n' "nano"
+    return 0
+  fi
+
+  printf '%s\n' "vi"
+}
+
+read_tasks() {
+  mapfile -t TASKS < "$TASK_FILE"
+}
+
+write_tasks() {
+  printf '%s\n' "$@" > "$TASK_FILE"
+}
+
+add_task() {
+  local note="${1:-}"
+  if [ -z "$note" ]; then
+    note="$(rofi_prompt "Atomic Note Add:")"
+  fi
+
+  if [ -n "$note" ]; then
+    printf '%s\n' "$note" >> "$TASK_FILE"
+    refresh_waybar
+  fi
+}
+
+open_file_in_terminal() {
+  local editor_cmd
+  editor_cmd="$(resolve_editor)"
+  foot -e sh -lc 'exec "$@"' sh $editor_cmd "$TASK_FILE" >/dev/null 2>&1 &
+}
+
+list_tasks() {
+  cat "$TASK_FILE"
+}
+
+clear_tasks() {
+  : > "$TASK_FILE"
+  refresh_waybar
+}
+
+delete_task_by_index() {
+  local index="$1"
+  read_tasks
+  if [ "$index" -lt 0 ] || [ "$index" -ge "${#TASKS[@]}" ]; then
+    return 1
+  fi
+
+  unset 'TASKS[index]'
+  if [ "${#TASKS[@]}" -eq 0 ]; then
+    : > "$TASK_FILE"
+  else
+    write_tasks "${TASKS[@]}"
+  fi
+  refresh_waybar
+}
+
+move_task_to_top() {
+  local index="$1"
+  read_tasks
+  if [ "$index" -lt 0 ] || [ "$index" -ge "${#TASKS[@]}" ]; then
+    return 1
+  fi
+
+  local selected="${TASKS[$index]}"
+  unset 'TASKS[index]'
+  write_tasks "$selected" "${TASKS[@]}"
+  refresh_waybar
+}
+
+edit_task_by_index() {
+  local index="$1"
+  read_tasks
+  if [ "$index" -lt 0 ] || [ "$index" -ge "${#TASKS[@]}" ]; then
+    return 1
+  fi
+
+  local current="${TASKS[$index]}"
+  local updated
+  updated="$(printf '%s' "$current" | rofi -dmenu -p "Edit Task:" -config "$ROFI_CONFIG")"
+  if [ -z "$updated" ]; then
+    return 0
+  fi
+
+  TASKS[$index]="$updated"
+  write_tasks "${TASKS[@]}"
+  refresh_waybar
+}
+
+confirm_clear() {
+  local choice
+  choice="$(printf 'No\nYes\n' | rofi -dmenu -i -p "Clear all tasks?" -config "$ROFI_CONFIG")"
+  [ "$choice" = "Yes" ]
+}
+
+task_menu() {
+  local index="$1"
+  local task="$2"
+  local choice
+
+  choice="$(
+    printf 'Mark done\nEdit task\nMove to top\nCancel\n' \
+      | rofi -dmenu -i -p "Task: ${task}" -config "$ROFI_CONFIG"
+  )"
+
+  case "$choice" in
+    "Mark done")
+      delete_task_by_index "$index"
+      ;;
+    "Edit task")
+      edit_task_by_index "$index"
+      ;;
+    "Move to top")
+      move_task_to_top "$index"
+      ;;
+    *)
+      ;;
+  esac
+}
+
+rofi_menu() {
+  while true; do
+    read_tasks
+
+    local options=()
+    options+=("Add task")
+    options+=("Open raw file")
+    options+=("Clear all")
+
+    local task
+    for task in "${TASKS[@]}"; do
+      options+=("Task: ${task}")
+    done
+
+    local selection
+    selection="$(printf '%s\n' "${options[@]}" | rofi -dmenu -i -p "Atomic Notes" -config "$ROFI_CONFIG")"
+
+    case "$selection" in
+      "")
+        return 0
+        ;;
+      "Add task")
+        add_task
+        ;;
+      "Open raw file")
+        open_file_in_terminal
+        return 0
+        ;;
+      "Clear all")
+        if confirm_clear; then
+          clear_tasks
         fi
         ;;
-    edit)
-        # Use xdg-open to open your preferred text editor
-        xdg-open "$TASK_FILE"
+      "Task: "*)
+        local selected_task="${selection#Task: }"
+        local idx=0
+        local found=0
+        for task in "${TASKS[@]}"; do
+          if [ "$task" = "$selected_task" ]; then
+            task_menu "$idx" "$task"
+            found=1
+            break
+          fi
+          idx=$((idx + 1))
+        done
+        if [ "$found" -eq 0 ]; then
+          return 1
+        fi
         ;;
-    list)
-        cat "$TASK_FILE"
+      *)
+        return 0
         ;;
-    clear)
-        > "$TASK_FILE"
-        ;;
-    *)
-        # Default action: Toggle menu or edit
-        xdg-open "$TASK_FILE"
-        ;;
-esac
+    esac
+  done
+}
 
-# Signal waybar to refresh
-pkill -RTMIN+10 waybar
+case "${1:-}" in
+  add)
+    add_task "${2:-}"
+    ;;
+  edit)
+    rofi_menu
+    ;;
+  file)
+    open_file_in_terminal
+    ;;
+  list)
+    list_tasks
+    ;;
+  clear)
+    clear_tasks
+    ;;
+  rofi|menu)
+    rofi_menu
+    ;;
+  *)
+    rofi_menu
+    ;;
+esac

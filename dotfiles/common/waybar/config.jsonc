@@ -98,7 +98,8 @@
     "max-length": 45,
     "return-type": "json",
     "interval": 1,
-    "on-click": "$HOME/.local/bin/atomic-note edit",
+    "on-click": "$HOME/.local/bin/atomic-note rofi",
+    "on-click-right": "$HOME/.local/bin/atomic-note add",
     "signal": 5,
     "tooltip": true
   }
