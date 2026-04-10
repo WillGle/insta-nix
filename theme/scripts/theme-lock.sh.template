@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HYPRLOCK_BIN="__HYPRLOCK_BIN__"
+FALLBACK_CONFIG="__THEME_FALLBACK_DIR__/hyprlock.conf"
+RUNTIME_CONFIG="__THEME_RUNTIME_DIR__/hyprlock.conf"
+
+CONFIG="$FALLBACK_CONFIG"
+if [ -s "$RUNTIME_CONFIG" ]; then
+  CONFIG="$RUNTIME_CONFIG"
+fi
+
+exec "$HYPRLOCK_BIN" --config "$CONFIG" "$@"

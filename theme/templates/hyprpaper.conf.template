@@ -1,0 +1,4 @@
+splash = false
+preload = __WALLPAPER_PATH__
+wallpaper = eDP-1,__WALLPAPER_PATH__
+wallpaper = HDMI-A-1,__WALLPAPER_PATH__

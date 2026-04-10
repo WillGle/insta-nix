@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MATUGEN_BIN="__MATUGEN_BIN__"
+JQ_BIN="__JQ_BIN__"
+SED_BIN="__SED_BIN__"
+AWK_BIN="__AWK_BIN__"
+MKTEMP_BIN="__MKTEMP_BIN__"
+SHA256SUM_BIN="__SHA256SUM_BIN__"
+MKDIR_BIN="__MKDIR_BIN__"
+MV_BIN="__MV_BIN__"
+RM_BIN="__RM_BIN__"
+CMP_BIN="__CMP_BIN__"
+CAT_BIN="__CAT_BIN__"
+LS_BIN="__LS_BIN__"
+HEAD_BIN="__HEAD_BIN__"
+PKILL_BIN="__PKILL_BIN__"
+HYPRCTL_BIN="__HYPRCTL_BIN__"
+FIND_BIN="__FIND_BIN__"
+SORT_BIN="__SORT_BIN__"
+XARGS_BIN="__XARGS_BIN__"
+
+STATIC_ENV="__THEME_STATIC_ENV__"
+
+if [ ! -f "$STATIC_ENV" ]; then
+  exit 0
+fi
+
+# shellcheck disable=SC1090
+. "$STATIC_ENV"
+
+if [ "${THEME_RUNTIME_ENABLE:-0}" != "1" ]; then
+  exit 0
+fi
+
+if [ ! -f "$THEME_WALLPAPER" ]; then
+  exit 0
+fi
+
+"$MKDIR_BIN" -p "$THEME_CACHE_DIR" "$THEME_RUNTIME_DIR"
+
+TMP_DIR="$("$MKTEMP_BIN" -d)"
+trap '"$RM_BIN" -rf "$TMP_DIR"' EXIT INT TERM
+
+escape_sed() {
+  printf '%s' "$1" | "$SED_BIN" 's/[\/&]/\\&/g'
+}
+
+strip_hex() {
+  printf '%s' "${1#\#}"
+}
+
+render_template() {
+  local input="$1"
+  local output="$2"
+
+  "$SED_BIN" \
+    -e "s/__BASE__/$(escape_sed "$BASE")/g" \
+    -e "s/__MANTLE__/$(escape_sed "$MANTLE")/g" \
+    -e "s/__TEXT__/$(escape_sed "$TEXT")/g" \
+    -e "s/__SUBTEXT__/$(escape_sed "$SUBTEXT")/g" \
+    -e "s/__ACCENT__/$(escape_sed "$ACCENT")/g" \
+    -e "s/__SUCCESS__/$(escape_sed "$SUCCESS")/g" \
+    -e "s/__WARNING__/$(escape_sed "$WARNING")/g" \
+    -e "s/__ERROR__/$(escape_sed "$ERROR")/g" \
+    -e "s/__PURPLE__/$(escape_sed "$PURPLE")/g" \
+    -e "s/__CYAN__/$(escape_sed "$CYAN")/g" \
+    -e "s/__BASE_STRIP__/$(escape_sed "$(strip_hex "$BASE")")/g" \
+    -e "s/__MANTLE_STRIP__/$(escape_sed "$(strip_hex "$MANTLE")")/g" \
+    -e "s/__TEXT_STRIP__/$(escape_sed "$(strip_hex "$TEXT")")/g" \
+    -e "s/__SUBTEXT_STRIP__/$(escape_sed "$(strip_hex "$SUBTEXT")")/g" \
+    -e "s/__ACCENT_STRIP__/$(escape_sed "$(strip_hex "$ACCENT")")/g" \
+    -e "s/__SUCCESS_STRIP__/$(escape_sed "$(strip_hex "$SUCCESS")")/g" \
+    -e "s/__WARNING_STRIP__/$(escape_sed "$(strip_hex "$WARNING")")/g" \
+    -e "s/__ERROR_STRIP__/$(escape_sed "$(strip_hex "$ERROR")")/g" \
+    -e "s/__PURPLE_STRIP__/$(escape_sed "$(strip_hex "$PURPLE")")/g" \
+    -e "s/__CYAN_STRIP__/$(escape_sed "$(strip_hex "$CYAN")")/g" \
+    -e "s/__UI_FONT__/$(escape_sed "$THEME_UI_FONT")/g" \
+    -e "s/__UI_FONT_SIZE__/$(escape_sed "$THEME_UI_FONT_SIZE")/g" \
+    -e "s/__MONO_FONT__/$(escape_sed "$THEME_MONO_FONT")/g" \
+    -e "s/__MONO_FONT_SIZE__/$(escape_sed "$THEME_MONO_FONT_SIZE")/g" \
+    -e "s/__LOCK_FONT__/$(escape_sed "$THEME_LOCK_FONT")/g" \
+    -e "s/__LOCK_FONT_BOLD__/$(escape_sed "$THEME_LOCK_FONT_BOLD")/g" \
+    -e "s/__LOCK_CLOCK_SIZE__/$(escape_sed "$THEME_LOCK_CLOCK_SIZE")/g" \
+    -e "s/__LOCK_TEXT_SIZE__/$(escape_sed "$THEME_LOCK_TEXT_SIZE")/g" \
+    -e "s#__WALLPAPER_PATH__#$(escape_sed "$THEME_WALLPAPER")#g" \
+    "$input" > "$output"
+}
+
+apply_if_changed() {
+  local src="$1"
+  local dest="$2"
+  local changed_var="$3"
+
+  if [ ! -f "$dest" ] || ! "$CMP_BIN" -s "$src" "$dest"; then
+    "$MV_BIN" "$src" "$dest"
+    printf -v "$changed_var" '1'
+  else
+    "$RM_BIN" -f "$src"
+  fi
+}
+
+compute_state_hash() {
+  {
+    "$SHA256SUM_BIN" "$THEME_WALLPAPER"
+    "$SHA256SUM_BIN" "$STATIC_ENV"
+    "$FIND_BIN" "$THEME_TEMPLATE_DIR" -type f -print0 | "$SORT_BIN" -z | "$XARGS_BIN" -0 "$SHA256SUM_BIN"
+  } | "$SHA256SUM_BIN" | "$AWK_BIN" '{print $1}'
+}
+
+STATE_HASH="$(compute_state_hash)"
+STATE_FILE="$THEME_CACHE_DIR/state.sha256"
+PALETTE_FILE="$THEME_CACHE_DIR/palette.json"
+
+if [ -f "$STATE_FILE" ] && [ -f "$PALETTE_FILE" ] && [ "$("$CAT_BIN" "$STATE_FILE")" = "$STATE_HASH" ]; then
+  exit 0
+fi
+
+PALETTE_TMP="$TMP_DIR/palette.json"
+if ! "$MATUGEN_BIN" image "$THEME_WALLPAPER" -m dark -j hex -q > "$PALETTE_TMP"; then
+  exit 0
+fi
+
+read_color() {
+  "$JQ_BIN" -r "$1" "$PALETTE_TMP"
+}
+
+BASE="$(read_color '.colors.surface.default')"
+MANTLE="$(read_color '.colors.surface_container.default')"
+TEXT="$(read_color '.colors.on_surface.default')"
+SUBTEXT="$(read_color '.colors.on_surface_variant.default')"
+ACCENT="$(read_color '.colors.primary.default')"
+SUCCESS="$(read_color '.colors.secondary.default')"
+WARNING="$(read_color '.colors.tertiary.default')"
+ERROR="$(read_color '.colors.error.default')"
+PURPLE="$(read_color '.colors.tertiary.default')"
+CYAN="$(read_color '.colors.secondary.default')"
+
+for value in "$BASE" "$MANTLE" "$TEXT" "$SUBTEXT" "$ACCENT" "$SUCCESS" "$WARNING" "$ERROR" "$PURPLE" "$CYAN"; do
+  if [ -z "$value" ] || [ "$value" = "null" ]; then
+    exit 0
+  fi
+done
+
+render_template "$THEME_TEMPLATE_DIR/waybar.css.template" "$TMP_DIR/waybar.css"
+render_template "$THEME_TEMPLATE_DIR/wofi.css.template" "$TMP_DIR/wofi.css"
+render_template "$THEME_TEMPLATE_DIR/hyprlock.conf.template" "$TMP_DIR/hyprlock.conf"
+render_template "$THEME_TEMPLATE_DIR/hyprland-decoration.conf.template" "$TMP_DIR/hyprland-decoration.conf"
+
+waybar_changed=0
+wofi_changed=0
+hyprlock_changed=0
+hyprland_changed=0
+
+apply_if_changed "$TMP_DIR/waybar.css" "$THEME_RUNTIME_DIR/waybar.css" waybar_changed
+apply_if_changed "$TMP_DIR/wofi.css" "$THEME_RUNTIME_DIR/wofi.css" wofi_changed
+apply_if_changed "$TMP_DIR/hyprlock.conf" "$THEME_RUNTIME_DIR/hyprlock.conf" hyprlock_changed
+apply_if_changed "$TMP_DIR/hyprland-decoration.conf" "$THEME_RUNTIME_DIR/hyprland-decoration.conf" hyprland_changed
+
+"$MV_BIN" "$PALETTE_TMP" "$PALETTE_FILE"
+printf '%s\n' "$STATE_HASH" > "$TMP_DIR/state.sha256"
+"$MV_BIN" "$TMP_DIR/state.sha256" "$STATE_FILE"
+
+if [ "$waybar_changed" -eq 1 ]; then
+  "$PKILL_BIN" -SIGUSR2 waybar >/dev/null 2>&1 || true
+fi
+
+if [ "$hyprland_changed" -eq 1 ]; then
+  if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && [ -d /tmp/hypr ]; then
+    HYPRLAND_INSTANCE_SIGNATURE="$("$LS_BIN" -1t /tmp/hypr 2>/dev/null | "$HEAD_BIN" -n1 || true)"
+    export HYPRLAND_INSTANCE_SIGNATURE
+  fi
+  "$HYPRCTL_BIN" reload config-only >/dev/null 2>&1 || true
+fi

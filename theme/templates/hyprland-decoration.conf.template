@@ -1,0 +1,11 @@
+general {
+  gaps_in       = 1
+  gaps_out      = 1
+  border_size   = 1
+  col.active_border   = rgba(__ACCENT_STRIP__ee) rgba(__CYAN_STRIP__ee) 45deg
+  col.inactive_border = rgba(__MANTLE_STRIP__aa)
+}
+
+decoration {
+  rounding = 6
+}

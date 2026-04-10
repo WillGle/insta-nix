@@ -1,45 +1,38 @@
 /* =========================================================================
-   Waybar Enhanced Dark Theme – GTK‑compatible (rev5, audited)
-   Waybar v0.14.0 • FiraCode Nerd Font Icons
+   Waybar Theme – rendered from /etc/nixos/theme/templates/waybar.css.template
    ========================================================================= */
 
-/* ---------- Color palette ------------------------------------------------ */
-/* Note: These placeholders are replaced by Nix during build.
-   IDE/Linters may show errors because they don't recognize GTK CSS syntax
-   like @define-color or the @variable usage. */
-@define-color bg _BASE_;
-@define-color bg_alt _MANTLE_;
-@define-color fg _TEXT_;
-@define-color accent _ACCENT_;
-@define-color crit _ERROR_;
-@define-color warn _WARNING_;
-@define-color purple _PURPLE_;
+@define-color bg __BASE__;
+@define-color bg_alt __MANTLE__;
+@define-color fg __TEXT__;
+@define-color accent __ACCENT__;
+@define-color crit __ERROR__;
+@define-color warn __WARNING__;
+@define-color purple __PURPLE__;
+@define-color muted __SUBTEXT__;
 
-/* ---------- Global reset ------------------------------------------------- */
 * {
   border: none;
   border-radius: 0;
   padding: 0 5px;
   margin: 0;
-  font-family: "FiraCode Nerd Font", monospace;
+  font-family: "__UI_FONT__", monospace;
   font-weight: bold;
-  font-size: 13px;
+  font-size: __UI_FONT_SIZE__px;
   background: transparent;
   color: @fg;
   transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
 }
 
-/* ---------- Waybar container -------------------------------------------- */
 window#waybar {
-  background: rgba(13, 13, 15, 0.9);
+  background: @bg;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   min-height: 28px;
 }
 
-/* ---------- Workspaces --------------------------------------------------- */
 #workspaces button {
   padding: 0 10px;
-  color: #888888;
+  color: @muted;
   margin: 0;
   border-radius: 0;
 }
@@ -55,7 +48,6 @@ window#waybar {
   color: @fg;
 }
 
-/* ---------- Generic module container ------------------------------------ */
 #clock,
 #tray,
 #pulseaudio,
@@ -85,12 +77,6 @@ window#waybar {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* =========================================================================
-   State Classes
-   Priority: critical > hot > high > warm > medium > charging > normal
-   ========================================================================= */
-
-/* --- Temperature states (text color) ------------------------------------ */
 #custom-apu_info.warm {
   color: @warn;
 }
@@ -105,7 +91,6 @@ window#waybar {
   font-weight: bold;
 }
 
-/* --- Power states (top border accent) ----------------------------------- */
 #custom-apu_info.medium,
 #custom-power_flow.medium {
   border-top: 2px solid @warn;
@@ -118,7 +103,6 @@ window#waybar {
   border-top: 2px solid @crit;
 }
 
-/* --- Battery states (bottom border accent) ------------------------------ */
 #custom-power_flow.charging {
   color: @accent;
   border-bottom: 2px solid @accent;
@@ -129,7 +113,6 @@ window#waybar {
   border-bottom: 2px solid @crit;
 }
 
-/* --- Memory states ------------------------------------------------------ */
 #custom-memory_info.warning {
   color: @warn;
 }
@@ -139,12 +122,10 @@ window#waybar {
   font-weight: bold;
 }
 
-/* ---------- Audio info --------------------------------------------------- */
 #pulseaudio.muted {
-  color: #888888;
+  color: @muted;
 }
 
-/* ---------- Power Profile states ----------------------------------------- */
 #custom-power_profile.perf {
   color: @crit;
   border-bottom: 2px solid @crit;
@@ -155,23 +136,17 @@ window#waybar {
   border-bottom: 2px solid @accent;
 }
 
-/* ---------- Battery Mode states ----------------------------------------- */
 #custom-battery_mode.reserve-on {
   color: @accent;
   border-bottom: 2px solid @accent;
 }
 
-#custom-battery_mode.reserve-off {
-  color: @warn;
-  border-bottom: 2px solid @warn;
-}
-
+#custom-battery_mode.reserve-off,
 #custom-battery_mode.reserve-unknown {
   color: @warn;
   border-bottom: 2px solid @warn;
 }
 
-/* ---------- Tooltip ------------------------------------------------------ */
 tooltip {
   background-color: @bg_alt;
   border: 1px solid @accent;
@@ -181,7 +156,6 @@ tooltip {
   font-size: 12px;
 }
 
-/* ---------- Network Manager Popup Fix ----------------------------------- */
 .menu,
 .popup,
 .popup * {
@@ -195,26 +169,20 @@ tooltip {
   color: @accent;
 }
 
-/* --- Atomic Note (Custom Sticky Palette) --- */
 #custom-atomic_note {
-  color: #f1fa8c;
-  /* Sticky Yellow */
-  /* min-width: 350px; */
+  color: @warn;
 }
 
 #custom-atomic_note.urgent {
-  color: #ff5555;
-  /* Red */
-  border-bottom: 2px solid #ff5555;
+  color: @crit;
+  border-bottom: 2px solid @crit;
 }
 
 #custom-atomic_note.warning {
-  color: #ffb86c;
-  /* Orange */
-  border-bottom: 2px solid #ffb86c;
+  color: @warn;
+  border-bottom: 2px solid @warn;
 }
 
 #custom-atomic_note.empty {
-  color: #6272a4;
-  /* Dimmed */
+  color: @muted;
 }
