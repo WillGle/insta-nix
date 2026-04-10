@@ -9,6 +9,14 @@ Atomic Note is a minimalist task manager integrated into your Waybar. It helps y
 - **Left-click:** Open the Rofi task menu.
 - **Right-click:** Open the Rofi quick-add prompt.
 
+The top task in Waybar uses a priority icon and a matching status color:
+
+- **Critical:** error/red
+- **High:** warning/orange
+- **Moderate:** accent/blue
+- **Low:** success/green
+- **Empty:** subdued/gray
+
 ## 2. Managing Tasks (CLI)
 
 You can manage your tasks from any terminal using the `atomic-note` command.
@@ -32,6 +40,8 @@ The Rofi menu lets you:
 
 Action rows use colored chips and icons so they stay visually separate from normal tasks.
 
+Task rows also use a colored priority chip, so you can tell at a glance whether a task is `Critical`, `High`, `Moderate`, or `Low`.
+
 ### Add a Task
 
 ```bash
@@ -43,6 +53,8 @@ atomic-note add "Tidy downloads" low
 ```
 
 If you run `atomic-note add` without text, it opens a Rofi prompt for the task text and then a second Rofi menu to set the priority.
+
+You can also use Waybar right-click for the same quick-add flow.
 
 ### List All Tasks
 
@@ -70,7 +82,7 @@ atomic-note file
 
 ## 3. Formatting & Priority
 
-Tasks are stored with a priority prefix:
+Tasks are stored with a normalized priority prefix:
 
 - **`[Critical]`:** Red
 - **`[High]`:** Orange/Amber
@@ -79,6 +91,59 @@ Tasks are stored with a priority prefix:
 - **`Empty`:** Grayed out icon.
 
 The Waybar module and the Rofi menu both read these priority prefixes and style the task accordingly.
+
+Example stored tasks:
+
+```text
+[Critical] Fix prod incident
+[High] Reply to planner email
+[Moderate] Refactor Waybar tooltip
+[Low] Sort downloads
+```
+
+### Priority Mapping
+
+`atomic-note add` accepts these values:
+
+- `critical`
+- `high`
+- `moderate`
+- `low`
+
+Legacy short prefixes are still recognized when reading older tasks:
+
+- `[A]` -> `Critical`
+- `[B]` -> `High`
+- `[C]` -> `Moderate`
+- `[D]` -> `Low`
+
+New writes are normalized to the full form above.
+
+## 4. Common Workflows
+
+### Capture something quickly
+
+1. Right-click the Waybar Atomic Note module.
+2. Enter the task text in Rofi.
+3. Pick a priority in the next Rofi menu.
+
+### Re-prioritize an existing task
+
+1. Left-click the Waybar Atomic Note module.
+2. Select the task row.
+3. Choose `Change priority`.
+4. Pick the new priority level.
+
+### Edit the raw file directly
+
+1. Left-click the Waybar Atomic Note module.
+2. Choose `Open raw file`.
+
+Or run:
+
+```bash
+atomic-note file
+```
 
 ---
 *Tasks are stored in `~/.atomic_tasks`*
