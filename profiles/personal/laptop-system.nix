@@ -242,13 +242,14 @@
       hyprlock
       hyprpaper
       kanshi
+      neovim
       playerctl
+      rofi
       slurp
+      swayosd
       sxhkd
       wl-clipboard
       wlr-randr
-      wob
-      wofi
       xdg-utils
 
       # CLI utilities
