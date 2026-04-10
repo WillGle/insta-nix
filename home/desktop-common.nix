@@ -57,30 +57,27 @@ let
   ];
 
   renderTheme = file: replaceMany commonReplacements file;
-  themeApplyScript = replaceMany (
-    commonReplacements
-    ++ [
-      [ "__MATUGEN_BIN__" "${pkgs.matugen}/bin/matugen" ]
-      [ "__JQ_BIN__" "${pkgs.jq}/bin/jq" ]
-      [ "__SED_BIN__" "${pkgs.gnused}/bin/sed" ]
-      [ "__AWK_BIN__" "${pkgs.gawk}/bin/awk" ]
-      [ "__MKTEMP_BIN__" "${pkgs.coreutils}/bin/mktemp" ]
-      [ "__SHA256SUM_BIN__" "${pkgs.coreutils}/bin/sha256sum" ]
-      [ "__MKDIR_BIN__" "${pkgs.coreutils}/bin/mkdir" ]
-      [ "__MV_BIN__" "${pkgs.coreutils}/bin/mv" ]
-      [ "__RM_BIN__" "${pkgs.coreutils}/bin/rm" ]
-      [ "__CMP_BIN__" "${pkgs.diffutils}/bin/cmp" ]
-      [ "__CAT_BIN__" "${pkgs.coreutils}/bin/cat" ]
-      [ "__LS_BIN__" "${pkgs.coreutils}/bin/ls" ]
-      [ "__HEAD_BIN__" "${pkgs.coreutils}/bin/head" ]
-      [ "__PKILL_BIN__" "${pkgs.procps}/bin/pkill" ]
-      [ "__HYPRCTL_BIN__" "${pkgs.hyprland}/bin/hyprctl" ]
-      [ "__FIND_BIN__" "${pkgs.findutils}/bin/find" ]
-      [ "__SORT_BIN__" "${pkgs.coreutils}/bin/sort" ]
-      [ "__XARGS_BIN__" "${pkgs.findutils}/bin/xargs" ]
-      [ "__THEME_STATIC_ENV__" themeStaticEnv ]
-    ]
-  ) ../theme/scripts/theme-apply.sh.template;
+  themeApplyScript = replaceMany [
+    [ "__MATUGEN_BIN__" "${pkgs.matugen}/bin/matugen" ]
+    [ "__JQ_BIN__" "${pkgs.jq}/bin/jq" ]
+    [ "__SED_BIN__" "${pkgs.gnused}/bin/sed" ]
+    [ "__AWK_BIN__" "${pkgs.gawk}/bin/awk" ]
+    [ "__MKTEMP_BIN__" "${pkgs.coreutils}/bin/mktemp" ]
+    [ "__SHA256SUM_BIN__" "${pkgs.coreutils}/bin/sha256sum" ]
+    [ "__MKDIR_BIN__" "${pkgs.coreutils}/bin/mkdir" ]
+    [ "__MV_BIN__" "${pkgs.coreutils}/bin/mv" ]
+    [ "__RM_BIN__" "${pkgs.coreutils}/bin/rm" ]
+    [ "__CMP_BIN__" "${pkgs.diffutils}/bin/cmp" ]
+    [ "__CAT_BIN__" "${pkgs.coreutils}/bin/cat" ]
+    [ "__LS_BIN__" "${pkgs.coreutils}/bin/ls" ]
+    [ "__HEAD_BIN__" "${pkgs.coreutils}/bin/head" ]
+    [ "__PKILL_BIN__" "${pkgs.procps}/bin/pkill" ]
+    [ "__HYPRCTL_BIN__" "${pkgs.hyprland}/bin/hyprctl" ]
+    [ "__FIND_BIN__" "${pkgs.findutils}/bin/find" ]
+    [ "__SORT_BIN__" "${pkgs.coreutils}/bin/sort" ]
+    [ "__XARGS_BIN__" "${pkgs.findutils}/bin/xargs" ]
+    [ "__THEME_STATIC_ENV__" themeStaticEnv ]
+  ] ../theme/scripts/theme-apply.sh.template;
 
   themeLockScript = replaceMany (
     commonReplacements
@@ -98,7 +95,7 @@ in
     "theme/fallback/hyprlock.conf".text = renderTheme ../theme/templates/hyprlock.conf.template;
     "theme/fallback/hyprland-decoration.conf".text = renderTheme ../theme/templates/hyprland-decoration.conf.template;
     "theme/static.env".text = ''
-      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v1"}
+      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v2"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
       THEME_CACHE_DIR=${lib.escapeShellArg themeCacheDir}
       THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
