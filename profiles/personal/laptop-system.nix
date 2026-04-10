@@ -246,7 +246,6 @@
       playerctl
       rofi
       slurp
-      swayosd
       sxhkd
       wl-clipboard
       wlr-randr
