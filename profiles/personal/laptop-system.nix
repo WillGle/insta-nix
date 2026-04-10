@@ -245,7 +245,6 @@
       playerctl
       slurp
       sxhkd
-      volctl
       wl-clipboard
       wlr-randr
       wob
@@ -322,6 +321,7 @@
       xournalpp
       zotero
       vscode
+      calibre
 
       # Media apps
       evince
