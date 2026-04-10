@@ -4,29 +4,39 @@
   text: __TEXT__;
   subtext: __SUBTEXT__;
   accent: __ACCENT__;
-  error: __ERROR__;
   success: __SUCCESS__;
+  warning: __WARNING__;
+  error: __ERROR__;
+  purple: __PURPLE__;
+  cyan: __CYAN__;
+  
+  background-color: transparent;
+  text-color: @text;
   font: "__UI_FONT__ __UI_FONT_SIZE__";
+  mono-font: "__MONO_FONT__ __MONO_FONT_SIZE__";
 }
 
 window {
-  width: 42%;
+  width: 40%;
   border: 2px;
   border-color: @accent;
-  border-radius: 18px;
+  border-radius: 6px;
   background-color: @base;
+  padding: 2px;
 }
 
 mainbox {
-  spacing: 14px;
-  padding: 18px;
+  spacing: 5px;
+  padding: 5px;
   children: [ inputbar, message, listview ];
+  background-color: transparent;
 }
 
 inputbar {
-  spacing: 10px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  margin: 5px;
+  spacing: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
   background-color: @mantle;
   text-color: @text;
   children: [ prompt, entry ];
@@ -34,16 +44,21 @@ inputbar {
 
 prompt {
   text-color: @accent;
+  font: @mono-font;
 }
 
 entry {
   text-color: @text;
-  placeholder: "Search";
+  font: @mono-font;
+  placeholder: "Search...";
   placeholder-color: @subtext;
 }
 
 message {
-  margin: 0 4px;
+  margin: 2px 0;
+  padding: 4px 8px;
+  background-color: @mantle;
+  border-radius: 4px;
 }
 
 textbox {
@@ -51,32 +66,32 @@ textbox {
 }
 
 listview {
-  lines: 10;
-  columns: 1;
+  lines: 8;
+  columns: 2;
   fixed-height: false;
-  spacing: 8px;
+  spacing: 2px;
   scrollbar: false;
   background-color: transparent;
+  padding: 2px;
 }
 
 element {
-  spacing: 12px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  spacing: 8px;
+  padding: 6px 10px;
+  margin: 1px 0;
+  border-radius: 4px;
   background-color: transparent;
   text-color: @text;
   children: [ element-icon, element-text ];
 }
 
 element selected {
-  background-color: @mantle;
-  text-color: @accent;
-  border: 1px;
-  border-color: @accent;
+  background-color: @accent;
+  text-color: @base;
 }
 
 element-icon {
-  size: 1.15em;
+  size: 1em;
   background-color: transparent;
 }
 
@@ -86,8 +101,8 @@ element-text {
 }
 
 error-message {
-  padding: 12px;
-  border-radius: 14px;
+  padding: 10px;
+  border-radius: 8px;
   border: 1px;
   border-color: @error;
   background-color: @mantle;

@@ -2,14 +2,25 @@
    Waybar Theme – rendered from /etc/nixos/theme/templates/waybar.css.template
    ========================================================================= */
 
-@define-color bg __BASE__;
-@define-color bg_alt __MANTLE__;
-@define-color fg __TEXT__;
+@define-color base __BASE__;
+@define-color mantle __MANTLE__;
+@define-color text __TEXT__;
+@define-color subtext __SUBTEXT__;
 @define-color accent __ACCENT__;
-@define-color crit __ERROR__;
-@define-color warn __WARNING__;
+@define-color success __SUCCESS__;
+@define-color warning #d29922;
+@define-color error #f85149;
 @define-color purple __PURPLE__;
-@define-color muted __SUBTEXT__;
+@define-color cyan __CYAN__;
+
+@define-color battery-eco #00ffcc;
+
+@keyframes blink {
+  to {
+    background-color: @error;
+    color: @base;
+  }
+}
 
 * {
   border: none;
@@ -20,19 +31,19 @@
   font-weight: bold;
   font-size: __UI_FONT_SIZE__px;
   background: transparent;
-  color: @fg;
-  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+  color: @text;
+  transition: all 0.3s ease;
 }
 
 window#waybar {
-  background: @bg;
+  background: @base;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   min-height: 28px;
 }
 
 #workspaces button {
   padding: 0 10px;
-  color: @muted;
+  color: @subtext;
   margin: 0;
   border-radius: 0;
 }
@@ -45,7 +56,7 @@ window#waybar {
 
 #workspaces button:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: @fg;
+  color: @text;
 }
 
 #clock,
@@ -78,89 +89,93 @@ window#waybar {
 }
 
 #custom-apu_info.warm {
-  color: @warn;
+  color: @warning;
 }
 
 #custom-apu_info.hot {
-  color: @crit;
+  color: @error;
   font-weight: bold;
 }
 
 #custom-apu_info.critical {
-  color: @purple;
-  font-weight: bold;
+  background-color: @error;
+  color: @base;
+  animation-name: blink;
+  animation-duration: 0.5s;
+  animation-direction: alternate;
+  animation-iteration-count: infinite;
 }
 
 #custom-apu_info.medium,
 #custom-power_flow.medium {
-  border-top: 2px solid @warn;
+  border-top: 2px solid @warning;
 }
 
 #custom-apu_info.high,
 #custom-power_flow.high {
-  color: @crit;
+  color: @error;
   font-weight: bold;
-  border-top: 2px solid @crit;
+  border-top: 2px solid @error;
 }
 
 #custom-power_flow.charging {
-  color: @accent;
-  border-bottom: 2px solid @accent;
+  color: @battery-eco;
+  border-bottom: 2px solid @battery-eco;
 }
 
 #custom-power_flow.critical {
-  color: @crit;
-  border-bottom: 2px solid @crit;
+  color: @error;
+  border-bottom: 2px solid @error;
 }
 
 #custom-memory_info.warning {
-  color: @warn;
+  color: @warning;
 }
 
 #custom-memory_info.critical {
-  color: @crit;
+  color: @error;
   font-weight: bold;
 }
 
 #pulseaudio.muted {
-  color: @muted;
+  color: @subtext;
 }
 
 #custom-power_profile.perf {
-  color: @crit;
-  border-bottom: 2px solid @crit;
+  color: @error;
+  border-bottom: 2px solid @error;
 }
 
 #custom-power_profile.saver {
-  color: @accent;
-  border-bottom: 2px solid @accent;
+  color: @battery-eco;
+  border-bottom: 2px solid @battery-eco;
 }
 
 #custom-battery_mode.reserve-on {
-  color: @accent;
-  border-bottom: 2px solid @accent;
+  color: @battery-eco;
+  border-bottom: 2px solid @battery-eco;
 }
 
 #custom-battery_mode.reserve-off,
 #custom-battery_mode.reserve-unknown {
-  color: @warn;
-  border-bottom: 2px solid @warn;
+  color: @warning;
+  border-bottom: 2px solid @warning;
 }
 
 tooltip {
-  background-color: @bg_alt;
+  background-color: @mantle;
   border: 1px solid @accent;
   border-radius: 6px;
   padding: 8px 12px;
-  color: @fg;
+  color: @text;
   font-size: 12px;
 }
 
 .menu,
 .popup,
 .popup * {
-  background-color: @bg_alt;
-  color: @fg;
+  background-color: @mantle;
+  color: @text;
 }
 
 .popup menuitem:hover,
@@ -170,19 +185,19 @@ tooltip {
 }
 
 #custom-atomic_note {
-  color: @warn;
+  color: @warning;
 }
 
 #custom-atomic_note.urgent {
-  color: @crit;
-  border-bottom: 2px solid @crit;
+  color: @error;
+  border-bottom: 2px solid @error;
 }
 
 #custom-atomic_note.warning {
-  color: @warn;
-  border-bottom: 2px solid @warn;
+  color: @warning;
+  border-bottom: 2px solid @warning;
 }
 
 #custom-atomic_note.empty {
-  color: @muted;
+  color: @subtext;
 }
