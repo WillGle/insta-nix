@@ -93,10 +93,6 @@ in
 {
   wayland.systemd.target = "default.target";
 
-  services.swayosd = {
-    enable = true;
-    stylePath = "${config.xdg.configHome}/swayosd/style.css";
-  };
 
   xdg.configFile = {
     "theme/templates".source = ../theme/templates;
@@ -105,7 +101,6 @@ in
     "theme/fallback/rofi.rasi".text = renderTheme ../theme/templates/rofi.rasi.template;
     "theme/fallback/hyprlock.conf".text = renderTheme ../theme/templates/hyprlock.conf.template;
     "theme/fallback/hyprland-decoration.conf".text = renderTheme ../theme/templates/hyprland-decoration.conf.template;
-    "theme/fallback/swayosd.css".text = renderTheme ../theme/templates/swayosd.css.template;
     "theme/fallback/nvim-matugen.lua".text = renderTheme ../theme/templates/nvim-colors.lua.template;
     "theme/static.env".text = ''
       THEME_GENERATOR_VERSION=${lib.escapeShellArg "v3"}
@@ -141,7 +136,6 @@ in
     "rofi/config.rasi".source = ../dotfiles/common/rofi/config.rasi;
     "rofi/theme.rasi".source = runtimeLink "rofi.rasi";
 
-    "swayosd/style.css".source = runtimeLink "swayosd.css";
 
     "nvim/colors/matugen.lua".source = runtimeLink "nvim-matugen.lua";
     "nvim/plugin/matugen.lua".text = ''
@@ -169,7 +163,7 @@ in
 
   home.activation.themeRuntimeSeed = lib.hm.dag.entryBetween [ "reloadSystemd" ] [ "linkGeneration" ] ''
     mkdir -p "${themeCacheDir}" "${themeRuntimeDir}"
-    for file in waybar.css rofi.rasi hyprlock.conf hyprland-decoration.conf swayosd.css nvim-matugen.lua; do
+    for file in waybar.css rofi.rasi hyprlock.conf hyprland-decoration.conf nvim-matugen.lua; do
       if [ ! -e "${themeRuntimeDir}/$file" ]; then
         ${pkgs.coreutils}/bin/cp "${themeFallbackDir}/$file" "${themeRuntimeDir}/$file"
       fi
@@ -181,6 +175,10 @@ in
       : > "${themeCacheDir}/state.sha256"
     fi
   '';
+
+  home.activation.themeApplyTrigger = lib.mkIf theme.runtime.enable (lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    run ${themeApplyPath} || true
+  '');
 
   systemd.user.services.theme-apply = lib.mkIf theme.runtime.enable {
     Unit = {
