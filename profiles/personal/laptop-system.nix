@@ -333,6 +333,7 @@
       vlc
       strawberry
       wavpack
+      davinci-resolve
 
       # System GUI apps
       gnome-console
