@@ -135,6 +135,9 @@
       libva-utils
       libva-vdpau-driver
       mesa
+      # Restore the AMD OpenCL ICD so DaVinci Resolve can see the GENERIC_GPU again.
+      rocmPackages.clr
+      rocmPackages.clr.icd
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
       libva
@@ -278,6 +281,8 @@
       clinfo
       amdgpu_top
       radeontop
+      rocmPackages.rocminfo
+      rocmPackages.rocm-smi
       stress-ng
       tree
       unzip
