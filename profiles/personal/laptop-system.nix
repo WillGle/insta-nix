@@ -264,6 +264,7 @@
       htop
       imagemagick
       jq
+      matugen
       lm_sensors
       linuxPackages.cpupower
       nvtopPackages.amd
