@@ -29,6 +29,10 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/monitor-setup;
       executable = true;
     };
+    ".local/bin/rofi-network" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-network;
+      executable = true;
+    };
     ".local/bin/waybar-memory-info" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-memory-info;
       executable = true;
