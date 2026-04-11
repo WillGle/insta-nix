@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="$PATH:/run/current-system/sw/bin"
+
+wifi_iface() {
+  nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" { print $1; exit }'
+}
+
+wifi_enabled() {
+  [ "$(nmcli radio wifi)" = "enabled" ]
+}
+
+signal_icon() {
+  local signal="${1:-0}"
+  if ! [[ "$signal" =~ ^[0-9]+$ ]]; then
+    signal=0
+  fi
+
+  if [ "$signal" -ge 80 ]; then
+    printf '󰤨'
+  elif [ "$signal" -ge 60 ]; then
+    printf '󰤥'
+  elif [ "$signal" -ge 40 ]; then
+    printf '󰤢'
+  elif [ "$signal" -ge 20 ]; then
+    printf '󰤟'
+  else
+    printf '󰤯'
+  fi
+}
+
+band_label() {
+  local freq="${1%% *}"
+  if ! [[ "$freq" =~ ^[0-9]+$ ]]; then
+    printf '?'
+    return
+  fi
+
+  if [ "$freq" -ge 5000 ]; then
+    printf '5 GHz'
+  else
+    printf '2.4 GHz'
+  fi
+}
+
+security_label() {
+  local security="${1:-}"
+  if [ -z "$security" ] || [ "$security" = "--" ]; then
+    printf 'Open'
+  else
+    printf '%s' "$security"
+  fi
+}
+
+active_wifi_line() {
+  local iface="$1"
+  nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | awk -F: '$1 == "yes" { print; exit }'
+}
+
+current_ip() {
+  local iface="$1"
+  nmcli -g IP4.ADDRESS device show "$iface" 2>/dev/null | sed -n '1s#/.*##p'
+}
+
+current_gateway() {
+  local iface="$1"
+  nmcli -g IP4.GATEWAY device show "$iface" 2>/dev/null | sed -n '1p'
+}
+
+current_dns() {
+  local iface="$1"
+  nmcli -g IP4.DNS device show "$iface" 2>/dev/null \
+    | awk 'NF { printf "%s%s", sep, $0; sep = ", " } END { printf "\n" }'
+}
+
+active_ethernet() {
+  nmcli -t -f TYPE,NAME,DEVICE connection show --active \
+    | awk -F: '$1 == "802-3-ethernet" { print $2 ":" $3; exit }'
+}
+
+emit_json() {
+  local text="$1"
+  local tooltip="$2"
+  local class="$3"
+
+  jq -cn \
+    --arg text "$text" \
+    --arg tooltip "$tooltip" \
+    --arg class "$class" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+main() {
+  local iface ethernet_line active ssid signal security freq ip gateway dns tooltip
+
+  iface="$(wifi_iface)"
+  ethernet_line="$(active_ethernet)"
+  active=""
+
+  if [ -n "$iface" ] && wifi_enabled; then
+    active="$(active_wifi_line "$iface")"
+  fi
+
+  if [ -n "$ethernet_line" ]; then
+    IFS=: read -r ethernet_name ethernet_device <<< "$ethernet_line"
+    tooltip=$'<b>Network</b>\n'
+    tooltip+="Ethernet: ${ethernet_name:-Connected}"$'\n'
+    tooltip+="Device: ${ethernet_device:-Unknown}"
+    if [ -n "$active" ]; then
+      IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
+      tooltip+=$'\n\n'"Wi-Fi: ${ssid:-<hidden>}"
+      tooltip+=$'\n'"Signal: ${signal:-0}% ($(signal_icon "$signal"))"
+      tooltip+=$'\n'"Band: $(band_label "$freq")"
+      tooltip+=$'\n'"Security: $(security_label "$security")"
+    fi
+    tooltip+=$'\n\n'
+    tooltip+='Click: open network menu'
+    emit_json "󰈀" "$tooltip" "ethernet"
+    exit 0
+  fi
+
+  if [ -n "$active" ]; then
+    IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
+    ip="$(current_ip "$iface")"
+    gateway="$(current_gateway "$iface")"
+    dns="$(current_dns "$iface")"
+    tooltip=$'<b>Network</b>\n'
+    tooltip+="SSID: ${ssid:-<hidden>}"$'\n'
+    tooltip+="Signal: ${signal:-0}% ($(signal_icon "$signal"))"$'\n'
+    tooltip+="Band: $(band_label "$freq")"$'\n'
+    tooltip+="Security: $(security_label "$security")"$'\n'
+    tooltip+="IP: ${ip:-Unavailable}"$'\n'
+    tooltip+="Gateway: ${gateway:-Unavailable}"
+    if [ -n "$dns" ]; then
+      tooltip+=$'\n'"DNS: $dns"
+    fi
+    tooltip+=$'\n\nClick: open network menu'
+    emit_json "$(signal_icon "$signal")" "$tooltip" "connected"
+    exit 0
+  fi
+
+  if [ -n "$iface" ] && ! wifi_enabled; then
+    emit_json "󰖪" $'<b>Network</b>\nWi-Fi disabled\n\nClick: open network menu' "disabled"
+    exit 0
+  fi
+
+  emit_json "󰤮" $'<b>Network</b>\nDisconnected\n\nClick: open network menu' "disconnected"
+}
+
+main "$@"
