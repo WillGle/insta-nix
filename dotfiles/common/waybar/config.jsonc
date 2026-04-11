@@ -94,7 +94,7 @@
     "tooltip": false
   },
   "custom/atomic_note": {
-    "exec": "$HOME/.local/bin/waybar-atomic-note",
+    "exec": "$HOME/.local/bin/atomic-note render-waybar",
     "max-length": 45,
     "return-type": "json",
     "interval": 1,
