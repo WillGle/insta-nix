@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
+
+ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
+ROFI_THEME="${HOME}/.config/rofi/screen-time.rasi"
+STATS_BIN="${HOME}/.local/bin/rofi-screen-time-stats"
+
+VIEW="day"
+TARGET_DATE="$(date +%F)"
+APP_FILTER=""
+
+usage() {
+  cat <<'EOF'
+Usage: rofi-screen-time [--date YYYY-MM-DD] [--view day|week|app] [--app APP_CLASS]
+EOF
+}
+
+normalize_class() {
+  local value="${1,,}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  value="${value%.exe}"
+  value="${value%-updater}"
+  value="${value%_updater}"
+  value="${value% updater}"
+  printf '%s\n' "$value"
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --date)
+      TARGET_DATE="${2:-}"
+      shift 2
+      ;;
+    --view)
+      VIEW="${2:-}"
+      shift 2
+      ;;
+    --app)
+      APP_FILTER="$(normalize_class "${2:-}")"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+TARGET_DATE="$(date -d "$TARGET_DATE" +%F 2>/dev/null || date +%F)"
+
+while :; do
+  stats_args=(--view "$VIEW" --date "$TARGET_DATE")
+  if [ -n "$APP_FILTER" ]; then
+    stats_args+=(--app "$APP_FILTER")
+  fi
+
+  theme_str="$("$STATS_BIN" "${stats_args[@]}" --format theme)"
+  rows="$("$STATS_BIN" "${stats_args[@]}" --format rows)"
+
+  selection="$(
+    printf '%s\n' "$rows" \
+      | rofi -dmenu -markup-rows -show-icons -no-custom \
+          -config "$ROFI_CONFIG" \
+          -theme "$ROFI_THEME" \
+          -theme-str "$theme_str" \
+          -p ""
+  )" || exit 0
+
+  case "$selection" in
+    close|"")
+      exit 0
+      ;;
+    view:day:*)
+      VIEW="day"
+      TARGET_DATE="${selection#view:day:}"
+      APP_FILTER=""
+      ;;
+    view:week:*)
+      VIEW="week"
+      TARGET_DATE="${selection#view:week:}"
+      ;;
+    app:*)
+      VIEW="app"
+      APP_FILTER="${selection#app:}"
+      APP_FILTER="${APP_FILTER%:*}"
+      TARGET_DATE="${selection##*:}"
+      ;;
+    nav:prev-day-app:*)
+      VIEW="app"
+      TARGET_DATE="$(printf '%s' "$selection" | cut -d: -f3)"
+      APP_FILTER="$(printf '%s' "$selection" | cut -d: -f4)"
+      ;;
+    nav:next-day-app:*)
+      VIEW="app"
+      TARGET_DATE="$(printf '%s' "$selection" | cut -d: -f3)"
+      APP_FILTER="$(printf '%s' "$selection" | cut -d: -f4)"
+      ;;
+    nav:prev-day:*)
+      VIEW="$VIEW"
+      TARGET_DATE="${selection#nav:prev-day:}"
+      TARGET_DATE="${TARGET_DATE%%:*}"
+      ;;
+    nav:next-day:*)
+      VIEW="$VIEW"
+      TARGET_DATE="${selection#nav:next-day:}"
+      TARGET_DATE="${TARGET_DATE%%:*}"
+      ;;
+    nav:prev-week:*)
+      VIEW="week"
+      TARGET_DATE="${selection#nav:prev-week:}"
+      ;;
+    nav:next-week:*)
+      VIEW="week"
+      TARGET_DATE="${selection#nav:next-week:}"
+      ;;
+    refresh:day:*|refresh:week:*|refresh:app:*)
+      :
+      ;;
+    *)
+      exit 0
+      ;;
+  esac
+done
