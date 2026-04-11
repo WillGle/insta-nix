@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="$PATH:/run/current-system/sw/bin"
+
+ROFI_COMMON=(
+  -dmenu
+  -i
+  -config "$HOME/.config/rofi/config.rasi"
+  -theme-str 'window { width: 52%; }'
+  -theme-str 'listview { lines: 14; columns: 1; }'
+  -theme-str 'element { children: [ element-text ]; }'
+  -theme-str 'element-icon { enabled: false; }'
+)
+
+status_message=""
+
+close_existing_rofi() {
+  if pgrep -x rofi >/dev/null 2>&1; then
+    pkill -x rofi
+    sleep 0.1
+  fi
+}
+
+wifi_iface() {
+  nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" { print $1; exit }'
+}
+
+wifi_enabled() {
+  [ "$(nmcli radio wifi)" = "enabled" ]
+}
+
+signal_icon() {
+  local signal="${1:-0}"
+  if ! [[ "$signal" =~ ^[0-9]+$ ]]; then
+    signal=0
+  fi
+
+  if [ "$signal" -ge 80 ]; then
+    printf '󰤨'
+  elif [ "$signal" -ge 60 ]; then
+    printf '󰤥'
+  elif [ "$signal" -ge 40 ]; then
+    printf '󰤢'
+  elif [ "$signal" -ge 20 ]; then
+    printf '󰤟'
+  else
+    printf '󰤯'
+  fi
+}
+
+band_label() {
+  local freq="${1%% *}"
+  if ! [[ "$freq" =~ ^[0-9]+$ ]]; then
+    printf '?'
+    return
+  fi
+
+  if [ "$freq" -ge 5000 ]; then
+    printf '5 GHz'
+  else
+    printf '2.4 GHz'
+  fi
+}
+
+security_label() {
+  local security="${1:-}"
+  if [ -z "$security" ] || [ "$security" = "--" ]; then
+    printf 'Open'
+  else
+    printf '%s' "$security"
+  fi
+}
+
+active_wifi_line() {
+  local iface="$1"
+  nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | awk -F: '$1 == "yes" { print; exit }'
+}
+
+lookup_ap() {
+  local iface="$1"
+  local bssid="$2"
+  nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | awk -F: -v target="$bssid" '$6 == target { print; exit }'
+}
+
+current_ip() {
+  local iface="$1"
+  nmcli -g IP4.ADDRESS device show "$iface" 2>/dev/null | sed -n '1s#/.*##p'
+}
+
+current_gateway() {
+  local iface="$1"
+  nmcli -g IP4.GATEWAY device show "$iface" 2>/dev/null | sed -n '1p'
+}
+
+current_dns() {
+  local iface="$1"
+  nmcli -g IP4.DNS device show "$iface" 2>/dev/null | paste -sd ', ' -
+}
+
+active_ethernet() {
+  nmcli -t -f TYPE,NAME,DEVICE connection show --active \
+    | awk -F: '$1 == "802-3-ethernet" { print $2 " on " $3; exit }'
+}
+
+build_message() {
+  local iface="$1"
+  local lines=()
+  local ethernet
+
+  if [ -z "$iface" ]; then
+    lines+=("No Wi-Fi adapter detected")
+  elif wifi_enabled; then
+    local active
+    active="$(active_wifi_line "$iface")"
+    if [ -n "$active" ]; then
+      local _active ssid signal security freq _bssid ip gateway dns
+      IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
+      ip="$(current_ip "$iface")"
+      gateway="$(current_gateway "$iface")"
+      dns="$(current_dns "$iface")"
+      lines+=("Wi-Fi: ${ssid:-<hidden>} ($(signal_icon "$signal") ${signal}%, $(band_label "$freq"))")
+      lines+=("IP: ${ip:-Unavailable}")
+      [ -n "$ip" ] && lines+=("Gateway: ${gateway:-Unavailable}")
+      [ -n "$dns" ] && lines+=("DNS: $dns")
+      lines+=("Security: $(security_label "$security")")
+    else
+      lines+=("Wi-Fi: enabled, not connected")
+    fi
+  else
+    lines+=("Wi-Fi: disabled")
+  fi
+
+  ethernet="$(active_ethernet)"
+  if [ -n "$ethernet" ]; then
+    lines+=("Ethernet: $ethernet")
+  fi
+
+  if [ -n "$status_message" ]; then
+    lines+=("")
+    lines+=("$status_message")
+  fi
+
+  printf '%s\n' "${lines[@]}"
+}
+
+build_menu() {
+  local iface="$1"
+  local active_bssid=""
+
+  if [ -n "$iface" ] && wifi_enabled; then
+    local active
+    active="$(active_wifi_line "$iface")"
+    if [ -n "$active" ]; then
+      active_bssid="${active##*:}"
+      printf '󰤭  Disconnect current network\n'
+    fi
+    printf '󰑐  Rescan Wi-Fi\n'
+    printf '󰖪  Turn Wi-Fi off\n'
+  else
+    printf '󰖩  Turn Wi-Fi on\n'
+  fi
+
+  printf '󰌘  Open connection editor\n'
+
+  if [ -z "$iface" ] || ! wifi_enabled; then
+    return
+  fi
+
+  nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | while IFS=: read -r active ssid signal security freq bssid; do
+        [ -n "$bssid" ] || continue
+        [ "$bssid" = "$active_bssid" ] && prefix='󰄬' || prefix=' '
+        printf '%s  %s  %s  %s%%  %s  %s  %s\n' \
+          "$prefix" \
+          "$(signal_icon "$signal")" \
+          "${ssid:-<hidden>}" \
+          "${signal:-0}" \
+          "$(band_label "$freq")" \
+          "$(security_label "$security")" \
+          "$bssid"
+      done
+}
+
+prompt_password() {
+  local ssid="$1"
+  rofi "${ROFI_COMMON[@]}" -password -p "Password for ${ssid:-Wi-Fi}" <<< ""
+}
+
+connect_ap() {
+  local iface="$1"
+  local bssid="$2"
+  local ap
+  local ssid security output password
+
+  ap="$(lookup_ap "$iface" "$bssid")"
+  if [ -z "$ap" ]; then
+    status_message="Selected access point is no longer visible."
+    return
+  fi
+
+  IFS=: read -r _active ssid _signal security _freq _bssid <<< "$ap"
+  output="$(nmcli device wifi connect "$bssid" ifname "$iface" 2>&1)" && {
+    status_message="Connected to ${ssid:-<hidden>}."
+    return
+  }
+
+  if [ -n "$security" ] && [ "$security" != "--" ]; then
+    password="$(prompt_password "$ssid")"
+    if [ -z "$password" ]; then
+      status_message="Connection cancelled."
+      return
+    fi
+
+    output="$(nmcli device wifi connect "$bssid" ifname "$iface" password "$password" 2>&1)" && {
+      status_message="Connected to ${ssid:-<hidden>}."
+      return
+    }
+  fi
+
+  status_message="$output"
+}
+
+main() {
+  local iface selection bssid
+
+  close_existing_rofi
+  iface="$(wifi_iface)"
+
+  while true; do
+    selection="$(
+      build_menu "$iface" | rofi "${ROFI_COMMON[@]}" -p "Network" -mesg "$(build_message "$iface")"
+    )"
+
+    [ -n "$selection" ] || exit 0
+    status_message=""
+
+    case "$selection" in
+      "󰌘  Open connection editor")
+        nm-connection-editor >/dev/null 2>&1 &
+        exit 0
+        ;;
+      "󰑐  Rescan Wi-Fi")
+        if [ -n "$iface" ]; then
+          nmcli device wifi rescan ifname "$iface" >/dev/null 2>&1 || true
+          status_message="Requested a Wi-Fi rescan."
+        else
+          status_message="No Wi-Fi adapter detected."
+        fi
+        ;;
+      "󰖪  Turn Wi-Fi off")
+        nmcli radio wifi off >/dev/null 2>&1 && status_message="Wi-Fi turned off." || status_message="Failed to turn Wi-Fi off."
+        ;;
+      "󰖩  Turn Wi-Fi on")
+        nmcli radio wifi on >/dev/null 2>&1 && status_message="Wi-Fi turned on." || status_message="Failed to turn Wi-Fi on."
+        ;;
+      "󰤭  Disconnect current network")
+        if [ -n "$iface" ]; then
+          nmcli device disconnect "$iface" >/dev/null 2>&1 && status_message="Disconnected $iface." || status_message="Failed to disconnect $iface."
+        else
+          status_message="No Wi-Fi adapter detected."
+        fi
+        ;;
+      *)
+        if [[ "$selection" =~ ([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]; then
+          bssid="${BASH_REMATCH[0]}"
+          if [ -n "$iface" ]; then
+            connect_ap "$iface" "$bssid"
+          else
+            status_message="No Wi-Fi adapter detected."
+          fi
+        else
+          status_message="Unsupported selection."
+        fi
+        ;;
+    esac
+
+    iface="$(wifi_iface)"
+  done
+}
+
+main "$@"
