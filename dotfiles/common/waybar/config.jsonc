@@ -15,6 +15,7 @@
     "custom/atomic_note"
   ],
   "modules-right": [
+    "custom/network_info",
     "custom/memory_info",
     "custom/apu_info",
     "custom/power_flow",
@@ -102,6 +103,12 @@
     "on-click": "$HOME/.local/bin/atomic-note rofi",
     "on-click-right": "$HOME/.local/bin/atomic-note add",
     "signal": 5,
+    "tooltip": true
+  },
+  "custom/network_info": {
+    "exec": "$HOME/.local/bin/waybar-network-info",
+    "return-type": "json",
+    "interval": 5,
     "tooltip": true
   },
   "custom/weather_info": {
