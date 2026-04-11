@@ -58,7 +58,7 @@ Use this guide for new remote installs that should boot into the generic install
 
    - `/etc/nixos/.local/remote-install/keys/plank-authorized_keys`
    - `/etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys`
-   - `/etc/nixos/.local/remote-install/seed/home/will/.ssh/authorized_keys`
+   - `/etc/nixos/.local/remote-install/seed/home/<user>/.ssh/authorized_keys`
    - `/etc/nixos/.local/remote-install/hardware/`
    - `/etc/nixos/.local/remote-install/runbooks/`
    - `/etc/nixos/.local/remote-install/modules/plank-host-local.nix`
@@ -79,7 +79,7 @@ Use this guide for new remote installs that should boot into the generic install
    ```bash
    scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
      root@<ip>:/mnt/etc/plank/authorized_keys
-   ssh root@<ip> 'nixos-install --root /mnt --flake github:WillGle/insta-nix#generic-installer'
+   ssh root@<ip> 'nixos-install --root /mnt --flake github:<owner>/<repo>#generic-installer'
    ```
 
 5. If key injection is not ready, add a temporary key in the installer environment and replace it after first login.
@@ -89,7 +89,7 @@ Use this guide for new remote installs that should boot into the generic install
 Check access:
 
 ```bash
-ssh -p 2222 will@<ip>
+ssh -p 2222 <user>@<ip>
 ```
 
 Confirm that local-private files are still outside the tracked repo:
