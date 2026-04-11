@@ -37,12 +37,20 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time;
       executable = true;
     };
+    ".local/bin/rofi-screen-time-cache" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-cache;
+      executable = true;
+    };
     ".local/bin/rofi-screen-time-stats" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-stats;
       executable = true;
     };
     ".local/bin/rofi-screen-time-track" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-track;
+      executable = true;
+    };
+    ".local/bin/rofi-study-timer" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-study-timer;
       executable = true;
     };
     ".local/bin/study-timer" = {
@@ -104,28 +112,6 @@ in
     };
   };
 
-  xdg.dataFile."applications/org.rnd2.cpupower_gui.desktop".text = ''
-    [Desktop Entry]
-    Version=1.1
-    Name=cpupower-gui
-    GenericName=CPU frequency settings
-    Comment=Sets the frequency limits of the CPU
-    Exec=/run/current-system/sw/bin/cpupower-gui
-    Icon=org.rnd2.cpupower_gui
-    Terminal=false
-    Type=Application
-    StartupNotify=true
-    Categories=GNOME;GTK;Settings;HardwareSettings;
-  '';
-}
-    ".local/bin/rofi-study-timer" = {
-      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-study-timer;
-      executable = true;
-    };
-    ".local/bin/rofi-screen-time-cache" = {
-      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-cache;
-      executable = true;
-    };
   systemd.user.services.rofi-screen-time-cache = {
     Unit = {
       Description = "Warm the default rofi screen-time popup cache";
@@ -156,3 +142,17 @@ in
     };
   };
 
+  xdg.dataFile."applications/org.rnd2.cpupower_gui.desktop".text = ''
+    [Desktop Entry]
+    Version=1.1
+    Name=cpupower-gui
+    GenericName=CPU frequency settings
+    Comment=Sets the frequency limits of the CPU
+    Exec=/run/current-system/sw/bin/cpupower-gui
+    Icon=org.rnd2.cpupower_gui
+    Terminal=false
+    Type=Application
+    StartupNotify=true
+    Categories=GNOME;GTK;Settings;HardwareSettings;
+  '';
+}
