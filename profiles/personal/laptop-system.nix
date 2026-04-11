@@ -329,10 +329,12 @@
       calibre
 
       # Media apps
+      darktable
       evince
       gthumb
       guvcview
       obs-studio
+      rawtherapee
       sonic-visualiser
       vlc
       strawberry
