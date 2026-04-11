@@ -321,7 +321,7 @@ render_waybar() {
   for ((i = 0; i < 5 && i < count; i++)); do
     priority="$(task_priority "${TASKS[$i]}")"
     body="$(task_body "${TASKS[$i]}")"
-    tooltip+="$(priority_label "$priority"): $(escape_markup "$body")"$'\n'
+    tooltip+="[$(priority_label "$priority")] $(escape_markup "$body")"$'\n'
   done
 
   if [ "$count" -gt 5 ]; then
@@ -524,13 +524,8 @@ rofi_menu() {
     local hot_task_labels=()
     local low_task_labels=()
     local task_labels=()
-    local add_option
-    local open_option
-    local clear_option
-    local actions_header
     local hot_header
     local low_header
-    local action_rows=()
     local hot_rows=()
     local low_rows=()
     local task
@@ -540,16 +535,13 @@ rofi_menu() {
     local menu_lines=0
     local i
     local left_cell
-    local middle_cell
     local right_cell
+    local selection=""
+    local status=0
+    local action_theme
 
-    add_option="$(chip_label "󰐕" "$ACTION_ADD_BG" "Add task")"
-    open_option="$(chip_label "󰈔" "$ACTION_OPEN_BG" "Open raw file")"
-    clear_option="$(chip_label "󰩹" "$ACTION_CLEAR_BG" "Clear all")"
-    actions_header="$(section_label "Actions")"
     hot_header="$(section_label "Critical / High")"
     low_header="$(section_label "Moderate / Low")"
-    action_rows=("$add_option" "$open_option" "$clear_option")
 
     for task in "${TASKS[@]}"; do
       display_task="$(task_label "$task")"
@@ -565,60 +557,172 @@ rofi_menu() {
     hot_rows=("${hot_task_labels[@]}")
     low_rows=("${low_task_labels[@]}")
 
-    row_count="${#action_rows[@]}"
-    if [ "${#hot_rows[@]}" -gt "$row_count" ]; then
-      row_count="${#hot_rows[@]}"
-    fi
+    row_count="${#hot_rows[@]}"
     if [ "${#low_rows[@]}" -gt "$row_count" ]; then
       row_count="${#low_rows[@]}"
     fi
+    if [ "$row_count" -lt 1 ]; then
+      row_count=1
+    fi
     menu_lines=$((row_count + 1))
 
-    options+=("$actions_header" "$hot_header" "$low_header")
+    action_theme="$(mktemp)"
+    cat > "$action_theme" <<EOF
+@theme "~/.config/rofi/theme.rasi"
+
+window {
+  width: 50%;
+  children: [ mainbox ];
+}
+
+mainbox {
+  children: [ inputbar, actionbar, listview ];
+  spacing: 8px;
+  padding: 12px;
+}
+
+actionbar {
+  expand: false;
+  orientation: horizontal;
+  spacing: 6px;
+  children: [ button-add, button-open, button-clear ];
+}
+
+button {
+  cursor: pointer;
+}
+
+button-add, button-open, button-clear {
+  expand: false;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px;
+  border-color: transparent;
+  font: "JetBrainsMono Nerd Font 10";
+  horizontal-align: 0.5;
+}
+
+button selected,
+button selected.normal {
+  background-color: ${SECTION_BG};
+}
+
+button-add {
+  content: "󰐕 Add";
+  background-color: ${ACTION_ADD_BG};
+  text-color: ${ACTION_FG};
+  action: "kb-custom-1";
+}
+
+button-add selected,
+button-add selected.normal {
+  background-color: ${SECTION_BG};
+  text-color: ${ACTION_ADD_BG};
+  border-color: ${ACTION_ADD_BG};
+}
+
+button-open {
+  content: "󰈔 Open";
+  background-color: ${ACTION_OPEN_BG};
+  text-color: ${ACTION_FG};
+  action: "kb-custom-2";
+}
+
+button-open selected,
+button-open selected.normal {
+  background-color: ${SECTION_BG};
+  text-color: ${ACTION_OPEN_BG};
+  border-color: ${ACTION_OPEN_BG};
+}
+
+button-clear {
+  content: "󰩹 Clear";
+  background-color: ${ACTION_CLEAR_BG};
+  text-color: ${ACTION_FG};
+  action: "kb-custom-3";
+}
+
+button-clear selected,
+button-clear selected.normal {
+  background-color: ${SECTION_BG};
+  text-color: ${ACTION_CLEAR_BG};
+  border-color: ${ACTION_CLEAR_BG};
+}
+
+inputbar {
+  margin: 0;
+}
+
+listview {
+  columns: 2;
+  lines: ${menu_lines};
+  flow: horizontal;
+  fixed-columns: true;
+  fixed-height: false;
+  spacing: 4px;
+  padding: 4px 0 0;
+}
+
+element {
+  padding: 4px 8px;
+}
+EOF
+
+    options+=("$hot_header" "$low_header")
     for ((i = 0; i < row_count; i++)); do
-      if [ "$i" -lt "${#action_rows[@]}" ]; then
-        left_cell="${action_rows[$i]}"
+      if [ "$i" -lt "${#hot_rows[@]}" ]; then
+        left_cell="${hot_rows[$i]}"
       else
         left_cell="$(empty_cell)"
-      fi
-      if [ "$i" -lt "${#hot_rows[@]}" ]; then
-        middle_cell="${hot_rows[$i]}"
-      else
-        middle_cell="$(empty_cell)"
       fi
       if [ "$i" -lt "${#low_rows[@]}" ]; then
         right_cell="${low_rows[$i]}"
       else
         right_cell="$(empty_cell)"
       fi
-      options+=("$left_cell" "$middle_cell" "$right_cell")
+      options+=("$left_cell" "$right_cell")
     done
 
-    local selection
     selection="$(
       printf '%s\n' "${options[@]}" \
-        | rofi -dmenu -i -markup-rows -p "Atomic Notes" -config "$ROFI_CONFIG" \
-          -theme-str "window { width: 78%; }" \
-          -theme-str "listview { columns: 3; lines: ${menu_lines}; flow: horizontal; fixed-columns: true; fixed-height: true; }"
-    )"
+        | rofi -dmenu -i -hover-select -markup-rows -p "Atomic Notes" \
+          -kb-custom-1 "Alt+1" \
+          -kb-custom-2 "Alt+2" \
+          -kb-custom-3 "Alt+3" \
+          -config "$ROFI_CONFIG" -theme "$action_theme"
+    )" || status=$?
+    rm -f "$action_theme"
+
+    case "$status" in
+      0)
+        ;;
+      1)
+        return 0
+        ;;
+      10)
+        add_task
+        continue
+        ;;
+      11)
+        open_file_in_terminal
+        return 0
+        ;;
+      12)
+        if confirm_clear; then
+          clear_tasks
+        fi
+        continue
+        ;;
+      *)
+        return 0
+        ;;
+    esac
 
     case "$selection" in
       "")
         return 0
         ;;
-      "$add_option")
-        add_task
-        ;;
-      "$open_option")
-        open_file_in_terminal
-        return 0
-        ;;
-      "$clear_option")
-        if confirm_clear; then
-          clear_tasks
-        fi
-        ;;
-      "$actions_header"|"$hot_header"|"$low_header")
+      "$hot_header"|"$low_header")
         continue
         ;;
       *)
