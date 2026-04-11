@@ -1,0 +1,335 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
+
+SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${HOME}/.local/share/rofi-screen-time}"
+SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${HOME}/.cache/rofi-screen-time}"
+SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"
+THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
+
+if [ -r "$THEME_STATIC_ENV" ]; then
+  # shellcheck disable=SC1090
+  . "$THEME_STATIC_ENV"
+fi
+
+CACHE_FILE="${SCREEN_TIME_CACHE_HOME}/desktop-cache.tsv"
+STATE_DIR="$SCREEN_TIME_HOME"
+INTERVAL_SECONDS="$SCREEN_TIME_SAMPLE_SECONDS"
+RUN_ONCE=0
+
+usage() {
+  cat <<'EOF'
+Usage: rofi-screen-time-track [--interval-seconds N] [--once] [--state-dir PATH]
+EOF
+}
+
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
+}
+
+normalize_class() {
+  local value
+  value="$(trim "${1,,}")"
+  value="${value%.exe}"
+  value="${value%-updater}"
+  value="${value%_updater}"
+  value="${value% updater}"
+  printf '%s\n' "$value"
+}
+
+humanize_class() {
+  local value="${1//[_-]/ }"
+  local out=""
+  local word=""
+  for word in $value; do
+    out+="${word^} "
+  done
+  printf '%s\n' "${out%" "}"
+}
+
+ignored_class() {
+  case "${1,,}" in
+    ""|desktop|unknown|rofi|hyprlock|quickshell|dunst)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+ensure_dirs() {
+  mkdir -p "$STATE_DIR/days" "$SCREEN_TIME_CACHE_HOME"
+}
+
+build_desktop_cache() {
+  [ -s "$CACHE_FILE" ] && return 0
+
+  local tmp
+  local xdg_data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+  local xdg_data_dirs="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+  local data_dir=""
+  local search_dirs=("$xdg_data_home/applications")
+  local dir=""
+  local desktop=""
+  local name=""
+  local icon=""
+  local wmclass=""
+  local key=""
+  tmp="$(mktemp)"
+
+  for data_dir in ${xdg_data_dirs//:/ }; do
+    search_dirs+=("$data_dir/applications")
+  done
+  search_dirs+=(
+    "/var/lib/flatpak/exports/share/applications"
+    "/var/lib/snapd/desktop/applications"
+  )
+
+  {
+    for dir in "${search_dirs[@]}"; do
+      [ -d "$dir" ] || continue
+      while IFS= read -r -d '' desktop; do
+        name=""
+        icon=""
+        wmclass=""
+        while IFS= read -r line; do
+          case "$line" in
+            Name=*)
+              [ -n "$name" ] || name="${line#Name=}"
+              ;;
+            Icon=*)
+              [ -n "$icon" ] || icon="${line#Icon=}"
+              ;;
+            StartupWMClass=*)
+              [ -n "$wmclass" ] || wmclass="${line#StartupWMClass=}"
+              ;;
+          esac
+        done <"$desktop"
+
+        [ -n "$name" ] || continue
+        key="$(normalize_class "$(basename "$desktop" .desktop)")"
+        [ -n "$key" ] && printf '%s\t%s\t%s\n' "$key" "$name" "$icon"
+        if [ -n "$wmclass" ]; then
+          key="$(normalize_class "$wmclass")"
+          [ -n "$key" ] && printf '%s\t%s\t%s\n' "$key" "$name" "$icon"
+        fi
+      done < <(find "$dir" -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null)
+    done
+  } | awk -F '\t' '!seen[$1]++' >"$tmp"
+
+  mv "$tmp" "$CACHE_FILE"
+}
+
+resolve_name_icon() {
+  local normalized="$1"
+  local raw_class="$2"
+  local resolved=""
+  local icon=""
+
+  build_desktop_cache
+  if [ -s "$CACHE_FILE" ]; then
+    resolved="$(awk -F '\t' -v key="$normalized" '$1 == key { print $2; exit }' "$CACHE_FILE")"
+    icon="$(awk -F '\t' -v key="$normalized" '$1 == key { print $3; exit }' "$CACHE_FILE")"
+  fi
+
+  if [ -z "$resolved" ]; then
+    resolved="$(humanize_class "$normalized")"
+  fi
+
+  printf '%s\t%s\n' "$resolved" "$icon"
+}
+
+is_idle() {
+  if [ -n "${SCREEN_TIME_TEST_IDLE_HINT:-}" ]; then
+    [ "${SCREEN_TIME_TEST_IDLE_HINT}" = "yes" ]
+    return
+  fi
+
+  if [ -z "${XDG_SESSION_ID:-}" ]; then
+    return 1
+  fi
+
+  loginctl show-session "$XDG_SESSION_ID" -p IdleHint 2>/dev/null | grep -q 'IdleHint=yes'
+}
+
+is_locked() {
+  if [ -n "${SCREEN_TIME_TEST_LOCKED:-}" ]; then
+    [ "${SCREEN_TIME_TEST_LOCKED}" = "1" ]
+    return
+  fi
+
+  pgrep -x hyprlock >/dev/null 2>&1
+}
+
+get_active_window_json() {
+  if [ -n "${SCREEN_TIME_TEST_ACTIVEWINDOW_JSON:-}" ]; then
+    printf '%s\n' "$SCREEN_TIME_TEST_ACTIVEWINDOW_JSON"
+    return 0
+  fi
+
+  hyprctl activewindow -j 2>/dev/null || return 1
+}
+
+default_day_json() {
+  local target_date="$1"
+  local now_iso="$2"
+  local sample="$3"
+
+  jq -n \
+    --arg date "$target_date" \
+    --arg now "$now_iso" \
+    --argjson sample "$sample" \
+    '{
+      version: 1,
+      date: $date,
+      updated_at: $now,
+      sample_seconds: $sample,
+      total_seconds: 0,
+      slots_30m: ([range(0; 48)] | map(0)),
+      apps: {}
+    }'
+}
+
+record_sample() {
+  local payload="$1"
+  local raw_class=""
+  local normalized=""
+  local title=""
+  local metadata=""
+  local display_name=""
+  local icon_name=""
+  local target_date=""
+  local day_file=""
+  local tmp_file=""
+  local hour=""
+  local minute=""
+  local slot_idx=""
+  local now_iso=""
+
+  raw_class="$(printf '%s' "$payload" | jq -r '.initialClass // .class // empty')"
+  title="$(printf '%s' "$payload" | jq -r '.initialTitle // .title // empty')"
+  [ -n "$raw_class" ] || return 0
+
+  normalized="$(normalize_class "$raw_class")"
+  [ -n "$normalized" ] || return 0
+  ignored_class "$normalized" && return 0
+
+  if [ "${title,,}" = "desktop" ] && ignored_class "$title"; then
+    return 0
+  fi
+
+  metadata="$(resolve_name_icon "$normalized" "$raw_class")"
+  display_name="${metadata%%$'\t'*}"
+  icon_name="${metadata#*$'\t'}"
+
+  target_date="$(date +%F)"
+  day_file="${STATE_DIR}/days/${target_date}.json"
+  now_iso="$(date --iso-8601=seconds)"
+  hour="$(date +%H)"
+  minute="$(date +%M)"
+  slot_idx=$((10#$hour * 2 + 10#$minute / 30))
+
+  [ -f "$day_file" ] || default_day_json "$target_date" "$now_iso" "$INTERVAL_SECONDS" >"$day_file"
+
+  tmp_file="$(mktemp "${day_file}.XXXXXX")"
+  jq \
+    --arg date "$target_date" \
+    --arg now "$now_iso" \
+    --arg key "$normalized" \
+    --arg class "$raw_class" \
+    --arg name "$display_name" \
+    --arg icon "$icon_name" \
+    --argjson sample "$INTERVAL_SECONDS" \
+    --argjson slot "$slot_idx" \
+    '
+    .version = 1
+    | .date = $date
+    | .updated_at = $now
+    | .sample_seconds = $sample
+    | .total_seconds = ((.total_seconds // 0) + $sample)
+    | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
+    | .apps[$key] = (
+        (.apps[$key] // {
+          class: $class,
+          name: $name,
+          icon: $icon,
+          seconds: 0,
+          slots_30m: ([range(0; 48)] | map(0))
+        })
+        | .class = $class
+        | .name = $name
+        | .icon = $icon
+        | .seconds = ((.seconds // 0) + $sample)
+        | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
+      )
+    ' "$day_file" >"$tmp_file"
+  mv "$tmp_file" "$day_file"
+}
+
+sample_once() {
+  local payload=""
+
+  is_idle && return 0
+  is_locked && return 0
+  payload="$(get_active_window_json)" || return 0
+  [ "$payload" != "{}" ] || return 0
+  record_sample "$payload"
+}
+
+acquire_lock() {
+  local lock_dir="${XDG_RUNTIME_DIR:-/tmp}/rofi-screen-time.lock"
+  if mkdir "$lock_dir" 2>/dev/null; then
+    trap 'rmdir "$lock_dir" >/dev/null 2>&1 || true' EXIT INT TERM
+    return 0
+  fi
+  printf 'rofi-screen-time-track: another tracker instance is already running\n' >&2
+  return 1
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --interval-seconds)
+      INTERVAL_SECONDS="${2:-}"
+      shift 2
+      ;;
+    --once)
+      RUN_ONCE=1
+      shift
+      ;;
+    --state-dir)
+      STATE_DIR="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+case "$INTERVAL_SECONDS" in
+  ''|*[!0-9]*)
+    printf 'rofi-screen-time-track: invalid interval %s\n' "$INTERVAL_SECONDS" >&2
+    exit 2
+    ;;
+esac
+
+ensure_dirs
+
+if [ "$RUN_ONCE" -eq 1 ]; then
+  sample_once
+  exit 0
+fi
+
+acquire_lock || exit 0
+while :; do
+  sample_once || true
+  sleep "$INTERVAL_SECONDS"
+done
