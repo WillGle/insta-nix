@@ -140,7 +140,9 @@ day_file() {
 }
 
 build_desktop_cache() {
-  [ -s "$CACHE_FILE" ] && return 0
+  if [ -s "$CACHE_FILE" ]; then
+    return 0
+  fi
   mkdir -p "$SCREEN_TIME_CACHE_HOME"
 
   local tmp
@@ -185,12 +187,18 @@ build_desktop_cache() {
           esac
         done <"$desktop"
 
-        [ -n "$name" ] || continue
+        if [ -z "$name" ]; then
+          continue
+        fi
         key="$(normalize_class "$(basename "$desktop" .desktop)")"
-        [ -n "$key" ] && printf '%s\t%s\t%s\n' "$key" "$name" "$icon"
+        if [ -n "$key" ]; then
+          printf '%s\t%s\t%s\n' "$key" "$name" "$icon"
+        fi
         if [ -n "$wmclass" ]; then
           key="$(normalize_class "$wmclass")"
-          [ -n "$key" ] && printf '%s\t%s\t%s\n' "$key" "$name" "$icon"
+          if [ -n "$key" ]; then
+            printf '%s\t%s\t%s\n' "$key" "$name" "$icon"
+          fi
         fi
       done < <(find "$dir" -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null)
     done
@@ -210,7 +218,9 @@ resolve_app_meta() {
     icon="$(awk -F '\t' -v key="$app_key" '$1 == key { print $3; exit }' "$CACHE_FILE")"
   fi
 
-  [ -n "$name" ] || name="$(humanize_class "$app_key")"
+  if [ -z "$name" ]; then
+    name="$(humanize_class "$app_key")"
+  fi
   printf '%s\t%s\n' "$name" "$icon"
 }
 
@@ -284,8 +294,12 @@ week_apps_json() {
 
   while :; do
     file="$(day_file "$cursor")"
-    [ -f "$file" ] && files+=("$file")
-    [ "$cursor" = "$week_end" ] && break
+    if [ -f "$file" ]; then
+      files+=("$file")
+    fi
+    if [ "$cursor" = "$week_end" ]; then
+      break
+    fi
     cursor="$(date -d "$cursor +1 day" +%F)"
   done
 
@@ -328,10 +342,10 @@ sparkline_from_json() {
 
   length="$(printf '%s' "$values_json" | jq 'length')"
   max="$(printf '%s' "$values_json" | jq 'max // 0')"
-  [ "$length" -gt 0 ] || {
+  if [ "$length" -le 0 ]; then
     printf '%s\n' ""
     return 0
-  }
+  fi
 
   while [ "$index" -lt "$length" ]; do
     value="$(printf '%s' "$values_json" | jq -r ".[$index] // 0")"
@@ -461,8 +475,12 @@ app_row_markup() {
   if [ "$max_seconds" -gt 0 ]; then
     filled=$((seconds * total_blocks / max_seconds))
   fi
-  [ "$filled" -gt 0 ] || filled=1
-  [ "$seconds" -gt 0 ] || filled=0
+  if [ "$filled" -le 0 ]; then
+    filled=1
+  fi
+  if [ "$seconds" -le 0 ]; then
+    filled=0
+  fi
 
   while [ "$i" -lt "$filled" ]; do
     bar+="█"
@@ -568,14 +586,18 @@ while :; do
     ACTIVE_DAYS=$((ACTIVE_DAYS + 1))
   fi
   is_target=false
-  [ "$cursor" = "$TARGET_DATE" ] && is_target=true
+  if [ "$cursor" = "$TARGET_DATE" ]; then
+    is_target=true
+  fi
   WEEK_ROWS+=("$(jq -nc \
     --arg date "$cursor" \
     --arg day "$(date -d "$cursor" +%a | cut -c1-3)" \
     --argjson total "$total" \
     --argjson is_target "$is_target" \
     '{date:$date, day:$day, total:$total, is_target:$is_target}')")
-  [ "$cursor" = "$WEEK_END" ] && break
+  if [ "$cursor" = "$WEEK_END" ]; then
+    break
+  fi
   cursor="$(date -d "$cursor +1 day" +%F)"
 done
 WEEK_JSON="$(printf '%s\n' "${WEEK_ROWS[@]}" | jq -sc '.')"
@@ -610,9 +632,15 @@ MONTH_JSON="$(printf '%s\n' "${MONTH_ROWS[@]}" | jq -sc '.')"
 DAY_APPS_JSON="$(day_apps_json "$TARGET_DATE")"
 WEEK_APPS_JSON="$(week_apps_json "$WEEK_START" "$WEEK_END")"
 DAY_SLOTS_JSON="$(day_slots_json "$TARGET_DATE" "$APP_FILTER")"
-FILE_COUNT="$(find "$SCREEN_TIME_HOME/days" -maxdepth 1 -type f -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+if [ -d "$SCREEN_TIME_HOME/days" ]; then
+  FILE_COUNT="$(find "$SCREEN_TIME_HOME/days" -maxdepth 1 -type f -name '*.json' | wc -l | tr -d ' ')"
+else
+  FILE_COUNT=0
+fi
 HAS_ANY_DATA=false
-[ "$FILE_COUNT" -gt 0 ] && HAS_ANY_DATA=true
+if [ "$FILE_COUNT" -gt 0 ]; then
+  HAS_ANY_DATA=true
+fi
 
 APP_NAME=""
 APP_ICON=""
@@ -697,7 +725,7 @@ case "$VIEW" in
     NOTE_TEXT="Select an app to jump into its daily rhythm for $(date -d "$TARGET_DATE" '+%d %b')."
     ;;
   app)
-    [ -n "$APP_FILTER" ] || {
+    if [ -z "$APP_FILTER" ]; then
       APP_FILTER="$(printf '%s' "$DAY_APPS_JSON" | jq -r '.[0].key // empty')"
       if [ -n "$APP_FILTER" ]; then
         meta="$(resolve_app_meta "$APP_FILTER")"
@@ -707,8 +735,10 @@ case "$VIEW" in
         APP_WEEK_TOTAL="$(printf '%s' "$WEEK_APPS_JSON" | jq -r --arg app "$APP_FILTER" 'map(select(.key == $app))[0].seconds // 0')"
         APP_SHARE="$(percent_label "$APP_DAY_TOTAL" "$(day_total "$TARGET_DATE")")"
       fi
-    }
-    [ -n "$APP_NAME" ] || APP_NAME="App focus"
+    fi
+    if [ -z "$APP_NAME" ]; then
+      APP_NAME="App focus"
+    fi
     TITLE_TEXT="$(escape_markup "$APP_NAME")"
     CARD1_LABEL="Selected day"
     CARD1_VALUE="$(seconds_to_compact "$APP_DAY_TOTAL")"
