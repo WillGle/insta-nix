@@ -1,54 +1,65 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
+resolve_screen_time_lib_dir() {
+  local script_dir
+  local candidate=""
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+  for candidate in \
+    "${SCREEN_TIME_LIB_DIR:-}" \
+    "${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}/lib" \
+    "$script_dir/../../common/rofi-screen-time/lib" \
+    "/etc/nixos/dotfiles/common/rofi-screen-time/lib"
+  do
+    [ -n "$candidate" ] || continue
+    if [ -r "$candidate/common.sh" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  printf 'rofi-screen-time: unable to locate rofi-screen-time libs\n' >&2
+  return 1
+}
+
+SCREEN_TIME_LIB_DIR="$(resolve_screen_time_lib_dir)"
+# shellcheck source=/dev/null
+. "$SCREEN_TIME_LIB_DIR/common.sh"
 
 ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
 ROFI_THEME="${HOME}/.config/rofi/screen-time.rasi"
 STATS_BIN="${STATS_BIN:-${HOME}/.local/bin/rofi-screen-time-stats}"
-SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${HOME}/.cache/rofi-screen-time}"
 CACHE_BIN="${CACHE_BIN:-${HOME}/.local/bin/rofi-screen-time-cache}"
 CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
 
-VIEW="day"
+VIEW="summary"
 TARGET_DATE="$(date +%F)"
 APP_FILTER=""
 
 usage() {
   cat <<'EOF'
-Usage: rofi-screen-time [--date YYYY-MM-DD] [--view day|week|app] [--app APP_CLASS]
+Usage: rofi-screen-time [--date YYYY-MM-DD] [--view summary|categories|focus|windows|trend|recommendations|quality]
 EOF
 }
 
-normalize_class() {
-  local value="${1,,}"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  value="${value%.exe}"
-  value="${value%-updater}"
-  value="${value%_updater}"
-  value="${value% updater}"
-  printf '%s\n' "$value"
-}
-
 default_theme_cache_file() {
-  printf '%s/default-day-theme.rasi\n' "$CACHE_DIR"
+  printf '%s/default-summary-theme.rasi\n' "$CACHE_DIR"
 }
 
 default_rows_cache_file() {
-  printf '%s/default-day-rows.txt\n' "$CACHE_DIR"
+  printf '%s/default-summary-rows.txt\n' "$CACHE_DIR"
 }
 
 default_date_cache_file() {
-  printf '%s/default-day-date.txt\n' "$CACHE_DIR"
+  printf '%s/default-summary-date.txt\n' "$CACHE_DIR"
 }
 
 can_use_default_cache() {
   local today
   today="$(date +%F)"
-  [ "$VIEW" = "day" ] || return 1
+  [ "$VIEW" = "summary" ] || return 1
   [ "$TARGET_DATE" = "$today" ] || return 1
-  [ -z "$APP_FILTER" ] || return 1
   [ -r "$(default_theme_cache_file)" ] || return 1
   [ -r "$(default_rows_cache_file)" ] || return 1
   [ -r "$(default_date_cache_file)" ] || return 1
@@ -87,7 +98,7 @@ write_default_cache() {
 is_default_today_view() {
   local today
   today="$(date +%F)"
-  [ "$VIEW" = "day" ] && [ "$TARGET_DATE" = "$today" ] && [ -z "$APP_FILTER" ]
+  [ "$VIEW" = "summary" ] && [ "$TARGET_DATE" = "$today" ]
 }
 
 while [ "$#" -gt 0 ]; do
@@ -116,30 +127,34 @@ while [ "$#" -gt 0 ]; do
 done
 
 TARGET_DATE="$(date -d "$TARGET_DATE" +%F 2>/dev/null || date +%F)"
+if ! VIEW="$(resolve_screen_time_view "$VIEW")"; then
+  printf 'rofi-screen-time: invalid view %s\n' "$VIEW" >&2
+  exit 2
+fi
+if [ -n "$APP_FILTER" ]; then
+  printf 'rofi-screen-time: --app is retained for compatibility but ignored in the redesigned UI\n' >&2
+fi
 
 while :; do
-  stats_args=(--view "$VIEW" --date "$TARGET_DATE")
-  if [ -n "$APP_FILTER" ]; then
-    stats_args+=(--app "$APP_FILTER")
-  fi
+  local_theme_file=""
+  local_rows_file=""
   theme_str=""
   rows_file=""
-  rows_tmp=""
 
   if can_use_default_cache; then
     theme_str="$(cat "$(default_theme_cache_file)")"
     rows_file="$(default_rows_cache_file)"
     refresh_default_cache_async
   else
-    theme_tmp="$(mktemp)"
-    rows_tmp="$(mktemp)"
-    "$STATS_BIN" "${stats_args[@]}" --format files --theme-file "$theme_tmp" --rows-file "$rows_tmp"
-    theme_str="$(cat "$theme_tmp")"
-    rows_file="$rows_tmp"
+    local_theme_file="$(mktemp)"
+    local_rows_file="$(mktemp)"
+    "$STATS_BIN" --view "$VIEW" --date "$TARGET_DATE" --format files --theme-file "$local_theme_file" --rows-file "$local_rows_file"
+    theme_str="$(cat "$local_theme_file")"
+    rows_file="$local_rows_file"
     if is_default_today_view; then
       write_default_cache "$theme_str" "$rows_file"
     fi
-    rm -f "$theme_tmp"
+    rm -f "$local_theme_file"
   fi
 
   if ! selection="$(
@@ -150,67 +165,34 @@ while :; do
           -theme-str "$theme_str" \
           -p ""
   )"; then
-    if [ -n "$rows_tmp" ] && [ -f "$rows_tmp" ]; then
-      rm -f "$rows_tmp"
+    if [ -n "$local_rows_file" ] && [ -f "$local_rows_file" ]; then
+      rm -f "$local_rows_file"
     fi
     exit 0
   fi
 
-  if [ -n "$rows_tmp" ] && [ -f "$rows_tmp" ]; then
-    rm -f "$rows_tmp"
+  if [ -n "$local_rows_file" ] && [ -f "$local_rows_file" ]; then
+    rm -f "$local_rows_file"
   fi
 
   case "$selection" in
     close|"")
       exit 0
       ;;
-    view:day:*)
-      VIEW="day"
-      TARGET_DATE="${selection#view:day:}"
-      APP_FILTER=""
-      ;;
-    view:week:*)
-      VIEW="week"
-      TARGET_DATE="${selection#view:week:}"
-      APP_FILTER=""
-      ;;
-    app:*)
-      VIEW="app"
-      APP_FILTER="${selection#app:}"
-      APP_FILTER="${APP_FILTER%:*}"
+    view:*:*)
+      VIEW="${selection#view:}"
+      VIEW="${VIEW%%:*}"
       TARGET_DATE="${selection##*:}"
       ;;
-    nav:prev-day-app:*)
-      VIEW="app"
-      TARGET_DATE="$(printf '%s' "$selection" | cut -d: -f3)"
-      APP_FILTER="$(printf '%s' "$selection" | cut -d: -f4)"
-      ;;
-    nav:next-day-app:*)
-      VIEW="app"
-      TARGET_DATE="$(printf '%s' "$selection" | cut -d: -f3)"
-      APP_FILTER="$(printf '%s' "$selection" | cut -d: -f4)"
-      ;;
     nav:prev-day:*)
-      VIEW="$VIEW"
-      TARGET_DATE="${selection#nav:prev-day:}"
-      TARGET_DATE="${TARGET_DATE%%:*}"
+      TARGET_DATE="$(printf '%s' "$selection" | cut -d: -f3)"
+      VIEW="$(printf '%s' "$selection" | cut -d: -f4)"
       ;;
     nav:next-day:*)
-      VIEW="$VIEW"
-      TARGET_DATE="${selection#nav:next-day:}"
-      TARGET_DATE="${TARGET_DATE%%:*}"
+      TARGET_DATE="$(printf '%s' "$selection" | cut -d: -f3)"
+      VIEW="$(printf '%s' "$selection" | cut -d: -f4)"
       ;;
-    nav:prev-week:*)
-      VIEW="week"
-      TARGET_DATE="${selection#nav:prev-week:}"
-      APP_FILTER=""
-      ;;
-    nav:next-week:*)
-      VIEW="week"
-      TARGET_DATE="${selection#nav:next-week:}"
-      APP_FILTER=""
-      ;;
-    refresh:day:*|refresh:week:*|refresh:app:*)
+    refresh:*)
       :
       ;;
     *)

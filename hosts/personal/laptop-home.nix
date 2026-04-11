@@ -1,4 +1,4 @@
-{ config, osConfig, ... }:
+{ config, osConfig, pkgs, ... }:
 let
   homeDir = config.home.homeDirectory;
   themeGeneratedDir = "${config.xdg.configHome}/theme/generated";
@@ -37,6 +37,7 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time;
       executable = true;
     };
+    ".local/lib/rofi-screen-time".source = ../../dotfiles/common/rofi-screen-time;
     ".local/bin/rofi-screen-time-cache" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-cache;
       executable = true;
@@ -126,6 +127,15 @@ in
       WantedBy = [ "graphical-session.target" ];
     };
   };
+
+  home.activation.rofiScreenTimeCategoryMapSeed = config.lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    ${pkgs.coreutils}/bin/mkdir -p "${config.xdg.configHome}/rofi-screen-time"
+    if [ ! -e "${config.xdg.configHome}/rofi-screen-time/category-map.json" ]; then
+      ${pkgs.coreutils}/bin/cp \
+        "${homeDir}/.local/lib/rofi-screen-time/category-map.default.json" \
+        "${config.xdg.configHome}/rofi-screen-time/category-map.json"
+    fi
+  '';
 
   systemd.user.timers.rofi-screen-time-cache = {
     Unit = {
