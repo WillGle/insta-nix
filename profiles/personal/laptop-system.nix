@@ -15,6 +15,7 @@
     fstrim.enable = true;
 
     hypridle.enable = true;
+    cpupower-gui.enable = true;
 
     displayManager = {
       sddm = {
