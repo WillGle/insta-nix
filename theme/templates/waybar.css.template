@@ -46,6 +46,7 @@ window#waybar {
 #tray,
 #pulseaudio,
 #custom-memory_info,
+#custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
 #custom-power_profile,
@@ -68,6 +69,7 @@ menuitem,
 #tray,
 #pulseaudio,
 #custom-memory_info,
+#custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
 #custom-power_profile,
@@ -98,6 +100,7 @@ menuitem,
 #tray,
 #pulseaudio,
 #custom-memory_info,
+#custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
 #custom-power_profile,
@@ -140,6 +143,7 @@ menuitem,
 #tray:hover,
 #pulseaudio:hover,
 #custom-memory_info:hover,
+#custom-network_info:hover,
 #custom-apu_info:hover,
 #custom-power_flow:hover,
 #custom-power_profile:hover,
@@ -200,6 +204,15 @@ menuitem:hover,
 #custom-memory_info.critical {
   color: @error;
   font-weight: bold;
+}
+
+#custom-network_info.disconnected,
+#custom-network_info.disabled {
+  color: @subtext;
+}
+
+#custom-network_info.ethernet {
+  color: @accent;
 }
 
 #pulseaudio.muted {
