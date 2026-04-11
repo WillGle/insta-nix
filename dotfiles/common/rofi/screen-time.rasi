@@ -15,8 +15,8 @@
 }
 
 window {
-  width:            86%;
-  height:           92%;
+  width:            88%;
+  height:           94%;
   border:           1px;
   border-radius:    24px;
   border-color:     @window-border;
@@ -246,9 +246,9 @@ textbox-note {
 
 listview {
   expand:           true;
-  lines:            6;
+  lines:            10;
   fixed-height:     false;
-  spacing:          10px;
+  spacing:          8px;
   scrollbar:        false;
   background-color: transparent;
 }
