@@ -29,10 +29,6 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/monitor-setup;
       executable = true;
     };
-    ".local/bin/waybar-atomic-note" = {
-      source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-atomic-note;
-      executable = true;
-    };
     ".local/bin/waybar-memory-info" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-memory-info;
       executable = true;
