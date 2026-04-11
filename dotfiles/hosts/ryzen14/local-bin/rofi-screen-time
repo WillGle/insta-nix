@@ -62,10 +62,9 @@ while :; do
   fi
 
   theme_str="$("$STATS_BIN" "${stats_args[@]}" --format theme)"
-  rows="$("$STATS_BIN" "${stats_args[@]}" --format rows)"
 
   selection="$(
-    printf '%s\n' "$rows" \
+    "$STATS_BIN" "${stats_args[@]}" --format rows \
       | rofi -dmenu -markup-rows -show-icons -no-custom \
           -config "$ROFI_CONFIG" \
           -theme "$ROFI_THEME" \
