@@ -3,7 +3,7 @@
   "position": "top",
   "height": 30,
   "modules-left": [
-    "custom/clock_weather",
+    "clock",
     "custom/power_profile",
     "custom/battery_mode",
     "custom/refresh_rate",
@@ -17,17 +17,21 @@
     "custom/memory_info",
     "custom/apu_info",
     "custom/power_flow",
-    "custom/network_info",
-    "tray"
+    "group/tray_group"
   ],
   "hyprland/workspaces": {
     "format": "{name}"
   },
-  "custom/clock_weather": {
-    "exec": "$HOME/.local/bin/waybar-clock-weather-info",
-    "return-type": "json",
+  "clock": {
+    "format": " %a %d %b  %H:%M",
     "interval": 1,
-    "tooltip": true
+    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "calendar": {
+      "mode": "month",
+      "mode-mon-col": 3,
+      "weeks-pos": "right",
+      "on-scroll": 1
+    }
   },
   // ─── Memory (custom with top-process tooltip) ─────────────────────
   "custom/memory_info": {
@@ -104,6 +108,13 @@
     "on-click-right": "$HOME/.local/bin/atomic-note add",
     "signal": 5,
     "tooltip": true
+  },
+  "group/tray_group": {
+    "orientation": "inherit",
+    "modules": [
+      "custom/network_info",
+      "tray"
+    ]
   },
   "custom/network_info": {
     "exec": "$HOME/.local/bin/waybar-network-info",
