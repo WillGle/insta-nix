@@ -32,7 +32,7 @@
   font-size: __UI_FONT_SIZE__px;
   background: transparent;
   color: @text;
-  transition: all 0.3s ease;
+  transition: none;
 }
 
 window#waybar {
