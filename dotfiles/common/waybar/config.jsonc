@@ -14,10 +14,10 @@
     "custom/atomic_note"
   ],
   "modules-right": [
-    "custom/network_info",
     "custom/memory_info",
     "custom/apu_info",
     "custom/power_flow",
+    "custom/network_info",
     "tray"
   ],
   "hyprland/workspaces": {
@@ -109,6 +109,7 @@
     "exec": "$HOME/.local/bin/waybar-network-info",
     "return-type": "json",
     "interval": 5,
+    "on-click": "nm-connection-editor",
     "tooltip": true
   }
 }
