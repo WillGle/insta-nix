@@ -8,6 +8,7 @@ SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"
 STATE_DIR="$SCREEN_TIME_HOME"
 COMMAND="toggle"
 FORMAT="text"
+CACHE_SERVICE_NAME="${CACHE_SERVICE_NAME:-rofi-screen-time-cache.service}"
 
 usage() {
   cat <<'EOF'
@@ -53,6 +54,10 @@ notify() {
   if command -v notify-send >/dev/null 2>&1; then
     notify-send -a "study-timer" "$title" "$body"
   fi
+}
+
+refresh_screen_time_cache() {
+  systemctl --user start "$CACHE_SERVICE_NAME" >/dev/null 2>&1 || true
 }
 
 epoch_from_iso() {
@@ -317,6 +322,7 @@ start_session() {
 
   result_json="$(study_status_json)"
   notify "Study timer started" "Started at $(date -d "$current_now" '+%H:%M')"
+  refresh_screen_time_cache
   print_result "$result_json" "start"
 }
 
@@ -347,6 +353,7 @@ stop_session() {
     --argjson elapsed_seconds "$elapsed_seconds" \
     '{active:false, started_at:$started_at, stopped_at:$stopped_at, elapsed_seconds:$elapsed_seconds}')"
   notify "Study timer stopped" "Logged $(seconds_to_short "$elapsed_seconds")"
+  refresh_screen_time_cache
   print_result "$result_json" "stop"
 }
 
