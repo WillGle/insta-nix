@@ -26,6 +26,7 @@
   "clock": {
     "format": " {:%a %d %b  %H:%M}",
     "interval": 1,
+    "on-click-right": "$HOME/.local/bin/rofi-screen-time",
     "tooltip-format": "{calendar}",
     "calendar": {
       "mode": "month",
