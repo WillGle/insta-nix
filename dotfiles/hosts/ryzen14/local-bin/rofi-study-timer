@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
+
+ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
+TIMER_BIN="${TIMER_BIN:-${HOME}/.local/bin/study-timer}"
+SCREEN_TIME_BIN="${SCREEN_TIME_BIN:-${HOME}/.local/bin/rofi-screen-time}"
+
+escape_markup() {
+  local value="${1//&/&amp;}"
+  value="${value//</&lt;}"
+  value="${value//>/&gt;}"
+  printf '%s\n' "$value"
+}
+
+emit_row() {
+  local token="$1"
+  local display="$2"
+  local icon="${3:-}"
+  printf '%s' "$token"
+  printf '\0display\x1f%s' "$display"
+  if [ -n "$icon" ]; then
+    printf '\x1ficon\x1f%s' "$icon"
+  fi
+  printf '\n'
+}
+
+seconds_to_short() {
+  local total="${1:-0}"
+  local hours=$((total / 3600))
+  local minutes=$(((total % 3600) / 60))
+
+  if [ "$total" -gt 0 ] && [ "$hours" -eq 0 ] && [ "$minutes" -eq 0 ]; then
+    printf '~1m\n'
+    return 0
+  fi
+  if [ "$hours" -gt 0 ] && [ "$minutes" -gt 0 ]; then
+    printf '%dh %dm\n' "$hours" "$minutes"
+    return 0
+  fi
+  if [ "$hours" -gt 0 ]; then
+    printf '%dh\n' "$hours"
+    return 0
+  fi
+  printf '%dm\n' "$minutes"
+}
+
+row_markup() {
+  local title="$1"
+  local subtitle="${2:-}"
+
+  if [ -n "$subtitle" ]; then
+    printf '<span weight="600">%s</span>&#10;<span size="small">%s</span>' \
+      "$(escape_markup "$title")" \
+      "$(escape_markup "$subtitle")"
+  else
+    printf '<span weight="600">%s</span>' "$(escape_markup "$title")"
+  fi
+}
+
+status_json="$("$TIMER_BIN" status --format json)"
+active="$(printf '%s' "$status_json" | jq -r '.active')"
+started_at="$(printf '%s' "$status_json" | jq -r '.started_at // empty')"
+elapsed_seconds="$(printf '%s' "$status_json" | jq -r '.elapsed_seconds // 0')"
+elapsed_label="$("$TIMER_BIN" status | sed 's/^active //; s/^inactive$/No active study session/')"
+
+rows="$(
+  if [ "$active" = "true" ]; then
+    emit_row "stop" "$(row_markup "Stop study session" "$elapsed_label")" "media-playback-stop-symbolic"
+  else
+    emit_row "start" "$(row_markup "Start study session" "No active study session")" "media-playback-start-symbolic"
+  fi
+  if [ "$active" = "true" ] && [ -n "$started_at" ]; then
+    emit_row "status" "$(row_markup "Current session" "Started $(date -d "$started_at" '+%H:%M') • $(seconds_to_short "$elapsed_seconds")")" "appointment-symbolic"
+  fi
+  emit_row "screen-time" "$(row_markup "Open screen time" "Dashboard and study totals")" "view-calendar-symbolic"
+  emit_row "close" "$(row_markup "Close")" "window-close-symbolic"
+)"
+
+selection="$(
+  printf '%s' "$rows" \
+    | rofi -dmenu -markup-rows -show-icons -no-custom \
+        -config "$ROFI_CONFIG" \
+        -p ""
+)" || exit 0
+
+case "$selection" in
+  start)
+    "$TIMER_BIN" start >/dev/null 2>&1
+    ;;
+  stop)
+    "$TIMER_BIN" stop >/dev/null 2>&1
+    ;;
+  screen-time)
+    setsid -f "$SCREEN_TIME_BIN" >/dev/null 2>&1 || true
+    ;;
+  close|"")
+    exit 0
+    ;;
+esac

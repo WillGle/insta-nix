@@ -118,3 +118,7 @@ in
     Categories=GNOME;GTK;Settings;HardwareSettings;
   '';
 }
+    ".local/bin/rofi-study-timer" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-study-timer;
+      executable = true;
+    };
