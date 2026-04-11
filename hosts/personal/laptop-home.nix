@@ -45,6 +45,10 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-refresh-toggle;
       executable = true;
     };
+    ".local/bin/waybar-weather-info" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-weather-info;
+      executable = true;
+    };
   };
 
   xdg.configFile = {

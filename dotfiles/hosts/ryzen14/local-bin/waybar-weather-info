@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+# Fetch weather and calendar info for Waybar tooltip
+
+# Get weather from wttr.in (short format for text, detailed for tooltip)
+WEATHER=$(curl -s "wttr.in?format=%c+%t+%C")
+if [ $? -ne 0 ] || [ -z "$WEATHER" ]; then
+    WEATHER="󰖐 N/A"
+fi
+
+# Get detailed weather for tooltip
+WEATHER_DETAILED=$(curl -s "wttr.in?format=%c+%t+%C\nFeels+like:+%f\nHumidity:+%h\nWind:+%w")
+
+# Get calendar
+CALENDAR=$(cal | sed 's/^/  /')
+
+TOOLTIP="<b>Weather Status</b>\n$WEATHER_DETAILED\n\n<b>Calendar</b>\n<tt>$CALENDAR</tt>"
+
+printf '{"text": "%s", "tooltip": "%s"}\n' "$WEATHER" "$TOOLTIP"

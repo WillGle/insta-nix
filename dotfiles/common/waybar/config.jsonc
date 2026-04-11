@@ -4,6 +4,7 @@
   "height": 30,
   "modules-left": [
     "clock",
+    "custom/weather_info",
     "custom/power_profile",
     "custom/battery_mode",
     "custom/refresh_rate",
@@ -101,6 +102,12 @@
     "on-click": "$HOME/.local/bin/atomic-note rofi",
     "on-click-right": "$HOME/.local/bin/atomic-note add",
     "signal": 5,
+    "tooltip": true
+  },
+  "custom/weather_info": {
+    "exec": "$HOME/.local/bin/waybar-weather-info",
+    "return-type": "json",
+    "interval": 3600,
     "tooltip": true
   }
 }
