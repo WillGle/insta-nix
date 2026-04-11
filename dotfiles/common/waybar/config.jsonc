@@ -3,8 +3,7 @@
   "position": "top",
   "height": 30,
   "modules-left": [
-    "clock",
-    "custom/weather_info",
+    "custom/clock_weather",
     "custom/power_profile",
     "custom/battery_mode",
     "custom/refresh_rate",
@@ -24,10 +23,11 @@
   "hyprland/workspaces": {
     "format": "{name}"
   },
-  "clock": {
-    "format": " {:%a %d %b  %H:%M}",
-    "tooltip-format": "<big>{:%A, %d %B %Y}</big>\n<tt>{calendar}</tt>",
-    "on-click": "gsimplecal"
+  "custom/clock_weather": {
+    "exec": "$HOME/.local/bin/waybar-clock-weather-info",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": true
   },
   // ─── Memory (custom with top-process tooltip) ─────────────────────
   "custom/memory_info": {
@@ -109,12 +109,6 @@
     "exec": "$HOME/.local/bin/waybar-network-info",
     "return-type": "json",
     "interval": 5,
-    "tooltip": true
-  },
-  "custom/weather_info": {
-    "exec": "$HOME/.local/bin/waybar-weather-info",
-    "return-type": "json",
-    "interval": 3600,
     "tooltip": true
   }
 }

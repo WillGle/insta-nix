@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Combined Clock and Weather for Waybar tooltip
+
+# Current time with icon
+TIME=$(date +" %a %d %b  %H:%M")
+
+# Fetch weather (detailed format)
+WEATHER_DETAILED=$(curl -s "wttr.in?format=%c+%t+%C\nFeels+like:+%f\nHumidity:+%h\nWind:+%w")
+if [ $? -ne 0 ] || [ -z "$WEATHER_DETAILED" ]; then
+    WEATHER_DETAILED="Weather data unavailable"
+fi
+
+# Get calendar
+CALENDAR=$(cal | sed 's/^/  /')
+
+TOOLTIP="<b>Weather Status</b>\n$WEATHER_DETAILED\n\n<b>Calendar</b>\n<tt>$CALENDAR</tt>"
+
+jq -n \
+  --arg text "$TIME" \
+  --arg tooltip "$TOOLTIP" \
+  '{"text": $text, "tooltip": $tooltip}'

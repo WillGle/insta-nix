@@ -53,6 +53,10 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-weather-info;
       executable = true;
     };
+    ".local/bin/waybar-clock-weather-info" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-clock-weather-info;
+      executable = true;
+    };
   };
 
   xdg.configFile = {
