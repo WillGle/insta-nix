@@ -45,18 +45,6 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-refresh-toggle;
       executable = true;
     };
-    ".local/bin/waybar-network-info" = {
-      source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-network-info;
-      executable = true;
-    };
-    ".local/bin/waybar-weather-info" = {
-      source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-weather-info;
-      executable = true;
-    };
-    ".local/bin/waybar-clock-weather-info" = {
-      source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-clock-weather-info;
-      executable = true;
-    };
   };
 
   xdg.configFile = {
@@ -77,4 +65,18 @@ in
 
     "kanshi/config".source = ../../dotfiles/hosts/ryzen14/kanshi/config;
   };
+
+  xdg.dataFile."applications/org.rnd2.cpupower_gui.desktop".text = ''
+    [Desktop Entry]
+    Version=1.1
+    Name=cpupower-gui
+    GenericName=CPU frequency settings
+    Comment=Sets the frequency limits of the CPU
+    Exec=/run/current-system/sw/bin/cpupower-gui
+    Icon=org.rnd2.cpupower_gui
+    Terminal=false
+    Type=Application
+    StartupNotify=true
+    Categories=GNOME;GTK;Settings;HardwareSettings;
+  '';
 }
