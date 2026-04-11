@@ -1,0 +1,403 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
+
+SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${HOME}/.local/share/rofi-screen-time}"
+SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"
+STATE_DIR="$SCREEN_TIME_HOME"
+COMMAND="toggle"
+FORMAT="text"
+
+usage() {
+  cat <<'EOF'
+Usage: study-timer [start|stop|toggle|status] [--format text|json] [--state-dir PATH]
+EOF
+}
+
+day_file() {
+  printf '%s/days/%s.json\n' "$STATE_DIR" "$1"
+}
+
+active_file() {
+  printf '%s/study-active.json\n' "$STATE_DIR"
+}
+
+now_iso() {
+  date --iso-8601=seconds
+}
+
+seconds_to_short() {
+  local total="${1:-0}"
+  local hours=$((total / 3600))
+  local minutes=$(((total % 3600) / 60))
+
+  if [ "$total" -gt 0 ] && [ "$hours" -eq 0 ] && [ "$minutes" -eq 0 ]; then
+    printf '~1m\n'
+    return 0
+  fi
+  if [ "$hours" -gt 0 ] && [ "$minutes" -gt 0 ]; then
+    printf '%dh %dm\n' "$hours" "$minutes"
+    return 0
+  fi
+  if [ "$hours" -gt 0 ]; then
+    printf '%dh\n' "$hours"
+    return 0
+  fi
+  printf '%dm\n' "$minutes"
+}
+
+notify() {
+  local title="$1"
+  local body="$2"
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send -a "study-timer" "$title" "$body"
+  fi
+}
+
+epoch_from_iso() {
+  date -d "$1" +%s 2>/dev/null || printf '0\n'
+}
+
+default_day_json() {
+  local target_date="$1"
+  local current_now="$2"
+  local sample="$3"
+
+  jq -n \
+    --arg date "$target_date" \
+    --arg now "$current_now" \
+    --argjson sample "$sample" \
+    '{
+      version: 1,
+      date: $date,
+      updated_at: $now,
+      sample_seconds: $sample,
+      sample_count: 0,
+      first_seen: "",
+      last_seen: "",
+      session_count: 0,
+      switch_count: 0,
+      last_app: "",
+      last_sample_at: "",
+      total_seconds: 0,
+      slots_30m: ([range(0; 48)] | map(0)),
+      apps: {},
+      study: {
+        total_seconds: 0,
+        session_count: 0,
+        last_started_at: "",
+        last_stopped_at: ""
+      }
+    }'
+}
+
+ensure_dirs() {
+  mkdir -p "$STATE_DIR/days"
+}
+
+ensure_day_file() {
+  local target_date="$1"
+  local current_now="$2"
+  local file
+  local tmp
+  file="$(day_file "$target_date")"
+
+  if [ ! -f "$file" ]; then
+    default_day_json "$target_date" "$current_now" "$SCREEN_TIME_SAMPLE_SECONDS" >"$file"
+    return 0
+  fi
+
+  tmp="$(mktemp "${file}.XXXXXX")"
+  jq --arg now "$current_now" '
+    .study = (.study // {
+      total_seconds: 0,
+      session_count: 0,
+      last_started_at: "",
+      last_stopped_at: ""
+    })
+    | .updated_at = (.updated_at // $now)
+  ' "$file" >"$tmp"
+  mv "$tmp" "$file"
+}
+
+study_status_json() {
+  local file
+  local started_at=""
+  local started_date=""
+  local start_epoch=0
+  local current_epoch=0
+  local elapsed=0
+
+  file="$(active_file)"
+  if [ ! -f "$file" ]; then
+    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
+    return 0
+  fi
+  if ! jq -e '.active == true and (.started_at // "" | length > 0)' "$file" >/dev/null 2>&1; then
+    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
+    return 0
+  fi
+
+  started_at="$(jq -r '.started_at // empty' "$file")"
+  start_epoch="$(epoch_from_iso "$started_at")"
+  if [ "$start_epoch" -le 0 ]; then
+    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
+    return 0
+  fi
+
+  current_epoch="$(epoch_from_iso "$(now_iso)")"
+  if [ "$current_epoch" -gt "$start_epoch" ]; then
+    elapsed=$((current_epoch - start_epoch))
+  fi
+  started_date="$(date -d "$started_at" +%F)"
+
+  jq -n \
+    --arg started_at "$started_at" \
+    --arg started_date "$started_date" \
+    --argjson elapsed_seconds "$elapsed" \
+    '{active:true, started_at:$started_at, started_date:$started_date, elapsed_seconds:$elapsed_seconds}'
+}
+
+print_result() {
+  local json="$1"
+  local action="${2:-status}"
+  local active=""
+  local started_at=""
+  local elapsed=0
+
+  if [ "$FORMAT" = "json" ]; then
+    printf '%s\n' "$json"
+    return 0
+  fi
+
+  active="$(printf '%s' "$json" | jq -r '.active')"
+  started_at="$(printf '%s' "$json" | jq -r '.started_at // empty')"
+  elapsed="$(printf '%s' "$json" | jq -r '.elapsed_seconds // 0')"
+
+  case "$action" in
+    start)
+      printf 'started %s\n' "$(seconds_to_short "$elapsed")"
+      ;;
+    stop)
+      printf 'stopped %s\n' "$(seconds_to_short "$elapsed")"
+      ;;
+    *)
+      if [ "$active" = "true" ]; then
+        printf 'active %s since %s\n' "$(seconds_to_short "$elapsed")" "$(date -d "$started_at" '+%H:%M')"
+      else
+        printf 'inactive\n'
+      fi
+      ;;
+  esac
+}
+
+mark_session_started() {
+  local target_date="$1"
+  local started_at="$2"
+  local file
+  local tmp
+  file="$(day_file "$target_date")"
+
+  ensure_day_file "$target_date" "$started_at"
+  tmp="$(mktemp "${file}.XXXXXX")"
+  jq --arg now "$started_at" '
+    .updated_at = $now
+    | .study = (
+        (.study // {
+          total_seconds: 0,
+          session_count: 0,
+          last_started_at: "",
+          last_stopped_at: ""
+        })
+        | .session_count = ((.session_count // 0) + 1)
+        | .last_started_at = $now
+      )
+  ' "$file" >"$tmp"
+  mv "$tmp" "$file"
+}
+
+add_study_seconds() {
+  local target_date="$1"
+  local elapsed_seconds="$2"
+  local stopped_at="$3"
+  local file
+  local tmp
+  file="$(day_file "$target_date")"
+
+  ensure_day_file "$target_date" "$stopped_at"
+  tmp="$(mktemp "${file}.XXXXXX")"
+  jq \
+    --arg now "$stopped_at" \
+    --argjson elapsed_seconds "$elapsed_seconds" \
+    '
+    .updated_at = $now
+    | .study = (
+        (.study // {
+          total_seconds: 0,
+          session_count: 0,
+          last_started_at: "",
+          last_stopped_at: ""
+        })
+        | .total_seconds = ((.total_seconds // 0) + $elapsed_seconds)
+        | .last_stopped_at = $now
+      )
+  ' "$file" >"$tmp"
+  mv "$tmp" "$file"
+}
+
+record_elapsed_session() {
+  local started_at="$1"
+  local stopped_at="$2"
+  local start_epoch=0
+  local stop_epoch=0
+  local cursor_date=""
+  local day_start=0
+  local day_end=0
+  local overlap_start=0
+  local overlap_end=0
+  local elapsed_seconds=0
+  local next_date=""
+
+  start_epoch="$(epoch_from_iso "$started_at")"
+  stop_epoch="$(epoch_from_iso "$stopped_at")"
+  if [ "$stop_epoch" -lt "$start_epoch" ]; then
+    stop_epoch="$start_epoch"
+  fi
+
+  cursor_date="$(date -d "$started_at" +%F)"
+  while :; do
+    day_start="$(date -d "$cursor_date 00:00:00" +%s)"
+    next_date="$(date -d "$cursor_date +1 day" +%F)"
+    day_end="$(date -d "$next_date 00:00:00" +%s)"
+
+    overlap_start="$start_epoch"
+    if [ "$day_start" -gt "$overlap_start" ]; then
+      overlap_start="$day_start"
+    fi
+
+    overlap_end="$stop_epoch"
+    if [ "$day_end" -lt "$overlap_end" ]; then
+      overlap_end="$day_end"
+    fi
+
+    if [ "$overlap_end" -gt "$overlap_start" ]; then
+      elapsed_seconds=$((overlap_end - overlap_start))
+      add_study_seconds "$cursor_date" "$elapsed_seconds" "$stopped_at"
+    fi
+
+    if [ "$day_end" -ge "$stop_epoch" ]; then
+      break
+    fi
+    cursor_date="$next_date"
+  done
+}
+
+start_session() {
+  local status_json=""
+  local current_now=""
+  local target_date=""
+  local result_json=""
+
+  ensure_dirs
+  status_json="$(study_status_json)"
+  if [ "$(printf '%s' "$status_json" | jq -r '.active')" = "true" ]; then
+    notify "Study timer already running" "Current session: $(seconds_to_short "$(printf '%s' "$status_json" | jq -r '.elapsed_seconds // 0')")"
+    print_result "$status_json" "status"
+    return 0
+  fi
+
+  current_now="$(now_iso)"
+  target_date="$(date -d "$current_now" +%F)"
+  mark_session_started "$target_date" "$current_now"
+  jq -n \
+    --arg started_at "$current_now" \
+    --arg started_date "$target_date" \
+    '{version:1, active:true, started_at:$started_at, started_date:$started_date}' >"$(active_file)"
+
+  result_json="$(study_status_json)"
+  notify "Study timer started" "Started at $(date -d "$current_now" '+%H:%M')"
+  print_result "$result_json" "start"
+}
+
+stop_session() {
+  local status_json=""
+  local started_at=""
+  local current_now=""
+  local elapsed_seconds=0
+  local result_json=""
+
+  ensure_dirs
+  status_json="$(study_status_json)"
+  if [ "$(printf '%s' "$status_json" | jq -r '.active')" != "true" ]; then
+    notify "Study timer idle" "No active study session to stop."
+    print_result "$status_json" "status"
+    return 0
+  fi
+
+  started_at="$(printf '%s' "$status_json" | jq -r '.started_at')"
+  elapsed_seconds="$(printf '%s' "$status_json" | jq -r '.elapsed_seconds // 0')"
+  current_now="$(now_iso)"
+  record_elapsed_session "$started_at" "$current_now"
+  rm -f "$(active_file)"
+
+  result_json="$(jq -n \
+    --arg started_at "$started_at" \
+    --arg stopped_at "$current_now" \
+    --argjson elapsed_seconds "$elapsed_seconds" \
+    '{active:false, started_at:$started_at, stopped_at:$stopped_at, elapsed_seconds:$elapsed_seconds}')"
+  notify "Study timer stopped" "Logged $(seconds_to_short "$elapsed_seconds")"
+  print_result "$result_json" "stop"
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    start|stop|toggle|status)
+      COMMAND="$1"
+      shift
+      ;;
+    --format)
+      FORMAT="${2:-}"
+      shift 2
+      ;;
+    --state-dir)
+      STATE_DIR="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+case "$FORMAT" in
+  text|json) ;;
+  *)
+    printf 'study-timer: invalid format %s\n' "$FORMAT" >&2
+    exit 2
+    ;;
+esac
+
+case "$COMMAND" in
+  start)
+    start_session
+    ;;
+  stop)
+    stop_session
+    ;;
+  toggle)
+    if [ "$(study_status_json | jq -r '.active')" = "true" ]; then
+      stop_session
+    else
+      start_session
+    fi
+    ;;
+  status)
+    print_result "$(study_status_json)" "status"
+    ;;
+esac

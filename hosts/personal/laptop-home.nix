@@ -45,6 +45,10 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-track;
       executable = true;
     };
+    ".local/bin/study-timer" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/study-timer;
+      executable = true;
+    };
     ".local/bin/waybar-memory-info" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-memory-info;
       executable = true;
