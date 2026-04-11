@@ -187,6 +187,13 @@ default_day_json() {
       date: $date,
       updated_at: $now,
       sample_seconds: $sample,
+      sample_count: 0,
+      first_seen: "",
+      last_seen: "",
+      session_count: 0,
+      switch_count: 0,
+      last_app: "",
+      last_sample_at: "",
       total_seconds: 0,
       slots_30m: ([range(0; 48)] | map(0)),
       apps: {}
@@ -208,6 +215,12 @@ record_sample() {
   local minute=""
   local slot_idx=""
   local now_iso=""
+  local previous_app=""
+  local previous_sample_at=""
+  local previous_epoch=0
+  local now_epoch=0
+  local new_session=0
+  local new_switch=0
 
   raw_class="$(printf '%s' "$payload" | jq -r '.initialClass // .class // empty')"
   title="$(printf '%s' "$payload" | jq -r '.initialTitle // .title // empty')"
@@ -234,6 +247,23 @@ record_sample() {
 
   [ -f "$day_file" ] || default_day_json "$target_date" "$now_iso" "$INTERVAL_SECONDS" >"$day_file"
 
+  previous_app="$(jq -r '.last_app // empty' "$day_file" 2>/dev/null || true)"
+  previous_sample_at="$(jq -r '.last_sample_at // empty' "$day_file" 2>/dev/null || true)"
+
+  if [ -z "$previous_app" ] || [ "$previous_app" != "$normalized" ]; then
+    new_session=1
+  fi
+  if [ -n "$previous_app" ] && [ "$previous_app" != "$normalized" ]; then
+    new_switch=1
+  fi
+  if [ -n "$previous_sample_at" ]; then
+    previous_epoch="$(date -d "$previous_sample_at" +%s 2>/dev/null || printf '0')"
+    now_epoch="$(date -d "$now_iso" +%s 2>/dev/null || printf '0')"
+    if [ "$previous_epoch" -gt 0 ] && [ "$now_epoch" -gt 0 ] && [ $((now_epoch - previous_epoch)) -gt $((INTERVAL_SECONDS * 3)) ]; then
+      new_session=1
+    fi
+  fi
+
   tmp_file="$(mktemp "${day_file}.XXXXXX")"
   jq \
     --arg date "$target_date" \
@@ -244,11 +274,20 @@ record_sample() {
     --arg icon "$icon_name" \
     --argjson sample "$INTERVAL_SECONDS" \
     --argjson slot "$slot_idx" \
+    --argjson new_session "$new_session" \
+    --argjson new_switch "$new_switch" \
     '
     .version = 1
     | .date = $date
     | .updated_at = $now
     | .sample_seconds = $sample
+    | .sample_count = ((.sample_count // 0) + 1)
+    | .first_seen = (.first_seen // $now)
+    | .last_seen = $now
+    | .session_count = ((.session_count // 0) + $new_session)
+    | .switch_count = ((.switch_count // 0) + $new_switch)
+    | .last_app = $key
+    | .last_sample_at = $now
     | .total_seconds = ((.total_seconds // 0) + $sample)
     | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
     | .apps[$key] = (
@@ -257,12 +296,20 @@ record_sample() {
           name: $name,
           icon: $icon,
           seconds: 0,
+          sample_count: 0,
+          first_seen: $now,
+          last_seen: $now,
+          session_count: 0,
           slots_30m: ([range(0; 48)] | map(0))
         })
         | .class = $class
         | .name = $name
         | .icon = $icon
         | .seconds = ((.seconds // 0) + $sample)
+        | .sample_count = ((.sample_count // 0) + 1)
+        | .first_seen = (.first_seen // $now)
+        | .last_seen = $now
+        | .session_count = ((.session_count // 0) + $new_session)
         | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
       )
     ' "$day_file" >"$tmp_file"
