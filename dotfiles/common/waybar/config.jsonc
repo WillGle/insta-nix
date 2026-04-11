@@ -17,13 +17,13 @@
     "custom/memory_info",
     "custom/apu_info",
     "custom/power_flow",
-    "group/tray_group"
+    "tray"
   ],
   "hyprland/workspaces": {
     "format": "{name}"
   },
   "clock": {
-    "format": " %a %d %b  %H:%M",
+    "format": " {:%a %d %b  %H:%M}",
     "interval": 1,
     "tooltip-format": "<tt><small>{calendar}</small></tt>",
     "calendar": {
@@ -109,18 +109,5 @@
     "signal": 5,
     "tooltip": true
   },
-  "group/tray_group": {
-    "orientation": "inherit",
-    "modules": [
-      "custom/network_info",
-      "tray"
-    ]
-  },
-  "custom/network_info": {
-    "exec": "$HOME/.local/bin/waybar-network-info",
-    "return-type": "json",
-    "interval": 5,
-    "on-click": "nm-connection-editor",
-    "tooltip": true
-  }
+  "tray": {}
 }
