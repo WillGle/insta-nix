@@ -33,6 +33,18 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-network;
       executable = true;
     };
+    ".local/bin/rofi-screen-time" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time;
+      executable = true;
+    };
+    ".local/bin/rofi-screen-time-stats" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-stats;
+      executable = true;
+    };
+    ".local/bin/rofi-screen-time-track" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-track;
+      executable = true;
+    };
     ".local/bin/waybar-memory-info" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-memory-info;
       executable = true;
@@ -72,6 +84,20 @@ in
     };
 
     "kanshi/config".source = ../../dotfiles/hosts/ryzen14/kanshi/config;
+    "rofi/screen-time.rasi".source = ../../dotfiles/common/rofi/screen-time.rasi;
+  };
+
+  systemd.user.services.rofi-screen-time-tracker = {
+    Unit = {
+      Description = "Track active application usage for the rofi screen-time dashboard";
+      After = [ "graphical-session.target" ];
+      PartOf = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = "${homeDir}/.local/bin/rofi-screen-time-track --interval-seconds 5";
+      Restart = "always";
+      RestartSec = "2s";
+    };
   };
 
   xdg.dataFile."applications/org.rnd2.cpupower_gui.desktop".text = ''
