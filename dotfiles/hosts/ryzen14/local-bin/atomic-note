@@ -19,10 +19,13 @@ ACTION_CLEAR_BG="${THEME_STATIC_ERROR:-#f38ba8}"
 ACTION_EDIT_BG="${THEME_STATIC_PURPLE:-#cba6f7}"
 ACTION_MOVE_BG="${THEME_STATIC_WARNING:-#fab387}"
 ACTION_CANCEL_BG="${THEME_STATIC_SUBTEXT:-#6c7086}"
+SECTION_BG="${THEME_STATIC_MANTLE:-#161b22}"
+SECTION_FG="${THEME_STATIC_TEXT:-#f0f6fc}"
 TASK_CRITICAL_BG="${THEME_STATIC_ERROR:-#f38ba8}"
 TASK_HIGH_BG="${THEME_STATIC_WARNING:-#fab387}"
 TASK_MODERATE_BG="${THEME_STATIC_ACCENT:-#89b4fa}"
 TASK_LOW_BG="${THEME_STATIC_SUCCESS:-#a6e3a1}"
+CHIP_ICON_FONT_DESC="${THEME_MONO_FONT:-JetBrainsMono Nerd Font} ${THEME_MONO_FONT_SIZE:-11}"
 
 refresh_waybar() {
   pkill -RTMIN+5 waybar >/dev/null 2>&1 || true
@@ -96,16 +99,16 @@ priority_label() {
 priority_icon() {
   case "$1" in
     critical)
-      printf '%s\n' ""
+      printf '%s\n' "◆"
       ;;
     high)
-      printf '%s\n' ""
+      printf '%s\n' "▲"
       ;;
     moderate)
-      printf '%s\n' ""
+      printf '%s\n' "●"
       ;;
     low)
-      printf '%s\n' ""
+      printf '%s\n' "○"
       ;;
   esac
 }
@@ -179,11 +182,34 @@ chip_label() {
   local icon="$1"
   local bg="$2"
   local label="$3"
-  printf '<span bgcolor="%s" foreground="%s"> %s </span>  %s\n' \
+  printf '<span bgcolor="%s" foreground="%s"><span font_desc="%s"> %s </span></span>  %s\n' \
     "$bg" \
     "$ACTION_FG" \
+    "$(escape_markup "$CHIP_ICON_FONT_DESC")" \
     "$icon" \
-    "$label"
+    "$(escape_markup "$label")"
+}
+
+icon_chip() {
+  local icon="$1"
+  local bg="$2"
+  printf '<span bgcolor="%s" foreground="%s"><span font_desc="%s"> %s </span></span>\n' \
+    "$bg" \
+    "$ACTION_FG" \
+    "$(escape_markup "$CHIP_ICON_FONT_DESC")" \
+    "$icon"
+}
+
+section_label() {
+  local label="$1"
+  printf '<span bgcolor="%s" foreground="%s"> %s </span>\n' \
+    "$SECTION_BG" \
+    "$SECTION_FG" \
+    "$(escape_markup "$label")"
+}
+
+empty_cell() {
+  printf '<span foreground="%s"> </span>\n' "$SECTION_BG"
 }
 
 task_label() {
@@ -193,7 +219,7 @@ task_label() {
   priority="$(task_priority "$task")"
   body="$(task_body "$task")"
   printf '%s  %s\n' \
-    "$(chip_label "$(priority_icon "$priority")" "$(priority_bg "$priority")" "$(priority_label "$priority")")" \
+    "$(icon_chip "$(priority_icon "$priority")" "$(priority_bg "$priority")")" \
     "$(escape_markup "$body")"
 }
 
@@ -286,7 +312,7 @@ render_waybar() {
   top_priority="$(task_priority "$top_task")"
   top_body="$(task_body "$top_task")"
   top_icon="$(priority_icon "$top_priority")"
-  display_text="$top_icon $top_body"
+  display_text="[$top_icon] $top_body"
   if [ "$remaining" -gt 0 ]; then
     display_text="$display_text   ($remaining)"
   fi
@@ -303,7 +329,7 @@ render_waybar() {
   fi
 
   jq -cn \
-    --arg text "󰠮 $display_text" \
+    --arg text "$display_text" \
     --arg tooltip "$tooltip" \
     --arg class "$top_priority" \
     '{text: $text, tooltip: $tooltip, class: $class}'
@@ -495,31 +521,85 @@ rofi_menu() {
     read_tasks
 
     local options=()
+    local hot_task_labels=()
+    local low_task_labels=()
     local task_labels=()
     local add_option
     local open_option
     local clear_option
+    local actions_header
+    local hot_header
+    local low_header
+    local action_rows=()
+    local hot_rows=()
+    local low_rows=()
+    local task
+    local display_task
+    local priority
+    local row_count=0
+    local menu_lines=0
+    local i
+    local left_cell
+    local middle_cell
+    local right_cell
 
     add_option="$(chip_label "󰐕" "$ACTION_ADD_BG" "Add task")"
     open_option="$(chip_label "󰈔" "$ACTION_OPEN_BG" "Open raw file")"
     clear_option="$(chip_label "󰩹" "$ACTION_CLEAR_BG" "Clear all")"
+    actions_header="$(section_label "Actions")"
+    hot_header="$(section_label "Critical / High")"
+    low_header="$(section_label "Moderate / Low")"
+    action_rows=("$add_option" "$open_option" "$clear_option")
 
-    options+=("$add_option")
-    options+=("$open_option")
-    options+=("$clear_option")
-
-    local task
     for task in "${TASKS[@]}"; do
-      local display_task
       display_task="$(task_label "$task")"
       task_labels+=("$display_task")
-      options+=("$display_task")
+      priority="$(task_priority "$task")"
+      if [ "$priority" = "critical" ] || [ "$priority" = "high" ]; then
+        hot_task_labels+=("$display_task")
+      else
+        low_task_labels+=("$display_task")
+      fi
+    done
+
+    hot_rows=("${hot_task_labels[@]}")
+    low_rows=("${low_task_labels[@]}")
+
+    row_count="${#action_rows[@]}"
+    if [ "${#hot_rows[@]}" -gt "$row_count" ]; then
+      row_count="${#hot_rows[@]}"
+    fi
+    if [ "${#low_rows[@]}" -gt "$row_count" ]; then
+      row_count="${#low_rows[@]}"
+    fi
+    menu_lines=$((row_count + 1))
+
+    options+=("$actions_header" "$hot_header" "$low_header")
+    for ((i = 0; i < row_count; i++)); do
+      if [ "$i" -lt "${#action_rows[@]}" ]; then
+        left_cell="${action_rows[$i]}"
+      else
+        left_cell="$(empty_cell)"
+      fi
+      if [ "$i" -lt "${#hot_rows[@]}" ]; then
+        middle_cell="${hot_rows[$i]}"
+      else
+        middle_cell="$(empty_cell)"
+      fi
+      if [ "$i" -lt "${#low_rows[@]}" ]; then
+        right_cell="${low_rows[$i]}"
+      else
+        right_cell="$(empty_cell)"
+      fi
+      options+=("$left_cell" "$middle_cell" "$right_cell")
     done
 
     local selection
     selection="$(
       printf '%s\n' "${options[@]}" \
-        | rofi -dmenu -i -markup-rows -p "Atomic Notes" -config "$ROFI_CONFIG"
+        | rofi -dmenu -i -markup-rows -p "Atomic Notes" -config "$ROFI_CONFIG" \
+          -theme-str "window { width: 78%; }" \
+          -theme-str "listview { columns: 3; lines: ${menu_lines}; flow: horizontal; fixed-columns: true; fixed-height: true; }"
     )"
 
     case "$selection" in
@@ -538,10 +618,12 @@ rofi_menu() {
           clear_tasks
         fi
         ;;
+      "$actions_header"|"$hot_header"|"$low_header")
+        continue
+        ;;
       *)
         local idx=0
         local found=0
-        local display_task
         for display_task in "${task_labels[@]}"; do
           if [ "$display_task" = "$selection" ]; then
             task_menu "$idx" "${TASKS[$idx]}"
@@ -551,7 +633,7 @@ rofi_menu() {
           idx=$((idx + 1))
         done
         if [ "$found" -eq 0 ]; then
-          return 0
+          continue
         fi
         ;;
     esac
