@@ -1,0 +1,178 @@
+@theme "~/.config/rofi/theme.rasi"
+
+* {
+  window-border: @accent;
+  card-bg: @mantle;
+  card-border: @subtext;
+  card-muted: @subtext;
+  list-alt: @mantle;
+}
+
+window {
+  width: 72%;
+  height: 80%;
+  border: 1px;
+  border-radius: 18px;
+  border-color: @window-border;
+  background-color: @base;
+  padding: 24px;
+}
+
+mainbox {
+  spacing: 18px;
+  children: [ header-box, cards-box, charts-box, note-box, listview ];
+  background-color: transparent;
+}
+
+inputbar {
+  enabled: false;
+}
+
+header-box {
+  children: [ textbox-title ];
+  padding: 2px 0;
+}
+
+textbox-title {
+  markup: true;
+  font: @mono-font;
+  font: "JetBrainsMono Nerd Font Bold 22";
+  horizontal-align: 0.5;
+  text-color: @text;
+}
+
+cards-box {
+  orientation: horizontal;
+  spacing: 14px;
+  children: [ card-1, card-2, card-3 ];
+}
+
+card-1, card-2, card-3 {
+  width: 31%;
+  padding: 18px;
+  spacing: 8px;
+  border: 1px;
+  border-radius: 16px;
+  border-color: @card-border;
+  background-color: @card-bg;
+}
+
+card-1 {
+  children: [ textbox-card-1-label, textbox-card-1-value, textbox-card-1-sub ];
+}
+
+card-2 {
+  children: [ textbox-card-2-label, textbox-card-2-value, textbox-card-2-sub ];
+}
+
+card-3 {
+  children: [ textbox-card-3-label, textbox-card-3-value, textbox-card-3-sub ];
+}
+
+textbox-card-1-label,
+textbox-card-2-label,
+textbox-card-3-label,
+textbox-chart-a-title,
+textbox-chart-b-title {
+  markup: true;
+  text-color: @subtext;
+  font: "JetBrainsMono Nerd Font 11";
+}
+
+textbox-card-1-value,
+textbox-card-2-value,
+textbox-card-3-value {
+  markup: true;
+  text-color: @text;
+  font: "JetBrainsMono Nerd Font Bold 26";
+}
+
+textbox-card-1-sub,
+textbox-card-2-sub,
+textbox-card-3-sub {
+  markup: true;
+  text-color: @subtext;
+  font: "JetBrainsMono Nerd Font 11";
+}
+
+charts-box {
+  orientation: horizontal;
+  spacing: 14px;
+  children: [ chart-a, chart-b ];
+}
+
+chart-a, chart-b {
+  width: 48%;
+  padding: 18px;
+  spacing: 12px;
+  border: 1px;
+  border-radius: 16px;
+  border-color: @card-border;
+  background-color: @card-bg;
+}
+
+chart-a {
+  children: [ textbox-chart-a-title, textbox-chart-a-body ];
+}
+
+chart-b {
+  children: [ textbox-chart-b-title, textbox-chart-b-body ];
+}
+
+textbox-chart-a-body,
+textbox-chart-b-body {
+  markup: true;
+  text-color: @text;
+  font: "JetBrainsMono Nerd Font 13";
+}
+
+note-box {
+  padding: 12px 16px;
+  border: 1px;
+  border-radius: 12px;
+  border-color: @card-border;
+  background-color: @card-bg;
+  children: [ textbox-note ];
+}
+
+textbox-note {
+  markup: true;
+  text-color: @subtext;
+  font: "JetBrainsMono Nerd Font 11";
+}
+
+listview {
+  lines: 10;
+  fixed-height: false;
+  spacing: 8px;
+  scrollbar: false;
+  background-color: transparent;
+}
+
+element {
+  orientation: horizontal;
+  children: [ element-icon, element-text ];
+  spacing: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background-color: transparent;
+  text-color: @text;
+}
+
+element selected {
+  background-color: @accent;
+  text-color: @base;
+}
+
+element-icon {
+  size: 1.25em;
+  vertical-align: 0.0;
+  background-color: transparent;
+}
+
+element-text {
+  markup: true;
+  text-color: inherit;
+  font: "JetBrainsMono Nerd Font 12";
+  vertical-align: 0.5;
+}
