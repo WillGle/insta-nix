@@ -37,6 +37,10 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-memory-info;
       executable = true;
     };
+    ".local/bin/waybar-network-info" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-network-info;
+      executable = true;
+    };
     ".local/bin/waybar-power-monitor" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-power-monitor;
       executable = true;
