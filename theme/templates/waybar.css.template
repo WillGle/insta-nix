@@ -41,11 +41,46 @@ window#waybar {
   min-height: 28px;
 }
 
-#workspaces button {
-  padding: 0 10px;
-  color: @subtext;
+#workspaces button,
+#clock,
+#tray,
+#pulseaudio,
+#custom-memory_info,
+#custom-apu_info,
+#custom-power_flow,
+#custom-power_profile,
+#custom-battery_mode,
+#custom-refresh_rate,
+#custom-atomic_note,
+tooltip,
+menuitem,
+.popup menuitem {
   margin: 0;
+  padding-left: 10px;
+  padding-right: 10px;
+  font-family: "__UI_FONT__", monospace;
+  font-weight: bold;
+  font-size: __UI_FONT_SIZE__px;
+}
+
+#workspaces button,
+#clock,
+#tray,
+#pulseaudio,
+#custom-memory_info,
+#custom-apu_info,
+#custom-power_flow,
+#custom-power_profile,
+#custom-battery_mode,
+#custom-refresh_rate,
+#custom-atomic_note {
   border-radius: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+#workspaces button {
+  color: @subtext;
 }
 
 #workspaces button.focused {
@@ -69,10 +104,36 @@ window#waybar {
 #custom-battery_mode,
 #custom-refresh_rate,
 #custom-atomic_note {
-  padding: 0 10px;
-  margin: 0;
   background: rgba(255, 255, 255, 0.05);
   border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+tooltip,
+menu,
+.menu,
+.popup {
+  background-color: @mantle;
+  color: @text;
+  border: 1px solid @accent;
+  border-radius: 6px;
+}
+
+tooltip *,
+tooltip label,
+menu *,
+.menu *,
+.popup * {
+  color: @text;
+  font-family: "__UI_FONT__", monospace;
+  font-weight: bold;
+  font-size: __UI_FONT_SIZE__px;
+}
+
+menuitem,
+.popup menuitem {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-radius: 4px;
 }
 
 #clock:hover,
@@ -84,8 +145,12 @@ window#waybar {
 #custom-power_profile:hover,
 #custom-battery_mode:hover,
 #custom-refresh_rate:hover,
-#custom-atomic_note:hover {
+#custom-atomic_note:hover,
+#workspaces button:hover,
+menuitem:hover,
+.popup menuitem:hover {
   background: rgba(255, 255, 255, 0.1);
+  color: @text;
 }
 
 #custom-apu_info.warm {
@@ -163,25 +228,15 @@ window#waybar {
 }
 
 tooltip {
-  background-color: @mantle;
-  border: 1px solid @accent;
-  border-radius: 6px;
-  padding: 8px 12px;
-  color: @text;
-  font-size: 12px;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
+menu,
 .menu,
-.popup,
-.popup * {
-  background-color: @mantle;
-  color: @text;
-}
-
-.popup menuitem:hover,
-.popup *:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: @accent;
+.popup {
+  margin: 0;
+  padding: 4px 0;
 }
 
 #custom-atomic_note {
