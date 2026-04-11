@@ -16,4 +16,7 @@ CALENDAR=$(cal | sed 's/^/  /')
 
 TOOLTIP="<b>Weather Status</b>\n$WEATHER_DETAILED\n\n<b>Calendar</b>\n<tt>$CALENDAR</tt>"
 
-printf '{"text": "%s", "tooltip": "%s"}\n' "$WEATHER" "$TOOLTIP"
+jq -n \
+  --arg text "$WEATHER" \
+  --arg tooltip "$TOOLTIP" \
+  '{"text": $text, "tooltip": $tooltip}'

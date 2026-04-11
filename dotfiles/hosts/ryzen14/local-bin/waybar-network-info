@@ -33,4 +33,7 @@ TOOLTIP+="Security: $SECURITY\n"
 TOOLTIP+="Signal:   $STRENGTH% ($SIGNAL)\n"
 TOOLTIP+="Freq:     $FREQ"
 
-printf '{"text": "%s  %s", "tooltip": "%s", "class": "connected"}\n' "$ICON" "$SSID" "$TOOLTIP"
+jq -n \
+  --arg text "$ICON" \
+  --arg tooltip "$TOOLTIP" \
+  '{"text": $text, "tooltip": $tooltip, "class": "connected"}'
