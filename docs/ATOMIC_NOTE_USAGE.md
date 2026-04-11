@@ -1,98 +1,130 @@
-# How to use Atomic Note 󰠮
+# How To Use Atomic Note
 
-Atomic Note is a minimalist task manager integrated into your Waybar. It helps you focus on your most important (top) task while keeping your list easily accessible.
+Atomic Note is a small task queue integrated into Waybar and managed through `atomic-note`.
 
-## 1. Quick Usage from Waybar
+## Integration Notes
 
-- **Idle View:** The center of your bar shows your **highest priority task** and a count of how many more are in your list.
-- **Hover:** Move your mouse over the task to see a tooltip with your **top 5 tasks**.
-- **Left-click:** Open the Rofi task menu.
-- **Right-click:** Open the Rofi quick-add prompt.
+Atomic Note currently depends on these files:
 
-The top task in Waybar uses a priority icon and a matching status color:
+- `dotfiles/hosts/.../local-bin/atomic-note`: main script for task storage, Waybar JSON rendering, and the Rofi menus
+- `dotfiles/common/waybar/config.jsonc`: Waybar module wiring for `custom/atomic_note`
+- your Home Manager host module: installs the script as `~/.local/bin/atomic-note`
 
-- **Critical:** error/red
-- **High:** warning/orange
-- **Moderate:** accent/blue
-- **Low:** success/green
-- **Empty:** subdued/gray
+Recent related changes that matter operationally:
 
-## 2. Managing Tasks (CLI)
+- The old `waybar-atomic-note` helper script was removed.
+- Waybar now calls `atomic-note render-waybar` directly.
+- Atomic Note was migrated from Wofi to Rofi.
 
-You can manage your tasks from any terminal using the `atomic-note` command.
+Because `~/.local/bin/atomic-note` is Home Manager-managed, editing the repo copy alone does not update the live command until you apply the system configuration.
 
-### Open the Rofi Menu
+## Waybar Behavior
+
+- The Waybar module shows the first task in `~/.atomic_tasks`, not an automatically sorted highest-priority task.
+- If more tasks exist, Waybar appends the remaining count in parentheses.
+- Hovering the module shows up to 5 tasks in the tooltip, each prefixed with its normalized priority label.
+- Left-click opens the Rofi menu.
+- Right-click opens the quick-add flow.
+
+Waybar styling follows the first task's priority:
+
+- `Critical`: error/red
+- `High`: warning/orange
+- `Moderate`: accent/blue
+- `Low`: success/green
+- `Empty`: subdued/gray
+
+The current Waybar module wiring is:
+
+- `exec`: `~/.local/bin/atomic-note render-waybar`
+- `on-click`: `~/.local/bin/atomic-note rofi`
+- `on-click-right`: `~/.local/bin/atomic-note add`
+- `signal`: `5`
+
+## Commands
+
+Use these commands from a terminal:
 
 ```bash
 atomic-note rofi
+atomic-note edit
+atomic-note add "Fix the production bug" critical
+atomic-note file
+atomic-note list
+atomic-note clear
 ```
 
-The Rofi menu lets you:
+`atomic-note rofi` and `atomic-note edit` currently do the same thing: open the Rofi menu.
 
-- add a task
-- open the raw task file in a terminal editor
-- clear all tasks with confirmation
-- select an existing task and:
-  - mark it done
-  - edit it
-  - change its priority
-  - move it to the top
+`atomic-note file` opens the raw task file in a terminal editor launched through `foot`. It uses `$EDITOR` if set, otherwise falls back to `nano`, then `vi`.
 
-Action rows use colored chips and icons so they stay visually separate from normal tasks.
+`atomic-note render-waybar` is the internal subcommand used by Waybar. It outputs JSON for the module text, tooltip, and CSS class.
 
-Task rows also use a colored priority chip, so you can tell at a glance whether a task is `Critical`, `High`, `Moderate`, or `Low`.
+## Rofi Menu
 
-### Add a Task
+The current Rofi layout is:
+
+1. Search bar at the top
+2. Action row with `Add`, `Open`, and `Clear`
+3. Two task columns below
+
+The action row supports both mouse clicks and keyboard shortcuts:
+
+- `Add`: click the button or press `Alt+1`
+- `Open`: click the button or press `Alt+2`
+- `Clear`: click the button or press `Alt+3`
+
+Task rows are split into two columns:
+
+- Left column: `Critical / High`
+- Right column: `Moderate / Low`
+
+Selecting a task opens a secondary menu with:
+
+- `Mark done`
+- `Edit task`
+- `Change priority`
+- `Move to top`
+- `Cancel`
+
+`Clear` always asks for confirmation before truncating the task file.
+
+## Adding Tasks
+
+Add a task directly:
 
 ```bash
-# Add a task with an explicit priority
-atomic-note add "Fix the production bug" critical
 atomic-note add "Reply to email thread" high
 atomic-note add "Refactor config comments" moderate
 atomic-note add "Tidy downloads" low
 ```
 
-If you run `atomic-note add` without text, it opens a Rofi prompt for the task text and then a second Rofi menu to set the priority.
+If you run `atomic-note add` without task text, it opens:
 
-You can also use Waybar right-click for the same quick-add flow.
+1. A Rofi prompt for the task body
+2. A Rofi priority picker
 
-### List All Tasks
+Accepted priority inputs:
 
-```bash
-atomic-note list
-```
+- `critical`
+- `crit`
+- `p0`
+- `a`
+- `high`
+- `p1`
+- `b`
+- `moderate`
+- `medium`
+- `med`
+- `normal`
+- `default`
+- `p2`
+- `c`
+- `low`
+- `p3`
+- `d`
 
-### Clear All Tasks
-
-```bash
-atomic-note clear
-```
-
-### Manual Edit
-
-```bash
-atomic-note edit
-```
-
-`atomic-note edit` opens the Rofi menu. If you want the raw task file in a terminal editor, use:
-
-```bash
-atomic-note file
-```
-
-## 3. Formatting & Priority
-
-Tasks are stored with a normalized priority prefix:
-
-- **`[Critical]`:** Red
-- **`[High]`:** Orange/Amber
-- **`[Moderate]`:** Blue
-- **`[Low]`:** Green
-- **`Empty`:** Grayed out icon.
-
-The Waybar module and the Rofi menu both read these priority prefixes and style the task accordingly.
-
-Example stored tasks:
+New writes are normalized to one of these stored forms:
 
 ```text
 [Critical] Fix prod incident
@@ -101,49 +133,28 @@ Example stored tasks:
 [Low] Sort downloads
 ```
 
-### Priority Mapping
+Older short forms like `[A]`, `[B]`, `[C]`, and `[D]` are still recognized when reading existing tasks.
 
-`atomic-note add` accepts these values:
+## Common Flows
 
-- `critical`
-- `high`
-- `moderate`
-- `low`
-
-Legacy short prefixes are still recognized when reading older tasks:
-
-- `[A]` -> `Critical`
-- `[B]` -> `High`
-- `[C]` -> `Moderate`
-- `[D]` -> `Low`
-
-New writes are normalized to the full form above.
-
-## 4. Common Workflows
-
-### Capture something quickly
+### Capture Something Quickly
 
 1. Right-click the Waybar Atomic Note module.
-2. Enter the task text in Rofi.
-3. Pick a priority in the next Rofi menu.
+2. Enter the task text.
+3. Choose the priority.
 
-### Re-prioritize an existing task
-
-1. Left-click the Waybar Atomic Note module.
-2. Select the task row.
-3. Choose `Change priority`.
-4. Pick the new priority level.
-
-### Edit the raw file directly
+### Reorder the Queue
 
 1. Left-click the Waybar Atomic Note module.
-2. Choose `Open raw file`.
+2. Select a task.
+3. Choose `Move to top`.
 
-Or run:
+This changes what Waybar shows, because the module always renders the first task in the file.
+
+### Edit The Raw File
 
 ```bash
 atomic-note file
 ```
 
----
-*Tasks are stored in `~/.atomic_tasks`*
+Tasks are stored in `~/.atomic_tasks`.
