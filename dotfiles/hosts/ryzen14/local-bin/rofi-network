@@ -105,6 +105,115 @@ active_ethernet() {
     | awk -F: '$1 == "802-3-ethernet" { print $2 " on " $3; exit }'
 }
 
+connection_type_label() {
+  case "${1:-}" in
+    802-11-wireless)
+      printf 'Wi-Fi'
+      ;;
+    802-3-ethernet)
+      printf 'Ethernet'
+      ;;
+    vpn)
+      printf 'VPN'
+      ;;
+    wireguard)
+      printf 'WireGuard'
+      ;;
+    bluetooth)
+      printf 'Bluetooth'
+      ;;
+    *)
+      printf '%s' "${1:-Unknown}"
+      ;;
+  esac
+}
+
+connection_icon() {
+  case "${1:-}" in
+    802-11-wireless)
+      printf '󰖩'
+      ;;
+    802-3-ethernet)
+      printf '󰈀'
+      ;;
+    vpn|wireguard)
+      printf '󰦝'
+      ;;
+    bluetooth)
+      printf '󰂯'
+      ;;
+    *)
+      printf '󰒓'
+      ;;
+  esac
+}
+
+saved_connections() {
+  nmcli -t -f NAME,UUID,TYPE,DEVICE connection show \
+    | while IFS=: read -r name uuid type device; do
+        [ -n "$uuid" ] || continue
+        [ -n "$name" ] || continue
+        case "$type" in
+          802-11-wireless|802-3-ethernet|vpn|wireguard|bluetooth)
+            ;;
+          *)
+            continue
+            ;;
+        esac
+        printf '%s\t%s\t%s\t%s\n' \
+          "$name" \
+          "$uuid" \
+          "$type" \
+          "${device:---}"
+      done
+}
+
+activate_connection_menu() {
+  local entries selection uuid output label
+
+  entries="$(
+    saved_connections \
+      | while IFS=$'\t' read -r name uuid type device; do
+          label="$(connection_type_label "$type")"
+          printf '%s  %s  %s  %s  %s\n' \
+            "$(connection_icon "$type")" \
+            "$name" \
+            "$label" \
+            "$device" \
+            "$uuid"
+        done
+  )"
+
+  if [ -z "$entries" ]; then
+    status_message="No saved Wi-Fi, Ethernet, VPN, WireGuard, or Bluetooth connections found."
+    return 0
+  fi
+
+  selection="$(
+    printf '%s\n' "$entries" \
+      | rofi "${ROFI_COMMON[@]}" -p "Activate connection" -mesg "Choose a saved NetworkManager connection profile to bring up."
+  )"
+
+  [ -n "$selection" ] || {
+    status_message="Connection activation cancelled."
+    return 0
+  }
+
+  if [[ "$selection" =~ ([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$ ]]; then
+    uuid="${BASH_REMATCH[1]}"
+  else
+    status_message="Could not determine which connection to activate."
+    return 0
+  fi
+
+  output="$(nmcli connection up uuid "$uuid" 2>&1)" && {
+    status_message="$(printf '%s' "$output" | sed -n '1p')"
+    return 0
+  }
+
+  status_message="$(printf '%s' "$output" | sed -n '1p')"
+}
+
 build_message() {
   local iface="$1"
   local lines=()
@@ -172,6 +281,7 @@ build_menu() {
     printf '󰖩  Turn Wi-Fi on\n'
   fi
 
+  printf '󰒓  Activate saved connection\n'
   printf '󰌘  Open connection editor\n'
 
   if [ -z "$iface" ] || ! wifi_enabled; then
@@ -247,6 +357,9 @@ main() {
     status_message=""
 
     case "$selection" in
+      "󰒓  Activate saved connection")
+        activate_connection_menu
+        ;;
       "󰌘  Open connection editor")
         nm-connection-editor >/dev/null 2>&1 &
         exit 0
