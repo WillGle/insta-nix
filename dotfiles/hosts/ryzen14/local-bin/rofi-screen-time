@@ -5,7 +5,10 @@ export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)
 
 ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
 ROFI_THEME="${HOME}/.config/rofi/screen-time.rasi"
-STATS_BIN="${HOME}/.local/bin/rofi-screen-time-stats"
+STATS_BIN="${STATS_BIN:-${HOME}/.local/bin/rofi-screen-time-stats}"
+SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${HOME}/.cache/rofi-screen-time}"
+CACHE_BIN="${CACHE_BIN:-${HOME}/.local/bin/rofi-screen-time-cache}"
+CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
 
 VIEW="day"
 TARGET_DATE="$(date +%F)"
@@ -26,6 +29,65 @@ normalize_class() {
   value="${value%_updater}"
   value="${value% updater}"
   printf '%s\n' "$value"
+}
+
+default_theme_cache_file() {
+  printf '%s/default-day-theme.rasi\n' "$CACHE_DIR"
+}
+
+default_rows_cache_file() {
+  printf '%s/default-day-rows.txt\n' "$CACHE_DIR"
+}
+
+default_date_cache_file() {
+  printf '%s/default-day-date.txt\n' "$CACHE_DIR"
+}
+
+can_use_default_cache() {
+  local today
+  today="$(date +%F)"
+  [ "$VIEW" = "day" ] || return 1
+  [ "$TARGET_DATE" = "$today" ] || return 1
+  [ -z "$APP_FILTER" ] || return 1
+  [ -r "$(default_theme_cache_file)" ] || return 1
+  [ -r "$(default_rows_cache_file)" ] || return 1
+  [ -r "$(default_date_cache_file)" ] || return 1
+  [ "$(cat "$(default_date_cache_file)" 2>/dev/null)" = "$today" ]
+}
+
+refresh_default_cache_async() {
+  if [ -x "$CACHE_BIN" ]; then
+    setsid -f "$CACHE_BIN" >/dev/null 2>&1 || true
+  fi
+}
+
+write_default_cache() {
+  local theme_str="$1"
+  local rows_file="$2"
+  local today
+  local theme_tmp=""
+  local rows_tmp=""
+  local date_tmp=""
+
+  today="$(date +%F)"
+  mkdir -p "$CACHE_DIR"
+  theme_tmp="$(mktemp "${CACHE_DIR}/theme.XXXXXX")"
+  rows_tmp="$(mktemp "${CACHE_DIR}/rows.XXXXXX")"
+  date_tmp="$(mktemp "${CACHE_DIR}/date.XXXXXX")"
+
+  printf '%s' "$theme_str" >"$theme_tmp"
+  cat "$rows_file" >"$rows_tmp"
+  printf '%s\n' "$today" >"$date_tmp"
+
+  mv "$theme_tmp" "$(default_theme_cache_file)"
+  mv "$rows_tmp" "$(default_rows_cache_file)"
+  mv "$date_tmp" "$(default_date_cache_file)"
+}
+
+is_default_today_view() {
+  local today
+  today="$(date +%F)"
+  [ "$VIEW" = "day" ] && [ "$TARGET_DATE" = "$today" ] && [ -z "$APP_FILTER" ]
 }
 
 while [ "$#" -gt 0 ]; do
@@ -60,17 +122,43 @@ while :; do
   if [ -n "$APP_FILTER" ]; then
     stats_args+=(--app "$APP_FILTER")
   fi
+  theme_str=""
+  rows_file=""
+  rows_tmp=""
 
-  theme_str="$("$STATS_BIN" "${stats_args[@]}" --format theme)"
+  if can_use_default_cache; then
+    theme_str="$(cat "$(default_theme_cache_file)")"
+    rows_file="$(default_rows_cache_file)"
+    refresh_default_cache_async
+  else
+    theme_tmp="$(mktemp)"
+    rows_tmp="$(mktemp)"
+    "$STATS_BIN" "${stats_args[@]}" --format files --theme-file "$theme_tmp" --rows-file "$rows_tmp"
+    theme_str="$(cat "$theme_tmp")"
+    rows_file="$rows_tmp"
+    if is_default_today_view; then
+      write_default_cache "$theme_str" "$rows_file"
+    fi
+    rm -f "$theme_tmp"
+  fi
 
-  selection="$(
-    "$STATS_BIN" "${stats_args[@]}" --format rows \
+  if ! selection="$(
+    cat "$rows_file" \
       | rofi -dmenu -markup-rows -show-icons -no-custom \
           -config "$ROFI_CONFIG" \
           -theme "$ROFI_THEME" \
           -theme-str "$theme_str" \
           -p ""
-  )" || exit 0
+  )"; then
+    if [ -n "$rows_tmp" ] && [ -f "$rows_tmp" ]; then
+      rm -f "$rows_tmp"
+    fi
+    exit 0
+  fi
+
+  if [ -n "$rows_tmp" ] && [ -f "$rows_tmp" ]; then
+    rm -f "$rows_tmp"
+  fi
 
   case "$selection" in
     close|"")

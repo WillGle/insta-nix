@@ -122,3 +122,37 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-study-timer;
       executable = true;
     };
+    ".local/bin/rofi-screen-time-cache" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-cache;
+      executable = true;
+    };
+  systemd.user.services.rofi-screen-time-cache = {
+    Unit = {
+      Description = "Warm the default rofi screen-time popup cache";
+      After = [ "graphical-session.target" "rofi-screen-time-tracker.service" ];
+      PartOf = [ "graphical-session.target" ];
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${homeDir}/.local/bin/rofi-screen-time-cache";
+    };
+    Install = {
+      WantedBy = [ "graphical-session.target" ];
+    };
+  };
+
+  systemd.user.timers.rofi-screen-time-cache = {
+    Unit = {
+      Description = "Refresh the default rofi screen-time popup cache";
+      PartOf = [ "graphical-session.target" ];
+    };
+    Timer = {
+      OnBootSec = "20s";
+      OnUnitActiveSec = "2m";
+      Unit = "rofi-screen-time-cache.service";
+    };
+    Install = {
+      WantedBy = [ "timers.target" ];
+    };
+  };
+

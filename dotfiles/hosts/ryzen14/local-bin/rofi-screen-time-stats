@@ -29,10 +29,12 @@ FORMAT="json"
 TARGET_DATE="$(date +%F)"
 APP_FILTER=""
 APP_VIEW_EMPTY=false
+THEME_FILE=""
+ROWS_FILE=""
 
 usage() {
   cat <<'EOF'
-Usage: rofi-screen-time-stats [--date YYYY-MM-DD] [--view day|week|app] [--app APP_CLASS] [--format json|theme|rows]
+Usage: rofi-screen-time-stats [--date YYYY-MM-DD] [--view day|week|app] [--app APP_CLASS] [--format json|theme|rows|files] [--theme-file PATH --rows-file PATH]
 EOF
 }
 
@@ -995,6 +997,14 @@ while [ "$#" -gt 0 ]; do
       FORMAT="${2:-}"
       shift 2
       ;;
+    --theme-file)
+      THEME_FILE="${2:-}"
+      shift 2
+      ;;
+    --rows-file)
+      ROWS_FILE="${2:-}"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -1015,12 +1025,16 @@ case "$VIEW" in
     ;;
 esac
 case "$FORMAT" in
-  json|theme|rows) ;;
+  json|theme|rows|files) ;;
   *)
     printf 'rofi-screen-time-stats: invalid format %s\n' "$FORMAT" >&2
     exit 2
     ;;
 esac
+if [ "$FORMAT" = "files" ] && { [ -z "$THEME_FILE" ] || [ -z "$ROWS_FILE" ]; }; then
+  printf 'rofi-screen-time-stats: --theme-file and --rows-file are required for format files\n' >&2
+  exit 2
+fi
 
 mkdir -p "$SCREEN_TIME_CACHE_HOME"
 
@@ -1551,6 +1565,19 @@ render_rows() {
   esac
 }
 
+render_files() {
+  local json="$1"
+  local theme_tmp=""
+  local rows_tmp=""
+
+  theme_tmp="$(mktemp "${THEME_FILE}.XXXXXX")"
+  rows_tmp="$(mktemp "${ROWS_FILE}.XXXXXX")"
+  render_theme "$json" >"$theme_tmp"
+  render_rows "$json" >"$rows_tmp"
+  mv "$theme_tmp" "$THEME_FILE"
+  mv "$rows_tmp" "$ROWS_FILE"
+}
+
 PAYLOAD_JSON="$(build_json_payload)"
 case "$FORMAT" in
   json)
@@ -1561,5 +1588,8 @@ case "$FORMAT" in
     ;;
   rows)
     render_rows "$PAYLOAD_JSON"
+    ;;
+  files)
+    render_files "$PAYLOAD_JSON"
     ;;
 esac
