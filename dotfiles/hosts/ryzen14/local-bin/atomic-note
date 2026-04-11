@@ -96,16 +96,16 @@ priority_label() {
 priority_icon() {
   case "$1" in
     critical)
-      printf '%s\n' "󰀦"
+      printf '%s\n' ""
       ;;
     high)
-      printf '%s\n' "󰳟"
+      printf '%s\n' ""
       ;;
     moderate)
-      printf '%s\n' "󰗠"
+      printf '%s\n' ""
       ;;
     low)
-      printf '%s\n' "󰾆"
+      printf '%s\n' ""
       ;;
   esac
 }
@@ -257,6 +257,56 @@ read_tasks() {
 
 write_tasks() {
   printf '%s\n' "$@" > "$TASK_FILE"
+}
+
+render_waybar() {
+  read_tasks
+
+  local count="${#TASKS[@]}"
+  if [ "$count" -eq 0 ]; then
+    jq -cn \
+      --arg text "󰠮 Empty" \
+      --arg tooltip "No active tasks" \
+      --arg class "empty" \
+      '{text: $text, tooltip: $tooltip, class: $class}'
+    return 0
+  fi
+
+  local top_task="${TASKS[0]}"
+  local remaining=$((count - 1))
+  local top_priority
+  local top_body
+  local top_icon
+  local display_text
+  local tooltip
+  local priority
+  local body
+  local i
+
+  top_priority="$(task_priority "$top_task")"
+  top_body="$(task_body "$top_task")"
+  top_icon="$(priority_icon "$top_priority")"
+  display_text="$top_icon $top_body"
+  if [ "$remaining" -gt 0 ]; then
+    display_text="$display_text   ($remaining)"
+  fi
+
+  tooltip=$'<b>Atomic Tasks</b>\n------------------\n'
+  for ((i = 0; i < 5 && i < count; i++)); do
+    priority="$(task_priority "${TASKS[$i]}")"
+    body="$(task_body "${TASKS[$i]}")"
+    tooltip+="$(priority_label "$priority"): $(escape_markup "$body")"$'\n'
+  done
+
+  if [ "$count" -gt 5 ]; then
+    tooltip+="... and $((count - 5)) more"
+  fi
+
+  jq -cn \
+    --arg text "󰠮 $display_text" \
+    --arg tooltip "$tooltip" \
+    --arg class "$top_priority" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
 }
 
 add_task() {
@@ -509,6 +559,9 @@ rofi_menu() {
 }
 
 case "${1:-}" in
+  render-waybar)
+    render_waybar
+    ;;
   add)
     add_task "${2:-}"
     ;;
