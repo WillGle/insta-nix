@@ -183,7 +183,7 @@ default_day_json() {
     --arg now "$now_iso" \
     --argjson sample "$sample" \
     '{
-      version: 1,
+      version: 2,
       date: $date,
       updated_at: $now,
       sample_seconds: $sample,
@@ -196,7 +196,14 @@ default_day_json() {
       last_sample_at: "",
       total_seconds: 0,
       slots_30m: ([range(0; 48)] | map(0)),
-      apps: {}
+      apps: {},
+      study: {
+        total_seconds: 0,
+        session_count: 0,
+        last_started_at: "",
+        last_stopped_at: "",
+        active_overlap_seconds: 0
+      }
     }'
 }
 
@@ -277,10 +284,20 @@ record_sample() {
     --argjson new_session "$new_session" \
     --argjson new_switch "$new_switch" \
     '
-    .version = 1
+    .version = 2
     | .date = $date
     | .updated_at = $now
     | .sample_seconds = $sample
+    | .study = (
+        (.study // {
+          total_seconds: 0,
+          session_count: 0,
+          last_started_at: "",
+          last_stopped_at: "",
+          active_overlap_seconds: 0
+        })
+        | .active_overlap_seconds = (.active_overlap_seconds // 0)
+      )
     | .sample_count = ((.sample_count // 0) + 1)
     | .first_seen = (.first_seen // $now)
     | .last_seen = $now

@@ -74,7 +74,7 @@ default_day_json() {
     --arg now "$current_now" \
     --argjson sample "$sample" \
     '{
-      version: 1,
+      version: 2,
       date: $date,
       updated_at: $now,
       sample_seconds: $sample,
@@ -92,7 +92,8 @@ default_day_json() {
         total_seconds: 0,
         session_count: 0,
         last_started_at: "",
-        last_stopped_at: ""
+        last_stopped_at: "",
+        active_overlap_seconds: 0
       }
     }'
 }
@@ -115,12 +116,15 @@ ensure_day_file() {
 
   tmp="$(mktemp "${file}.XXXXXX")"
   jq --arg now "$current_now" '
+    .version = (if (.version // 0) < 2 then 2 else .version end)
     .study = (.study // {
       total_seconds: 0,
       session_count: 0,
       last_started_at: "",
-      last_stopped_at: ""
+      last_stopped_at: "",
+      active_overlap_seconds: 0
     })
+    | .study.active_overlap_seconds = (.study.active_overlap_seconds // 0)
     | .updated_at = (.updated_at // $now)
   ' "$file" >"$tmp"
   mv "$tmp" "$file"
@@ -207,16 +211,19 @@ mark_session_started() {
   ensure_day_file "$target_date" "$started_at"
   tmp="$(mktemp "${file}.XXXXXX")"
   jq --arg now "$started_at" '
-    .updated_at = $now
+    .version = (if (.version // 0) < 2 then 2 else .version end)
+    | .updated_at = $now
     | .study = (
         (.study // {
           total_seconds: 0,
           session_count: 0,
           last_started_at: "",
-          last_stopped_at: ""
+          last_stopped_at: "",
+          active_overlap_seconds: 0
         })
         | .session_count = ((.session_count // 0) + 1)
         | .last_started_at = $now
+        | .active_overlap_seconds = 0
       )
   ' "$file" >"$tmp"
   mv "$tmp" "$file"
@@ -236,16 +243,19 @@ add_study_seconds() {
     --arg now "$stopped_at" \
     --argjson elapsed_seconds "$elapsed_seconds" \
     '
-    .updated_at = $now
+    .version = (if (.version // 0) < 2 then 2 else .version end)
+    | .updated_at = $now
     | .study = (
         (.study // {
           total_seconds: 0,
           session_count: 0,
           last_started_at: "",
-          last_stopped_at: ""
+          last_stopped_at: "",
+          active_overlap_seconds: 0
         })
         | .total_seconds = ((.total_seconds // 0) + $elapsed_seconds)
         | .last_stopped_at = $now
+        | .active_overlap_seconds = 0
       )
   ' "$file" >"$tmp"
   mv "$tmp" "$file"
