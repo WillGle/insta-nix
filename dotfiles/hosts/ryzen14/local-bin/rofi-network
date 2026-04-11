@@ -96,7 +96,8 @@ current_gateway() {
 
 current_dns() {
   local iface="$1"
-  nmcli -g IP4.DNS device show "$iface" 2>/dev/null | paste -sd ', ' -
+  nmcli -g IP4.DNS device show "$iface" 2>/dev/null \
+    | awk 'NF { printf "%s%s", sep, $0; sep = ", " } END { printf "\n" }'
 }
 
 active_ethernet() {
@@ -107,34 +108,43 @@ active_ethernet() {
 build_message() {
   local iface="$1"
   local lines=()
-  local ethernet
-
-  if [ -z "$iface" ]; then
-    lines+=("No Wi-Fi adapter detected")
-  elif wifi_enabled; then
-    local active
-    active="$(active_wifi_line "$iface")"
-    if [ -n "$active" ]; then
-      local _active ssid signal security freq _bssid ip gateway dns
-      IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
-      ip="$(current_ip "$iface")"
-      gateway="$(current_gateway "$iface")"
-      dns="$(current_dns "$iface")"
-      lines+=("Wi-Fi: ${ssid:-<hidden>} ($(signal_icon "$signal") ${signal}%, $(band_label "$freq"))")
-      lines+=("IP: ${ip:-Unavailable}")
-      [ -n "$ip" ] && lines+=("Gateway: ${gateway:-Unavailable}")
-      [ -n "$dns" ] && lines+=("DNS: $dns")
-      lines+=("Security: $(security_label "$security")")
-    else
-      lines+=("Wi-Fi: enabled, not connected")
-    fi
-  else
-    lines+=("Wi-Fi: disabled")
-  fi
+  local ethernet active
+  local ssid signal security freq ip gateway dns
 
   ethernet="$(active_ethernet)"
+  active=""
+
+  if [ -n "$iface" ] && wifi_enabled; then
+    active="$(active_wifi_line "$iface")"
+  fi
+
   if [ -n "$ethernet" ]; then
     lines+=("Ethernet: $ethernet")
+    if [ -n "$active" ]; then
+      IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
+      lines+=("Wi-Fi: ${ssid:-<hidden>} ($(signal_icon "$signal") ${signal}%, $(band_label "$freq"))")
+      lines+=("Security: $(security_label "$security")")
+    elif [ -n "$iface" ] && ! wifi_enabled; then
+      lines+=("Wi-Fi: disabled")
+    elif [ -n "$iface" ]; then
+      lines+=("Wi-Fi: enabled, not connected")
+    fi
+  elif [ -z "$iface" ]; then
+    lines+=("No Wi-Fi adapter detected")
+  elif [ -n "$active" ]; then
+    IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
+    ip="$(current_ip "$iface")"
+    gateway="$(current_gateway "$iface")"
+    dns="$(current_dns "$iface")"
+    lines+=("Wi-Fi: ${ssid:-<hidden>} ($(signal_icon "$signal") ${signal}%, $(band_label "$freq"))")
+    lines+=("IP: ${ip:-Unavailable}")
+    [ -n "$ip" ] && lines+=("Gateway: ${gateway:-Unavailable}")
+    [ -n "$dns" ] && lines+=("DNS: $dns")
+    lines+=("Security: $(security_label "$security")")
+  elif wifi_enabled; then
+    lines+=("Wi-Fi: enabled, not connected")
+  else
+    lines+=("Wi-Fi: disabled")
   fi
 
   if [ -n "$status_message" ]; then
