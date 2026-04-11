@@ -84,6 +84,7 @@ while :; do
     view:week:*)
       VIEW="week"
       TARGET_DATE="${selection#view:week:}"
+      APP_FILTER=""
       ;;
     app:*)
       VIEW="app"
@@ -114,10 +115,12 @@ while :; do
     nav:prev-week:*)
       VIEW="week"
       TARGET_DATE="${selection#nav:prev-week:}"
+      APP_FILTER=""
       ;;
     nav:next-week:*)
       VIEW="week"
       TARGET_DATE="${selection#nav:next-week:}"
+      APP_FILTER=""
       ;;
     refresh:day:*|refresh:week:*|refresh:app:*)
       :
