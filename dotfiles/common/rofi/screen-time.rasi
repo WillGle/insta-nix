@@ -1,178 +1,284 @@
 @theme "~/.config/rofi/theme.rasi"
 
 * {
-  window-border: @accent;
-  card-bg: @mantle;
-  card-border: @subtext;
-  card-muted: @subtext;
-  list-alt: @mantle;
+  /* Unified colors from system theme variables */
+  window-border:    @accent;
+  card-bg:          @mantle;
+  card-alt:         @base;
+  card-border:      @card-bg;
+  card-muted:       @subtext;
+  list-alt:         @base;
+  
+  /* Accent background for the focus card (Card 4) */
+  accent-card-bg:   @accent;
+  accent-card-text: @base;
 }
 
 window {
-  width: 72%;
-  height: 80%;
-  border: 1px;
-  border-radius: 18px;
-  border-color: @window-border;
+  width:            86%;
+  height:           92%;
+  border:           1px;
+  border-radius:    24px;
+  border-color:     @window-border;
   background-color: @base;
-  padding: 24px;
+  padding:          24px;
 }
 
 mainbox {
-  spacing: 18px;
-  children: [ header-box, cards-box, charts-box, note-box, listview ];
+  orientation:      vertical;
+  spacing:          16px;
+  children:         [ header-box, overview-box, analytics-box, note-box, listview ];
   background-color: transparent;
 }
 
-inputbar {
-  enabled: false;
-}
+inputbar { enabled: false; }
+
+/* ── Header ─────────────────────────────────────────────── */
 
 header-box {
-  children: [ textbox-title ];
-  padding: 2px 0;
+  expand:      false;
+  orientation: horizontal;
+  spacing:     20px;
+  children:    [ title-group, meta-group ];
+}
+
+title-group {
+  orientation: vertical;
+  expand:      true;
+  spacing:     4px;
+  children:    [ textbox-title, textbox-subtitle ];
+}
+
+meta-group {
+  orientation:      vertical;
+  expand:           false;
+  padding:          12px 16px;
+  border:           1px;
+  border-radius:    16px;
+  border-color:     @card-border;
+  background-color: @mantle;
+  children:         [ textbox-meta ];
 }
 
 textbox-title {
-  markup: true;
-  font: @mono-font;
-  font: "JetBrainsMono Nerd Font Bold 22";
-  horizontal-align: 0.5;
+  markup:    true;
   text-color: @text;
+  font:      "JetBrainsMono Nerd Font Bold 24";
 }
 
-cards-box {
+textbox-subtitle {
+  markup:    true;
+  text-color: @subtext;
+  font:      "JetBrainsMono Nerd Font 12";
+}
+
+textbox-meta {
+  markup:          true;
+  text-color:      @subtext;
+  font:            "JetBrainsMono Nerd Font 10";
+  horizontal-align: 1.0;
+  line-height:     1.4;
+}
+
+/* ── Overview cards ──────────────────────────────────────── */
+
+overview-box {
+  expand:      false;
   orientation: horizontal;
-  spacing: 14px;
-  children: [ card-1, card-2, card-3 ];
+  spacing:     12px;
+  children:    [ card-1, card-2, card-3, card-4 ];
 }
 
 card-1, card-2, card-3 {
-  width: 31%;
-  padding: 18px;
-  spacing: 8px;
-  border: 1px;
-  border-radius: 16px;
-  border-color: @card-border;
-  background-color: @card-bg;
+  orientation:      vertical;
+  expand:           true;
+  padding:          16px;
+  spacing:          8px;
+  border:           1px;
+  border-radius:    16px;
+  border-color:     @card-border;
+  background-color: @mantle;
+  children:         [ textbox-card-1-label, textbox-card-1-value, textbox-card-1-sub ];
 }
 
-card-1 {
-  children: [ textbox-card-1-label, textbox-card-1-value, textbox-card-1-sub ];
-}
-
-card-2 {
-  children: [ textbox-card-2-label, textbox-card-2-value, textbox-card-2-sub ];
-}
-
-card-3 {
-  children: [ textbox-card-3-label, textbox-card-3-value, textbox-card-3-sub ];
+/* Card 4 uses the accent color for higher priority (Momentum / Study info) */
+card-4 {
+  orientation:      vertical;
+  expand:           true;
+  padding:          16px;
+  spacing:          8px;
+  border:           1px;
+  border-radius:    16px;
+  border-color:     @accent;
+  background-color: @mantle;
+  children:         [ textbox-card-4-label, textbox-card-4-value, textbox-card-4-sub ];
 }
 
 textbox-card-1-label,
 textbox-card-2-label,
 textbox-card-3-label,
-textbox-chart-a-title,
-textbox-chart-b-title {
-  markup: true;
+textbox-card-4-label,
+textbox-primary-title,
+textbox-chart-b-title,
+textbox-chart-c-title,
+textbox-insight-title {
+  markup:     true;
+  expand:     false;
   text-color: @subtext;
-  font: "JetBrainsMono Nerd Font 11";
+  font:       "JetBrainsMono Nerd Font 11";
 }
 
 textbox-card-1-value,
 textbox-card-2-value,
 textbox-card-3-value {
-  markup: true;
+  markup:     true;
+  expand:     true;
   text-color: @text;
-  font: "JetBrainsMono Nerd Font Bold 26";
+  font:       "JetBrainsMono Nerd Font Bold 22";
+}
+
+/* Highlighted card value */
+textbox-card-4-value {
+  markup:     true;
+  expand:     true;
+  text-color: @accent;
+  font:       "JetBrainsMono Nerd Font Bold 22";
 }
 
 textbox-card-1-sub,
 textbox-card-2-sub,
-textbox-card-3-sub {
-  markup: true;
+textbox-card-3-sub,
+textbox-card-4-sub {
+  markup:     true;
+  expand:     false;
   text-color: @subtext;
-  font: "JetBrainsMono Nerd Font 11";
+  font:       "JetBrainsMono Nerd Font 10";
 }
 
-charts-box {
+/* ── Analytics split ─────────────────────────────────────── */
+
+analytics-box {
+  expand:      true;
   orientation: horizontal;
-  spacing: 14px;
-  children: [ chart-a, chart-b ];
+  spacing:     12px;
+  children:    [ primary-panel, side-panel ];
 }
 
-chart-a, chart-b {
-  width: 48%;
-  padding: 18px;
-  spacing: 12px;
-  border: 1px;
-  border-radius: 16px;
-  border-color: @card-border;
-  background-color: @card-bg;
+primary-panel {
+  orientation:      vertical;
+  width:            60%;
+  padding:          20px;
+  spacing:          10px;
+  border:           1px;
+  border-radius:    20px;
+  border-color:     @card-border;
+  background-color: @mantle;
+  children:         [ textbox-primary-title, textbox-primary-body ];
 }
 
-chart-a {
-  children: [ textbox-chart-a-title, textbox-chart-a-body ];
+textbox-primary-body {
+  markup:      true;
+  expand:      true;
+  text-color:  @text;
+  font:        "JetBrainsMono Nerd Font 13";
+  line-height: 1.4;
 }
 
-chart-b {
-  children: [ textbox-chart-b-title, textbox-chart-b-body ];
+side-panel {
+  orientation: vertical;
+  expand:      true;
+  spacing:     12px;
+  children:    [ chart-b, chart-c, insight-box ];
 }
 
-textbox-chart-a-body,
-textbox-chart-b-body {
-  markup: true;
-  text-color: @text;
-  font: "JetBrainsMono Nerd Font 13";
+chart-b, chart-c, insight-box {
+  orientation:      vertical;
+  expand:           true;
+  padding:          14px 18px;
+  spacing:          8px;
+  border:           1px;
+  border-radius:    16px;
+  border-color:     @card-border;
+  background-color: @mantle;
 }
+
+chart-b     { children: [ textbox-chart-b-title, textbox-chart-b-body ]; }
+chart-c     { children: [ textbox-chart-c-title, textbox-chart-c-body ]; }
+insight-box { children: [ textbox-insight-title, textbox-insight-body ]; }
+
+textbox-chart-b-body,
+textbox-chart-c-body {
+  markup:      true;
+  expand:      true;
+  text-color:  @text;
+  font:        "JetBrainsMono Nerd Font 11";
+  line-height: 1.4;
+}
+
+textbox-insight-body {
+  markup:      true;
+  expand:      true;
+  text-color:  @text;
+  font:        "JetBrainsMono Nerd Font 11";
+  line-height: 1.6;
+}
+
+/* ── Note bar ────────────────────────────────────────────── */
 
 note-box {
-  padding: 12px 16px;
-  border: 1px;
-  border-radius: 12px;
-  border-color: @card-border;
-  background-color: @card-bg;
-  children: [ textbox-note ];
+  expand:           false;
+  padding:          12px 18px;
+  border:           1px;
+  border-radius:    14px;
+  border-color:     @card-border;
+  background-color: @mantle;
+  children:         [ textbox-note ];
 }
 
 textbox-note {
-  markup: true;
+  markup:     true;
   text-color: @subtext;
-  font: "JetBrainsMono Nerd Font 11";
+  font:       "JetBrainsMono Nerd Font 11";
+  line-height: 1.4;
 }
 
+/* ── App list ────────────────────────────────────────────── */
+
 listview {
-  lines: 10;
-  fixed-height: false;
-  spacing: 8px;
-  scrollbar: false;
+  expand:           true;
+  lines:            6;
+  fixed-height:     false;
+  spacing:          10px;
+  scrollbar:        false;
   background-color: transparent;
 }
 
 element {
-  orientation: horizontal;
-  children: [ element-icon, element-text ];
-  spacing: 14px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background-color: transparent;
-  text-color: @text;
+  orientation:      horizontal;
+  children:         [ element-icon, element-text ];
+  spacing:          14px;
+  padding:          12px 16px;
+  border:           1px;
+  border-radius:    14px;
+  border-color:     transparent;
+  background-color: @mantle;
+  text-color:       @text;
 }
 
 element selected {
   background-color: @accent;
-  text-color: @base;
+  text-color:       @base;
 }
 
 element-icon {
-  size: 1.25em;
-  vertical-align: 0.0;
+  size:             1.2em;
+  vertical-align:   0.5;
   background-color: transparent;
 }
 
 element-text {
-  markup: true;
-  text-color: inherit;
-  font: "JetBrainsMono Nerd Font 12";
+  markup:         true;
+  text-color:     inherit;
+  font:           "JetBrainsMono Nerd Font 11";
   vertical-align: 0.5;
 }
