@@ -25,7 +25,7 @@
   "clock": {
     "format": " {:%a %d %b  %H:%M}",
     "interval": 1,
-    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "tooltip-format": "{calendar}",
     "calendar": {
       "mode": "month",
       "mode-mon-col": 3,
