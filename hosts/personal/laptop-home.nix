@@ -1,4 +1,4 @@
-{ config, osConfig, pkgs, ... }:
+{ config, osConfig, pkgs, lib, ... }:
 let
   homeDir = config.home.homeDirectory;
   themeGeneratedDir = "${config.xdg.configHome}/theme/generated";
@@ -98,6 +98,7 @@ in
 
     "kanshi/config".source = ../../dotfiles/hosts/ryzen14/kanshi/config;
     "rofi/screen-time.rasi".source = ../../dotfiles/common/rofi/screen-time.rasi;
+    "rofi/study-timer.rasi".source = ../../dotfiles/common/rofi/study-timer.rasi;
   };
 
   systemd.user.services.rofi-screen-time-tracker = {
@@ -128,7 +129,7 @@ in
     };
   };
 
-  home.activation.rofiScreenTimeCategoryMapSeed = config.lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+  home.activation.rofiScreenTimeCategoryMapSeed = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     ${pkgs.coreutils}/bin/mkdir -p "${config.xdg.configHome}/rofi-screen-time"
     if [ ! -e "${config.xdg.configHome}/rofi-screen-time/category-map.json" ]; then
       ${pkgs.coreutils}/bin/cp \

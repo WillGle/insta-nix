@@ -1,0 +1,61 @@
+@theme "~/.config/rofi/theme.rasi"
+
+window {
+  width:            32%;
+  border:           2px;
+  border-radius:    14px;
+  padding:          14px;
+}
+
+mainbox {
+  spacing:          10px;
+  padding:          0px;
+  children:         [ listview ];
+  background-color: transparent;
+}
+
+inputbar {
+  enabled: false;
+}
+
+message {
+  enabled: false;
+}
+
+listview {
+  lines:            4;
+  columns:          1;
+  fixed-height:     false;
+  spacing:          8px;
+  scrollbar:        false;
+  background-color: transparent;
+  padding:          0px;
+}
+
+element {
+  spacing:          12px;
+  padding:          12px 16px;
+  margin:           0px;
+  border-radius:    10px;
+  background-color: @mantle;
+  text-color:       @text;
+  children:         [ element-icon, element-text ];
+}
+
+element selected {
+  background-color: @accent;
+  text-color:       @base;
+}
+
+element-icon {
+  size:             1.3em;
+  background-color: transparent;
+  vertical-align:   0.2;
+}
+
+element-text {
+  markup:           true;
+  text-color:       inherit;
+  font:             "JetBrainsMono Nerd Font 11";
+  vertical-align:   0.0;
+}

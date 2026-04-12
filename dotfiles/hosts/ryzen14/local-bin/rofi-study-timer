@@ -4,8 +4,33 @@ set -euo pipefail
 export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
 
 ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
+ROFI_THEME="${ROFI_THEME:-}"
 TIMER_BIN="${TIMER_BIN:-${HOME}/.local/bin/study-timer}"
 SCREEN_TIME_BIN="${SCREEN_TIME_BIN:-${HOME}/.local/bin/rofi-screen-time}"
+
+resolve_rofi_theme() {
+  local script_dir
+  local candidate=""
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+  for candidate in \
+    "${ROFI_THEME:-}" \
+    "${HOME}/.config/rofi/study-timer.rasi" \
+    "$script_dir/../../../common/rofi/study-timer.rasi" \
+    "/etc/nixos/dotfiles/common/rofi/study-timer.rasi"
+  do
+    [ -n "$candidate" ] || continue
+    if [ -r "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  printf 'rofi-study-timer: unable to locate study-timer theme\n' >&2
+  return 1
+}
+
+ROFI_THEME="$(resolve_rofi_theme)"
 
 escape_markup() {
   local value="${1//&/&amp;}"
@@ -65,7 +90,7 @@ started_at="$(printf '%s' "$status_json" | jq -r '.started_at // empty')"
 elapsed_seconds="$(printf '%s' "$status_json" | jq -r '.elapsed_seconds // 0')"
 elapsed_label="$("$TIMER_BIN" status | sed 's/^active //; s/^inactive$/No active study session/')"
 
-rows="$(
+generate_rows() {
   if [ "$active" = "true" ]; then
     emit_row "stop" "$(row_markup "Stop study session" "$elapsed_label")" "media-playback-stop-symbolic"
   else
@@ -76,12 +101,13 @@ rows="$(
   fi
   emit_row "screen-time" "$(row_markup "Open screen time" "Dashboard and study totals")" "view-calendar-symbolic"
   emit_row "close" "$(row_markup "Close")" "window-close-symbolic"
-)"
+}
 
 selection="$(
-  printf '%s' "$rows" \
+  generate_rows \
     | rofi -dmenu -markup-rows -show-icons -no-custom \
         -config "$ROFI_CONFIG" \
+        -theme "$ROFI_THEME" \
         -p ""
 )" || exit 0
 
