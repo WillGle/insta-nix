@@ -67,9 +67,20 @@ build_scored_context() {
         | ($day.metrics.browser_ambiguity_ratio) as $browser_ratio
         | ($day.categories.seconds["Work"] // 0) as $work_seconds
         | ($day.categories.seconds["Study"] // 0) as $study_category_seconds
+        | (clamp01((($day.study_seconds + (0.6 * $work_seconds)) / ($day.metrics.safe_total_seconds // 1)))) as $intentional_extended
         | if ($day.schema_ready | not) then
             . + {
               scores: {
+                intentional_usage_ratio_strict: {
+                  available: true,
+                  value: $study_ratio,
+                  partial: false,
+                  label: "Intentional Usage Ratio",
+                  reason: "",
+                  components: {
+                    study_ratio: $study_ratio
+                  }
+                },
                 fragmentation_score: unavailable_score("Requires version 2 tracking data."; false),
                 focus_score: unavailable_score("Requires version 2 tracking data."; true),
                 intentional_usage_ratio: {
@@ -84,14 +95,13 @@ build_scored_context() {
                 },
                 intentional_usage_ratio_extended: {
                   available: true,
-                  value: clamp01((($day.study_seconds + (0.6 * $work_seconds) + (0.4 * $study_category_seconds)) / ($day.metrics.safe_total_seconds // 1))),
+                  value: $intentional_extended,
                   partial: true,
                   label: "Intentional Usage Ratio Extended",
-                  reason: "Uses study mode plus weighted category time.",
+                  reason: "Uses study mode plus weighted Work time to avoid overlapping Study double-count.",
                   components: {
                     study_seconds: $day.study_seconds,
-                    work_seconds: $work_seconds,
-                    study_category_seconds: $study_category_seconds
+                    work_seconds: $work_seconds
                   }
                 },
                 distraction_load: unavailable_score("Requires version 2 tracking data."; true),
@@ -118,6 +128,16 @@ build_scored_context() {
             | (($distraction_norm * 100) | round) as $distraction_score
             | . + {
               scores: {
+                intentional_usage_ratio_strict: {
+                  available: true,
+                  value: $study_ratio,
+                  partial: false,
+                  label: "Intentional Usage Ratio",
+                  reason: "",
+                  components: {
+                    study_ratio: $study_ratio
+                  }
+                },
                 fragmentation_score: {
                   available: true,
                   value: $fragmentation_score,
@@ -156,14 +176,13 @@ build_scored_context() {
                 },
                 intentional_usage_ratio_extended: {
                   available: true,
-                  value: clamp01((($day.study_seconds + (0.6 * $work_seconds) + (0.4 * $study_category_seconds)) / ($day.metrics.safe_total_seconds // 1))),
+                  value: $intentional_extended,
                   partial: true,
                   label: "Intentional Usage Ratio Extended",
-                  reason: "Uses study mode plus weighted category time.",
+                  reason: "Uses study mode plus weighted Work time to avoid overlapping Study double-count.",
                   components: {
                     study_seconds: $day.study_seconds,
-                    work_seconds: $work_seconds,
-                    study_category_seconds: $study_category_seconds
+                    work_seconds: $work_seconds
                   }
                 },
                 distraction_load: {
@@ -303,7 +322,7 @@ build_scored_context() {
           schema_version: .today.version,
           schema_ready: .today.schema_ready,
           title_tracking: false,
-          focus_score_partial: true,
+          focus_score_partial: (.today.scores.focus_score.partial // true),
           baseline_available: .baseline.available,
           baseline_eligible_days: .baseline.eligible_days,
           category_map_path: .category_map_path,

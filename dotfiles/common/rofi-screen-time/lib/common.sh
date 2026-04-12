@@ -130,34 +130,97 @@ seconds_to_compact() {
 }
 
 format_ratio_percent() {
-  local ratio="${1:-0}"
-  jq -nr --argjson ratio "$ratio" '($ratio * 100 | round | tostring) + "%"'
+  local raw="${1:-}"
+  jq -nr --arg raw "$raw" '
+    ($raw | if . == "" or . == "null" then null else tonumber? end) as $ratio
+    | if $ratio == null then
+        "Unavailable"
+      else
+        (($ratio * 100) | round | tostring) + "%"
+      end
+  '
 }
 
 format_ratio_points_delta() {
-  local delta="${1:-0}"
-  jq -nr --argjson delta "$delta" '
-    ($delta * 100) as $points
-    | if $points > 0 then
-        "+" + ($points | round | tostring) + "pp"
-      elif $points < 0 then
-        ($points | round | tostring) + "pp"
+  local raw="${1:-}"
+  jq -nr --arg raw "$raw" '
+    ($raw | if . == "" or . == "null" then null else tonumber? end) as $delta
+    | if $delta == null then
+        "Unavailable"
       else
-        "0pp"
+        ($delta * 100) as $points
+        | if $points > 0 then
+            "+" + ($points | round | tostring) + "pp"
+          elif $points < 0 then
+            ($points | round | tostring) + "pp"
+          else
+            "0pp"
+          end
       end
   '
 }
 
 format_score_delta() {
-  local delta="${1:-0}"
-  jq -nr --argjson delta "$delta" '
-    if $delta > 0 then
-      "+" + ($delta | round | tostring) + " pts"
-    elif $delta < 0 then
-      ($delta | round | tostring) + " pts"
-    else
-      "0 pts"
-    end
+  local raw="${1:-}"
+  jq -nr --arg raw "$raw" '
+    ($raw | if . == "" or . == "null" then null else tonumber? end) as $delta
+    | if $delta == null then
+        "Unavailable"
+      else
+        if $delta > 0 then
+          "+" + ($delta | round | tostring) + " pts"
+        elif $delta < 0 then
+          ($delta | round | tostring) + " pts"
+        else
+          "0 pts"
+        end
+      end
+  '
+}
+
+format_rate_with_avg() {
+  local current="${1:-}"
+  local avg="${2:-}"
+  jq -nr --arg current "$current" --arg avg "$avg" '
+    def number_or_null($value):
+      if $value == "" or $value == "null" then
+        null
+      else
+        ($value | tonumber?)
+      end;
+
+    (number_or_null($current)) as $current_rate
+    | (number_or_null($avg)) as $avg_rate
+    | if $current_rate == null then
+        "Unavailable"
+      else
+        ($current_rate | tostring) + "/h"
+        + " • avg "
+        + (if $avg_rate == null then "n/a" else ($avg_rate | tostring) + "/h" end)
+      end
+  '
+}
+
+format_ratio_with_avg() {
+  local current="${1:-}"
+  local avg="${2:-}"
+  jq -nr --arg current "$current" --arg avg "$avg" '
+    def number_or_null($value):
+      if $value == "" or $value == "null" then
+        null
+      else
+        ($value | tonumber?)
+      end;
+
+    (number_or_null($current)) as $current_ratio
+    | (number_or_null($avg)) as $avg_ratio
+    | if $current_ratio == null then
+        "Unavailable"
+      else
+        (($current_ratio * 100) | round | tostring) + "%"
+        + " • avg "
+        + (if $avg_ratio == null then "n/a" else (($avg_ratio * 100) | round | tostring) + "%" end)
+      end
   '
 }
 
