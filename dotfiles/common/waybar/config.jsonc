@@ -26,8 +26,8 @@
   "clock": {
     "format": " {:%a %d %b  %H:%M}",
     "interval": 1,
-    "on-click": "bash -lc 'setsid -f \"$HOME/.local/bin/rofi-study-timer\" >/dev/null 2>&1'",
-    "on-click-right": "bash -lc 'setsid -f \"$HOME/.local/bin/rofi-screen-time\" >/dev/null 2>&1'",
+    "on-click": "setsid -f $HOME/.local/bin/rofi-study-timer",
+    "on-click-right": "setsid -f $HOME/.local/bin/rofi-screen-time",
     "tooltip-format": "{calendar}",
     "calendar": {
       "mode": "month",
