@@ -168,14 +168,28 @@ render_insight_console() {
 
 render_category_bars() {
   local context_json="$1"
+  local limit="${2:-0}"
+  local hide_zero="${3:-false}"
   local output=""
   local item=""
   local max_seconds=0
   local name=""
   local seconds=0
   local share=0
+  local hide_zero_json='false'
 
-  max_seconds="$(printf '%s' "$context_json" | jq -r '([.today.categories.breakdown[].seconds] | max) // 0')"
+  if [ "$hide_zero" = "true" ]; then
+    hide_zero_json='true'
+  fi
+
+  max_seconds="$(printf '%s' "$context_json" | jq -r \
+    --argjson limit "$limit" \
+    --argjson hide_zero "$hide_zero_json" '
+      .today.categories.breakdown
+      | if $hide_zero then map(select(.seconds > 0)) else . end
+      | if $limit > 0 then .[:$limit] else . end
+      | ([.[].seconds] | max) // 0
+    ')"
   while IFS= read -r item; do
     [ -n "$item" ] || continue
     name="$(printf '%s' "$item" | jq -r '.name')"
@@ -186,8 +200,22 @@ render_category_bars() {
       "$(bar_markup "$seconds" "$max_seconds" 10 "$ACCENT_COLOR" "$MANTLE_COLOR")" \
       "$(seconds_to_short "$seconds")" \
       "$(format_ratio_percent "$share")")"$'\n'
-  done < <(printf '%s' "$context_json" | jq -c '.today.categories.breakdown[]')
-  printf '%s' "${output%$'\n'}"
+  done < <(
+    printf '%s' "$context_json" | jq -c \
+      --argjson limit "$limit" \
+      --argjson hide_zero "$hide_zero_json" '
+        .today.categories.breakdown
+        | if $hide_zero then map(select(.seconds > 0)) else . end
+        | if $limit > 0 then .[:$limit] else . end
+        | .[]
+      '
+  )
+
+  if [ -z "$output" ]; then
+    printf '%s\n' "$(kv_markup "Categories" "No category data yet")"
+  else
+    printf '%s' "${output%$'\n'}"
+  fi
 }
 
 render_top_apps_by_category() {
@@ -267,8 +295,8 @@ render_focus_vs_baseline() {
         [
           ["Session density", .today.metrics.session_density, .baseline.averages.session_density],
           ["Switch rate", .today.metrics.switch_rate, .baseline.averages.switch_rate],
-          ["Productive ratio", .today.metrics.productive_ratio_v1, .baseline.averages.productive_ratio_v1],
-          ["Browser ambiguity", .today.metrics.browser_ambiguity_ratio, .baseline.averages.browser_ambiguity_ratio]
+          ["Productive Ratio v1", .today.metrics.productive_ratio_v1, .baseline.averages.productive_ratio_v1],
+          ["Browser Ambiguity Ratio", .today.metrics.browser_ambiguity_ratio, .baseline.averages.browser_ambiguity_ratio]
         ]
         | .[]
         | @tsv
@@ -282,17 +310,9 @@ render_focus_vs_baseline() {
       continue
     fi
     if [ "$label" = "Session density" ] || [ "$label" = "Switch rate" ]; then
-      metrics="$(jq -nr --argjson current "$current" --argjson avg "$avg" '
-        ($current | tostring) + "/h"
-        + " • avg "
-        + (if $avg == null then "n/a" else ($avg | tostring) + "/h" end)
-      ')"
+      metrics="$(format_rate_with_avg "$current" "$avg")"
     else
-      metrics="$(jq -nr --argjson current "$current" --argjson avg "$avg" '
-        (($current * 100) | round | tostring) + "%"
-        + " • avg "
-        + (if $avg == null then "n/a" else (($avg * 100) | round | tostring) + "%" end)
-      ')"
+      metrics="$(format_ratio_with_avg "$current" "$avg")"
     fi
     output+="$(kv_markup "$label" "$metrics")"$'\n'
   done <<< "$rows"
@@ -493,6 +513,7 @@ build_view_payload() {
   local context_json="$2"
   local target_date subtitle meta title note_text navigation_json
   local updated_time total_seconds study_ratio focus_json frag_json focus_value frag_value
+  local top_category peak_window main_insight summary_active summary_study_ratio
   local card1_label card1_value card1_sub
   local card2_label card2_value card2_sub
   local card3_label card3_value card3_sub
@@ -507,34 +528,45 @@ build_view_payload() {
   frag_json="$(printf '%s' "$context_json" | jq -c '.today.scores.fragmentation_score')"
   focus_value="$(score_value_text "$focus_json")"
   frag_value="$(score_value_text "$frag_json")"
+  top_category="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
+  peak_window="$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
+  main_insight="$(printf '%s' "$context_json" | jq -r '.insights.main.text // "No major insight available yet."')"
+  summary_active="$(seconds_to_compact "$total_seconds")"
+  summary_study_ratio="$(format_ratio_percent "$study_ratio")"
   navigation_json="$(build_navigation_json "$view" "$target_date")"
 
   case "$view" in
     summary)
       title="Overview"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Updated" "$updated_time")"$'\n'"$(kv_markup "Schema" "$(printf '%s' "$context_json" | jq -r 'if .data_quality.schema_ready then "Version 2" else "Legacy" end')")"
+      meta="$(kv_markup "Updated" "$updated_time")"$'\n'"$(kv_markup "Top Category" "$top_category")"
       card1_label="Active Time"
-      card1_value="$(seconds_to_compact "$total_seconds")"
-      card1_sub="Peak $(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
+      card1_value="$summary_active"
+      card1_sub="Peak $peak_window"
       card2_label="Focus Score"
       card2_value="$focus_value"
       card2_sub="$(score_subtext "$focus_json")"
-      card3_label="Fragmentation"
+      card3_label="Fragmentation Score"
       card3_value="$frag_value"
       card3_sub="$(score_subtext "$frag_json")"
       card4_label="Study Ratio"
-      card4_value="$(format_ratio_percent "$study_ratio")"
+      card4_value="$summary_study_ratio"
       card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')")"
       primary_title="Insight Console"
       primary_body="$(render_insight_console "$context_json")"
       chart_b_title="Category Breakdown"
-      chart_b_body="$(render_category_bars "$context_json")"
+      chart_b_body="$(render_category_bars "$context_json" 5 true)"
       chart_c_title="Time Windows"
       chart_c_body="$(render_timeline_chart "$(printf '%s' "$context_json" | jq -c '.today.raw.slots_30m')" "peak $(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label') • $(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_seconds')")")"
       insight_title="Trend Summary"
       insight_body="$(render_baseline_summary "$context_json")"
-      note_text="Category map: $(printf '%s' "$context_json" | jq -r '.category_map_path'). Baseline ready: $(printf '%s' "$context_json" | jq -r 'if .baseline.available then "yes" else "no" end')."
+      local study_status
+      if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
+        study_status="Study session: $(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')") active."
+      else
+        study_status="Study session: Idle."
+      fi
+      note_text="$study_status  Schema: $(printf '%s' "$context_json" | jq -r 'if .data_quality.schema_ready then "Version 2" else "Legacy" end'). Category map: $(printf '%s' "$context_json" | jq -r '.category_map_path'). Baseline ready: $(printf '%s' "$context_json" | jq -r 'if .baseline.available then "yes" else "no" end')."
       ;;
     categories)
       title="Categories"
@@ -543,17 +575,17 @@ build_view_payload() {
       card1_label="Top Category"
       card1_value="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
       card1_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.categories.top_category_seconds')")"
-      card2_label="Productive Ratio"
+      card2_label="Productive Ratio v1"
       card2_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.productive_ratio_v1')")"
       card2_sub="Work + Study only"
-      card3_label="Browser Ambiguity"
+      card3_label="Browser Ambiguity Ratio"
       card3_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.browser_ambiguity_ratio')")"
       card3_sub="Browser remains neutral"
       card4_label="Known Coverage"
       card4_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.known_category_ratio')")"
       card4_sub="Unknown share $(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.categories.unknown_share')")"
       primary_title="Full Breakdown"
-      primary_body="$(render_category_bars "$context_json")"
+      primary_body="$(render_category_bars "$context_json" 0 false)"
       chart_b_title="Top Apps By Category"
       chart_b_body="$(render_top_apps_by_category "$context_json")"
       chart_c_title="Composition Insight"
@@ -572,10 +604,10 @@ build_view_payload() {
       card1_label="Focus Score"
       card1_value="$focus_value"
       card1_sub="$(score_subtext "$focus_json")"
-      card2_label="Fragmentation"
+      card2_label="Fragmentation Score"
       card2_value="$frag_value"
       card2_sub="$(score_subtext "$frag_json")"
-      card3_label="Avg Session Proxy"
+      card3_label="Avg Session Length Proxy"
       card3_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.today.metrics.avg_session_length_proxy_seconds != null')" = "true" ]; then seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.avg_session_length_proxy_seconds | floor')" ; else printf 'Unavailable'; fi)"
       card3_sub="Proxy only"
       card4_label="Switch Rate"
@@ -589,7 +621,7 @@ build_view_payload() {
       chart_c_body="$(printf '%s\n%s\n%s' \
         "$(kv_markup "Focus window" "$(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')")" \
         "$(kv_markup "Active spread" "$(printf '%s' "$context_json" | jq -r '.today.metrics.active_slot_count | tostring') blocks")" \
-        "$(kv_markup "Intentional ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.scores.intentional_usage_ratio.value')")")")"
+        "$(kv_markup "Intentional Usage Ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.scores.intentional_usage_ratio.value')")")")"
       insight_title="Quality Insight"
       insight_body="$(printf '%s' "$context_json" | jq -r '.insights.by_class.quality.text // "No quality insight triggered."')"
       note_text="Focus Score stays partial because browser activity has no title or domain context."
@@ -659,7 +691,7 @@ build_view_payload() {
       card2_label="Main Blocker"
       card2_value="$(printf '%s' "$context_json" | jq -r '.insights.by_class.recommendation.text // "None"')"
       card2_sub="Actionable next step"
-      card3_label="Browser Ambiguity"
+      card3_label="Browser Ambiguity Ratio"
       card3_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.browser_ambiguity_ratio')")"
       card3_sub="Semantic trust limit"
       card4_label="Unknown Share"
@@ -744,6 +776,13 @@ build_view_payload() {
     --arg insight_title "$insight_title" \
     --arg insight_body "$insight_body" \
     --arg note "$note_text" \
+    --arg summary_active "$summary_active" \
+    --arg summary_focus "$focus_value" \
+    --arg summary_fragmentation "$frag_value" \
+    --arg summary_study_ratio "$summary_study_ratio" \
+    --arg summary_top_category "$top_category" \
+    --arg summary_peak_window "$peak_window" \
+    --arg summary_main_insight "$main_insight" \
     --argjson metrics "$(printf '%s' "$context_json" | jq -c '.today.metrics')" \
     --argjson scores "$(printf '%s' "$context_json" | jq -c '.today.scores')" \
     --argjson categories "$(printf '%s' "$context_json" | jq -c '.today.categories')" \
@@ -768,6 +807,15 @@ build_view_payload() {
       chart_c: {title: $chart_c_title, body: $chart_c_body},
       insight: {title: $insight_title, body: $insight_body},
       note: $note,
+      summary: {
+        active_time: $summary_active,
+        focus_score: $summary_focus,
+        fragmentation_score: $summary_fragmentation,
+        study_ratio: $summary_study_ratio,
+        top_category: $summary_top_category,
+        peak_window: $summary_peak_window,
+        main_insight: $summary_main_insight
+      },
       metrics: $metrics,
       scores: $scores,
       categories: $categories,
@@ -840,6 +888,7 @@ windows	Time Windows
 trend	7-Day Trend
 recommendations	Recommendations
 quality	Data Quality
+study-timer	Study Timer
 EOF
 
   emit_row "refresh:$view:$target_date" "$(action_row_markup "Refresh")" "view-refresh-symbolic"

@@ -8,8 +8,8 @@ resolve_screen_time_lib_dir() {
 
   for candidate in \
     "${SCREEN_TIME_LIB_DIR:-}" \
+    "$script_dir/../../../common/rofi-screen-time/lib" \
     "${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}/lib" \
-    "$script_dir/../../common/rofi-screen-time/lib" \
     "/etc/nixos/dotfiles/common/rofi-screen-time/lib"
   do
     [ -n "$candidate" ] || continue
