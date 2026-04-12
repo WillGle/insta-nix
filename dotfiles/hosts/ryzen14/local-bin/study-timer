@@ -9,10 +9,12 @@ STATE_DIR="$SCREEN_TIME_HOME"
 COMMAND="toggle"
 FORMAT="text"
 CACHE_SERVICE_NAME="${CACHE_SERVICE_NAME:-rofi-screen-time-cache.service}"
+DURATION_MINUTES=""
+SESSION_COUNT=""
 
 usage() {
   cat <<'EOF'
-Usage: study-timer [start|stop|toggle|status] [--format text|json] [--state-dir PATH]
+Usage: study-timer [start|stop|toggle|status] [--duration-minutes N] [--session-count N] [--format text|json] [--state-dir PATH]
 EOF
 }
 
@@ -46,6 +48,35 @@ seconds_to_short() {
     return 0
   fi
   printf '%dm\n' "$minutes"
+}
+
+is_positive_integer() {
+  local value="${1:-}"
+  case "$value" in
+    ''|*[!0-9]*)
+      return 1
+      ;;
+    0)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+plan_label() {
+  local duration_minutes="${1:-}"
+  local session_count="${2:-}"
+  if [ -z "$duration_minutes" ]; then
+    printf 'Open-ended session\n'
+    return 0
+  fi
+  if [ -n "$session_count" ]; then
+    printf '%sm x %s sessions\n' "$duration_minutes" "$session_count"
+    return 0
+  fi
+  printf '%sm target\n' "$duration_minutes"
 }
 
 notify() {
@@ -137,21 +168,78 @@ study_status_json() {
   local start_epoch=0
   local current_epoch=0
   local elapsed=0
+  local duration_minutes=""
+  local planned_sessions=""
+  local per_session_seconds_json="null"
+  local planned_total_seconds_json="null"
+  local remaining_total_seconds_json="null"
+  local current_session_json="null"
+  local current_session_elapsed_json="null"
+  local current_session_remaining_json="null"
+  local target_reached="false"
+  local duration_seconds=0
+  local planned_total_seconds=0
+  local remaining_total_seconds=0
+  local current_session=0
+  local current_session_elapsed=0
+  local current_session_remaining=0
 
   file="$(active_file)"
   if [ ! -f "$file" ]; then
-    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
+    jq -n '{
+      active:false,
+      started_at:"",
+      started_date:"",
+      elapsed_seconds:0,
+      duration_minutes:null,
+      planned_sessions:null,
+      per_session_seconds:null,
+      planned_total_seconds:null,
+      remaining_total_seconds:null,
+      current_session:null,
+      current_session_elapsed_seconds:null,
+      current_session_remaining_seconds:null,
+      target_reached:false
+    }'
     return 0
   fi
   if ! jq -e '.active == true and (.started_at // "" | length > 0)' "$file" >/dev/null 2>&1; then
-    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
+    jq -n '{
+      active:false,
+      started_at:"",
+      started_date:"",
+      elapsed_seconds:0,
+      duration_minutes:null,
+      planned_sessions:null,
+      per_session_seconds:null,
+      planned_total_seconds:null,
+      remaining_total_seconds:null,
+      current_session:null,
+      current_session_elapsed_seconds:null,
+      current_session_remaining_seconds:null,
+      target_reached:false
+    }'
     return 0
   fi
 
   started_at="$(jq -r '.started_at // empty' "$file")"
   start_epoch="$(epoch_from_iso "$started_at")"
   if [ "$start_epoch" -le 0 ]; then
-    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
+    jq -n '{
+      active:false,
+      started_at:"",
+      started_date:"",
+      elapsed_seconds:0,
+      duration_minutes:null,
+      planned_sessions:null,
+      per_session_seconds:null,
+      planned_total_seconds:null,
+      remaining_total_seconds:null,
+      current_session:null,
+      current_session_elapsed_seconds:null,
+      current_session_remaining_seconds:null,
+      target_reached:false
+    }'
     return 0
   fi
 
@@ -160,12 +248,70 @@ study_status_json() {
     elapsed=$((current_epoch - start_epoch))
   fi
   started_date="$(date -d "$started_at" +%F)"
+  duration_minutes="$(jq -r '.duration_minutes // empty' "$file")"
+  planned_sessions="$(jq -r '.planned_sessions // empty' "$file")"
+
+  if is_positive_integer "$duration_minutes"; then
+    duration_seconds=$((duration_minutes * 60))
+    per_session_seconds_json="$duration_seconds"
+    current_session=$((elapsed / duration_seconds + 1))
+    current_session_elapsed=$((elapsed % duration_seconds))
+    current_session_remaining=$((duration_seconds - current_session_elapsed))
+    if [ "$current_session_remaining" -eq "$duration_seconds" ] && [ "$elapsed" -gt 0 ]; then
+      current_session_remaining=0
+      current_session_elapsed="$duration_seconds"
+    fi
+    current_session_json="$current_session"
+    current_session_elapsed_json="$current_session_elapsed"
+    current_session_remaining_json="$current_session_remaining"
+
+    if is_positive_integer "$planned_sessions"; then
+      planned_total_seconds=$((duration_seconds * planned_sessions))
+      planned_total_seconds_json="$planned_total_seconds"
+      remaining_total_seconds=$((planned_total_seconds - elapsed))
+      if [ "$remaining_total_seconds" -le 0 ]; then
+        remaining_total_seconds=0
+        current_session="$planned_sessions"
+        current_session_json="$current_session"
+        current_session_elapsed_json="$duration_seconds"
+        current_session_remaining_json="0"
+        target_reached="true"
+      elif [ "$current_session" -gt "$planned_sessions" ]; then
+        current_session="$planned_sessions"
+        current_session_json="$current_session"
+      fi
+      remaining_total_seconds_json="$remaining_total_seconds"
+    fi
+  fi
 
   jq -n \
     --arg started_at "$started_at" \
     --arg started_date "$started_date" \
     --argjson elapsed_seconds "$elapsed" \
-    '{active:true, started_at:$started_at, started_date:$started_date, elapsed_seconds:$elapsed_seconds}'
+    --argjson duration_minutes "${duration_minutes:-null}" \
+    --argjson planned_sessions "${planned_sessions:-null}" \
+    --argjson per_session_seconds "$per_session_seconds_json" \
+    --argjson planned_total_seconds "$planned_total_seconds_json" \
+    --argjson remaining_total_seconds "$remaining_total_seconds_json" \
+    --argjson current_session "$current_session_json" \
+    --argjson current_session_elapsed_seconds "$current_session_elapsed_json" \
+    --argjson current_session_remaining_seconds "$current_session_remaining_json" \
+    --argjson target_reached "$target_reached" \
+    '{
+      active:true,
+      started_at:$started_at,
+      started_date:$started_date,
+      elapsed_seconds:$elapsed_seconds,
+      duration_minutes:$duration_minutes,
+      planned_sessions:$planned_sessions,
+      per_session_seconds:$per_session_seconds,
+      planned_total_seconds:$planned_total_seconds,
+      remaining_total_seconds:$remaining_total_seconds,
+      current_session:$current_session,
+      current_session_elapsed_seconds:$current_session_elapsed_seconds,
+      current_session_remaining_seconds:$current_session_remaining_seconds,
+      target_reached:$target_reached
+    }'
 }
 
 print_result() {
@@ -183,17 +329,51 @@ print_result() {
   active="$(printf '%s' "$json" | jq -r '.active')"
   started_at="$(printf '%s' "$json" | jq -r '.started_at // empty')"
   elapsed="$(printf '%s' "$json" | jq -r '.elapsed_seconds // 0')"
+  local duration_minutes
+  local planned_sessions
+  local current_session
+  local remaining_total_seconds
+  local target_reached
+  local plan_text=""
+  duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
+  planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
+  current_session="$(printf '%s' "$json" | jq -r '.current_session // empty')"
+  remaining_total_seconds="$(printf '%s' "$json" | jq -r '.remaining_total_seconds // empty')"
+  target_reached="$(printf '%s' "$json" | jq -r '.target_reached // false')"
+
+  if [ -n "$duration_minutes" ]; then
+    plan_text="$(plan_label "$duration_minutes" "$planned_sessions")"
+    if [ "$active" = "true" ]; then
+      if [ "$target_reached" = "true" ]; then
+        plan_text="${plan_text%$'\n'} • complete"
+      elif [ -n "$current_session" ] && [ -n "$remaining_total_seconds" ] && [ "$remaining_total_seconds" != "null" ]; then
+        plan_text="${plan_text%$'\n'} • session ${current_session}/${planned_sessions:-1} • $(seconds_to_short "$remaining_total_seconds") left"
+      fi
+    fi
+  fi
 
   case "$action" in
     start)
-      printf 'started %s\n' "$(seconds_to_short "$elapsed")"
+      if [ -n "$plan_text" ]; then
+        printf 'started %s • %s\n' "$(seconds_to_short "$elapsed")" "$plan_text"
+      else
+        printf 'started %s\n' "$(seconds_to_short "$elapsed")"
+      fi
       ;;
     stop)
-      printf 'stopped %s\n' "$(seconds_to_short "$elapsed")"
+      if [ -n "$plan_text" ]; then
+        printf 'stopped %s • %s\n' "$(seconds_to_short "$elapsed")" "$plan_text"
+      else
+        printf 'stopped %s\n' "$(seconds_to_short "$elapsed")"
+      fi
       ;;
     *)
       if [ "$active" = "true" ]; then
-        printf 'active %s since %s\n' "$(seconds_to_short "$elapsed")" "$(date -d "$started_at" '+%H:%M')"
+        if [ -n "$plan_text" ]; then
+          printf 'active %s since %s • %s\n' "$(seconds_to_short "$elapsed")" "$(date -d "$started_at" '+%H:%M')" "$plan_text"
+        else
+          printf 'active %s since %s\n' "$(seconds_to_short "$elapsed")" "$(date -d "$started_at" '+%H:%M')"
+        fi
       else
         printf 'inactive\n'
       fi
@@ -313,6 +493,8 @@ start_session() {
   local current_now=""
   local target_date=""
   local result_json=""
+  local duration_json="null"
+  local session_json="null"
 
   ensure_dirs
   status_json="$(study_status_json)"
@@ -324,14 +506,33 @@ start_session() {
 
   current_now="$(now_iso)"
   target_date="$(date -d "$current_now" +%F)"
+  if [ -n "$DURATION_MINUTES" ]; then
+    duration_json="$DURATION_MINUTES"
+  fi
+  if [ -n "$SESSION_COUNT" ]; then
+    session_json="$SESSION_COUNT"
+  fi
   mark_session_started "$target_date" "$current_now"
   jq -n \
     --arg started_at "$current_now" \
     --arg started_date "$target_date" \
-    '{version:1, active:true, started_at:$started_at, started_date:$started_date}' >"$(active_file)"
+    --argjson duration_minutes "$duration_json" \
+    --argjson planned_sessions "$session_json" \
+    '{
+      version:2,
+      active:true,
+      started_at:$started_at,
+      started_date:$started_date,
+      duration_minutes:$duration_minutes,
+      planned_sessions:$planned_sessions
+    }' >"$(active_file)"
 
   result_json="$(study_status_json)"
-  notify "Study timer started" "Started at $(date -d "$current_now" '+%H:%M')"
+  if [ -n "$DURATION_MINUTES" ]; then
+    notify "Study timer started" "$(plan_label "$DURATION_MINUTES" "${SESSION_COUNT:-1}")"
+  else
+    notify "Study timer started" "Started at $(date -d "$current_now" '+%H:%M')"
+  fi
   refresh_screen_time_cache
   print_result "$result_json" "start"
 }
@@ -377,6 +578,14 @@ while [ "$#" -gt 0 ]; do
       FORMAT="${2:-}"
       shift 2
       ;;
+    --duration-minutes)
+      DURATION_MINUTES="${2:-}"
+      shift 2
+      ;;
+    --session-count)
+      SESSION_COUNT="${2:-}"
+      shift 2
+      ;;
     --state-dir)
       STATE_DIR="${2:-}"
       shift 2
@@ -399,6 +608,25 @@ case "$FORMAT" in
     exit 2
     ;;
 esac
+
+if [ -n "$DURATION_MINUTES" ] && ! is_positive_integer "$DURATION_MINUTES"; then
+  printf 'study-timer: --duration-minutes must be a positive integer\n' >&2
+  exit 2
+fi
+
+if [ -n "$SESSION_COUNT" ] && ! is_positive_integer "$SESSION_COUNT"; then
+  printf 'study-timer: --session-count must be a positive integer\n' >&2
+  exit 2
+fi
+
+if [ -n "$SESSION_COUNT" ] && [ -z "$DURATION_MINUTES" ]; then
+  printf 'study-timer: --session-count requires --duration-minutes\n' >&2
+  exit 2
+fi
+
+if [ -n "$DURATION_MINUTES" ] && [ -z "$SESSION_COUNT" ]; then
+  SESSION_COUNT="1"
+fi
 
 case "$COMMAND" in
   start)
