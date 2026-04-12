@@ -16,17 +16,17 @@
 
 window {
   width:            88%;
-  height:           94%;
+  height:           96%;
   border:           1px;
   border-radius:    24px;
   border-color:     @window-border;
   background-color: @base;
-  padding:          24px;
+  padding:          20px;
 }
 
 mainbox {
   orientation:      vertical;
-  spacing:          16px;
+  spacing:          14px;
   children:         [ header-box, overview-box, analytics-box, note-box, listview ];
   background-color: transparent;
 }
@@ -98,8 +98,11 @@ card-1, card-2, card-3 {
   border-radius:    16px;
   border-color:     @card-border;
   background-color: @mantle;
-  children:         [ textbox-card-1-label, textbox-card-1-value, textbox-card-1-sub ];
 }
+
+card-1 { children: [ textbox-card-1-label, textbox-card-1-value, textbox-card-1-sub ]; }
+card-2 { children: [ textbox-card-2-label, textbox-card-2-value, textbox-card-2-sub ]; }
+card-3 { children: [ textbox-card-3-label, textbox-card-3-value, textbox-card-3-sub ]; }
 
 /* Card 4 uses the accent color for higher priority (Momentum / Study info) */
 card-4 {
@@ -160,7 +163,7 @@ textbox-card-4-sub {
 analytics-box {
   expand:      true;
   orientation: horizontal;
-  spacing:     12px;
+  spacing:     10px;
   children:    [ primary-panel, side-panel ];
 }
 
@@ -187,13 +190,13 @@ textbox-primary-body {
 side-panel {
   orientation: vertical;
   expand:      true;
-  spacing:     12px;
+  spacing:     10px;
   children:    [ chart-b, chart-c, insight-box ];
 }
 
 chart-b, chart-c, insight-box {
   orientation:      vertical;
-  expand:           true;
+  expand:           false;
   padding:          14px 18px;
   spacing:          8px;
   border:           1px;
@@ -205,13 +208,14 @@ chart-b, chart-c, insight-box {
 chart-b     { children: [ textbox-chart-b-title, textbox-chart-b-body ]; }
 chart-c     { children: [ textbox-chart-c-title, textbox-chart-c-body ]; }
 insight-box { children: [ textbox-insight-title, textbox-insight-body ]; }
+insight-box { expand: true; }
 
 textbox-chart-b-body,
 textbox-chart-c-body {
   markup:      true;
-  expand:      true;
+  expand:      false;
   text-color:  @text;
-  font:        "JetBrainsMono Nerd Font 11";
+  font:        "JetBrainsMono Nerd Font 10";
   line-height: 1.4;
 }
 
@@ -219,7 +223,7 @@ textbox-insight-body {
   markup:      true;
   expand:      true;
   text-color:  @text;
-  font:        "JetBrainsMono Nerd Font 11";
+  font:        "JetBrainsMono Nerd Font 10";
   line-height: 1.6;
 }
 
@@ -227,7 +231,7 @@ textbox-insight-body {
 
 note-box {
   expand:           false;
-  padding:          12px 18px;
+  padding:          10px 16px;
   border:           1px;
   border-radius:    14px;
   border-color:     @card-border;
@@ -238,7 +242,7 @@ note-box {
 textbox-note {
   markup:     true;
   text-color: @subtext;
-  font:       "JetBrainsMono Nerd Font 11";
+  font:       "JetBrainsMono Nerd Font 10";
   line-height: 1.4;
 }
 
@@ -246,9 +250,9 @@ textbox-note {
 
 listview {
   expand:           true;
-  lines:            10;
+  lines:            7;
   fixed-height:     false;
-  spacing:          8px;
+  spacing:          10px;
   scrollbar:        false;
   background-color: transparent;
 }
@@ -257,7 +261,7 @@ element {
   orientation:      horizontal;
   children:         [ element-icon, element-text ];
   spacing:          14px;
-  padding:          12px 16px;
+  padding:          10px 16px;
   border:           1px;
   border-radius:    14px;
   border-color:     transparent;
@@ -280,5 +284,5 @@ element-text {
   markup:         true;
   text-color:     inherit;
   font:           "JetBrainsMono Nerd Font 11";
-  vertical-align: 0.5;
+  vertical-align: 0.0;
 }
