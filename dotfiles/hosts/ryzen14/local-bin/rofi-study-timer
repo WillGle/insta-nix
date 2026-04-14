@@ -73,10 +73,31 @@ seconds_to_short() {
 }
 
 run_rofi_menu() {
+  local prompt="${1:-Study Timer}"
+  local message="${2:-}"
   "$ROFI_BIN" -dmenu -markup-rows -show-icons -no-custom \
     -config "$ROFI_CONFIG" \
     -theme "$ROFI_THEME" \
-    -p ""
+    -p "$prompt" \
+    ${message:+-mesg "$message"}
+}
+
+confirm_plan() {
+  local prompt="$1"
+  local message="$2"
+  local start_option
+  local cancel_option
+
+  start_option="$(row_markup "Start session" "Click to begin study now")"
+  cancel_option="$(row_markup "Cancel")"
+
+  choice="$(
+    printf 'start\0display\x1f%s\x1ficon\x1fmedia-playback-start-symbolic\ncancel\0display\x1f%s\x1ficon\x1fwindow-close-symbolic\n' \
+      "$start_option" "$cancel_option" \
+      | run_rofi_menu "$prompt" "$message"
+  )"
+
+  [ "$choice" = "start" ]
 }
 
 row_markup() {
@@ -112,23 +133,56 @@ plan_summary() {
     "$(pluralize "$session_count" "session")"
 }
 
+progress_bar() {
+  local value="${1:-0}"
+  local max="${2:-100}"
+  local width="${3:-15}"
+  local filled=0
+  local out=""
+  local i=0
+
+  if [ "$max" -gt 0 ]; then
+    filled=$((value * width / max))
+  fi
+
+  while [ "$i" -lt "$filled" ]; do
+    out+="■"
+    i=$((i + 1))
+  done
+  while [ "$i" -lt "$width" ]; do
+    out+="□"
+    i=$((i + 1))
+  done
+
+  printf '[%s]\n' "$out"
+}
+
 active_plan_summary() {
   local json="$1"
   local duration_minutes
   local planned_sessions
   local current_session
   local remaining_total_seconds
+  local current_session_elapsed_seconds
+  local per_session_seconds
   local target_reached
 
   duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
   planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
   current_session="$(printf '%s' "$json" | jq -r '.current_session // empty')"
   remaining_total_seconds="$(printf '%s' "$json" | jq -r '.remaining_total_seconds // empty')"
+  current_session_elapsed_seconds="$(printf '%s' "$json" | jq -r '.current_session_elapsed_seconds // 0')"
+  per_session_seconds="$(printf '%s' "$json" | jq -r '.per_session_seconds // 0')"
   target_reached="$(printf '%s' "$json" | jq -r '.target_reached // false')"
 
   if [ -z "$duration_minutes" ]; then
     printf 'Open-ended session • %s elapsed\n' "$(seconds_to_short "$elapsed_seconds")"
     return 0
+  fi
+
+  local bar=""
+  if [ "$per_session_seconds" -gt 0 ]; then
+    bar="$(progress_bar "$current_session_elapsed_seconds" "$per_session_seconds") "
   fi
 
   if [ "$target_reached" = "true" ]; then
@@ -137,7 +191,8 @@ active_plan_summary() {
   fi
 
   if [ -n "$planned_sessions" ] && [ -n "$current_session" ] && [ -n "$remaining_total_seconds" ] && [ "$remaining_total_seconds" != "null" ]; then
-    printf '%s • session %s/%s • %s left\n' \
+    printf '%s%s • session %s/%s • %s left\n' \
+      "$bar" \
       "$(plan_summary "$duration_minutes" "$planned_sessions")" \
       "$current_session" \
       "$planned_sessions" \
@@ -145,7 +200,7 @@ active_plan_summary() {
     return 0
   fi
 
-  printf '%sm target • %s elapsed\n' "$duration_minutes" "$(seconds_to_short "$elapsed_seconds")"
+  printf '%s%sm target • %s elapsed\n' "$bar" "$duration_minutes" "$(seconds_to_short "$elapsed_seconds")"
 }
 
 generate_duration_rows() {
@@ -228,55 +283,71 @@ start_guided_plan() {
   done
 }
 
-status_json="$("$TIMER_BIN" status --format json)"
-active="$(printf '%s' "$status_json" | jq -r '.active')"
-started_at="$(printf '%s' "$status_json" | jq -r '.started_at // empty')"
-elapsed_seconds="$(printf '%s' "$status_json" | jq -r '.elapsed_seconds // 0')"
-elapsed_label="$("$TIMER_BIN" status | sed 's/^active //; s/^inactive$/No active study session/')"
+while :; do
+  status_json="$("$TIMER_BIN" status --format json)"
+  active="$(printf '%s' "$status_json" | jq -r '.active')"
+  started_at="$(printf '%s' "$status_json" | jq -r '.started_at // empty')"
+  elapsed_seconds="$(printf '%s' "$status_json" | jq -r '.elapsed_seconds // 0')"
+  elapsed_label="$("$TIMER_BIN" status | sed 's/^active //; s/^inactive$/No active study session/')"
 
-generate_rows() {
+  generate_rows() {
+    if [ "$active" = "true" ]; then
+      emit_row "stop" "$(row_markup "Stop study session" "$elapsed_label")" "media-playback-stop-symbolic"
+      emit_row "status" "$(row_markup "Session Details" "$(active_plan_summary "$status_json")")" "appointment-symbolic"
+    else
+      emit_row "start:preset:25:1" "$(row_markup "Quick start" "$(plan_summary 25 1)")" "media-playback-start-symbolic"
+      emit_row "start:preset:25:4" "$(row_markup "Pomodoro set" "$(plan_summary 25 4)")" "media-playback-start-symbolic"
+      emit_row "start:preset:50:2" "$(row_markup "Deep work set" "$(plan_summary 50 2)")" "media-playback-start-symbolic"
+      emit_row "start:preset:90:1" "$(row_markup "Long block" "$(plan_summary 90 1)")" "media-playback-start-symbolic"
+      emit_row "start:guided" "$(row_markup "Custom study plan" "Choose duration and session count")" "preferences-system-time-symbolic"
+      emit_row "start:open" "$(row_markup "Open-ended session" "Track manually until you stop it")" "appointment-missed-symbolic"
+    fi
+    emit_row "screen-time" "$(row_markup "Open screen time" "Dashboard and study totals")" "view-calendar-symbolic"
+    emit_row "close" "$(row_markup "Close")" "window-close-symbolic"
+  }
+
+  menu_prompt="Study Timer"
+  menu_message=""
   if [ "$active" = "true" ]; then
-    emit_row "stop" "$(row_markup "Stop study session" "$elapsed_label")" "media-playback-stop-symbolic"
-    emit_row "status" "$(row_markup "Current plan" "$(active_plan_summary "$status_json")")" "appointment-symbolic"
+    menu_prompt="ACTIVE SESSION"
+    menu_message="$(active_plan_summary "$status_json")"
   else
-    emit_row "start:preset:25:1" "$(row_markup "Quick start" "$(plan_summary 25 1)")" "media-playback-start-symbolic"
-    emit_row "start:preset:25:4" "$(row_markup "Pomodoro set" "$(plan_summary 25 4)")" "media-playback-start-symbolic"
-    emit_row "start:preset:50:2" "$(row_markup "Deep work set" "$(plan_summary 50 2)")" "media-playback-start-symbolic"
-    emit_row "start:preset:90:1" "$(row_markup "Long block" "$(plan_summary 90 1)")" "media-playback-start-symbolic"
-    emit_row "start:guided" "$(row_markup "Custom study plan" "Choose duration and session count")" "preferences-system-time-symbolic"
-    emit_row "start:open" "$(row_markup "Open-ended session" "Track manually until you stop it")" "appointment-missed-symbolic"
+    menu_message="Select a study plan to begin."
   fi
-  emit_row "screen-time" "$(row_markup "Open screen time" "Dashboard and study totals")" "view-calendar-symbolic"
-  emit_row "close" "$(row_markup "Close")" "window-close-symbolic"
-}
 
-selection="$(
-  generate_rows \
-    | run_rofi_menu
-)" || exit 0
+  selection="$(
+    generate_rows \
+      | run_rofi_menu "$menu_prompt" "$menu_message"
+  )" || exit 0
 
-case "$selection" in
-  start:preset:*)
-    duration_minutes="$(printf '%s' "$selection" | cut -d: -f3)"
-    session_count="$(printf '%s' "$selection" | cut -d: -f4)"
-    start_planned_session "$duration_minutes" "$session_count"
-    ;;
-  start:guided)
-    start_guided_plan
-    ;;
-  start:open)
-    start_open_ended_session
-    ;;
-  stop)
-    "$TIMER_BIN" stop >/dev/null 2>&1
-    ;;
-  status)
-    exit 0
-    ;;
-  screen-time)
-    setsid -f "$SCREEN_TIME_BIN" >/dev/null 2>&1 || true
-    ;;
-  close|"")
-    exit 0
-    ;;
-esac
+  case "$selection" in
+    start:preset:*)
+      duration_minutes="$(printf '%s' "$selection" | cut -d: -f3)"
+      session_count="$(printf '%s' "$selection" | cut -d: -f4)"
+      if confirm_plan "CONFIRM PLAN" "$(plan_summary "$duration_minutes" "$session_count")"; then
+        start_planned_session "$duration_minutes" "$session_count"
+      fi
+      ;;
+    start:guided)
+      start_guided_plan
+      ;;
+    start:open)
+      if confirm_plan "CONFIRM PLAN" "Open-ended session (no time limit)"; then
+        start_open_ended_session
+      fi
+      ;;
+    stop)
+      "$TIMER_BIN" stop >/dev/null 2>&1
+      ;;
+    status)
+      continue
+      ;;
+    screen-time)
+      setsid -f "$SCREEN_TIME_BIN" >/dev/null 2>&1 || true
+      exit 0
+      ;;
+    close|"")
+      exit 0
+      ;;
+  esac
+done

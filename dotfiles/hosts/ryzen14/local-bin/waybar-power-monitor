@@ -27,7 +27,23 @@ ICON_RESERVE_ON="$ICON_SAVER"
 ICON_RESERVE_OFF="$ICON_PERF"
 ICON_RESERVE_UNKNOWN="?"
 
+ACCENT="#58a6ff"
+SEP="<span alpha='30%'>────────────────────────────────</span>"
+
 # --- Helper Functions ---
+
+# Progress bar helper
+progress_bar() {
+  local p=$1
+  local width=${2:-10}
+  local filled=$((p * width / 100))
+  [ "$filled" -gt "$width" ] && filled=$width
+  local empty=$((width - filled))
+  local bar=""
+  for ((i=0; i<filled; i++)); do bar+="■"; done
+  for ((i=0; i<empty; i++)); do bar+="□"; done
+  printf '[%s]' "$bar"
+}
 
 log_warn() {
     printf '[waybar-power-monitor] %s\n' "$*" >&2
@@ -447,13 +463,25 @@ case "$MODE" in
         # Tooltip: Usage, Freq, Detailed Power
         # Format: [Chip Icon] [CPU°] [GPU Icon] [GPU°] [CPU Freq] [APU W]
         # Tooltip: Usage, Freq, Detailed Power
-        printf '{"text":" %s°C %s %s°C %sGHz %sW", "tooltip":"<b>APU (AMD CPU)</b>\\n----------------\\n<b>CPU:</b> %s%% @ %sGHz\\n<b>GPU:</b> %s%% @ %sMHz\\n\\n<b>Thermals:</b>\\nCPU Core: %s°C\\niGPU:     %s°C\\n\\n<b>Power (Package):</b> %sW\\n\\n%s", "class":["%s", "normal", "%s"]}\n' \
+        tooltip="<b><span foreground='$ACCENT'>APU (AMD CPU)</span></b>
+$SEP
+<tt>CPU:  $(printf "%3d" "$cpu_util")% $(progress_bar "$cpu_util") @ $cpu_freq GHz
+GPU:  $(printf "%3d" "$gpu_util")% $(progress_bar "$gpu_util") @ $gpu_freq MHz</tt>
+
+<b><span foreground='$ACCENT'>THERMALS</span></b>
+$SEP
+<tt>CPU Core:   $t_cpu°C
+iGPU:       $t_gpu°C</tt>
+
+<b><span foreground='$ACCENT'>POWER</span></b>
+$SEP
+<tt>Package:    $gpu_w W</tt>
+
+<span size='small' alpha='50%'>$health_msg</span>"
+
+        printf '{"text":" %s°C %s %s°C %sGHz %sW", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
             "$t_cpu" "$ICON_GPU" "$t_gpu" "$cpu_freq" "$gpu_w" \
-            "$cpu_util" "$cpu_freq" \
-            "$gpu_util" "$gpu_freq" \
-            "$t_cpu" "$t_gpu" \
-            "$gpu_w" \
-            "$health_msg" \
+            "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
             "$t_cls" "$health_cls"
         ;;
     sys) # Formerly CPU
@@ -463,8 +491,15 @@ case "$MODE" in
         p_cls="normal"
         if [ "$(awk -v w="${cpu_w:-0}" 'BEGIN{if(w>15) print 1; else print 0}')" -eq 1 ]; then p_cls="high"; fi
 
-        printf '{"text":" ⚡%sW", "tooltip":"<b>System / Screen</b>\\n----------------\\nDisplay, WiFi, SSD, Mobo\\n\\n<b>Power Consumption:</b> %sW\\n\\n%s", "class":["%s", "normal", "%s"]}\n' \
-            "$cpu_w" "$cpu_w" "$health_msg" "$p_cls" "$health_cls"
+        tooltip="<b><span foreground='$ACCENT'>BOARD / PERIPHERALS</span></b>
+$SEP
+<tt>Display, WiFi, SSD, Mobo
+Power:      $cpu_w W</tt>
+
+<span size='small' alpha='50%'>$health_msg</span>"
+
+        printf '{"text":" ⚡%sW", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
+            "$cpu_w" "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" "$p_cls" "$health_cls"
         ;;
     pwr)
         # Power Profile info (for tooltip only)
@@ -494,10 +529,26 @@ case "$MODE" in
         w_cls=$(awk -v win="${w_in:-0}" "BEGIN{if(win>=80) print \"high\"; else if(win>=40) print \"medium\"; else print \"normal\"}")
         
         # Power Flow display: ↓[In]W  ↑[Out]W  [BatIcon] [Cap]%
-        printf '{"text":"↓%sW  ↑%sW  %s  %s%%", "tooltip":"⚡ System Energy Flow\\n---------------------------\\nIntake (Wall):   %sW\\nConsumption:     %sW\\n  └─ APU (Pkg):     %sW\\n\\n🔋 Battery Status\\n---------------------------\\nBattery:        %s%% (%s)\\nHealth:         %s\\nCycles:         %s\\nCapacity:      %s / %s Wh\\nVoltage:        %sV\\nRemaining:      %s\\nProfile:        %s\\n\\n%s", "class":["%s", "%s", "power-flow", "%s"]}\n' \
+  tooltip="<b><span foreground='$ACCENT'>SYSTEM ENERGY FLOW</span></b>
+$SEP
+<tt>Wall Intake:  ${w_in}W
+Consumption:  ${w_out}W
+  └─ APU:     ${gpu_w}W</tt>
+
+<b><span foreground='$ACCENT'>BATTERY STATUS</span></b>
+$SEP
+<tt>Charge:       $cap% ($stat) $(progress_bar "$cap")
+Health:       $health_text
+Capacity:     $wh_now / $wh_full Wh
+Remaining:    ${time_str:-N/A}
+Voltage:      ${volt_v}V
+Cycles:       $cycles</tt>
+
+<span size='small' alpha='50%'>Profile: $profile · $health_msg</span>"
+
+        printf '{"text":"↓%sW  ↑%sW  %s  %s%%", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s"]}\n' \
             "$w_in" "$w_out" "$icon" "$cap" \
-            "$w_in" "$w_out" "$gpu_w" \
-            "$cap" "$stat" "$health_text" "$cycles" "$wh_now" "$wh_full" "$volt_v" "${time_str:-N/A}" "$profile" "$health_msg" \
+            "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
             "$w_cls" "$b_cls" "$health_cls"
         ;;
     bmode)
@@ -520,8 +571,13 @@ case "$MODE" in
                 ;;
         esac
 
-        printf '{"text":" %s ", "tooltip":"Battery Mode\\n---------------------------\\nReserve Mode:  %s\\n\\nRight-click: Toggle reserve mode\\nReboot default: Reserve ON", "class":["%s", "battery-mode"]}\n' \
-            "$reserve_icon" "$reserve_label" "$reserve_cls"
+        tooltip="<b><span foreground='$ACCENT'>BATTERY RESERVE MODE</span></b>
+$SEP
+<tt>Status:       $reserve_label</tt>
+
+<span size='small' alpha='50%'>Right-click to toggle reserve mode\nReboot default: Reserve ON</span>"
+        printf '{"text":" %s ", "tooltip":"%s", "class":["%s", "battery-mode"]}\n' \
+            "$reserve_icon" "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" "$reserve_cls"
         ;;
     bmode-toggle)
         if sudo -n /run/current-system/sw/bin/toggle-battery-reserve toggle >/dev/null 2>&1; then
@@ -539,7 +595,12 @@ case "$MODE" in
             power-saver)  p_icon="$ICON_SAVER"; p_cls="saver" ;;
             *)            p_icon="?"; p_cls="normal" ;;
         esac
-        printf '{"text":" %s ", "tooltip":"Power Profile: %s\\nClick to cycle", "class":"%s"}\n' "$p_icon" "$profile" "$p_cls"
+        tooltip="<b><span foreground='$ACCENT'>POWER PROFILE</span></b>
+$SEP
+<tt>Current:      $profile</tt>
+
+<span size='small' alpha='50%'>Click to cycle profiles</span>"
+        printf '{"text":" %s ", "tooltip":"%s", "class":"%s"}\n' "$p_icon" "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" "$p_cls"
         ;;
     toggle)
         p=$(/run/current-system/sw/bin/powerprofilesctl get)

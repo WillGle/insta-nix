@@ -8,8 +8,6 @@ ROFI_COMMON=(
   -config "$HOME/.config/rofi/config.rasi"
   -theme-str 'window { width: 30%; }'
   -theme-str 'listview { lines: 14; columns: 1; }'
-  -theme-str 'element { children: [ element-text ]; }'
-  -theme-str 'element-icon { enabled: false; }'
 )
 
 status_message=""

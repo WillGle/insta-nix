@@ -14,14 +14,37 @@ total=$(free -m | awk '/Mem:/ {printf "%.1f", $2/1024}')
 perc=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100.0}')
 
 # Get top 5 processes by memory %
-top_procs=$(ps -eo comm,pmem --sort=-pmem | head -n 6 | tail -n 5 | awk '{printf "%-15s %s%%\n", $1, $2}')
+top_procs=$(ps -eo comm,pmem --sort=-pmem | head -n 6 | tail -n 5 | awk '{printf "%-18s %5.1f%%\n", $1, $2}')
+
+# Progress bar helper
+progress_bar() {
+  local p=$1
+  local width=15
+  local filled=$((p * width / 100))
+  local empty=$((width - filled))
+  local bar=""
+  for ((i=0; i<filled; i++)); do bar+="■"; done
+  for ((i=0; i<empty; i++)); do bar+="□"; done
+  printf '[%s]' "$bar"
+}
 
 class=$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) print "warning"; else print "normal"}')
 
+# Color for accent
+ACCENT="#58a6ff"
+SEP="<span alpha='30%'>──────────────────────────</span>"
+
+tooltip="<b><span foreground='$ACCENT'>MEMORY USAGE</span></b>
+$SEP
+<tt>Total Usage:  $used G / $total G
+Status:       $perc% $(progress_bar "$perc")</tt>
+
+<b><span foreground='$ACCENT'>TOP CONSUMERS</span></b>
+$SEP
+<tt>$top_procs</tt>"
+
 jq -cn \
-    --arg text "${ICON_MEM} ${used}G/${total}G (${perc}%)" \
-    --arg tooltip "Top RAM Consumers:
-------------------
-$top_procs" \
+    --arg text "${ICON_MEM} ${used}G (${perc}%)" \
+    --arg tooltip "$tooltip" \
     --arg class "$class" \
     '{text: $text, tooltip: $tooltip, class: $class}'

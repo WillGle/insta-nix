@@ -102,20 +102,37 @@ main() {
     active="$(active_wifi_line "$iface")"
   fi
 
+  local ACCENT="#58a6ff"
+  local SEP="<span alpha='30%'>──────────────────────────</span>"
+  local title="NETWORK"
+
   if [ -n "$ethernet_line" ]; then
     IFS=: read -r ethernet_name ethernet_device <<< "$ethernet_line"
-    tooltip=$'<b>Network</b>\n'
-    tooltip+="Ethernet: ${ethernet_name:-Connected}"$'\n'
-    tooltip+="Device: ${ethernet_device:-Unknown}"
+    ip="$(current_ip "$ethernet_device")"
+    gateway="$(current_gateway "$ethernet_device")"
+    dns="$(current_dns "$ethernet_device")"
+
+    tooltip="<b><span foreground='$ACCENT'>$title (ETHERNET)</span></b>
+$SEP
+<tt>SSID/Name:   ${ethernet_name:-Connected}
+Device:      ${ethernet_device:-Unknown}
+Status:      Connected</tt>
+
+<b><span foreground='$ACCENT'>CONNECTIVITY</span></b>
+$SEP
+<tt>IP:          ${ip:-Unavailable}
+Gateway:     ${gateway:-Unavailable}
+DNS:         ${dns:-None}</tt>"
+
     if [ -n "$active" ]; then
       IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
-      tooltip+=$'\n\n'"Wi-Fi: ${ssid:-<hidden>}"
-      tooltip+=$'\n'"Signal: ${signal:-0}% ($(signal_icon "$signal"))"
-      tooltip+=$'\n'"Band: $(band_label "$freq")"
-      tooltip+=$'\n'"Security: $(security_label "$security")"
+      tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>WI-FI (STANDBY)</span></b>
+$SEP
+<tt>SSID:        ${ssid:-<hidden>}
+Signal:      ${signal:-0}% ($(signal_icon "$signal"))
+Band:        $(band_label "$freq")</tt>"
     fi
-    tooltip+=$'\n\n'
-    tooltip+='Click: open network menu'
+    tooltip+=$'\n\n<span size="small" alpha="50%">Click: Network menu</span>'
     emit_json "󰈀" "$tooltip" "ethernet"
     exit 0
   fi
@@ -125,17 +142,21 @@ main() {
     ip="$(current_ip "$iface")"
     gateway="$(current_gateway "$iface")"
     dns="$(current_dns "$iface")"
-    tooltip=$'<b>Network</b>\n'
-    tooltip+="SSID: ${ssid:-<hidden>}"$'\n'
-    tooltip+="Signal: ${signal:-0}% ($(signal_icon "$signal"))"$'\n'
-    tooltip+="Band: $(band_label "$freq")"$'\n'
-    tooltip+="Security: $(security_label "$security")"$'\n'
-    tooltip+="IP: ${ip:-Unavailable}"$'\n'
-    tooltip+="Gateway: ${gateway:-Unavailable}"
-    if [ -n "$dns" ]; then
-      tooltip+=$'\n'"DNS: $dns"
-    fi
-    tooltip+=$'\n\nClick: open network menu'
+
+    tooltip="<b><span foreground='$ACCENT'>$title (WI-FI)</span></b>
+$SEP
+<tt>SSID:        ${ssid:-<hidden>}
+Signal:      ${signal:-0}% ($(signal_icon "$signal"))
+Band:        $(band_label "$freq")
+Security:    $(security_label "$security")</tt>
+
+<b><span foreground='$ACCENT'>CONNECTIVITY</span></b>
+$SEP
+<tt>IP:          ${ip:-Unavailable}
+Gateway:     ${gateway:-Unavailable}
+DNS:         ${dns:-None}</tt>"
+
+    tooltip+=$'\n\n<span size="small" alpha="50%">Click: Network menu</span>'
     emit_json "$(signal_icon "$signal")" "$tooltip" "connected"
     exit 0
   fi

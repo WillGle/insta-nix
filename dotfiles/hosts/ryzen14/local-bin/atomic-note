@@ -317,16 +317,20 @@ render_waybar() {
     display_text="$display_text   ($remaining)"
   fi
 
-  tooltip=$'<b>Atomic Tasks</b>\n------------------\n'
+  tooltip="<b><span foreground='${THEME_STATIC_ACCENT:-#58a6ff}'>ATOMIC TASKS</span></b>
+<span alpha='30%'>──────────────────────────</span>
+<tt>"
   for ((i = 0; i < 5 && i < count; i++)); do
     priority="$(task_priority "${TASKS[$i]}")"
     body="$(task_body "${TASKS[$i]}")"
-    tooltip+="[$(priority_label "$priority")] $(escape_markup "$body")"$'\n'
+    color="$(priority_bg "$priority")"
+    tooltip+="<span foreground='$color'>$(priority_icon "$priority")</span> [$(priority_label "$priority")] $(escape_markup "$body")"$'\n'
   done
 
   if [ "$count" -gt 5 ]; then
     tooltip+="... and $((count - 5)) more"
   fi
+  tooltip+="</tt>"
 
   jq -cn \
     --arg text "$display_text" \
