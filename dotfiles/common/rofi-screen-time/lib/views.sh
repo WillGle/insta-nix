@@ -146,6 +146,12 @@ render_insight_console() {
   local line=""
   local count=0
 
+  if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
+    local elapsed
+    elapsed="$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')"
+    output+="<span foreground=\"$ACCENT_COLOR\" weight=\"bold\">TIMER: Active study session ($(seconds_to_short "$elapsed"))</span>"$'\n'
+  fi
+
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     output+="$line"$'\n'
@@ -539,26 +545,30 @@ build_view_payload() {
     summary)
       title="Overview"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Updated" "$updated_time")"$'\n'"$(kv_markup "Top Category" "$top_category")"
-      card1_label="Active Time"
+      meta="$(kv_markup "Updated" "$updated_time")"
+      card1_label="Total Use"
       card1_value="$summary_active"
       card1_sub="Peak $peak_window"
-      card2_label="Focus Score"
+      card2_label="Focus"
       card2_value="$focus_value"
       card2_sub="$(score_subtext "$focus_json")"
-      card3_label="Fragmentation Score"
+      card3_label="Switching"
       card3_value="$frag_value"
       card3_sub="$(score_subtext "$frag_json")"
-      card4_label="Study Ratio"
+      if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
+        card4_label="Deep Work [ACTIVE]"
+      else
+        card4_label="Deep Work"
+      fi
       card4_value="$summary_study_ratio"
-      card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')")"
-      primary_title="Insight Console"
+      card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')") total"
+      primary_title="Insights"
       primary_body="$(render_insight_console "$context_json")"
-      chart_b_title="Category Breakdown"
+      chart_b_title="App Usage"
       chart_b_body="$(render_category_bars "$context_json" 5 true)"
-      chart_c_title="Time Windows"
+      chart_c_title="Busy Times"
       chart_c_body="$(render_timeline_chart "$(printf '%s' "$context_json" | jq -c '.today.raw.slots_30m')" "peak $(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label') • $(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_seconds')")")"
-      insight_title="Trend Summary"
+      insight_title="Compared to Usual"
       insight_body="$(render_baseline_summary "$context_json")"
       local study_status
       if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
