@@ -12,3 +12,7 @@ configuration {
   cycle: false;
   hover-select: false;
 }
+
+listview {
+  columns: 2;
+}
