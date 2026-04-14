@@ -17,11 +17,11 @@
 window {
   width:            88%;
   height:           96%;
-  border:           1px;
+  border:           2px;
   border-radius:    24px;
   border-color:     @window-border;
   background-color: @base;
-  padding:          20px;
+  padding:          14px;
 }
 
 mainbox {
@@ -92,10 +92,10 @@ overview-box {
 card-1, card-2, card-3 {
   orientation:      vertical;
   expand:           true;
-  padding:          16px;
+  padding:          12px;
   spacing:          8px;
   border:           1px;
-  border-radius:    16px;
+  border-radius:    14px;
   border-color:     @card-border;
   background-color: @mantle;
 }
@@ -108,10 +108,10 @@ card-3 { children: [ textbox-card-3-label, textbox-card-3-value, textbox-card-3-
 card-4 {
   orientation:      vertical;
   expand:           true;
-  padding:          16px;
+  padding:          12px;
   spacing:          8px;
   border:           1px;
-  border-radius:    16px;
+  border-radius:    14px;
   border-color:     @accent;
   background-color: @mantle;
   children:         [ textbox-card-4-label, textbox-card-4-value, textbox-card-4-sub ];
@@ -231,7 +231,7 @@ textbox-insight-body {
 
 note-box {
   expand:           false;
-  padding:          10px 16px;
+  padding:          12px 16px;
   border:           1px;
   border-radius:    14px;
   border-color:     @card-border;
@@ -252,7 +252,7 @@ listview {
   expand:           true;
   lines:            7;
   fixed-height:     false;
-  spacing:          10px;
+  spacing:          8px;
   scrollbar:        false;
   background-color: transparent;
 }
@@ -261,11 +261,11 @@ element {
   orientation:      horizontal;
   children:         [ element-icon, element-text ];
   spacing:          14px;
-  padding:          10px 16px;
+  padding:          6px 20px;
   border:           1px;
-  border-radius:    14px;
-  border-color:     transparent;
-  background-color: @mantle;
+  border-radius:    99px;
+  border-color:     @accent;
+  background-color: rgba(255, 255, 255, 0.03);
   text-color:       @text;
 }
 

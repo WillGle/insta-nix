@@ -17,87 +17,97 @@
 }
 
 window {
-  width: 40%;
-  border: 2px;
-  border-color: @accent;
-  border-radius: 6px;
+  width:            45%;
+  border:           2px;
+  border-color:     @accent;
+  border-radius:    14px;
   background-color: @base;
-  padding: 2px;
+  padding:          14px;
 }
 
 mainbox {
-  spacing: 5px;
-  padding: 5px;
-  children: [ inputbar, message, listview ];
+  spacing:          8px;
+  padding:          10px;
+  children:         [ inputbar, message, listview ];
   background-color: transparent;
 }
 
 inputbar {
-  margin: 5px;
-  spacing: 8px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  background-color: @mantle;
-  text-color: @text;
-  children: [ prompt, entry ];
+  enabled:          true;
+  margin:           0 0 10px 0;
+  spacing:          10px;
+  padding:          4px;
+  children:         [ prompt, entry ];
+  background-color: transparent;
 }
 
 prompt {
-  text-color: @accent;
-  font: @mono-font;
+  background-color: @accent;
+  text-color:       @base;
+  padding:          4px 12px;
+  border-radius:    8px;
+  font:             "JetBrainsMono Nerd Font Bold 10";
 }
 
 entry {
-  text-color: @text;
-  font: @mono-font;
-  placeholder: "Search...";
+  text-color:       @text;
+  font:             @mono-font;
+  placeholder:      "Search...";
   placeholder-color: @subtext;
+  vertical-align:   0.5;
+  padding:          0 8px;
 }
 
 message {
-  margin: 2px 0;
-  padding: 4px 8px;
+  enabled:          true;
+  margin:           5px 0;
+  padding:          12px;
+  border-radius:    10px;
   background-color: @mantle;
-  border-radius: 4px;
+  text-color:       @text;
 }
 
 textbox {
-  text-color: @subtext;
+  markup:           true;
+  text-color:       @text;
+  background-color: transparent;
 }
 
 listview {
-  lines: 8;
-  columns: 2;
-  fixed-height: false;
-  spacing: 2px;
-  scrollbar: false;
+  lines:            8;
+  columns:          1;
+  fixed-height:     false;
+  spacing:          8px;
+  scrollbar:        false;
   background-color: transparent;
-  padding: 2px;
+  padding:          0px;
 }
 
 element {
-  spacing: 8px;
-  padding: 6px 10px;
-  margin: 1px 0;
-  border-radius: 4px;
+  spacing:          12px;
+  padding:          8px 12px;
+  margin:           0px;
+  border-radius:    10px;
   background-color: transparent;
-  text-color: @text;
-  children: [ element-icon, element-text ];
+  text-color:       @text;
+  children:         [ element-icon, element-text ];
 }
 
 element selected {
   background-color: @accent;
-  text-color: @base;
+  text-color:       @base;
 }
 
 element-icon {
-  size: 1em;
+  size:             1.2em;
   background-color: transparent;
+  vertical-align:   0.0;
 }
 
 element-text {
-  text-color: inherit;
-  vertical-align: 0.5;
+  markup:           true;
+  text-color:       inherit;
+  vertical-align:   0.0;
 }
 
 error-message {
