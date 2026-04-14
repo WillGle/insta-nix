@@ -121,14 +121,24 @@ menu,
   border-radius: 6px;
 }
 
+tooltip label {
+  font-family: "JetBrainsMono Nerd Font Mono", monospace;
+  font-weight: normal;
+  padding: 0;
+}
+
+#clock tooltip label {
+  font-family: "JetBrainsMono Nerd Font Mono", monospace;
+  font-weight: normal;
+  font-size: 15px;
+}
+
 tooltip *,
 tooltip label,
 menu *,
 .menu *,
 .popup * {
   color: @text;
-  font-family: "__UI_FONT__", monospace;
-  font-weight: bold;
   font-size: __UI_FONT_SIZE__px;
 }
 

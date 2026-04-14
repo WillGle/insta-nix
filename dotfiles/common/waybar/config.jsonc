@@ -25,18 +25,25 @@
   },
   "clock": {
     "format": " {:%a %d %b  %H:%M}",
-    "interval": 1,
+    "interval": 60,
     "on-click": "setsid -f $HOME/.local/bin/rofi-study-timer",
     "on-click-right": "setsid -f $HOME/.local/bin/rofi-screen-time",
     "tooltip-format": "{calendar}",
     "calendar": {
       "mode": "month",
-      "mode-mon-col": 3,
+      "mode-mon-col": 1,
       "weeks-pos": "right",
-      "on-scroll": 1
+      "on-scroll": 1,
+      "format": {
+        "months":   "<span color='#a7d293'><b>{}</b></span>",
+        "days":     "{}",
+        "weeks":    "W{}",
+        "weekdays": "{}",
+        "today":    "<span color='#a7d293'><b>{}</b></span>"
+      }
     },
     "actions": {
-      "on-click-right": "none",
+      "on-click-right": "",
       "on-click-forward": "tz_up",
       "on-click-backward": "tz_down",
       "on-scroll-up": "shift_up",
@@ -58,7 +65,7 @@
     "format-bluetooth-muted": " 󰖁",
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "scroll-step": 1,
-    "tooltip-format": "{desc} {volume}%",
+    "tooltip-format": "<b><span foreground='#58a6ff'>AUDIO DEVICE</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{desc}\nVolume:      {volume}%</tt>",
     "format-icons": {
       "headphone": "",
       "hands-free": "",
