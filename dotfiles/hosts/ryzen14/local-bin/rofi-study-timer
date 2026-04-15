@@ -17,8 +17,8 @@ resolve_rofi_theme() {
   for candidate in \
     "${ROFI_THEME:-}" \
     "${HOME}/.config/rofi/study-timer.rasi" \
-    "$script_dir/../../../common/rofi/study-timer.rasi" \
-    "/etc/nixos/dotfiles/common/rofi/study-timer.rasi"
+    "$script_dir/../rofi/study-timer.rasi" \
+    "/etc/nixos/dotfiles/hosts/ryzen14/rofi/study-timer.rasi"
   do
     [ -n "$candidate" ] || continue
     if [ -r "$candidate" ]; then
