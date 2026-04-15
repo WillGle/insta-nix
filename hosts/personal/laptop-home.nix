@@ -96,7 +96,7 @@ in
       executable = true;
     };
     "rofi/screen-time.rasi".source = ../../dotfiles/hosts/ryzen14/rofi/screen-time.rasi;
-    "rofi/study-timer.rasi".source = ../../dotfiles/common/rofi/study-timer.rasi;
+    "rofi/study-timer.rasi".source = ../../dotfiles/hosts/ryzen14/rofi/study-timer.rasi;
   };
 
   systemd.user.services.rofi-screen-time-tracker = {
