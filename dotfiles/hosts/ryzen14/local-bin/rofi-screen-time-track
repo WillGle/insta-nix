@@ -299,7 +299,7 @@ record_sample() {
         | .active_overlap_seconds = (.active_overlap_seconds // 0)
       )
     | .sample_count = ((.sample_count // 0) + 1)
-    | .first_seen = (.first_seen // $now)
+    | .first_seen = (if (.first_seen // "") == "" then $now else .first_seen end)
     | .last_seen = $now
     | .session_count = ((.session_count // 0) + $new_session)
     | .switch_count = ((.switch_count // 0) + $new_switch)
@@ -324,7 +324,7 @@ record_sample() {
         | .icon = $icon
         | .seconds = ((.seconds // 0) + $sample)
         | .sample_count = ((.sample_count // 0) + 1)
-        | .first_seen = (.first_seen // $now)
+        | .first_seen = (if (.first_seen // "") == "" then $now else .first_seen end)
         | .last_seen = $now
         | .session_count = ((.session_count // 0) + $new_session)
         | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)

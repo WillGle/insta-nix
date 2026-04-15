@@ -11,10 +11,11 @@ FORMAT="text"
 CACHE_SERVICE_NAME="${CACHE_SERVICE_NAME:-rofi-screen-time-cache.service}"
 DURATION_MINUTES=""
 SESSION_COUNT=""
+STUDY_MODE=""
 
 usage() {
   cat <<'EOF'
-Usage: study-timer [start|stop|toggle|status] [--duration-minutes N] [--session-count N] [--format text|json] [--state-dir PATH]
+Usage: study-timer [start|stop|toggle|status] [--duration-minutes N] [--session-count N] [--mode NAME] [--format text|json] [--state-dir PATH]
 EOF
 }
 
@@ -147,7 +148,7 @@ ensure_day_file() {
 
   tmp="$(mktemp "${file}.XXXXXX")"
   jq --arg now "$current_now" '
-    .version = (if (.version // 0) < 2 then 2 else .version end)
+    .version = (if (.version // 0) < 2 then 2 else .version end) |
     .study = (.study // {
       total_seconds: 0,
       session_count: 0,
@@ -183,6 +184,7 @@ study_status_json() {
   local current_session=0
   local current_session_elapsed=0
   local current_session_remaining=0
+  local mode_json="null"
 
   file="$(active_file)"
   if [ ! -f "$file" ]; then
@@ -199,12 +201,20 @@ study_status_json() {
       current_session:null,
       current_session_elapsed_seconds:null,
       current_session_remaining_seconds:null,
-      target_reached:false
+      target_reached:false,
+      mode:null,
+      estimated_finish_at:null,
+      daily_total_seconds:0
     }'
     return 0
   fi
   if ! jq -e '.active == true and (.started_at // "" | length > 0)' "$file" >/dev/null 2>&1; then
-    jq -n '{
+    local daily_total=0
+    local today_file="$(day_file "$(date +%F)")"
+    if [ -f "$today_file" ]; then
+      daily_total="$(jq -r '.study.total_seconds // 0' "$today_file")"
+    fi
+    jq -n --argjson daily_total "$daily_total" '{
       active:false,
       started_at:"",
       started_date:"",
@@ -217,7 +227,10 @@ study_status_json() {
       current_session:null,
       current_session_elapsed_seconds:null,
       current_session_remaining_seconds:null,
-      target_reached:false
+      target_reached:false,
+      mode:null,
+      estimated_finish_at:null,
+      daily_total_seconds:$daily_total
     }'
     return 0
   fi
@@ -238,7 +251,8 @@ study_status_json() {
       current_session:null,
       current_session_elapsed_seconds:null,
       current_session_remaining_seconds:null,
-      target_reached:false
+      target_reached:false,
+      mode:null
     }'
     return 0
   fi
@@ -250,6 +264,7 @@ study_status_json() {
   started_date="$(date -d "$started_at" +%F)"
   duration_minutes="$(jq -r '.duration_minutes // empty' "$file")"
   planned_sessions="$(jq -r '.planned_sessions // empty' "$file")"
+  mode_json="$(jq -c '.mode // null' "$file")"
 
   if is_positive_integer "$duration_minutes"; then
     duration_seconds=$((duration_minutes * 60))
@@ -283,6 +298,15 @@ study_status_json() {
       remaining_total_seconds_json="$remaining_total_seconds"
     fi
   fi
+    if [ -n "$remaining_total_seconds" ] && [ "$remaining_total_seconds" -gt 0 ]; then
+      estimated_finish_at="$(date -d "@$((current_epoch + remaining_total_seconds))" --iso-8601=seconds)"
+    fi
+
+  local daily_total=0
+  local today_file="$(day_file "$(date +%F)")"
+  if [ -f "$today_file" ]; then
+    daily_total="$(jq -r '.study.total_seconds // 0' "$today_file")"
+  fi
 
   jq -n \
     --arg started_at "$started_at" \
@@ -297,6 +321,9 @@ study_status_json() {
     --argjson current_session_elapsed_seconds "$current_session_elapsed_json" \
     --argjson current_session_remaining_seconds "$current_session_remaining_json" \
     --argjson target_reached "$target_reached" \
+    --argjson mode "$mode_json" \
+    --arg estimated_finish_at "${estimated_finish_at:-}" \
+    --argjson daily_total_seconds "$daily_total" \
     '{
       active:true,
       started_at:$started_at,
@@ -310,7 +337,10 @@ study_status_json() {
       current_session:$current_session,
       current_session_elapsed_seconds:$current_session_elapsed_seconds,
       current_session_remaining_seconds:$current_session_remaining_seconds,
-      target_reached:$target_reached
+      target_reached:$target_reached,
+      mode:$mode,
+      estimated_finish_at:(if $estimated_finish_at == "" then null else $estimated_finish_at end),
+      daily_total_seconds:$daily_total_seconds
     }'
 }
 
@@ -391,8 +421,8 @@ mark_session_started() {
   ensure_day_file "$target_date" "$started_at"
   tmp="$(mktemp "${file}.XXXXXX")"
   jq --arg now "$started_at" '
-    .version = (if (.version // 0) < 2 then 2 else .version end)
-    | .updated_at = $now
+    .version = (if (.version // 0) < 2 then 2 else .version end) |
+    .updated_at = $now
     | .study = (
         (.study // {
           total_seconds: 0,
@@ -423,9 +453,9 @@ add_study_seconds() {
     --arg now "$stopped_at" \
     --argjson elapsed_seconds "$elapsed_seconds" \
     '
-    .version = (if (.version // 0) < 2 then 2 else .version end)
-    | .updated_at = $now
-    | .study = (
+    .version = (if (.version // 0) < 2 then 2 else .version end) |
+    .updated_at = $now |
+    .study = (
         (.study // {
           total_seconds: 0,
           session_count: 0,
@@ -495,6 +525,7 @@ start_session() {
   local result_json=""
   local duration_json="null"
   local session_json="null"
+  local mode_json="null"
 
   ensure_dirs
   status_json="$(study_status_json)"
@@ -506,25 +537,28 @@ start_session() {
 
   current_now="$(now_iso)"
   target_date="$(date -d "$current_now" +%F)"
-  if [ -n "$DURATION_MINUTES" ]; then
-    duration_json="$DURATION_MINUTES"
+  local planned_total_seconds_json="null"
+  if is_positive_integer "$DURATION_MINUTES" && is_positive_integer "${SESSION_COUNT:-1}"; then
+    planned_total_seconds_json=$((DURATION_MINUTES * 60 * ${SESSION_COUNT:-1}))
   fi
-  if [ -n "$SESSION_COUNT" ]; then
-    session_json="$SESSION_COUNT"
-  fi
+
   mark_session_started "$target_date" "$current_now"
   jq -n \
     --arg started_at "$current_now" \
     --arg started_date "$target_date" \
     --argjson duration_minutes "$duration_json" \
     --argjson planned_sessions "$session_json" \
+    --argjson planned_total_seconds "$planned_total_seconds_json" \
+    --argjson mode "$mode_json" \
     '{
       version:2,
       active:true,
       started_at:$started_at,
       started_date:$started_date,
       duration_minutes:$duration_minutes,
-      planned_sessions:$planned_sessions
+      planned_sessions:$planned_sessions,
+      planned_total_seconds:$planned_total_seconds,
+      mode:$mode
     }' >"$(active_file)"
 
   result_json="$(study_status_json)"
@@ -588,6 +622,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --state-dir)
       STATE_DIR="${2:-}"
+      shift 2
+      ;;
+    --mode)
+      STUDY_MODE="${2:-}"
       shift 2
       ;;
     -h|--help)

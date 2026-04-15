@@ -58,28 +58,38 @@ seconds_to_short() {
   local minutes=$(((total % 3600) / 60))
 
   if [ "$total" -gt 0 ] && [ "$hours" -eq 0 ] && [ "$minutes" -eq 0 ]; then
-    printf '~1m\n'
+    printf '~1m'
     return 0
   fi
   if [ "$hours" -gt 0 ] && [ "$minutes" -gt 0 ]; then
-    printf '%dh %dm\n' "$hours" "$minutes"
+    printf '%dh %dm' "$hours" "$minutes"
     return 0
   fi
   if [ "$hours" -gt 0 ]; then
-    printf '%dh\n' "$hours"
+    printf '%dh' "$hours"
     return 0
   fi
-  printf '%dm\n' "$minutes"
+  printf '%dm' "$minutes"
 }
 
 run_rofi_menu() {
   local prompt="${1:-Study Timer}"
   local message="${2:-}"
-  "$ROFI_BIN" -dmenu -markup-rows -show-icons -no-custom \
-    -config "$ROFI_CONFIG" \
-    -theme "$ROFI_THEME" \
-    -p "$prompt" \
-    ${message:+-mesg "$message"}
+  local args=(
+    -dmenu
+    -markup-rows
+    -show-icons
+    -no-custom
+    -config "$ROFI_CONFIG"
+    -theme "$ROFI_THEME"
+    -p "$prompt"
+  )
+
+  if [ -n "$message" ]; then
+    args+=(-mesg "$message")
+  fi
+
+  "$ROFI_BIN" "${args[@]}"
 }
 
 confirm_plan() {
@@ -105,9 +115,11 @@ row_markup() {
   local subtitle="${2:-}"
 
   if [ -n "$subtitle" ]; then
+    # We do NOT escape the subtitle because it might already contain Pango markup (e.g. from active_plan_summary).
+    # However, the title should still be escaped for safety.
     printf '<span weight="600">%s</span>&#10;<span size="small">%s</span>' \
       "$(escape_markup "$title")" \
-      "$(escape_markup "$subtitle")"
+      "$subtitle"
   else
     printf '<span weight="600">%s</span>' "$(escape_markup "$title")"
   fi
@@ -118,16 +130,16 @@ pluralize() {
   local singular="$2"
   local plural="${3:-${2}s}"
   if [ "$count" -eq 1 ]; then
-    printf '%s\n' "$singular"
+    printf '%s' "$singular"
     return 0
   fi
-  printf '%s\n' "$plural"
+  printf '%s' "$plural"
 }
 
 plan_summary() {
   local duration_minutes="$1"
   local session_count="$2"
-  printf '%sm • %s %s\n' \
+  printf '%sm • %s %s' \
     "$duration_minutes" \
     "$session_count" \
     "$(pluralize "$session_count" "session")"
@@ -154,53 +166,133 @@ progress_bar() {
     i=$((i + 1))
   done
 
-  printf '[%s]\n' "$out"
+  printf '[%s]' "$out"
+}
+
+format_time() {
+  local iso="$1"
+  [ -n "$iso" ] || return 0
+  date -d "$iso" '+%H:%M'
 }
 
 active_plan_summary() {
   local json="$1"
-  local duration_minutes
-  local planned_sessions
-  local current_session
-  local remaining_total_seconds
-  local current_session_elapsed_seconds
-  local per_session_seconds
-  local target_reached
+  local duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
+  local planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
+  local current_session="$(printf '%s' "$json" | jq -r '.current_session // empty')"
+  local elapsed_seconds="$(printf '%s' "$json" | jq -r '.elapsed_seconds // 0')"
+  local remaining_total_seconds="$(printf '%s' "$json" | jq -r '.remaining_total_seconds // empty')"
+  local current_session_elapsed_seconds="$(printf '%s' "$json" | jq -r '.current_session_elapsed_seconds // 0')"
+  local per_session_seconds="$(printf '%s' "$json" | jq -r '.per_session_seconds // 0')"
+  local target_reached="$(printf '%s' "$json" | jq -r '.target_reached // false')"
+  local mode="$(printf '%s' "$json" | jq -r '.mode // empty')"
+  local estimated_finish_at="$(printf '%s' "$json" | jq -r '.estimated_finish_at // empty')"
+  local daily_total_seconds="$(printf '%s' "$json" | jq -r '.daily_total_seconds // 0')"
 
-  duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
-  planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
-  current_session="$(printf '%s' "$json" | jq -r '.current_session // empty')"
-  remaining_total_seconds="$(printf '%s' "$json" | jq -r '.remaining_total_seconds // empty')"
-  current_session_elapsed_seconds="$(printf '%s' "$json" | jq -r '.current_session_elapsed_seconds // 0')"
-  per_session_seconds="$(printf '%s' "$json" | jq -r '.per_session_seconds // 0')"
-  target_reached="$(printf '%s' "$json" | jq -r '.target_reached // false')"
+  local daily_label=""
+  if [ "$daily_total_seconds" -gt 0 ]; then
+    daily_label=" • Today: $(seconds_to_short "$daily_total_seconds")"
+  fi
 
-  if [ -z "$duration_minutes" ]; then
-    printf 'Open-ended session • %s elapsed\n' "$(seconds_to_short "$elapsed_seconds")"
+  local escaped_mode="$(escape_markup "${mode:-Planned session}")"
+  local escaped_daily_label="$(escape_markup "$daily_label")"
+
+  if [ -z "$duration_minutes" ] || [ "$duration_minutes" = "null" ]; then
+    printf '<span weight="600">%s</span>%s&#10;%s elapsed\n' \
+      "$escaped_mode" \
+      "$escaped_daily_label" \
+      "$(seconds_to_short "$elapsed_seconds")"
     return 0
   fi
 
   local bar=""
+  local pct_label=""
   if [ "$per_session_seconds" -gt 0 ]; then
-    bar="$(progress_bar "$current_session_elapsed_seconds" "$per_session_seconds") "
+    bar="$(progress_bar "$current_session_elapsed_seconds" "$per_session_seconds")"
+    local pct=$((current_session_elapsed_seconds * 100 / per_session_seconds))
+    pct_label=" ${pct}%"
+  fi
+
+  local finish_label=""
+  if [ -n "$estimated_finish_at" ] && [ "$estimated_finish_at" != "null" ]; then
+    finish_label=" • Finish at $(format_time "$estimated_finish_at")"
   fi
 
   if [ "$target_reached" = "true" ]; then
-    printf '%s • complete • stop to log\n' "$(plan_summary "$duration_minutes" "${planned_sessions:-1}")"
+    printf '<span weight="600">%s</span> • complete%s&#10;%s\n' \
+      "$escaped_mode" \
+      "$escaped_daily_label" \
+      "$(plan_summary "$duration_minutes" "${planned_sessions:-1}")"
     return 0
   fi
 
   if [ -n "$planned_sessions" ] && [ -n "$current_session" ] && [ -n "$remaining_total_seconds" ] && [ "$remaining_total_seconds" != "null" ]; then
-    printf '%s%s • session %s/%s • %s left\n' \
-      "$bar" \
-      "$(plan_summary "$duration_minutes" "$planned_sessions")" \
+    printf '<span weight="600">%s</span> • session %s/%s%s&#10;<span size="small">%s%s • %s left • %s%s</span>\n' \
+      "$escaped_mode" \
       "$current_session" \
       "$planned_sessions" \
-      "$(seconds_to_short "$remaining_total_seconds")"
+      "$escaped_daily_label" \
+      "$bar" \
+      "$pct_label" \
+      "$(seconds_to_short "$remaining_total_seconds")" \
+      "$(plan_summary "$duration_minutes" "$planned_sessions")" \
+      "$(escape_markup "$finish_label")"
     return 0
   fi
 
-  printf '%s%sm target • %s elapsed\n' "$bar" "$duration_minutes" "$(seconds_to_short "$elapsed_seconds")"
+  printf '<span weight="600">%s</span>%s&#10;<span size="small">%s%s • %sm target • %s elapsed%s</span>\n' \
+    "$escaped_mode" \
+    "$escaped_daily_label" \
+    "$bar" \
+    "$pct_label" \
+    "$duration_minutes" \
+    "$(seconds_to_short "$elapsed_seconds")" \
+    "$(escape_markup "$finish_label")"
+}
+
+show_plan_breakdown() {
+  local json="$1"
+  local duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
+  local planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
+  local current_session="$(printf '%s' "$json" | jq -r '.current_session // 0')"
+  
+  if [ -z "$duration_minutes" ] || [ -z "$planned_sessions" ] || [ "$planned_sessions" = "null" ]; then
+    return 0
+  fi
+
+  generate_breakdown_rows() {
+    for ((i=1; i<=planned_sessions; i++)); do
+      local label="Session $i ($duration_minutes min)"
+      local subtitle=""
+      local icon="appointment-symbolic"
+      
+      if [ "$i" -lt "$current_session" ]; then
+        subtitle="Completed"
+        icon="emblem-ok-symbolic"
+      elif [ "$i" -eq "$current_session" ]; then
+        if [ "$(printf '%s' "$json" | jq -r '.target_reached')" = "true" ]; then
+          subtitle="Completed"
+          icon="emblem-ok-symbolic"
+        else
+          subtitle="In Progress"
+          icon="appointment-soon-symbolic"
+        fi
+      else
+        subtitle="Pending"
+      fi
+      
+      emit_row "session:$i" "$(row_markup "$label" "$subtitle")" "$icon"
+    done
+    emit_row "back" "$(row_markup "Back")" "go-previous-symbolic"
+  }
+
+  while :; do
+    local selection="$(generate_breakdown_rows | run_rofi_menu "Session Breakdown")" || return 0
+    case "$selection" in
+      back|"") return 0 ;;
+      *) continue ;;
+    esac
+  done
 }
 
 generate_duration_rows() {
@@ -234,11 +326,13 @@ choose_session_count() {
 start_planned_session() {
   local duration_minutes="$1"
   local session_count="$2"
-  "$TIMER_BIN" start --duration-minutes "$duration_minutes" --session-count "$session_count" >/dev/null 2>&1
+  local mode="${3:-Planned session}"
+  "$TIMER_BIN" start --duration-minutes "$duration_minutes" --session-count "$session_count" --mode "$mode" >/dev/null 2>&1
 }
 
 start_open_ended_session() {
-  "$TIMER_BIN" start >/dev/null 2>&1
+  local mode="${1:-Open-ended session}"
+  "$TIMER_BIN" start --mode "$mode" >/dev/null 2>&1
 }
 
 start_guided_plan() {
@@ -266,7 +360,7 @@ start_guided_plan() {
       case "$session_selection" in
         sessions:*)
           session_count="${session_selection#sessions:}"
-          start_planned_session "$duration_minutes" "$session_count"
+          start_planned_session "$duration_minutes" "$session_count" "Custom plan"
           return 0
           ;;
         back)
@@ -293,14 +387,18 @@ while :; do
   generate_rows() {
     if [ "$active" = "true" ]; then
       emit_row "stop" "$(row_markup "Stop study session" "$elapsed_label")" "media-playback-stop-symbolic"
-      emit_row "status" "$(row_markup "Session Details" "$(active_plan_summary "$status_json")")" "appointment-symbolic"
+      
+      local planned_sessions="$(printf '%s' "$status_json" | jq -r '.planned_sessions // empty')"
+      if [ -n "$planned_sessions" ] && [ "$planned_sessions" != "null" ]; then
+        emit_row "breakdown" "$(row_markup "View plan breakdown" "See per-session progress")" "view-list-symbolic"
+      fi
     else
       emit_row "start:preset:25:1" "$(row_markup "Quick start" "$(plan_summary 25 1)")" "media-playback-start-symbolic"
       emit_row "start:preset:25:4" "$(row_markup "Pomodoro set" "$(plan_summary 25 4)")" "media-playback-start-symbolic"
       emit_row "start:preset:50:2" "$(row_markup "Deep work set" "$(plan_summary 50 2)")" "media-playback-start-symbolic"
       emit_row "start:preset:90:1" "$(row_markup "Long block" "$(plan_summary 90 1)")" "media-playback-start-symbolic"
       emit_row "start:guided" "$(row_markup "Custom study plan" "Choose duration and session count")" "preferences-system-time-symbolic"
-      emit_row "start:open" "$(row_markup "Open-ended session" "Track manually until you stop it")" "appointment-missed-symbolic"
+      emit_row "start:open" "$(row_markup "Open-ended session" "Classic study timer")" "media-record-symbolic"
     fi
     emit_row "screen-time" "$(row_markup "Open screen time" "Dashboard and study totals")" "view-calendar-symbolic"
     emit_row "close" "$(row_markup "Close")" "window-close-symbolic"
@@ -324,8 +422,15 @@ while :; do
     start:preset:*)
       duration_minutes="$(printf '%s' "$selection" | cut -d: -f3)"
       session_count="$(printf '%s' "$selection" | cut -d: -f4)"
+      case "$selection" in
+        "start:preset:25:1") mode="Quick start" ;;
+        "start:preset:25:4") mode="Pomodoro set" ;;
+        "start:preset:50:2") mode="Deep work set" ;;
+        "start:preset:90:1") mode="Long block" ;;
+        *) mode="Preset plan" ;;
+      esac
       if confirm_plan "CONFIRM PLAN" "$(plan_summary "$duration_minutes" "$session_count")"; then
-        start_planned_session "$duration_minutes" "$session_count"
+        start_planned_session "$duration_minutes" "$session_count" "$mode"
       fi
       ;;
     start:guided)
@@ -339,8 +444,8 @@ while :; do
     stop)
       "$TIMER_BIN" stop >/dev/null 2>&1
       ;;
-    status)
-      continue
+    breakdown)
+      show_plan_breakdown "$status_json"
       ;;
     screen-time)
       setsid -f "$SCREEN_TIME_BIN" >/dev/null 2>&1 || true
