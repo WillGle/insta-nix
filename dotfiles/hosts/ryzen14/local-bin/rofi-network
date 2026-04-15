@@ -302,8 +302,11 @@ connect_new_network() {
       | sed 's/\\:/\x01/g' \
       | while IFS=: read -r active s sig sec freq b; do
           [ -n "$b" ] || continue
-          [ "$active" = "yes" ] && prefix='󰄬' || prefix=' '
           s="${s//$'\x01'/:}"
+          # Hidden SSIDs already have a dedicated entry at the top of the menu.
+          # Leaving blank scan results in the list creates malformed-looking rows.
+          [ -n "$s" ] || continue
+          [ "$active" = "yes" ] && prefix='󰄬' || prefix=' '
           b="${b//$'\x01'/:}"
           printf '%s  %s  %s  %s%%  %s  %s  %s\n' \
             "$prefix" \
