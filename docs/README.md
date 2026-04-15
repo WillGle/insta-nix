@@ -11,7 +11,7 @@ Tracked documentation lives in this directory tree. Local-only operational notes
 
 - [`guides/AMD_PERF_SUITE.md`](./guides/AMD_PERF_SUITE.md): use this when you need the optional AMD performance test workflow.
 - [`guides/LOCAL_LLM.md`](./guides/LOCAL_LLM.md): use this when running local LLM tools on `Laptop`.
-- [`STYLE.md`](./STYLE.md): use this when writing or editing documentation in this repo.
+- [`ROFI_UTILITIES.md`](./ROFI_UTILITIES.md): use this for Study Timer and Screen Time dashboard documentation.
 
 ## Archived Material
 
