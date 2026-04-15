@@ -1,5 +1,7 @@
 # Documentation Index
 
+Tracked documentation lives in this directory tree. Local-only operational notes should stay under `docs/internal/`, which is intentionally git-ignored.
+
 ## Active Guides
 
 - [`guides/HOST_ONBOARDING.md`](./guides/HOST_ONBOARDING.md): use this when adding a new host or checking where host files belong.

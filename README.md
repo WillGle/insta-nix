@@ -1,66 +1,80 @@
 # NixOS Flake Configuration
 
-## Purpose
+This repository contains a small multi-host NixOS flake with a personal laptop profile and a generic remote-install target.
 
-This repository contains the NixOS configuration for two outputs:
+Public documentation in this repo is intentionally limited to structure, workflows, and setup. Sensitive operational notes should stay under `docs/internal/`, which is git-ignored on purpose.
 
-- `Laptop`: the main laptop configuration
-- `generic-installer`: a generic installer configuration for remote setup
+## Outputs
 
-The repository is organized so host-specific files, shared modules, and Home Manager configuration are easy to find.
+- `Laptop`: the main personal laptop with Home Manager enabled
+- `generic-installer`: a generic remote-install target used as a bootstrap system
 
-## Hosts
+List them locally with:
 
-### `Laptop`
+```bash
+nix flake show --no-write-lock-file path:/etc/nixos
+```
 
-- Main laptop configuration
-- Home Manager enabled
-- SSH port `2222`
-- `PermitRootLogin = "no"`
-- `PasswordAuthentication = false`
-
-### `generic-installer`
-
-- Generic installer configuration
-- Home Manager disabled
-- SSH port `2222`
-- `PermitRootLogin = "no"`
-- `PasswordAuthentication = false`
-- Required disk labels: `NIXOS_BOOT`, `NIXOS_ROOT`, `NIXOS_SWAP`
-
-## Layout
+## Repository Structure
 
 ```text
 /etc/nixos
 ├── flake.nix
 ├── README.md
-├── docs
+├── docs/
 │   ├── README.md
-│   ├── STYLE.md
-│   ├── guides
-│   │   ├── AMD_PERF_SUITE.md
-│   │   ├── HOST_ONBOARDING.md
-│   │   ├── LOCAL_LLM.md
-│   │   └── PLANK_REMOTE_INSTALL.md
-│   └── archive
-│       ├── REMOTE_MIGRATION.md
-│       └── rocm
-├── hosts
-├── profiles
-├── home
-├── scripts
-└── theme
+│   ├── guides/
+│   └── archive/
+├── hosts/
+├── profiles/
+├── home/
+├── dotfiles/
+│   ├── common/
+│   └── hosts/
+├── theme/
+└── scripts/
 ```
 
-Important directories:
+Main layout:
 
-- `hosts/`: host entrypoints and host-specific modules
-- `profiles/`: shared and host-specific system modules
+- `flake.nix`: declares flake inputs and exported `nixosConfigurations`
+- `hosts/`: host entry modules and host-local Nix overlays
+- `profiles/`: reusable NixOS modules split into shared and personal layers
 - `home/`: shared Home Manager modules
-- `docs/guides/`: active documentation
-- `docs/archive/`: historical material and retired workflows
+- `dotfiles/common/`: reusable desktop assets and shared scripts
+- `dotfiles/hosts/<host>/`: host-specific desktop configs and scripts
+- `theme/`: generated-theme templates and theme application scripts
+- `docs/guides/`: active setup and maintenance guides
+- `docs/archive/`: retired or historical notes
 
-## Common Commands
+## App Scripts In `local-bin`
+
+The user-facing desktop tools in this repo are mostly small shell apps deployed into `~/.local/bin` via Home Manager.
+
+Shared app entrypoints:
+
+- `rofi-show`: open app or window mode through the shared rofi config
+- `rofi-clipboard`: clipboard picker backed by `cliphist`
+- `theme-lock`: lock-screen wrapper tied to the repo theme
+
+Host-specific app entrypoints for `Laptop`:
+
+- `rofi-network`: interactive network menu using `nmcli`
+- `rofi-screen-time`: rofi dashboard for app usage stats
+- `rofi-study-timer`: rofi UI for building and launching study sessions
+- `study-timer`: timer/session backend used by the rofi timer UI
+- `atomic-note`: quick task capture and task-list UI for rofi and waybar
+- `monitor-setup`: manual monitor layout picker using `hyprctl`
+- `waybar-*`: waybar helper scripts for memory, power, network, and refresh status
+
+These are wired in [hosts/personal/laptop-home.nix](./hosts/personal/laptop-home.nix) and sourced from:
+
+- `dotfiles/common/rofi/`
+- `dotfiles/common/waybar/`
+- `dotfiles/hosts/ryzen14/local-bin/`
+- `dotfiles/hosts/ryzen14/rofi-screen-time/`
+
+## Setup
 
 Validate the flake:
 
@@ -68,42 +82,49 @@ Validate the flake:
 nix flake check --no-build --no-write-lock-file path:/etc/nixos
 ```
 
-Build both outputs:
+Build the personal host:
 
 ```bash
 nixos-rebuild build --flake path:/etc/nixos#Laptop
+```
+
+Apply the personal host:
+
+```bash
+sudo nixos-rebuild switch --flake path:/etc/nixos#Laptop
+```
+
+Useful rule:
+
+- prefer `path:/etc/nixos#...` over `.#...` when local ignored files exist
+
+## Remote Setup
+
+The remote bootstrap path uses `generic-installer`.
+
+Build it locally:
+
+```bash
 nixos-rebuild build --flake path:/etc/nixos#generic-installer
 ```
 
-Apply the main laptop configuration:
+Then follow the dedicated guide:
 
-```bash
-sudo nixos-rebuild switch --flake /etc/nixos#Laptop
-```
+- [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md)
 
-List available outputs:
+That guide covers:
 
-```bash
-nix flake show --no-write-lock-file path:/etc/nixos
-```
+- target disk labels
+- installer-side flake install flow
+- local clone vs GitHub source installs
+- verification after first boot
 
-Useful local note:
+## Documentation Map
 
-- If untracked files break `--flake .#...`, use `path:/etc/nixos#...` or stage the files first.
+- [`docs/README.md`](./docs/README.md): index for tracked documentation
+- [`docs/guides/HOST_ONBOARDING.md`](./docs/guides/HOST_ONBOARDING.md): add a new host
+- [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md): remote install workflow
+- [`docs/guides/AMD_PERF_SUITE.md`](./docs/guides/AMD_PERF_SUITE.md): optional AMD performance workflow
+- [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md): local LLM notes
 
-## Active Docs
-
-- [`docs/README.md`](./docs/README.md): entrypoint for all documentation
-- [`docs/guides/HOST_ONBOARDING.md`](./docs/guides/HOST_ONBOARDING.md): add a new host to this repo
-- [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md): install `generic-installer` on a remote machine
-- [`docs/guides/AMD_PERF_SUITE.md`](./docs/guides/AMD_PERF_SUITE.md): use the optional AMD performance tooling
-- [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md): local LLM notes for `Laptop`
-
-## Archive Note
-
-Archived material lives under [`docs/archive/`](./docs/archive/). This includes:
-
-- retired remote-install notes
-- ROCm investigation logs and reports
-
-These files are kept for history and reference. They are not the default path for the current daily configuration.
+Private operational notes belong under `docs/internal/` and are not tracked by git.
