@@ -286,14 +286,6 @@ in
         General = {
           Enable = "Source,Sink,Media,Socket";
           Experimental = true;
-          ControllerMode = "dual";
-          JustWorksRepairing = "always";
-          Privacy = "off";
-          ClassicBondedOnly = false;
-          FastConnectable = true;
-        };
-        input = {
-          UserspaceHID = true;
         };
       };
     };
@@ -315,7 +307,6 @@ in
     };
 
     services = {
-      # Standard Blueman service for reliable Bluetooth management.
       blueman.enable = true;
 
       resolved = {
@@ -345,7 +336,6 @@ in
     };
 
     security.polkit.enable = true;
-    programs.dconf.enable = true;
     programs.nix-ld.enable = true;
     programs.nix-ld.libraries = with pkgs; [
       stdenv.cc.cc
