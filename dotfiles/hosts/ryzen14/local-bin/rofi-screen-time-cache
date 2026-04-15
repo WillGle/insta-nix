@@ -3,8 +3,13 @@ set -euo pipefail
 
 export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
 
-SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${HOME}/.cache/rofi-screen-time}"
+SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME}/.cache}/rofi-screen-time}"
 STATS_BIN="${STATS_BIN:-${HOME}/.local/bin/rofi-screen-time-stats}"
+
+if [ ! -x "$STATS_BIN" ]; then
+  printf 'rofi-screen-time-cache: stats binary not found at %s. Skipping refresh.\n' "$STATS_BIN" >&2
+  exit 0
+fi
 CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
 TARGET_DATE="$(date +%F)"
 

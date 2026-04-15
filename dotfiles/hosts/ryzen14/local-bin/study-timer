@@ -3,7 +3,7 @@ set -euo pipefail
 
 export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
 
-SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${HOME}/.local/share/rofi-screen-time}"
+SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
 SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"
 STATE_DIR="$SCREEN_TIME_HOME"
 COMMAND="toggle"

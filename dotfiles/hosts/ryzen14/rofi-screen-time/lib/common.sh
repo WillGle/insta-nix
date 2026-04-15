@@ -2,8 +2,8 @@
 
 export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
 
-SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${HOME}/.local/share/rofi-screen-time}"
-SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${HOME}/.cache/rofi-screen-time}"
+SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
+SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME}/.cache}/rofi-screen-time}"
 SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"
 SCREEN_TIME_LIB_HOME="${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}"
 CATEGORY_MAP_FILE="${CATEGORY_MAP_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/rofi-screen-time/category-map.json}"
