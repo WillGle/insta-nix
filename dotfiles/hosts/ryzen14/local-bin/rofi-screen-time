@@ -8,8 +8,8 @@ resolve_screen_time_lib_dir() {
 
   for candidate in \
     "${SCREEN_TIME_LIB_DIR:-}" \
-    "$script_dir/../rofi-screen-time/lib" \
     "${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}/lib" \
+    "$script_dir/../rofi-screen-time/lib" \
     "/etc/nixos/dotfiles/hosts/ryzen14/rofi-screen-time/lib"
   do
     [ -n "$candidate" ] || continue
@@ -111,10 +111,6 @@ while [ "$#" -gt 0 ]; do
       VIEW="${2:-}"
       shift 2
       ;;
-    --app)
-      APP_FILTER="$(normalize_class "${2:-}")"
-      shift 2
-      ;;
     -h|--help)
       usage
       exit 0
@@ -130,9 +126,6 @@ TARGET_DATE="$(date -d "$TARGET_DATE" +%F 2>/dev/null || date +%F)"
 if ! VIEW="$(resolve_screen_time_view "$VIEW")"; then
   printf 'rofi-screen-time: invalid view %s\n' "$VIEW" >&2
   exit 2
-fi
-if [ -n "$APP_FILTER" ]; then
-  printf 'rofi-screen-time: --app is retained for compatibility but ignored in the redesigned UI\n' >&2
 fi
 
 while :; do

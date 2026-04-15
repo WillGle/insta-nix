@@ -71,39 +71,11 @@ build_scored_context() {
         | if ($day.schema_ready | not) then
             . + {
               scores: {
-                intentional_usage_ratio_strict: {
-                  available: true,
-                  value: $study_ratio,
-                  partial: false,
-                  label: "Intentional Usage Ratio",
-                  reason: "",
-                  components: {
-                    study_ratio: $study_ratio
-                  }
-                },
+                intentional_usage_ratio_strict: unavailable_score("Requires version 2 tracking data."; false),
                 fragmentation_score: unavailable_score("Requires version 2 tracking data."; false),
                 focus_score: unavailable_score("Requires version 2 tracking data."; true),
-                intentional_usage_ratio: {
-                  available: true,
-                  value: $study_ratio,
-                  partial: false,
-                  label: "Intentional Usage Ratio",
-                  reason: "",
-                  components: {
-                    study_ratio: $study_ratio
-                  }
-                },
-                intentional_usage_ratio_extended: {
-                  available: true,
-                  value: $intentional_extended,
-                  partial: true,
-                  label: "Intentional Usage Ratio Extended",
-                  reason: "Uses study mode plus weighted Work time to avoid overlapping Study double-count.",
-                  components: {
-                    study_seconds: $day.study_seconds,
-                    work_seconds: $work_seconds
-                  }
-                },
+                intentional_usage_ratio: unavailable_score("Requires version 2 tracking data."; false),
+                intentional_usage_ratio_extended: unavailable_score("Requires version 2 tracking data."; true),
                 distraction_load: unavailable_score("Requires version 2 tracking data."; true),
                 daily_consistency_score: unavailable_score("Requires at least 3 version 2 days."; false)
               }

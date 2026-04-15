@@ -69,10 +69,11 @@ Host-specific app entrypoints for `Laptop`:
 
 These are wired in [hosts/personal/laptop-home.nix](./hosts/personal/laptop-home.nix) and sourced from:
 
-- `dotfiles/common/rofi/`
-- `dotfiles/common/waybar/`
-- `dotfiles/hosts/ryzen14/local-bin/`
-- `dotfiles/hosts/ryzen14/rofi-screen-time/`
+- `dotfiles/common/rofi/`: core desktop utilities
+- `dotfiles/hosts/ryzen14/rofi/`: host-specific themes
+- `dotfiles/hosts/ryzen14/local-bin/`: host-specific binaries
+- `dotfiles/hosts/ryzen14/rofi-screen-time/`: screen-time suite logic
+- `dotfiles/common/waybar/`: shared waybar widgets
 
 ## Setup
 

@@ -8,8 +8,8 @@ resolve_screen_time_lib_dir() {
 
   for candidate in \
     "${SCREEN_TIME_LIB_DIR:-}" \
-    "$script_dir/../rofi-screen-time/lib" \
     "${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}/lib" \
+    "$script_dir/../rofi-screen-time/lib" \
     "/etc/nixos/dotfiles/hosts/ryzen14/rofi-screen-time/lib"
   do
     [ -n "$candidate" ] || continue
@@ -73,10 +73,6 @@ while [ "$#" -gt 0 ]; do
       VIEW="${2:-}"
       shift 2
       ;;
-    --app)
-      APP_FILTER="$(normalize_class "${2:-}")"
-      shift 2
-      ;;
     --format)
       FORMAT="${2:-}"
       shift 2
@@ -117,10 +113,6 @@ esac
 if [ "$FORMAT" = "files" ] && { [ -z "$THEME_FILE" ] || [ -z "$ROWS_FILE" ]; }; then
   printf 'rofi-screen-time-stats: --theme-file and --rows-file are required for format files\n' >&2
   exit 2
-fi
-
-if [ -n "$APP_FILTER" ]; then
-  printf 'rofi-screen-time-stats: --app is retained for compatibility but ignored in the redesigned UI\n' >&2
 fi
 
 mkdir -p "$SCREEN_TIME_CACHE_HOME"
