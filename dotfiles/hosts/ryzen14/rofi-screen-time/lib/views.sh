@@ -71,6 +71,68 @@ sparkline_from_json() {
   printf '%s\n' "$out"
 }
 
+render_momentum_chart() {
+  local slots_bundle_json="$1"
+  printf '<span foreground="%s" weight="600">Daily Momentum</span>\n<span foreground="%s" size="small">00        06        12        18        24</span>\n%s\n' \
+    "$ACCENT_COLOR" \
+    "$SUBTEXT_COLOR" \
+    "$(momentum_sparkline_from_json "$slots_bundle_json")"
+}
+
+momentum_sparkline_from_json() {
+  local slots_bundle_json="$1"
+  local index=0
+  local out=""
+  local glyph_index=0
+  local chars=("▁" "▂" "▃" "▄" "▅" "▆" "▇" "█")
+  local category=""
+  local color=""
+  local value=0
+  local max_value=0
+  local dominant_cat=""
+  local max_cat_seconds=0
+  
+  max_value="$(printf '%s' "$slots_bundle_json" | jq '[.[] | .[]] | max // 0')"
+  
+  while [ "$index" -lt 48 ]; do
+    dominant_cat="Unknown"
+    max_cat_seconds=0
+    value=0
+    
+    while IFS=$'\t' read -r category cat_seconds; do
+      if [ "$cat_seconds" -gt "$max_cat_seconds" ]; then
+        max_cat_seconds="$cat_seconds"
+        dominant_cat="$category"
+      fi
+      value=$((value + cat_seconds))
+    done < <(printf '%s' "$slots_bundle_json" | jq -r "to_entries[] | \"\(.key)\t\(.value[$index] // 0)\"")
+    
+    case "$dominant_cat" in
+      Study) color="$SUCCESS_COLOR" ;;
+      Work) color="$CYAN_COLOR" ;;
+      Communication) color="$WARNING_COLOR" ;;
+      Entertainment|Media) color="$ERROR_COLOR" ;;
+      Browser) color="$PURPLE_COLOR" ;;
+      System) color="$SUBTEXT_COLOR" ;;
+      *) color="$MANTLE_COLOR" ;;
+    esac
+    
+    if [ "$value" -le 0 ]; then
+      color="$MANTLE_COLOR"
+      glyph_index=0
+    else
+      glyph_index="$(jq -nr --argjson value "$value" --argjson max "$max_value" '
+        if $max <= 0 then 1 else (($value * 6 / $max) | floor + 1) end
+      ')"
+    fi
+    
+    out+="<span foreground=\"$color\">${chars[$glyph_index]}</span>"
+    index=$((index + 1))
+  done
+  
+  printf '%s\n' "$out"
+}
+
 render_timeline_chart() {
   local slots_json="$1"
   local detail="$2"
@@ -95,6 +157,21 @@ kv_markup() {
     "$SUBTEXT_COLOR" \
     "$(escape_markup "$label")" \
     "$(escape_markup "$value")"
+}
+
+render_goal_gauge() {
+  local current_seconds="$1"
+  local target_seconds="$2"
+  local ratio
+  local label=""
+  
+  ratio="$(jq -nr --argjson c "$current_seconds" --argjson t "$target_seconds" 'if $t <= 0 then 0 else ($c / $t) end')"
+  label="$(seconds_to_short "$current_seconds") / $(seconds_to_short "$target_seconds")"
+  
+  printf '<span foreground="%s">%s</span>\n%s\n' \
+    "$SUBTEXT_COLOR" \
+    "Study Goal: $(format_ratio_percent "$ratio") ($label)" \
+    "$(bar_markup "$current_seconds" "$target_seconds" 40 "$SUCCESS_COLOR" "$MANTLE_COLOR")"
 }
 
 action_row_markup() {
@@ -154,8 +231,7 @@ render_insight_console() {
 
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    output+="$line"$'\n'
-    count=$((count + 1))
+    output+="• $line"$'\n'
   done < <(
     printf '%s' "$context_json" \
       | jq -r '
@@ -163,7 +239,7 @@ render_insight_console() {
         | if length == 0 then
             ["No major insight available yet."]
           else
-            map("\(.kind): \(.text)")
+            map("\(.text)")
           end
         | .[]
       '
@@ -201,9 +277,9 @@ render_category_bars() {
     name="$(printf '%s' "$item" | jq -r '.name')"
     seconds="$(printf '%s' "$item" | jq -r '.seconds')"
     share="$(printf '%s' "$item" | jq -r '.share')"
-    output+="$(printf '%s  %s  %s  %s' \
-      "$(printf '%-13s' "$name")" \
-      "$(bar_markup "$seconds" "$max_seconds" 10 "$ACCENT_COLOR" "$MANTLE_COLOR")" \
+    output+="$(printf '%-13s  %s  %6s  %s' \
+      "$name" \
+      "$(bar_markup "$seconds" "$max_seconds" 20 "$ACCENT_COLOR" "$MANTLE_COLOR")" \
       "$(seconds_to_short "$seconds")" \
       "$(format_ratio_percent "$share")")"$'\n'
   done < <(
@@ -353,8 +429,27 @@ render_study_summary() {
   focus_window="$(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')"
 
   if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
-    active_label="$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')"
-    active_label="Running $(seconds_to_short "$active_label")"
+    local mode="$(printf '%s' "$context_json" | jq -r '.study_active.mode // empty')"
+    local current="$(printf '%s' "$context_json" | jq -r '.study_active.current_session // empty')"
+    local planned="$(printf '%s' "$context_json" | jq -r '.study_active.planned_sessions // empty')"
+    local left="$(printf '%s' "$context_json" | jq -r '.study_active.remaining_total_seconds // empty')"
+    local elapsed="$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds // 0')"
+
+    if [ -n "$mode" ]; then
+      active_label="$mode"
+    else
+      active_label="Active"
+    fi
+
+    if [ -n "$current" ] && [ -n "$planned" ] && [ "$planned" != "null" ]; then
+      active_label+=" ($current/$planned)"
+    fi
+
+    if [ -n "$left" ] && [ "$left" != "null" ]; then
+      active_label+=" • $(seconds_to_short "$left") left"
+    else
+      active_label+=" • $(seconds_to_short "$elapsed")"
+    fi
   else
     active_label="Idle"
   fi
@@ -412,7 +507,7 @@ render_recommendations() {
 
   while IFS=$'\t' read -r metric text; do
     [ -n "$text" ] || continue
-    output+="$(kv_markup "$metric" "$text")"$'\n'
+    output+="$(kv_markup "$(humanize_metric "$metric")" "$text")"$'\n'
   done < <(
     printf '%s' "$context_json" \
       | jq -r '
@@ -435,7 +530,7 @@ render_triggered_thresholds() {
   printf '%s\n%s\n%s\n%s' \
     "$(kv_markup "Browser ambiguity" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.browser_ambiguity_ratio')")")" \
     "$(kv_markup "Unknown share" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.categories.unknown_share')")")" \
-    "$(kv_markup "Switch rate" "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // "Unavailable"')")" \
+    "$(kv_markup "Switch rate" "$(if [ "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate != null')" = "true" ]; then printf '%.1f/h' "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // 0')"; else printf 'Unavailable'; fi)")" \
     "$(kv_markup "Study ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_ratio')")")"
 }
 
@@ -503,13 +598,10 @@ build_navigation_json() {
       next_date: $next_date,
       today: $today,
       views: [
-        {id:"summary", label:"Overview"},
-        {id:"categories", label:"Categories"},
-        {id:"focus", label:"Focus & Fragmentation"},
-        {id:"windows", label:"Time Windows"},
-        {id:"trend", label:"7-Day Trend"},
-        {id:"recommendations", label:"Recommendations"},
-        {id:"quality", label:"Data Quality"}
+        {id:"summary", label:"Dashboard"},
+        {id:"activity", label:"Activity"},
+        {id:"health", label:"Health"},
+        {id:"timer", label:"Timer"}
       ]
     }'
 }
@@ -543,7 +635,7 @@ build_view_payload() {
 
   case "$view" in
     summary)
-      title="Overview"
+      title="Dashboard"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
       meta="$(kv_markup "Updated" "$updated_time")"
       card1_label="Total Use"
@@ -562,200 +654,134 @@ build_view_payload() {
       fi
       card4_value="$summary_study_ratio"
       card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')") total"
-      primary_title="Insights"
-      primary_body="$(render_insight_console "$context_json")"
-      chart_b_title="App Usage"
-      chart_b_body="$(render_category_bars "$context_json" 5 true)"
-      chart_c_title="Busy Times"
-      chart_c_body="$(render_timeline_chart "$(printf '%s' "$context_json" | jq -c '.today.raw.slots_30m')" "peak $(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label') • $(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_seconds')")")"
-      insight_title="Compared to Usual"
-      insight_body="$(render_baseline_summary "$context_json")"
+      
+      primary_title=""
+      primary_body="$(printf '%s\n\n%s\n\n<span foreground=\"%s\" weight=\"600\">Primary Advice</span>\n%s' \
+        "$(render_goal_gauge "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')" "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')")" \
+        "$(render_momentum_chart "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")" \
+        "$ACCENT_COLOR" \
+        "$(render_recommendations "$context_json")")"
+      
+      chart_b_title="7-Day Trend"
+      chart_b_body="$(render_metric_sparklines "$context_json")"
+      
+      chart_c_title="Compared to Usual"
+      chart_c_body="$(render_baseline_summary "$context_json")"
+      
+      insight_title="Active Insights"
+      insight_body="$(render_insight_console "$context_json")"
+      
       local study_status
       if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
         study_status="Study session: $(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')") active."
       else
         study_status="Study session: Idle."
       fi
-      note_text="$study_status  Schema: $(printf '%s' "$context_json" | jq -r 'if .data_quality.schema_ready then "Version 2" else "Legacy" end'). Category map: $(printf '%s' "$context_json" | jq -r '.category_map_path'). Baseline ready: $(printf '%s' "$context_json" | jq -r 'if .baseline.available then "yes" else "no" end')."
+      note_text="$study_status  Main blocker: $(printf '%s' "$context_json" | jq -r '.insights.by_class.recommendation.metric // "none"')."
       ;;
-    categories)
-      title="Categories"
+
+    activity)
+      title="Activity Hub"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Top category" "$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')")"$'\n'"$(kv_markup "Map entries" "$(printf '%s' "$context_json" | jq -r '.category_map_size')")"
+      meta="$(kv_markup "Top" "$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')")"
       card1_label="Top Category"
-      card1_value="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
+      card1_value="$(humanize_class "$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')")"
       card1_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.categories.top_category_seconds')")"
-      card2_label="Productive Ratio v1"
-      card2_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.productive_ratio_v1')")"
-      card2_sub="Work + Study only"
-      card3_label="Browser Ambiguity Ratio"
-      card3_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.browser_ambiguity_ratio')")"
-      card3_sub="Browser remains neutral"
-      card4_label="Known Coverage"
-      card4_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.known_category_ratio')")"
-      card4_sub="Unknown share $(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.categories.unknown_share')")"
-      primary_title="Full Breakdown"
+      card2_label="Active Spread"
+      card2_value="$(printf '%s' "$context_json" | jq -r '.today.metrics.active_slot_count | tostring')"
+      card2_sub="30-min active blocks"
+      card3_label="Peak Usage"
+      card3_value="$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
+      card3_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_seconds')")"
+      card4_label="Study Ratio"
+      card4_value="$(format_ratio_percent "$study_ratio")"
+      card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')") total"
+      
+      primary_title="Usage Breakdown"
       primary_body="$(render_category_bars "$context_json" 0 false)"
-      chart_b_title="Top Apps By Category"
-      chart_b_body="$(render_top_apps_by_category "$context_json")"
-      chart_c_title="Composition Insight"
-      chart_c_body="$(printf '%s' "$context_json" | jq -r '.insights.by_class.composition.text // "No composition insight triggered."')"
-      insight_title="Trust Summary"
-      insight_body="$(printf '%s\n%s\n%s' \
-        "$(kv_markup "Known category ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.known_category_ratio')")")" \
-        "$(kv_markup "Browser ambiguity ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.browser_ambiguity_ratio')")")" \
-        "$(kv_markup "Unknown share" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.unknown_share')")")")"
-      note_text="Edit $(printf '%s' "$context_json" | jq -r '.data_quality.category_map_path') to improve mappings."
+      
+      chart_b_title="Busy Times"
+      chart_b_body="$(render_timeline_chart "$(printf '%s' "$context_json" | jq -c '.today.raw.slots_30m')" "focus window $(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')")"
+      
+      chart_c_title="Momentum Check"
+      chart_c_body="$(render_momentum_chart "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")"
+      
+      insight_title="Top Apps"
+      insight_body="$(render_top_apps_by_category "$context_json")"
+      note_text="Activity insights are updated every 5 minutes based on window focus."
       ;;
-    focus)
-      title="Focus & Fragmentation"
+
+    health)
+      title="Health & Quality"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Baseline ready" "$(printf '%s' "$context_json" | jq -r 'if .baseline.available then "yes" else "no" end')")"$'\n'"$(kv_markup "Title tracking" "Not tracked")"
+      meta="$(kv_markup "Data Schema" "$(printf '%s' "$context_json" | jq -r 'if .data_quality.schema_ready then "Version 2" else "Legacy" end')")"
       card1_label="Focus Score"
       card1_value="$focus_value"
       card1_sub="$(score_subtext "$focus_json")"
-      card2_label="Fragmentation Score"
+      card2_label="Fragmentation"
       card2_value="$frag_value"
       card2_sub="$(score_subtext "$frag_json")"
-      card3_label="Avg Session Length Proxy"
-      card3_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.today.metrics.avg_session_length_proxy_seconds != null')" = "true" ]; then seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.avg_session_length_proxy_seconds | floor')" ; else printf 'Unavailable'; fi)"
-      card3_sub="Proxy only"
-      card4_label="Switch Rate"
-      card4_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate != null')" = "true" ]; then printf '%s/h' "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate | tostring')" ; else printf 'Unavailable'; fi)"
-      card4_sub="Context switching pressure"
-      primary_title="Score Breakdown"
-      primary_body="$(render_focus_breakdown "$context_json")"
-      chart_b_title="Vs 7-Day Baseline"
-      chart_b_body="$(render_focus_vs_baseline "$context_json")"
-      chart_c_title="Spread & Session Proxy"
-      chart_c_body="$(printf '%s\n%s\n%s' \
-        "$(kv_markup "Focus window" "$(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')")" \
-        "$(kv_markup "Active spread" "$(printf '%s' "$context_json" | jq -r '.today.metrics.active_slot_count | tostring') blocks")" \
-        "$(kv_markup "Intentional Usage Ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.scores.intentional_usage_ratio.value')")")")"
-      insight_title="Quality Insight"
-      insight_body="$(printf '%s' "$context_json" | jq -r '.insights.by_class.quality.text // "No quality insight triggered."')"
-      note_text="Focus Score stays partial because browser activity has no title or domain context."
-      ;;
-    windows)
-      title="Time Windows"
-      subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Peak window" "$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')")"$'\n'"$(kv_markup "Focus window" "$(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')")"
-      card1_label="Peak Window"
-      card1_value="$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
-      card1_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_seconds')")"
-      card2_label="Active Spread"
-      card2_value="$(printf '%s' "$context_json" | jq -r '.today.metrics.active_slot_count | tostring')"
-      card2_sub="30-minute windows"
-      card3_label="Focus Window"
-      card3_value="$(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')"
-      card3_sub="First to last active block"
-      card4_label="Study Ratio"
-      card4_value="$(format_ratio_percent "$study_ratio")"
-      card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')")"
-      primary_title="Timeline"
-      primary_body="$(render_timeline_chart "$(printf '%s' "$context_json" | jq -c '.today.raw.slots_30m')" "focus window $(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')")"
-      chart_b_title="Busiest Blocks"
-      chart_b_body="$(render_windows_top_slots "$context_json")"
-      chart_c_title="Study Concentration"
-      chart_c_body="$(render_study_summary "$context_json")"
-      insight_title="Temporal Insight"
-      insight_body="$(printf '%s' "$context_json" | jq -r '.insights.by_class.temporal.text // "No temporal insight triggered."')"
-      note_text="Time-window readings are baseline-independent; they remain useful even when scores are unavailable."
-      ;;
-    trend)
-      title="7-Day Trend"
-      subtitle="$(date -d "$target_date" '+Trailing window ending %d %B %Y')"
-      meta="$(kv_markup "Eligible baseline days" "$(printf '%s' "$context_json" | jq -r '.baseline.eligible_days | tostring')")"$'\n'"$(kv_markup "Baseline ready" "$(printf '%s' "$context_json" | jq -r 'if .baseline.available then "yes" else "no" end')")"
-      card1_label="Active vs Yesterday"
-      card1_value="$(delta_label_seconds "$(printf '%s' "$context_json" | jq -r '.baseline.deltas.total_seconds.vs_yesterday // 0')")"
-      card1_sub="Yesterday delta"
-      card2_label="Active vs Avg"
-      card2_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.baseline.deltas.total_seconds.vs_avg7 != null')" = "true" ]; then delta_label_seconds "$(printf '%.0f' "$(printf '%s' "$context_json" | jq -r '.baseline.deltas.total_seconds.vs_avg7')")" ; else printf 'Unavailable'; fi)"
-      card2_sub="7-day average"
-      card3_label="Focus vs Avg"
-      card3_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.baseline.deltas.focus_score.vs_avg7 != null')" = "true" ]; then format_score_delta "$(printf '%s' "$context_json" | jq -r '.baseline.deltas.focus_score.vs_avg7')" ; else printf 'Unavailable'; fi)"
-      card3_sub="7-day average"
-      card4_label="Frag vs Avg"
-      card4_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.baseline.deltas.fragmentation_score.vs_avg7 != null')" = "true" ]; then format_score_delta "$(printf '%s' "$context_json" | jq -r '.baseline.deltas.fragmentation_score.vs_avg7')" ; else printf 'Unavailable'; fi)"
-      card4_sub="7-day average"
-      primary_title="Trailing 7 Days"
-      primary_body="$(render_trend_table "$context_json")"
-      chart_b_title="Active / Focus / Fragmentation"
-      chart_b_body="$(render_metric_sparklines "$context_json")"
-      chart_c_title="Study / Productive / Browser"
-      chart_c_body="$(printf '%s\n%s\n%s' \
-        "$(kv_markup "Study ratio avg" "$(if [ "$(printf '%s' "$context_json" | jq -r '.baseline.averages.study_ratio != null')" = "true" ]; then format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.baseline.averages.study_ratio')" ; else printf 'Unavailable'; fi)")" \
-        "$(kv_markup "Productive avg" "$(if [ "$(printf '%s' "$context_json" | jq -r '.baseline.averages.productive_ratio_v1 != null')" = "true" ]; then format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.baseline.averages.productive_ratio_v1')" ; else printf 'Unavailable'; fi)")" \
-        "$(kv_markup "Browser avg" "$(if [ "$(printf '%s' "$context_json" | jq -r '.baseline.averages.browser_ambiguity_ratio != null')" = "true" ]; then format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.baseline.averages.browser_ambiguity_ratio')" ; else printf 'Unavailable'; fi)")")"
-      insight_title="Baseline Interpretation"
-      insight_body="$(render_baseline_summary "$context_json")"
-      note_text="Baselines use only version 2 days in the trailing 7-day window."
-      ;;
-    recommendations)
-      title="Recommendations"
-      subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Primary recommendation" "$(printf '%s' "$context_json" | jq -r '.insights.by_class.recommendation.text // "None"')")"$'\n'"$(kv_markup "Main blocker" "$(printf '%s' "$context_json" | jq -r '.insights.by_class.recommendation.metric // "none"')")"
-      card1_label="Top Recommendation"
-      card1_value="$(printf '%s' "$context_json" | jq -r '.insights.by_class.recommendation.metric // "none"')"
-      card1_sub="Highest-priority blocker"
-      card2_label="Main Blocker"
-      card2_value="$(printf '%s' "$context_json" | jq -r '.insights.by_class.recommendation.text // "None"')"
-      card2_sub="Actionable next step"
-      card3_label="Browser Ambiguity Ratio"
-      card3_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.browser_ambiguity_ratio')")"
-      card3_sub="Semantic trust limit"
-      card4_label="Unknown Share"
-      card4_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.categories.unknown_share')")"
-      card4_sub="Unmapped time"
-      primary_title="Ranked Actions"
-      primary_body="$(render_recommendations "$context_json")"
-      chart_b_title="Triggered Thresholds"
-      chart_b_body="$(render_triggered_thresholds "$context_json")"
-      chart_c_title="Mapping Blockers"
-      chart_c_body="$(printf '%s\n%s\n%s' \
-        "$(kv_markup "Known category ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.known_category_ratio')")")" \
-        "$(kv_markup "Browser ambiguity ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.browser_ambiguity_ratio')")")" \
-        "$(kv_markup "Map entries" "$(printf '%s' "$context_json" | jq -r '.category_map_size | tostring')")")"
-      insight_title="Next Action"
-      insight_body="$(printf '%s' "$context_json" | jq -r '.insights.by_class.recommendation.text // "No recommendation triggered."')"
-      note_text="Recommendations are rules-based; they only appear when a concrete blocker is detected."
-      ;;
-    quality)
-      title="Data Quality"
-      subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Schema" "$(printf '%s' "$context_json" | jq -r 'if .data_quality.schema_ready then "Version 2" else "Legacy" end')")"$'\n'"$(kv_markup "Title tracking" "Not tracked")"
-      card1_label="Schema Readiness"
-      card1_value="$(printf '%s' "$context_json" | jq -r 'if .data_quality.schema_ready then "Ready" else "Legacy" end')"
-      card1_sub="Advanced metrics need version 2"
-      card2_label="Known Coverage"
-      card2_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.known_category_ratio')")"
-      card2_sub="Mapped category share"
-      card3_label="Browser Ambiguity"
-      card3_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.browser_ambiguity_ratio')")"
-      card3_sub="Neutral browser time"
-      card4_label="Title Tracking"
-      card4_value="Not tracked"
-      card4_sub="Browser stays neutral"
-      primary_title="Diagnostics"
-      primary_body="$(printf '%s\n%s\n%s\n%s' \
-        "$(kv_markup "Schema version" "$(printf '%s' "$context_json" | jq -r '.data_quality.schema_version | tostring')")" \
-        "$(kv_markup "Baseline eligible days" "$(printf '%s' "$context_json" | jq -r '.data_quality.baseline_eligible_days | tostring')")" \
-        "$(kv_markup "Focus score partial" "$(printf '%s' "$context_json" | jq -r 'if .data_quality.focus_score_partial then "yes" else "no" end')")" \
-        "$(kv_markup "Category map path" "$(printf '%s' "$context_json" | jq -r '.data_quality.category_map_path')")")"
-      chart_b_title="Top Unknown Apps"
+      card3_label="Switch Rate"
+      card3_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate != null')" = "true" ]; then printf '%.1f/h' "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // 0')" ; else printf 'Unavailable'; fi)"
+      card3_sub="Context pressure"
+      card4_label="Coverage"
+      card4_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.known_category_ratio')")"
+      card4_sub="Mapped category share"
+      
+      primary_title="Diagnostic Breakdown"
+      primary_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">Data Health</span>\n%s' \
+        "$(render_focus_breakdown "$context_json")" \
+        "$ACCENT_COLOR" \
+        "$(render_focus_vs_baseline "$context_json")")"
+        
+      chart_b_title="Mapping Gaps"
       chart_b_body="$(render_unknown_apps "$context_json")"
-      chart_c_title="Coverage Summary"
+      
+      chart_c_title="Trust Factors"
       chart_c_body="$(printf '%s\n%s\n%s' \
-        "$(kv_markup "Known ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.known_category_ratio')")")" \
-        "$(kv_markup "Unknown share" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.unknown_share')")")" \
-        "$(kv_markup "Browser share" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.browser_ambiguity_ratio')")")")"
-      insight_title="Unavailable Metrics"
-      insight_body="$(render_quality_reasons "$context_json")"
-      note_text="Fresh-only policy: legacy days remain readable but are not trusted for advanced baseline metrics."
+        "$(kv_markup "Cat ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.known_category_ratio')")")" \
+        "$(kv_markup "Ambiguity" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.browser_ambiguity_ratio')")")" \
+        "$(kv_markup "Unknown" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.unknown_share')")")")"
+        
+      insight_title="System Insight"
+      insight_body="$(printf '%s' "$context_json" | jq -r '.insights.by_class.quality.text // "All systems operational."')"
+      note_text="Metric health depends on the size of your category map."
+      ;;
+    timer)
+      title="Timer Control"
+      subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
+      meta="$(kv_markup "Updated" "$updated_time")"
+      card1_label="Active Study"
+      card1_value="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')")"
+      card1_sub="Total today"
+      card2_label="Study Goal"
+      card2_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_progress')")"
+      card2_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')") target"
+      card3_label="Current Session"
+      card3_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then seconds_to_short "$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')"; else printf "None"; fi)"
+      card3_sub="Elapsed time"
+      card4_label="Status"
+      card4_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then printf "ACTIVE"; else printf "IDLE"; fi)"
+      card4_sub="$(printf '%s' "$context_json" | jq -r '.study_active.mode // "No plan active"')"
+      
+      primary_title=""
+      primary_body="$(render_goal_gauge "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')" "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')")"
+      
+      chart_b_title="Session Strategy"
+      chart_b_body="$(render_study_summary "$context_json")"
+      
+      chart_c_title="Concentration Rhythm"
+      chart_c_body="$(render_momentum_chart "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")"
+      
+      insight_title="Efficiency Note"
+      insight_body="$(printf '%s' "$context_json" | jq -r '.insights.main.text // "Start a session to track goal velocity."')"
+      note_text="Timer data is synchronized with the background study-timer service."
       ;;
     *)
-      printf 'build_view_payload: unsupported view %s\n' "$view" >&2
-      return 1
+      # Default fallback to Dashboard
+      view="summary"
+      title="Dashboard"
+      # ... (logic already handled in summary case above if this is an initial call)
       ;;
   esac
 
@@ -882,25 +908,25 @@ render_rows() {
   emit_row "nav:prev-day:$previous_date:$view" "$(action_row_markup "Previous day" "$(date -d "$previous_date" '+%a %d %b')")" "go-previous-symbolic"
   if [ -n "$next_date" ]; then
     emit_row "nav:next-day:$next_date:$view" "$(action_row_markup "Next day" "$(date -d "$next_date" '+%a %d %b')")" "go-next-symbolic"
+  else
+    emit_row "refresh:$view:$target_date" "$(action_row_markup "Refresh")" "view-refresh-symbolic"
   fi
 
   while IFS=$'\t' read -r current_view label; do
     hint=""
     if [ "$current_view" = "$view" ]; then
-      hint="Current view"
+      hint="Current"
     fi
     emit_row "view:$current_view:$target_date" "$(action_row_markup "$label" "$hint")" "go-home-symbolic"
   done <<'EOF'
-summary	Overview
-categories	Categories
-focus	Focus & Fragmentation
-windows	Time Windows
-trend	7-Day Trend
-recommendations	Recommendations
-quality	Data Quality
-study-timer	Study Timer
+summary	Dashboard
+activity	Activity Hub
+health	Health Hub
+timer	Timer Hub
 EOF
 
-  emit_row "refresh:$view:$target_date" "$(action_row_markup "Refresh")" "view-refresh-symbolic"
+  if [ -n "$next_date" ]; then
+    emit_row "refresh:$view:$target_date" "$(action_row_markup "Refresh")" "view-refresh-symbolic"
+  fi
   emit_row "close" "$(action_row_markup "Close")" "window-close-symbolic"
 }

@@ -169,7 +169,7 @@ analytics-box {
 
 primary-panel {
   orientation:      vertical;
-  width:            60%;
+  width:            65%;
   padding:          20px;
   spacing:          10px;
   border:           1px;
@@ -249,9 +249,10 @@ textbox-note {
 /* ── App list ────────────────────────────────────────────── */
 
 listview {
-  expand:           true;
-  lines:            7;
-  fixed-height:     false;
+  expand:           false;
+  columns:          2;
+  lines:            5;
+  fixed-height:     true;
   spacing:          8px;
   scrollbar:        false;
   background-color: transparent;
@@ -260,11 +261,11 @@ listview {
 element {
   orientation:      horizontal;
   children:         [ element-icon, element-text ];
-  spacing:          14px;
-  padding:          6px 20px;
+  spacing:          8px;
+  padding:          4px 12px;
   border:           1px;
-  border-radius:    99px;
-  border-color:     @accent;
+  border-radius:    14px;
+  border-color:     rgba(255, 255, 255, 0.05);
   background-color: rgba(255, 255, 255, 0.03);
   text-color:       @text;
 }

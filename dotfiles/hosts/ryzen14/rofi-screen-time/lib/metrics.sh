@@ -1,4 +1,7 @@
-#!/usr/bin/env bash
+# Global Productivity Baselines
+export STUDY_GOAL_BASELINE_SECONDS=${STUDY_GOAL_BASELINE_SECONDS:-14400} # Default: 4 hours
+
+# Implementation logic
 
 build_metrics_context() {
   local bundle_json="$1"
@@ -53,6 +56,11 @@ build_metrics_context() {
       def category_seconds($apps):
         (reduce categories[] as $name ({}; .[$name] = 0)) as $base
         | reduce $apps[] as $app ($base; .[$app.category] += ($app.seconds // 0));
+      def category_slots($apps):
+        (reduce categories[] as $name ({}; .[$name] = zero_slots)) as $base
+        | reduce $apps[] as $app ($base; 
+            .[$app.category] = ([.[$app.category], $app.slots_30m] | transpose | map(add))
+          );
       def top_slots($slots):
         ($slots
           | to_entries
@@ -63,9 +71,13 @@ build_metrics_context() {
         . as $day
         | ($day.total_seconds // 0) as $total
         | ($day.study.total_seconds // 0) as $study_seconds
+        | (env.STUDY_GOAL_BASELINE_SECONDS // "14400" | tonumber) as $baseline_goal_seconds
+        | ($day.study_active.planned_total_seconds // 0) as $planned_total
+        | (if $planned_total > $baseline_goal_seconds then $planned_total else $baseline_goal_seconds end) as $study_goal_seconds
         | (($day.slots_30m // zero_slots) | if length == 48 then . else zero_slots end) as $slots
         | (app_entries($day.apps; $map)) as $apps
         | (category_seconds($apps)) as $category_seconds
+        | (category_slots($apps)) as $category_slots
         | ([ $slots | map(select(. > 0)) | length ][0]) as $active_slot_count
         | ([ $slots | to_entries[] | select(.value > 0) ]) as $active_slots
         | (if ($active_slots | length) == 0 then {key: -1, value: 0} else ($active_slots | max_by(.value)) end) as $peak
@@ -109,7 +121,8 @@ build_metrics_context() {
               top_category_seconds: (if $total > 0 then $top_categories[0].seconds else 0 end),
               known_category_ratio: (if $total > 0 then 1 - (($category_seconds["Unknown"] // 0) / $total) else 0 end),
               browser_ambiguity_ratio: (if $total > 0 then (($category_seconds["Browser"] // 0) / $total) else 0 end),
-              unknown_share: (if $total > 0 then (($category_seconds["Unknown"] // 0) / $total) else 0 end)
+              unknown_share: (if $total > 0 then (($category_seconds["Unknown"] // 0) / $total) else 0 end),
+              slots: $category_slots
             },
             metrics: {
               active_hours: ($total / 3600),
@@ -129,6 +142,8 @@ build_metrics_context() {
               leisure_load: (if $total > 0 then ((($category_seconds["Entertainment"] // 0) + ($category_seconds["Media"] // 0)) / $total) else 0 end),
               browser_ambiguity_ratio: (if $total > 0 then (($category_seconds["Browser"] // 0) / $total) else 0 end),
               known_category_ratio: (if $total > 0 then 1 - (($category_seconds["Unknown"] // 0) / $total) else 0 end),
+              study_goal_seconds: $study_goal_seconds,
+              study_goal_progress: (if $study_goal_seconds > 0 then ($study_seconds / $study_goal_seconds) else 0 end),
               session_density: (
                 if ($day.schema_ready // false) then
                   (($day.session_count // 0) / (if ($total / 3600) > 0 then ($total / 3600) else 0.000001 end))

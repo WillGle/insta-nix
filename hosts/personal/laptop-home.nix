@@ -37,7 +37,7 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time;
       executable = true;
     };
-    ".local/lib/rofi-screen-time".source = ../../dotfiles/common/rofi-screen-time;
+    ".local/lib/rofi-screen-time".source = ../../dotfiles/hosts/ryzen14/rofi-screen-time;
     ".local/bin/rofi-screen-time-cache" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-cache;
       executable = true;
@@ -95,9 +95,7 @@ in
       source = ../../dotfiles/hosts/ryzen14/hypr/rotate_select.sh;
       executable = true;
     };
-
-    "kanshi/config".source = ../../dotfiles/hosts/ryzen14/kanshi/config;
-    "rofi/screen-time.rasi".source = ../../dotfiles/common/rofi/screen-time.rasi;
+    "rofi/screen-time.rasi".source = ../../dotfiles/hosts/ryzen14/rofi/screen-time.rasi;
     "rofi/study-timer.rasi".source = ../../dotfiles/common/rofi/study-timer.rasi;
   };
 

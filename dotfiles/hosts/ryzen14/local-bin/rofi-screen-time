@@ -8,9 +8,9 @@ resolve_screen_time_lib_dir() {
 
   for candidate in \
     "${SCREEN_TIME_LIB_DIR:-}" \
-    "$script_dir/../../../common/rofi-screen-time/lib" \
+    "$script_dir/../rofi-screen-time/lib" \
     "${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}/lib" \
-    "/etc/nixos/dotfiles/common/rofi-screen-time/lib"
+    "/etc/nixos/dotfiles/hosts/ryzen14/rofi-screen-time/lib"
   do
     [ -n "$candidate" ] || continue
     if [ -r "$candidate/common.sh" ]; then
@@ -39,7 +39,7 @@ APP_FILTER=""
 
 usage() {
   cat <<'EOF'
-Usage: rofi-screen-time [--date YYYY-MM-DD] [--view summary|categories|focus|windows|trend|recommendations|quality]
+Usage: rofi-screen-time [--date YYYY-MM-DD] [--view summary|activity|health|timer]
 EOF
 }
 
@@ -157,9 +157,9 @@ while :; do
     rm -f "$local_theme_file"
   fi
 
-  if ! selection="$(
+  if ! selection_idx="$(
     cat "$rows_file" \
-      | rofi -dmenu -markup-rows -show-icons -no-custom \
+      | rofi -dmenu -markup-rows -show-icons -no-custom -format i \
           -config "$ROFI_CONFIG" \
           -theme "$ROFI_THEME" \
           -theme-str "$theme_str" \
@@ -171,6 +171,19 @@ while :; do
     exit 0
   fi
 
+  # Rofi rows contain a NUL separator before metadata. Bash strips NUL bytes
+  # during command substitution, so read the token with a byte-safe tool.
+  selection="$(
+    perl -ne '
+      BEGIN { $target = shift @ARGV }
+      if ($. == $target) {
+        s/\x00.*//s;
+        print;
+        exit 0;
+      }
+    ' "$((selection_idx + 1))" "$rows_file"
+  )"
+
   if [ -n "$local_rows_file" ] && [ -f "$local_rows_file" ]; then
     rm -f "$local_rows_file"
   fi
@@ -179,7 +192,7 @@ while :; do
     close|"")
       exit 0
       ;;
-    view:study-timer:*)
+    view:study-timer:*|view:timer:*)
       setsid -f "${HOME}/.local/bin/rofi-study-timer" >/dev/null 2>&1 || true
       exit 0
       ;;

@@ -45,29 +45,20 @@ normalize_class() {
 
 resolve_screen_time_view() {
   case "${1:-summary}" in
-    day|overview|summary)
+    day|overview|summary|trend|recommendations|recommendation)
       printf 'summary\n'
       ;;
-    app|categories)
-      printf 'categories\n'
+    app|categories|windows|time|time-windows|activity)
+      printf 'activity\n'
       ;;
-    focus)
-      printf 'focus\n'
+    focus|health|quality|data-quality)
+      printf 'health\n'
       ;;
-    windows|time|time-windows)
-      printf 'windows\n'
-      ;;
-    week|trend)
-      printf 'trend\n'
-      ;;
-    recommendations|recommendation)
-      printf 'recommendations\n'
-      ;;
-    quality|data-quality)
-      printf 'quality\n'
+    study-timer|timer)
+      printf 'timer\n'
       ;;
     *)
-      return 1
+      printf 'summary\n'
       ;;
   esac
 }
@@ -80,6 +71,18 @@ humanize_class() {
     out+="${word^} "
   done
   printf '%s\n' "${out%" "}"
+}
+
+humanize_metric() {
+  local key="$1"
+  case "$key" in
+    browser_ambiguity_ratio) printf "Browser Ambiguity\n" ;;
+    unknown_share)          printf "Unknown Apps\n" ;;
+    switch_rate)            printf "Switch Rate\n" ;;
+    focus_score)            printf "Focus Score\n" ;;
+    fragmentation_score)    printf "Fragmentation\n" ;;
+    *) humanize_class "$key" ;;
+  esac
 }
 
 escape_markup() {
@@ -194,9 +197,9 @@ format_rate_with_avg() {
     | if $current_rate == null then
         "Unavailable"
       else
-        ($current_rate | tostring) + "/h"
+        (($current_rate * 10 | round / 10) | tostring) + "/h"
         + " • avg "
-        + (if $avg_rate == null then "n/a" else ($avg_rate | tostring) + "/h" end)
+        + (if $avg_rate == null then "n/a" else (($avg_rate * 10 | round / 10) | tostring) + "/h" end)
       end
   '
 }

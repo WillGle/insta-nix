@@ -8,9 +8,9 @@ resolve_screen_time_lib_dir() {
 
   for candidate in \
     "${SCREEN_TIME_LIB_DIR:-}" \
-    "$script_dir/../../../common/rofi-screen-time/lib" \
+    "$script_dir/../rofi-screen-time/lib" \
     "${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}/lib" \
-    "/etc/nixos/dotfiles/common/rofi-screen-time/lib"
+    "/etc/nixos/dotfiles/hosts/ryzen14/rofi-screen-time/lib"
   do
     [ -n "$candidate" ] || continue
     if [ -r "$candidate/common.sh" ]; then
@@ -46,7 +46,7 @@ ROWS_FILE=""
 
 usage() {
   cat <<'EOF'
-Usage: rofi-screen-time-stats [--date YYYY-MM-DD] [--view summary|categories|focus|windows|trend|recommendations|quality] [--app APP_CLASS] [--format json|theme|rows|files] [--theme-file PATH --rows-file PATH]
+Usage: rofi-screen-time-stats [--date YYYY-MM-DD] [--view summary|activity|health|timer] [--app APP_CLASS] [--format json|theme|rows|files] [--theme-file PATH --rows-file PATH]
 EOF
 }
 
