@@ -245,7 +245,6 @@
       grim
       hyprlock
       hyprpaper
-      kanshi
       neovim
       playerctl
       rofi
