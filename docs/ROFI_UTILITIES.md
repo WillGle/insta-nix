@@ -57,4 +57,4 @@ Both tools are designed to work together:
 
 - `rofi-study-timer` can launch `rofi-screen-time` via the "Open screen time" option.
 - `rofi-screen-time` can launch the study timer via the study status row.
-- Themes are located in `dotfiles/common/rofi/` (`study-timer.rasi` and `screen-time.rasi`).
+- Themes are located in `dotfiles/hosts/ryzen14/rofi/` (`study-timer.rasi` and `screen-time.rasi`).
