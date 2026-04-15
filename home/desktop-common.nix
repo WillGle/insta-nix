@@ -134,10 +134,6 @@ in
     "waybar/style.css".text = ''
       @import url("file://${themeGeneratedDir}/waybar.css");
     '';
-    "waybar/cliphist.sh" = {
-      source = ../dotfiles/common/waybar/cliphist.sh;
-      executable = true;
-    };
 
     "rofi/config.rasi".source = ../dotfiles/common/rofi/config.rasi;
     "rofi/theme.rasi".source = generatedLink "rofi.rasi";
