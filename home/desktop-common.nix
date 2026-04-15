@@ -158,11 +158,11 @@ in
       executable = true;
     };
     ".local/bin/rofi-show" = {
-      source = ../dotfiles/common/rofi/rofi-show.sh;
+      source = ../dotfiles/common/rofi/rofi-show;
       executable = true;
     };
     ".local/bin/rofi-clipboard" = {
-      source = ../dotfiles/common/rofi/rofi-clipboard.sh;
+      source = ../dotfiles/common/rofi/rofi-clipboard;
       executable = true;
     };
   };
