@@ -64,6 +64,9 @@ set_dynamic_palette() {
   local palette_tmp="$1"
   local base mantle text subtext accent success warning error purple cyan
 
+  # Explicitly clear matugen cache to ensure fresh palette generation
+  "$RM_BIN" -rf "${XDG_CACHE_HOME:-${HOME}/.cache}/matugen" >/dev/null 2>&1 || true
+
   if ! "$MATUGEN_BIN" image "$THEME_WALLPAPER" -m dark -j hex -q > "$palette_tmp"; then
     return 1
   fi
