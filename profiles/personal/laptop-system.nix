@@ -298,6 +298,8 @@
       pciutils
       udiskie
       usbutils
+      bluez-tools
+      solaar
 
       # Shell & version control
       bash
