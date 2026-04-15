@@ -1,4 +1,10 @@
-{ lib, config, pkgs, pkgsUnstable, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  pkgsUnstable,
+  ...
+}:
 let
   themeDefaults = import ../../theme/default.nix;
   hexColor = lib.types.strMatching "^#[0-9a-fA-F]{6}$";
@@ -242,6 +248,8 @@ in
     };
 
     nixpkgs.config.allowUnfree = true;
+    hardware.enableAllFirmware = true;
+    hardware.logitech.wireless.enable = true;
 
     console = lib.mkIf hasThemeColors (
       let
@@ -278,6 +286,14 @@ in
         General = {
           Enable = "Source,Sink,Media,Socket";
           Experimental = true;
+          ControllerMode = "dual";
+          JustWorksRepairing = "always";
+          Privacy = "off";
+          ClassicBondedOnly = false;
+          FastConnectable = true;
+        };
+        input = {
+          UserspaceHID = true;
         };
       };
     };
@@ -299,6 +315,7 @@ in
     };
 
     services = {
+      # Standard Blueman service for reliable Bluetooth management.
       blueman.enable = true;
 
       resolved = {
@@ -328,6 +345,7 @@ in
     };
 
     security.polkit.enable = true;
+    programs.dconf.enable = true;
     programs.nix-ld.enable = true;
     programs.nix-ld.libraries = with pkgs; [
       stdenv.cc.cc
