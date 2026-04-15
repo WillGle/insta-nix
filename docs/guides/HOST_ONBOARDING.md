@@ -67,4 +67,3 @@ nixos-rebuild build --flake path:/etc/nixos#<HostKey>
 
 - [`PLANK_REMOTE_INSTALL.md`](./PLANK_REMOTE_INSTALL.md)
 - [`../README.md`](../README.md)
-- [`../STYLE.md`](../STYLE.md)

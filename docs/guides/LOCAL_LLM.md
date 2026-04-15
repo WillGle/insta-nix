@@ -46,4 +46,3 @@ Confirm that the CLI starts a model or that `LM Studio` opens successfully.
 
 - [`AMD_PERF_SUITE.md`](./AMD_PERF_SUITE.md)
 - [`../README.md`](../README.md)
-- [`../STYLE.md`](../STYLE.md)
