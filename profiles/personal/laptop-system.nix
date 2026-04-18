@@ -391,6 +391,11 @@
       mesa-demos
       steam-run
       mangohud
+
+      # Windows App Support
+      (bottles.override { removeWarningPopup = true; })
+      wineWowPackages.stable
+      winetricks
     ])
     ++ [
       pkgsUnstable.antigravity
