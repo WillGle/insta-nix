@@ -4,6 +4,7 @@
   "height": 30,
   "modules-left": [
     "clock",
+    "custom/screen_time",
     "custom/power_profile",
     "custom/battery_mode",
     "custom/refresh_rate",
@@ -43,12 +44,21 @@
       }
     },
     "actions": {
-      "on-click-right": "",
       "on-click-forward": "tz_up",
       "on-click-backward": "tz_down",
       "on-scroll-up": "shift_up",
       "on-scroll-down": "shift_down"
     }
+  },
+  "custom/screen_time": {
+    "exec": "$HOME/.local/bin/waybar-screen-time",
+    "return-type": "json",
+    "interval": 30,
+    "signal": 7,
+    "on-click": "setsid -f $HOME/.local/bin/rofi-screen-time",
+    "on-click-right": "setsid -f $HOME/.local/bin/rofi-study-timer",
+    "on-click-middle": "setsid -f $HOME/.local/bin/rofi-screen-time --view activity",
+    "tooltip": true
   },
   // ─── Memory (custom with top-process tooltip) ─────────────────────
   "custom/memory_info": {
@@ -130,6 +140,7 @@
     "exec": "$HOME/.local/bin/waybar-network-info",
     "return-type": "json",
     "interval": 5,
+    "signal": 6,
     "on-click": "$HOME/.local/bin/rofi-network",
     "on-click-right": "$HOME/.local/bin/rofi-network",
     "tooltip": true

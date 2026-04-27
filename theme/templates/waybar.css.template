@@ -45,6 +45,7 @@ window#waybar {
 #clock,
 #tray,
 #pulseaudio,
+#custom-screen_time,
 #custom-memory_info,
 #custom-network_info,
 #custom-apu_info,
@@ -68,6 +69,7 @@ menuitem,
 #clock,
 #tray,
 #pulseaudio,
+#custom-screen_time,
 #custom-memory_info,
 #custom-network_info,
 #custom-apu_info,
@@ -99,6 +101,7 @@ menuitem,
 #clock,
 #tray,
 #pulseaudio,
+#custom-screen_time,
 #custom-memory_info,
 #custom-network_info,
 #custom-apu_info,
@@ -152,6 +155,7 @@ menuitem,
 #clock:hover,
 #tray:hover,
 #pulseaudio:hover,
+#custom-screen_time:hover,
 #custom-memory_info:hover,
 #custom-network_info:hover,
 #custom-apu_info:hover,
@@ -226,6 +230,24 @@ menuitem:hover,
 }
 
 #pulseaudio.muted {
+  color: @subtext;
+}
+
+#custom-screen_time.studying {
+  color: @battery-eco;
+  border-bottom: 2px solid @battery-eco;
+}
+
+#custom-screen_time.medium {
+  color: @warning;
+}
+
+#custom-screen_time.high {
+  color: @error;
+  border-bottom: 2px solid @error;
+}
+
+#custom-screen_time.idle {
   color: @subtext;
 }
 
