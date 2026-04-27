@@ -42,7 +42,7 @@ build_insighted_context() {
         },
         quality: {
           legacy: "Not enough data for a full focus score yet.",
-          high_fragmentation: "Youve been switching between apps a lot today.",
+          high_fragmentation: "You have been switching between apps a lot today.",
           strong_focus: "You had some great focus sessions today.",
           conflicted_focus: "Good focus, but with a lot of app switching in between.",
           switch_above_baseline: "Youre switching apps much more than you usually do.",
