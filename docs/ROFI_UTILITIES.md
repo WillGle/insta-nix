@@ -36,8 +36,8 @@ The Screen Time utility provides a visual dashboard of your computer usage and s
 
 ### Features Summary
 
-- **Summary View**: Highlights today's total active time and study progress.
-- **Activity View**: Breaks down usage by application or category.
+- **Summary View**: Highlights today's total active time, study progress, top app usage, and hourly app timelines.
+- **Activity View**: Breaks down usage by application, category, and time of day.
 - **Historical Data**: Navigate through previous days to compare productivity.
 - **Integrated Study Stats**: Pulls data directly from the Study Timer logs to show focused vs. unfocused time.
 
@@ -48,6 +48,23 @@ rofi-screen-time
 ```
 
 The dashboard is designed to be fast, using a popup-cache for immediate rendering of the today's summary.
+
+The Dashboard and Activity views include an **App Usage Today** timeline. Each row shows the app name, a 24-hour activity sparkline, total duration, share of the day, category, and peak hour.
+
+Waybar exposes the same data through the screen-time module:
+
+- Left-click opens the dashboard.
+- Right-click opens the study timer.
+- Middle-click opens the activity view.
+
+Behavior analytics are exported locally:
+
+```bash
+screen-time-behavior-export --days 14 --format json
+screen-time-behavior-export --from 2026-04-01 --to 2026-04-27 --format csv --output ~/screen-time-summary.csv
+```
+
+The export includes app totals, switch rates, focus blocks, top transitions, and 30-minute time slots. Raw window titles are not exported.
 
 ---
 
