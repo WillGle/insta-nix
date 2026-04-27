@@ -15,18 +15,18 @@
 }
 
 window {
-  width:            88%;
-  height:           96%;
+  width:            84%;
+  height:           92%;
   border:           2px;
-  border-radius:    24px;
+  border-radius:    8px;
   border-color:     @window-border;
   background-color: @base;
-  padding:          14px;
+  padding:          12px;
 }
 
 mainbox {
   orientation:      vertical;
-  spacing:          14px;
+  spacing:          12px;
   children:         [ header-box, overview-box, analytics-box, note-box, listview ];
   background-color: transparent;
 }
@@ -38,7 +38,7 @@ inputbar { enabled: false; }
 header-box {
   expand:      false;
   orientation: horizontal;
-  spacing:     20px;
+  spacing:     16px;
   children:    [ title-group, meta-group ];
 }
 
@@ -52,9 +52,9 @@ title-group {
 meta-group {
   orientation:      vertical;
   expand:           false;
-  padding:          12px 16px;
+  padding:          10px 12px;
   border:           1px;
-  border-radius:    16px;
+  border-radius:    8px;
   border-color:     @card-border;
   background-color: @mantle;
   children:         [ textbox-meta ];
@@ -63,7 +63,7 @@ meta-group {
 textbox-title {
   markup:    true;
   text-color: @text;
-  font:      "JetBrainsMono Nerd Font Bold 24";
+  font:      "JetBrainsMono Nerd Font Bold 22";
 }
 
 textbox-subtitle {
@@ -85,17 +85,17 @@ textbox-meta {
 overview-box {
   expand:      false;
   orientation: horizontal;
-  spacing:     12px;
+  spacing:     8px;
   children:    [ card-1, card-2, card-3, card-4 ];
 }
 
 card-1, card-2, card-3 {
   orientation:      vertical;
   expand:           true;
-  padding:          12px;
-  spacing:          8px;
+  padding:          10px;
+  spacing:          6px;
   border:           1px;
-  border-radius:    14px;
+  border-radius:    8px;
   border-color:     @card-border;
   background-color: @mantle;
 }
@@ -108,10 +108,10 @@ card-3 { children: [ textbox-card-3-label, textbox-card-3-value, textbox-card-3-
 card-4 {
   orientation:      vertical;
   expand:           true;
-  padding:          12px;
-  spacing:          8px;
+  padding:          10px;
+  spacing:          6px;
   border:           1px;
-  border-radius:    14px;
+  border-radius:    8px;
   border-color:     @accent;
   background-color: @mantle;
   children:         [ textbox-card-4-label, textbox-card-4-value, textbox-card-4-sub ];
@@ -137,7 +137,7 @@ textbox-card-3-value {
   markup:     true;
   expand:     true;
   text-color: @text;
-  font:       "JetBrainsMono Nerd Font Bold 22";
+  font:       "JetBrainsMono Nerd Font Bold 20";
 }
 
 /* Highlighted card value */
@@ -145,7 +145,7 @@ textbox-card-4-value {
   markup:     true;
   expand:     true;
   text-color: @accent;
-  font:       "JetBrainsMono Nerd Font Bold 22";
+  font:       "JetBrainsMono Nerd Font Bold 20";
 }
 
 textbox-card-1-sub,
@@ -170,10 +170,10 @@ analytics-box {
 primary-panel {
   orientation:      vertical;
   width:            65%;
-  padding:          20px;
+  padding:          16px;
   spacing:          10px;
   border:           1px;
-  border-radius:    20px;
+  border-radius:    8px;
   border-color:     @card-border;
   background-color: @mantle;
   children:         [ textbox-primary-title, textbox-primary-body ];
@@ -183,7 +183,7 @@ textbox-primary-body {
   markup:      true;
   expand:      true;
   text-color:  @text;
-  font:        "JetBrainsMono Nerd Font 13";
+  font:        "JetBrainsMono Nerd Font 12";
   line-height: 1.4;
 }
 
@@ -197,10 +197,10 @@ side-panel {
 chart-b, chart-c, insight-box {
   orientation:      vertical;
   expand:           false;
-  padding:          14px 18px;
+  padding:          12px 14px;
   spacing:          8px;
   border:           1px;
-  border-radius:    16px;
+  border-radius:    8px;
   border-color:     @card-border;
   background-color: @mantle;
 }
@@ -231,9 +231,9 @@ textbox-insight-body {
 
 note-box {
   expand:           false;
-  padding:          12px 16px;
+  padding:          10px 12px;
   border:           1px;
-  border-radius:    14px;
+  border-radius:    8px;
   border-color:     @card-border;
   background-color: @mantle;
   children:         [ textbox-note ];

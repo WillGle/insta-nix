@@ -203,6 +203,18 @@ default_day_json() {
         last_started_at: "",
         last_stopped_at: "",
         active_overlap_seconds: 0
+      },
+      behavior: {
+        transitions: {},
+        focus_blocks: {
+          current_app: "",
+          current_started_at: "",
+          current_seconds: 0,
+          completed_count: 0,
+          deep_count: 0,
+          short_count: 0,
+          longest_seconds: 0
+        }
       }
     }'
 }
@@ -276,17 +288,51 @@ record_sample() {
     --arg date "$target_date" \
     --arg now "$now_iso" \
     --arg key "$normalized" \
-    --arg class "$raw_class" \
-    --arg name "$display_name" \
-    --arg icon "$icon_name" \
-    --argjson sample "$INTERVAL_SECONDS" \
-    --argjson slot "$slot_idx" \
-    --argjson new_session "$new_session" \
-    --argjson new_switch "$new_switch" \
-    '
-    .version = 2
-    | .date = $date
-    | .updated_at = $now
+	    --arg class "$raw_class" \
+	    --arg name "$display_name" \
+	    --arg icon "$icon_name" \
+	    --arg previous_app "$previous_app" \
+	    --argjson sample "$INTERVAL_SECONDS" \
+	    --argjson slot "$slot_idx" \
+	    --argjson new_session "$new_session" \
+	    --argjson new_switch "$new_switch" \
+	    '
+	    def default_behavior: {
+	      transitions: {},
+	      focus_blocks: {
+	        current_app: "",
+	        current_started_at: "",
+	        current_seconds: 0,
+	        completed_count: 0,
+	        deep_count: 0,
+	        short_count: 0,
+	        longest_seconds: 0
+	      }
+	    };
+	    def normalize_behavior:
+	      .behavior = (.behavior // default_behavior)
+	      | .behavior.transitions = (.behavior.transitions // {})
+	      | .behavior.focus_blocks = (.behavior.focus_blocks // default_behavior.focus_blocks)
+	      | .behavior.focus_blocks.current_app = (.behavior.focus_blocks.current_app // "")
+	      | .behavior.focus_blocks.current_started_at = (.behavior.focus_blocks.current_started_at // "")
+	      | .behavior.focus_blocks.current_seconds = (.behavior.focus_blocks.current_seconds // 0)
+	      | .behavior.focus_blocks.completed_count = (.behavior.focus_blocks.completed_count // 0)
+	      | .behavior.focus_blocks.deep_count = (.behavior.focus_blocks.deep_count // 0)
+	      | .behavior.focus_blocks.short_count = (.behavior.focus_blocks.short_count // 0)
+	      | .behavior.focus_blocks.longest_seconds = (.behavior.focus_blocks.longest_seconds // 0);
+	    def close_focus_block:
+	      (.behavior.focus_blocks.current_seconds // 0) as $seconds
+	      | if $seconds > 0 then
+	          .behavior.focus_blocks.completed_count += 1
+	          | .behavior.focus_blocks.deep_count += (if $seconds >= 1500 then 1 else 0 end)
+	          | .behavior.focus_blocks.short_count += (if $seconds < 300 then 1 else 0 end)
+	          | .behavior.focus_blocks.longest_seconds = ([.behavior.focus_blocks.longest_seconds, $seconds] | max)
+	        else
+	          .
+	        end;
+	    .version = 2
+	    | .date = $date
+	    | .updated_at = $now
     | .sample_seconds = $sample
     | .study = (
         (.study // {
@@ -296,20 +342,47 @@ record_sample() {
           last_stopped_at: "",
           active_overlap_seconds: 0
         })
-        | .active_overlap_seconds = (.active_overlap_seconds // 0)
-      )
-    | .sample_count = ((.sample_count // 0) + 1)
-    | .first_seen = (if (.first_seen // "") == "" then $now else .first_seen end)
-    | .last_seen = $now
+	        | .active_overlap_seconds = (.active_overlap_seconds // 0)
+	      )
+	    | normalize_behavior
+	    | .sample_count = ((.sample_count // 0) + 1)
+	    | .first_seen = (if (.first_seen // "") == "" then $now else .first_seen end)
+	    | .last_seen = $now
     | .session_count = ((.session_count // 0) + $new_session)
     | .switch_count = ((.switch_count // 0) + $new_switch)
     | .last_app = $key
-    | .last_sample_at = $now
-    | .total_seconds = ((.total_seconds // 0) + $sample)
-    | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
-    | .apps[$key] = (
-        (.apps[$key] // {
-          class: $class,
+	    | .last_sample_at = $now
+	    | .total_seconds = ((.total_seconds // 0) + $sample)
+	    | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
+	    | if $new_switch == 1 and $previous_app != "" then
+	        ($previous_app + " -> " + $key) as $transition_key
+	        | .behavior.transitions[$transition_key] = (
+	            (.behavior.transitions[$transition_key] // {
+	              from: $previous_app,
+	              to: $key,
+	              count: 0,
+	              first_seen: $now,
+	              last_seen: $now
+	            })
+	            | .count = ((.count // 0) + 1)
+	            | .last_seen = $now
+	          )
+	      else
+	        .
+	      end
+	    | if $new_session == 1 then
+	        close_focus_block
+	        | .behavior.focus_blocks.current_app = $key
+	        | .behavior.focus_blocks.current_started_at = $now
+	        | .behavior.focus_blocks.current_seconds = $sample
+	      else
+	        .behavior.focus_blocks.current_app = $key
+	        | .behavior.focus_blocks.current_seconds = ((.behavior.focus_blocks.current_seconds // 0) + $sample)
+	        | .behavior.focus_blocks.longest_seconds = ([.behavior.focus_blocks.longest_seconds, (.behavior.focus_blocks.current_seconds // 0)] | max)
+	      end
+	    | .apps[$key] = (
+	        (.apps[$key] // {
+	          class: $class,
           name: $name,
           icon: $icon,
           seconds: 0,
@@ -345,10 +418,29 @@ sample_once() {
 
 acquire_lock() {
   local lock_dir="${XDG_RUNTIME_DIR:-/tmp}/rofi-screen-time.lock"
+  local lock_pid=""
+
   if mkdir "$lock_dir" 2>/dev/null; then
-    trap 'rmdir "$lock_dir" >/dev/null 2>&1 || true' EXIT INT TERM
+    printf '%s\n' "$$" >"$lock_dir/pid"
+    trap "rm -rf '$lock_dir' >/dev/null 2>&1 || true" EXIT INT TERM
     return 0
   fi
+
+  if [ -r "$lock_dir/pid" ]; then
+    lock_pid="$(cat "$lock_dir/pid" 2>/dev/null || true)"
+    if [ -n "$lock_pid" ] && kill -0 "$lock_pid" >/dev/null 2>&1; then
+      printf 'rofi-screen-time-track: another tracker instance is already running\n' >&2
+      return 1
+    fi
+  fi
+
+  rm -rf "$lock_dir"
+  if mkdir "$lock_dir" 2>/dev/null; then
+    printf '%s\n' "$$" >"$lock_dir/pid"
+    trap "rm -rf '$lock_dir' >/dev/null 2>&1 || true" EXIT INT TERM
+    return 0
+  fi
+
   printf 'rofi-screen-time-track: another tracker instance is already running\n' >&2
   return 1
 }

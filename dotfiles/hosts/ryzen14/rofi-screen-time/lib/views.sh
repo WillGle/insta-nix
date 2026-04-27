@@ -159,6 +159,30 @@ kv_markup() {
     "$(escape_markup "$value")"
 }
 
+kv_markup_raw_value() {
+  local label="$1"
+  local value="$2"
+  printf '<span foreground="%s">%s</span> <span weight="600">%s</span>' \
+    "$SUBTEXT_COLOR" \
+    "$(escape_markup "$label")" \
+    "$value"
+}
+
+clip_text() {
+  local value="${1:-}"
+  local max="${2:-18}"
+
+  if [ "${#value}" -le "$max" ]; then
+    printf '%s\n' "$value"
+    return 0
+  fi
+  if [ "$max" -le 3 ]; then
+    printf '%s\n' "${value:0:$max}"
+    return 0
+  fi
+  printf '%s...\n' "${value:0:$((max - 3))}"
+}
+
 render_goal_gauge() {
   local current_seconds="$1"
   local target_seconds="$2"
@@ -329,6 +353,77 @@ render_top_apps_by_category() {
   fi
 }
 
+render_app_usage_timeline() {
+  local context_json="$1"
+  local limit="${2:-6}"
+  local output=""
+  local name=""
+  local category=""
+  local seconds=0
+  local share=0
+  local peak_label=""
+  local peak_index=0
+  local slots_json=""
+  local label=""
+  local timeline=""
+
+  while IFS=$'\t' read -r name category seconds share peak_label peak_index slots_json; do
+    [ -n "$name" ] || continue
+    label="$(clip_text "$name" 16)"
+    timeline="$(sparkline_from_json "$slots_json" "$peak_index")"
+    output+="$(printf '<span foreground="%s">%-16s</span> %s  <span weight="600">%6s</span> <span foreground="%s">%4s</span> <span foreground="%s" size="small">%s · %s</span>' \
+      "$TEXT_COLOR" \
+      "$(escape_markup "$label")" \
+      "$timeline" \
+      "$(seconds_to_short "$seconds")" \
+      "$SUBTEXT_COLOR" \
+      "$(format_ratio_percent "$share")" \
+      "$SUBTEXT_COLOR" \
+      "$(escape_markup "$category")" \
+      "$(escape_markup "$peak_label")")"$'\n'
+  done < <(
+    printf '%s' "$context_json" | jq -r \
+      --argjson limit "$limit" '
+        def pad2:
+          tostring
+          | if length < 2 then "0" + . else . end;
+        def hour_label($index):
+          if $index < 0 then
+            "no peak"
+          else
+            (($index | tonumber) | pad2) + ":00"
+          end;
+        def hourly($slots):
+          [range(0; 24) as $hour | (($slots[$hour * 2] // 0) + ($slots[($hour * 2) + 1] // 0))];
+        (.today.total_seconds // 0) as $total
+        | .today.app_entries
+        | map(select((.seconds // 0) > 0))
+        | .[:$limit][]
+        | (.slots_30m | if length == 48 then . else ([range(0; 48)] | map(0)) end) as $slots30
+        | (hourly($slots30)) as $slots
+        | ([ $slots | to_entries[] | select(.value > 0) ] | if length == 0 then {key:-1, value:0} else max_by(.value) end) as $peak
+        | [
+            (.name // .key),
+            (.category // "Unknown"),
+            ((.seconds // 0) | tostring),
+            (if $total > 0 then ((.seconds // 0) / $total) else 0 end | tostring),
+            hour_label($peak.key),
+            (($peak.key // -1) | tostring),
+            ($slots | @json)
+          ]
+        | @tsv
+      '
+  )
+
+  if [ -z "$output" ]; then
+    printf '%s\n' "$(kv_markup "App usage" "No app data yet")"
+  else
+    printf '<span foreground="%s" size="small">App                00   06   12   18   24</span>\n%s' \
+      "$SUBTEXT_COLOR" \
+      "${output%$'\n'}"
+  fi
+}
+
 render_baseline_summary() {
   local context_json="$1"
   local active_delta active_avg focus_delta frag_delta study_delta
@@ -341,7 +436,7 @@ render_baseline_summary() {
 
   printf '%s\n%s\n%s\n%s' \
     "$(kv_markup "Vs yesterday" "$(delta_label_seconds "$active_delta")")" \
-    "$(kv_markup "Vs 7-day active" "$( [ -n "$active_avg" ] && delta_label_seconds "$(printf '%.0f' "$active_avg")" || printf 'Unavailable' )")" \
+    "$(kv_markup "Vs 7-day active" "$( [ -n "$active_avg" ] && delta_label_seconds "$(round_number "$active_avg")" || printf 'Unavailable' )")" \
     "$(kv_markup "Vs 7-day focus" "$( [ -n "$focus_delta" ] && format_score_delta "$focus_delta" || printf 'Unavailable' )")" \
     "$(kv_markup "Vs 7-day study" "$( [ -n "$study_delta" ] && format_ratio_points_delta "$study_delta" || printf 'Unavailable' )")"
 
@@ -363,7 +458,32 @@ render_focus_breakdown() {
     "$(kv_markup "Focus Score" "$(score_value_text "$focus_json") • $(score_subtext "$focus_json")")" \
     "$(kv_markup "Fragmentation Score" "$(score_value_text "$frag_json") • $(score_subtext "$frag_json")")" \
     "$(kv_markup "Distraction Load" "$(score_value_text "$dist_json") • $(score_subtext "$dist_json")")" \
-    "$(kv_markup "Daily Consistency" "$(score_value_text "$consistency_json") • $(score_subtext "$consistency_json")")"
+	    "$(kv_markup "Daily Consistency" "$(score_value_text "$consistency_json") • $(score_subtext "$consistency_json")")"
+}
+
+render_behavior_summary() {
+  local context_json="$1"
+  local longest current deep short top_label top_count switch_rate session_density
+
+  longest="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
+  current="$(printf '%s' "$context_json" | jq -r '.today.metrics.current_focus_block_seconds // 0')"
+  deep="$(printf '%s' "$context_json" | jq -r '.today.metrics.deep_focus_block_count // 0')"
+  short="$(printf '%s' "$context_json" | jq -r '.today.metrics.short_focus_block_count // 0')"
+  top_label="$(printf '%s' "$context_json" | jq -r '.today.metrics.top_transition_label // "None yet"')"
+  top_count="$(printf '%s' "$context_json" | jq -r '.today.metrics.top_transition_count // 0')"
+  switch_rate="$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')"
+  session_density="$(printf '%s' "$context_json" | jq -r '.today.metrics.session_density // empty')"
+
+  if [ "$top_label" != "None yet" ]; then
+    top_label="$(printf '%s' "$top_label" | sed 's/ -> /\t/' | awk -F '\t' '{printf "%s -> %s", $1, $2}')"
+  fi
+
+  printf '%s\n%s\n%s\n%s\n%s' \
+    "$(kv_markup "Longest focus" "$(seconds_to_short "$longest")")" \
+    "$(kv_markup "Current block" "$(seconds_to_short "$current")")" \
+    "$(kv_markup "Deep / short blocks" "$deep deep • $short short")" \
+    "$(kv_markup "Top switch" "$(if [ "$top_count" -gt 0 ]; then printf '%s (%sx)' "$top_label" "$top_count"; else printf 'None yet'; fi)")" \
+    "$(kv_markup "Switch pressure" "$(format_decimal_label "$switch_rate" "/h") • $(format_decimal_label "$session_density" " sessions/h")")"
 }
 
 render_focus_vs_baseline() {
@@ -495,10 +615,10 @@ render_metric_sparklines() {
   productive_json="$(printf '%s' "$context_json" | jq -c '[.trailing[] | ((.metrics.productive_ratio_v1 // 0) * 100 | round)]')"
   browser_json="$(printf '%s' "$context_json" | jq -c '[.trailing[] | ((.metrics.browser_ambiguity_ratio // 0) * 100 | round)]')"
 
-  printf '%s\n%s\n%s' \
-    "$(kv_markup "Active" "$(sparkline_from_json "$active_json")")" \
-    "$(kv_markup "Focus / Frag" "$(sparkline_from_json "$focus_json")  $(sparkline_from_json "$frag_json")")" \
-    "$(kv_markup "Study / Productive / Browser" "$(sparkline_from_json "$study_json")  $(sparkline_from_json "$productive_json")  $(sparkline_from_json "$browser_json")")"
+	  printf '%s\n%s\n%s' \
+	    "$(kv_markup_raw_value "Active" "$(sparkline_from_json "$active_json")")" \
+	    "$(kv_markup_raw_value "Focus / Frag" "$(sparkline_from_json "$focus_json")  $(sparkline_from_json "$frag_json")")" \
+	    "$(kv_markup_raw_value "Study / Productive / Browser" "$(sparkline_from_json "$study_json")  $(sparkline_from_json "$productive_json")  $(sparkline_from_json "$browser_json")")"
 }
 
 render_recommendations() {
@@ -530,7 +650,7 @@ render_triggered_thresholds() {
   printf '%s\n%s\n%s\n%s' \
     "$(kv_markup "Browser ambiguity" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.browser_ambiguity_ratio')")")" \
     "$(kv_markup "Unknown share" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.categories.unknown_share')")")" \
-    "$(kv_markup "Switch rate" "$(if [ "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate != null')" = "true" ]; then printf '%.1f/h' "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // 0')"; else printf 'Unavailable'; fi)")" \
+    "$(kv_markup "Switch rate" "$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h")")" \
     "$(kv_markup "Study ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_ratio')")")"
 }
 
@@ -610,7 +730,8 @@ build_view_payload() {
   local view="$1"
   local context_json="$2"
   local target_date subtitle meta title note_text navigation_json
-  local updated_time total_seconds study_ratio focus_json frag_json focus_value frag_value
+	  local updated_time total_seconds study_ratio focus_json frag_json focus_value frag_value
+	  local longest_focus_seconds deep_focus_blocks switch_rate_label
   local top_category peak_window main_insight summary_active summary_study_ratio
   local card1_label card1_value card1_sub
   local card2_label card2_value card2_sub
@@ -624,9 +745,12 @@ build_view_payload() {
   study_ratio="$(printf '%s' "$context_json" | jq -r '.today.metrics.study_ratio')"
   focus_json="$(printf '%s' "$context_json" | jq -c '.today.scores.focus_score')"
   frag_json="$(printf '%s' "$context_json" | jq -c '.today.scores.fragmentation_score')"
-  focus_value="$(score_value_text "$focus_json")"
-  frag_value="$(score_value_text "$frag_json")"
-  top_category="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
+	  focus_value="$(score_value_text "$focus_json")"
+	  frag_value="$(score_value_text "$frag_json")"
+	  longest_focus_seconds="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
+	  deep_focus_blocks="$(printf '%s' "$context_json" | jq -r '.today.metrics.deep_focus_block_count // 0')"
+	  switch_rate_label="$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h" "n/a")"
+	  top_category="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
   peak_window="$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
   main_insight="$(printf '%s' "$context_json" | jq -r '.insights.main.text // "No major insight available yet."')"
   summary_active="$(seconds_to_compact "$total_seconds")"
@@ -641,12 +765,12 @@ build_view_payload() {
       card1_label="Total Use"
       card1_value="$summary_active"
       card1_sub="Peak $peak_window"
-      card2_label="Focus"
-      card2_value="$focus_value"
-      card2_sub="$(score_subtext "$focus_json")"
-      card3_label="Switching"
-      card3_value="$frag_value"
-      card3_sub="$(score_subtext "$frag_json")"
+	      card2_label="Longest Focus"
+	      card2_value="$(seconds_to_short "$longest_focus_seconds")"
+	      card2_sub="$deep_focus_blocks deep blocks"
+	      card3_label="Switch Rate"
+	      card3_value="$switch_rate_label"
+	      card3_sub="$(printf '%s' "$context_json" | jq -r '.today.switch_count // 0') switches"
       if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
         card4_label="Deep Work [ACTIVE]"
       else
@@ -656,28 +780,33 @@ build_view_payload() {
       card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')") total"
       
       primary_title=""
-      primary_body="$(printf '%s\n\n%s\n\n<span foreground=\"%s\" weight=\"600\">Primary Advice</span>\n%s' \
+      primary_body="$(printf '%s\n\n%s\n\n<span foreground=\"%s\" weight=\"600\">App Usage Today</span>\n%s\n\n<span foreground=\"%s\" weight=\"600\">Primary Advice</span>\n%s' \
         "$(render_goal_gauge "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')" "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')")" \
         "$(render_momentum_chart "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")" \
         "$ACCENT_COLOR" \
+        "$(render_app_usage_timeline "$context_json" 5)" \
+        "$ACCENT_COLOR" \
         "$(render_recommendations "$context_json")")"
-      
-      chart_b_title="7-Day Trend"
-      chart_b_body="$(render_metric_sparklines "$context_json")"
-      
-      chart_c_title="Compared to Usual"
-      chart_c_body="$(render_baseline_summary "$context_json")"
-      
-      insight_title="Active Insights"
-      insight_body="$(render_insight_console "$context_json")"
-      
+
+	      chart_b_title="7-Day Trend"
+	      chart_b_body="$(render_metric_sparklines "$context_json")"
+
+	      chart_c_title="Behavior Pattern"
+	      chart_c_body="$(render_behavior_summary "$context_json")"
+
+	      insight_title="Baseline & Insights"
+	      insight_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">Compared to Usual</span>\n%s' \
+	        "$(render_insight_console "$context_json")" \
+	        "$ACCENT_COLOR" \
+	        "$(render_baseline_summary "$context_json")")"
+
       local study_status
       if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
         study_status="Study session: $(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')") active."
       else
         study_status="Study session: Idle."
       fi
-      note_text="$study_status  Main blocker: $(printf '%s' "$context_json" | jq -r '.insights.by_class.recommendation.metric // "none"')."
+	      note_text="$study_status  App timeline shows each top app by hour.  Longest focus: $(seconds_to_short "$longest_focus_seconds")."
       ;;
 
     activity)
@@ -697,14 +826,14 @@ build_view_payload() {
       card4_value="$(format_ratio_percent "$study_ratio")"
       card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')") total"
       
-      primary_title="Usage Breakdown"
-      primary_body="$(render_category_bars "$context_json" 0 false)"
+      primary_title="App Usage Timeline"
+      primary_body="$(render_app_usage_timeline "$context_json" 8)"
       
       chart_b_title="Busy Times"
       chart_b_body="$(render_timeline_chart "$(printf '%s' "$context_json" | jq -c '.today.raw.slots_30m')" "focus window $(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')")"
       
-      chart_c_title="Momentum Check"
-      chart_c_body="$(render_momentum_chart "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")"
+      chart_c_title="Category Mix"
+      chart_c_body="$(render_category_bars "$context_json" 6 true)"
       
       insight_title="Top Apps"
       insight_body="$(render_top_apps_by_category "$context_json")"
@@ -722,7 +851,7 @@ build_view_payload() {
       card2_value="$frag_value"
       card2_sub="$(score_subtext "$frag_json")"
       card3_label="Switch Rate"
-      card3_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate != null')" = "true" ]; then printf '%.1f/h' "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // 0')" ; else printf 'Unavailable'; fi)"
+      card3_value="$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h")"
       card3_sub="Context pressure"
       card4_label="Coverage"
       card4_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.known_category_ratio')")"
