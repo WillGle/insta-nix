@@ -97,8 +97,51 @@ def day_summary:
   . as $day
   | ($day.total_seconds // 0) as $total
   | ($day.behavior.focus_blocks // {}) as $blocks
+  | ($day.behavior.transitions // {}) as $transitions_raw
   | (top_apps($day)) as $apps
   | (top_transitions($day)) as $transitions
+  | ($day.sample_seconds // 5) as $sample_sec
+  | (if $total > 0.000001 then (($day.switch_count // 0) / ($total / 3600)) else null end) as $raw_switch_rate
+  | (if $total > 0.000001 then (($day.session_count // 0) / ($total / 3600)) else null end) as $raw_session_density
+  | (($day.slots_30m // ([range(0;48)] | map(0))) | if length == 48 then . else ([range(0;48)] | map(0)) end) as $slots
+  | (
+      [range(1; 48) | . as $i | select($slots[$i] > 0 and $slots[$i-1] == 0)] | length
+      - (if $slots[0] == 0 then 1 else 0 end)
+      | if . < 0 then 0 else . end
+    ) as $rcv_gaps
+  | (reduce range(0; 48) as $i ({run: 0, max_run: 0};
+      if $slots[$i] > 0
+      then {run: (.run + 1), max_run: ([.max_run, (.run + 1)] | max)}
+      else {run: 0, max_run: .max_run}
+      end
+    ) | (.max_run / 3 | floor)) as $ult_score
+  | ([ to_entries[] | select(.value > 0) ] | if length == 0 then {key: -1} else max_by(.value) end | .key) as $pk
+  | ($slots | to_entries | map(select(.value > 0)) | if length == 0 then {key: -1} else max_by(.value) end | .key) as $peak_key
+  | (if $peak_key < 0 then "Unknown"
+     elif $peak_key < 12 then "Night"
+     elif $peak_key < 24 then "Morning"
+     elif $peak_key < 36 then "Afternoon"
+     elif $peak_key < 44 then "Evening"
+     else "Night"
+     end) as $circ_phase
+  | (if ($total / 3600) < 4 then "Low"
+     elif (($total / 3600) < 7 and $rcv_gaps >= 2) then "Low"
+     elif ($total / 3600) < 7 then "Moderate"
+     elif ($rcv_gaps >= 3) then "Moderate"
+     else "High"
+     end) as $eye_risk
+  | (if ($day.version // 0) >= 2 then
+       (
+         ([($raw_switch_rate // 0) / 30, 1] | min) * 0.40
+         + ([($raw_session_density // 0) / 20, 1] | min) * 0.30
+         + (if $total > 0 then ((($day.apps // {}) | to_entries | map(select(.value.category == "Communication")) | map(.value.seconds // 0) | add // 0) / $total) else 0 end) * 0.30
+       ) * 100 | round
+     else null
+     end) as $cog_load
+  | (if ($day.version // 0) >= 2 then
+       ($raw_switch_rate // 0) / (if ($blocks.deep_count // 0) > 0 then ($blocks.deep_count // 0) else 1 end)
+     else null
+     end) as $attn_frag
   | {
       date: $day.date,
       first_seen: ($day.first_seen // ""),
@@ -122,7 +165,13 @@ def day_summary:
         longest_seconds: ([($blocks.longest_seconds // 0), ($blocks.current_seconds // 0)] | max)
       },
       top_transitions: $transitions[:10],
-      slots_30m: (($day.slots_30m // ([range(0;48)] | map(0))) | if length == 48 then . else ([range(0;48)] | map(0)) end)
+      slots_30m: ($slots | if length == 48 then . else ([range(0;48)] | map(0)) end),
+      attention_fragmentation_index: $attn_frag,
+      recovery_gap_count: $rcv_gaps,
+      circadian_phase: $circ_phase,
+      ultradian_score: $ult_score,
+      eye_strain_risk: $eye_risk,
+      cognitive_load_score: $cog_load
     };
 . as $raw_days
 | ($raw_days | map(day_summary)) as $days
@@ -148,6 +197,15 @@ def day_summary:
       deep_focus_blocks: ($days | map(.focus_blocks.deep_count) | add // 0),
       short_focus_blocks: ($days | map(.focus_blocks.short_count) | add // 0),
       longest_focus_seconds: ($days | map(.focus_blocks.longest_seconds) | max // 0),
+      avg_cognitive_load_score: ([$days[] | .cognitive_load_score | select(. != null)] | if length > 0 then (add / length * 10 | round / 10) else null end),
+      avg_attention_fragmentation_index: ([$days[] | .attention_fragmentation_index | select(. != null)] | if length > 0 then (add / length * 10 | round / 10) else null end),
+      eye_strain_high_days: ($days | map(select(.eye_strain_risk == "High")) | length),
+      total_recovery_gaps: ($days | map(.recovery_gap_count) | add // 0),
+      circadian_distribution: (
+        $days | map(.circadian_phase) | group_by(.)
+        | map({key: .[0], value: length})
+        | from_entries
+      ),
       top_apps: (
         [$days[].top_apps[]?]
         | group_by(.key)
@@ -204,9 +262,15 @@ def day_row:
       ($blocks.short_count // 0),
       ($top.key // ""),
       ($top.value.name // ""),
-      ($top.value.seconds // 0)
+      ($top.value.seconds // 0),
+      ($day.attention_fragmentation_index // ""),
+      ($day.recovery_gap_count // 0),
+      ($day.circadian_phase // ""),
+      ($day.ultradian_score // 0),
+      ($day.eye_strain_risk // ""),
+      ($day.cognitive_load_score // "")
     ];
-(["date","active_seconds","study_seconds","session_count","switch_count","switch_rate_per_hour","longest_focus_seconds","deep_focus_blocks","short_focus_blocks","top_app_key","top_app_name","top_app_seconds"] | @csv),
+(["date","active_seconds","study_seconds","session_count","switch_count","switch_rate_per_hour","longest_focus_seconds","deep_focus_blocks","short_focus_blocks","top_app_key","top_app_name","top_app_seconds","attention_fragmentation_index","recovery_gap_count","circadian_phase","ultradian_score","eye_strain_risk","cognitive_load_score"] | @csv),
 (.[] | day_row | @csv)
 JQ
 }

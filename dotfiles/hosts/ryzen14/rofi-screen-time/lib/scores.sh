@@ -290,6 +290,30 @@ build_scored_context() {
         else
           .
         end
+      | .today.scores.digital_wellbeing_score = (
+          if (.today.schema_ready) then
+            (
+              ((.today.scores.focus_score.value // 0) / 100) * 0.30
+              + ((1 - ((.today.scores.fragmentation_score.value // 0) / 100)) * 0.25)
+              + ([(.today.metrics.study_goal_progress // 0), 1] | min) * 0.20
+              + ([(.today.metrics.recovery_gap_count // 0) / 2, 1] | min) * 0.15
+              + ((1 - ((.today.scores.distraction_load.value // 0) / 100)) * 0.10)
+            ) * 100 | round
+            | {
+                available: true,
+                value: .,
+                label: (
+                  if . >= 70 then "Strong digital wellness"
+                  elif . >= 40 then "Moderate digital wellness"
+                  else "Needs attention"
+                  end
+                ),
+                reason: ""
+              }
+          else
+            {available: false, value: null, label: "Unavailable", reason: "Requires version 2 tracking data."}
+          end
+        )
       | .data_quality = {
           schema_version: .today.version,
           schema_ready: .today.schema_ready,

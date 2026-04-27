@@ -100,6 +100,45 @@ build_metrics_context() {
 	        | ([ $slots | to_entries[] | select(.value > 0) ]) as $active_slots
         | (if ($active_slots | length) == 0 then {key: -1, value: 0} else ($active_slots | max_by(.value)) end) as $peak
         | ([categories[] as $name | {name: $name, seconds: ($category_seconds[$name] // 0)}] | sort_by(-.seconds, .name)) as $top_categories
+        | (if $total > 0.000001 then (($day.switch_count // 0) / ($total / 3600)) else null end) as $raw_switch_rate
+        | (if $total > 0.000001 then (($day.session_count // 0) / ($total / 3600)) else null end) as $raw_session_density
+        | (if $total > 0 then (($category_seconds["Communication"] // 0) / $total) else 0 end) as $raw_comm_load
+        | (
+            [range(1; 48) | . as $i | select($slots[$i] > 0 and $slots[$i-1] == 0)] | length
+            - (if $slots[0] == 0 then 1 else 0 end)
+            | if . < 0 then 0 else . end
+          ) as $recovery_gap_count
+        | (reduce range(0; 48) as $i ({run: 0, max_run: 0};
+            if $slots[$i] > 0
+            then {run: (.run + 1), max_run: ([.max_run, (.run + 1)] | max)}
+            else {run: 0, max_run: .max_run}
+            end
+          ) | (.max_run / 3 | floor)) as $ultradian_score
+        | (if $peak.key < 0 then "Unknown"
+           elif $peak.key < 12 then "Night"
+           elif $peak.key < 24 then "Morning"
+           elif $peak.key < 36 then "Afternoon"
+           elif $peak.key < 44 then "Evening"
+           else "Night"
+           end) as $circadian_phase
+        | (if ($total / 3600) < 4 then "Low"
+           elif (($total / 3600) < 7 and $recovery_gap_count >= 2) then "Low"
+           elif ($total / 3600) < 7 then "Moderate"
+           elif ($recovery_gap_count >= 3) then "Moderate"
+           else "High"
+           end) as $eye_strain_risk
+        | (if ($day.schema_ready // false) then
+             (
+               ([($raw_switch_rate // 0) / 30, 1] | min) * 0.40
+               + ([($raw_session_density // 0) / 20, 1] | min) * 0.30
+               + ([$raw_comm_load, 1] | min) * 0.30
+             ) * 100 | round
+           else null
+           end) as $cognitive_load_score
+        | (if ($day.schema_ready // false) then
+             ($raw_switch_rate // 0) / (if ($focus_blocks.deep_count // 0) > 0 then ($focus_blocks.deep_count // 0) else 1 end)
+           else null
+           end) as $attention_fragmentation_index
         | {
             date: $day.date,
             version: $day.version,
@@ -204,7 +243,13 @@ build_metrics_context() {
                 else
                   null
                 end
-              )
+              ),
+              attention_fragmentation_index: $attention_fragmentation_index,
+              recovery_gap_count: $recovery_gap_count,
+              circadian_phase: $circadian_phase,
+              ultradian_score: $ultradian_score,
+              eye_strain_risk: $eye_strain_risk,
+              cognitive_load_score: $cognitive_load_score
             }
           };
 

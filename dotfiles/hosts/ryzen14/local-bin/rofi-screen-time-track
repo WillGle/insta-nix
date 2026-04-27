@@ -214,7 +214,9 @@ default_day_json() {
           deep_count: 0,
           short_count: 0,
           longest_seconds: 0
-        }
+        },
+        last_break_at: "",
+        consecutive_active_slots: 0
       }
     }'
 }
@@ -307,7 +309,9 @@ record_sample() {
 	        deep_count: 0,
 	        short_count: 0,
 	        longest_seconds: 0
-	      }
+	      },
+	      last_break_at: "",
+	      consecutive_active_slots: 0
 	    };
 	    def normalize_behavior:
 	      .behavior = (.behavior // default_behavior)
@@ -319,7 +323,9 @@ record_sample() {
 	      | .behavior.focus_blocks.completed_count = (.behavior.focus_blocks.completed_count // 0)
 	      | .behavior.focus_blocks.deep_count = (.behavior.focus_blocks.deep_count // 0)
 	      | .behavior.focus_blocks.short_count = (.behavior.focus_blocks.short_count // 0)
-	      | .behavior.focus_blocks.longest_seconds = (.behavior.focus_blocks.longest_seconds // 0);
+	      | .behavior.focus_blocks.longest_seconds = (.behavior.focus_blocks.longest_seconds // 0)
+	      | .behavior.last_break_at = (.behavior.last_break_at // "")
+	      | .behavior.consecutive_active_slots = (.behavior.consecutive_active_slots // 0);
 	    def close_focus_block:
 	      (.behavior.focus_blocks.current_seconds // 0) as $seconds
 	      | if $seconds > 0 then
@@ -380,6 +386,7 @@ record_sample() {
 	        | .behavior.focus_blocks.current_seconds = ((.behavior.focus_blocks.current_seconds // 0) + $sample)
 	        | .behavior.focus_blocks.longest_seconds = ([.behavior.focus_blocks.longest_seconds, (.behavior.focus_blocks.current_seconds // 0)] | max)
 	      end
+	    | .behavior.consecutive_active_slots = (if $new_session == 1 then 1 else ((.behavior.consecutive_active_slots // 0) + 1) end)
 	    | .apps[$key] = (
 	        (.apps[$key] // {
 	          class: $class,

@@ -195,25 +195,61 @@ build_insighted_context() {
             metric: "study_ratio"
           })
         ) as $recommendation_candidates
+      | (
+          maybe(($today.metrics.eye_strain_risk == "High"); {
+            kind: "Health",
+            priority: 92,
+            text: "Take a 20-min screen break — eye strain risk is elevated (20-20-20 rule).",
+            metric: "eye_strain_risk"
+          })
+          + maybe(($today.metrics.circadian_phase == "Night" or $today.metrics.circadian_phase == "Evening"); {
+            kind: "Health",
+            priority: 75,
+            text: "Late-night screen use suppresses melatonin. Consider winding down soon.",
+            metric: "circadian_phase"
+          })
+          + maybe((($today.metrics.cognitive_load_score // 0) > 70); {
+            kind: "Health",
+            priority: 85,
+            text: "Cognitive load is high — batch your messages and reduce tab switching.",
+            metric: "cognitive_load_score"
+          })
+          + maybe(($today.metrics.ultradian_score == 0 and ($today.metrics.active_hours // 0) > 2); {
+            kind: "Health",
+            priority: 68,
+            text: "No 90-min deep work cycles detected. Block time for uninterrupted focus.",
+            metric: "ultradian_score"
+          })
+          + maybe((($today.scores.digital_wellbeing_score.value // 100) < 40 and $today.schema_ready); {
+            kind: "Health",
+            priority: 82,
+            text: "Digital wellbeing needs attention — try a focus sprint or take a proper break.",
+            metric: "digital_wellbeing_score"
+          })
+        ) as $health_candidates
       | .insights = {
           by_class: {
             composition: first_ranked($composition_candidates),
             quality: first_ranked($quality_candidates),
             temporal: first_ranked($temporal_candidates),
-            recommendation: first_ranked($recommendation_candidates)
+            recommendation: first_ranked($recommendation_candidates),
+            health: first_ranked($health_candidates)
           },
           recommendation_candidates: ranked($recommendation_candidates),
+          health_candidates: ranked($health_candidates),
           all: ranked([
             first_ranked($composition_candidates),
             first_ranked($quality_candidates),
             first_ranked($temporal_candidates),
-            first_ranked($recommendation_candidates)
+            first_ranked($recommendation_candidates),
+            first_ranked($health_candidates)
           ] | map(select(. != null))),
           main: first_ranked([
             first_ranked($composition_candidates),
             first_ranked($quality_candidates),
             first_ranked($temporal_candidates),
-            first_ranked($recommendation_candidates)
+            first_ranked($recommendation_candidates),
+            first_ranked($health_candidates)
           ] | map(select(. != null)))
         }
     '
