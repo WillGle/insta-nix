@@ -5,7 +5,7 @@ bar_markup() {
   local max="${2:-0}"
   local width="${3:-12}"
   local fill_color="${4:-$ACCENT_COLOR}"
-  local empty_color="${5:-$MANTLE_COLOR}"
+  local empty_color="${5:-$BASE_COLOR}"
   local filled=0
   local out=""
   local i=0
@@ -59,7 +59,7 @@ sparkline_from_json() {
     if [ "$(jq -nr --argjson value "$value" '$value > 0')" = "true" ]; then
       color="$CYAN_COLOR"
     else
-      color="$MANTLE_COLOR"
+      color="$BASE_COLOR"
     fi
     if [ -n "$highlight_index" ] && [ "$index" -eq "$highlight_index" ]; then
       color="$ACCENT_COLOR"
@@ -114,11 +114,11 @@ momentum_sparkline_from_json() {
       Entertainment|Media) color="$ERROR_COLOR" ;;
       Browser) color="$PURPLE_COLOR" ;;
       System) color="$SUBTEXT_COLOR" ;;
-      *) color="$MANTLE_COLOR" ;;
+      *) color="$SUBTEXT_COLOR" ;;
     esac
     
     if [ "$value" -le 0 ]; then
-      color="$MANTLE_COLOR"
+      color="$BASE_COLOR"
       glyph_index=0
     else
       glyph_index="$(jq -nr --argjson value "$value" --argjson max "$max_value" '
@@ -183,6 +183,65 @@ clip_text() {
   printf '%s...\n' "${value:0:$((max - 3))}"
 }
 
+render_digital_health() {
+  local context_json="$1"
+  local eye_risk cog_load circ_phase ultr_score rec_gaps wellbeing_json wellbeing_val wellbeing_label afi
+
+  eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
+  cog_load="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // "—"')"
+  circ_phase="$(printf '%s' "$context_json" | jq -r '.today.metrics.circadian_phase // "Unknown"')"
+  ultr_score="$(printf '%s' "$context_json" | jq -r '.today.metrics.ultradian_score // 0')"
+  rec_gaps="$(printf '%s' "$context_json" | jq -r '.today.metrics.recovery_gap_count // 0')"
+  afi="$(printf '%s' "$context_json" | jq -r '.today.metrics.attention_fragmentation_index | if . == null then "—" else (. * 10 | round / 10 | tostring) end')"
+  wellbeing_json="$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')"
+  wellbeing_val="$(score_value_text "$wellbeing_json")"
+  wellbeing_label="$(score_subtext "$wellbeing_json")"
+
+  local eye_color="$SUCCESS_COLOR"
+  [ "$eye_risk" = "Moderate" ] && eye_color="$WARNING_COLOR"
+  [ "$eye_risk" = "High" ] && eye_color="$ERROR_COLOR"
+
+  local cog_color="$SUCCESS_COLOR"
+  [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 50 then "y" else "n" end')" = "y" ] && cog_color="$WARNING_COLOR"
+  [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end')" = "y" ] && cog_color="$ERROR_COLOR"
+
+  printf '<span foreground="%s" weight="600">── Digital Health ──────────────</span>\n' "$ACCENT_COLOR"
+  printf '<span foreground="%s">Eye Strain: </span><span foreground="%s" weight="600">%-9s</span>  <span foreground="%s">Cog Load: </span><span foreground="%s" weight="600">%s</span>\n' "$SUBTEXT_COLOR" "$eye_color" "$eye_risk" "$SUBTEXT_COLOR" "$cog_color" "$cog_load"
+  printf '<span foreground="%s">Circadian:  </span><span weight="600">%-9s</span>  <span foreground="%s">Rec Gaps: </span><span weight="600">%s detected</span>\n' "$SUBTEXT_COLOR" "$circ_phase" "$SUBTEXT_COLOR" "$rec_gaps"
+  printf '<span foreground="%s">Ultradian:  </span><span weight="600">%-9s</span>  <span foreground="%s">Att Frag: </span><span weight="600">%s</span>\n' "$SUBTEXT_COLOR" "$ultr_score" "$SUBTEXT_COLOR" "$afi"
+  printf '<span foreground="%s">Wellbeing:  </span><span weight="600">%s</span> <span foreground="%s" size="small">%s</span>' "$SUBTEXT_COLOR" "$wellbeing_val" "$SUBTEXT_COLOR" "$(escape_markup "$wellbeing_label")"
+}
+
+wellbeing_card_signal() {
+  local context_json="$1"
+  local wb_json score
+  wb_json="$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')"
+  score="$(printf '%s' "$wb_json" | jq -r '.value // null')"
+  if [ "$score" = "null" ] || [ -z "$score" ]; then
+    printf '—'
+    return 0
+  fi
+  if [ "$score" -ge 70 ]; then
+    printf '🟢 %s' "$score"
+  elif [ "$score" -ge 40 ]; then
+    printf '🟡 %s' "$score"
+  else
+    printf '🔴 %s' "$score"
+  fi
+}
+
+note_health_alert_color() {
+  local context_json="$1"
+  local eye_risk cog_score
+  eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
+  cog_score="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // 0')"
+  if [ "$eye_risk" = "High" ] || [ "$(jq -nr --argjson c "$cog_score" 'if $c > 70 then "y" else "n" end')" = "y" ]; then
+    printf '%s' "$ERROR_COLOR"
+  else
+    printf '%s' "$BASE_COLOR"
+  fi
+}
+
 render_goal_gauge() {
   local current_seconds="$1"
   local target_seconds="$2"
@@ -195,7 +254,7 @@ render_goal_gauge() {
   printf '<span foreground="%s">%s</span>\n%s\n' \
     "$SUBTEXT_COLOR" \
     "Study Goal: $(format_ratio_percent "$ratio") ($label)" \
-    "$(bar_markup "$current_seconds" "$target_seconds" 40 "$SUCCESS_COLOR" "$MANTLE_COLOR")"
+    "$(bar_markup "$current_seconds" "$target_seconds" 40 "$SUCCESS_COLOR" "$BASE_COLOR")"
 }
 
 action_row_markup() {
@@ -303,7 +362,7 @@ render_category_bars() {
     share="$(printf '%s' "$item" | jq -r '.share')"
     output+="$(printf '%-13s  %s  %6s  %s' \
       "$name" \
-      "$(bar_markup "$seconds" "$max_seconds" 20 "$ACCENT_COLOR" "$MANTLE_COLOR")" \
+      "$(bar_markup "$seconds" "$max_seconds" 20 "$ACCENT_COLOR" "$BASE_COLOR")" \
       "$(seconds_to_short "$seconds")" \
       "$(format_ratio_percent "$share")")"$'\n'
   done < <(
@@ -627,7 +686,7 @@ render_recommendations() {
 
   while IFS=$'\t' read -r metric text; do
     [ -n "$text" ] || continue
-    output+="$(kv_markup "$(humanize_metric "$metric")" "$text")"$'\n'
+    output+="$(printf '• <span foreground="%s">%s:</span> %s' "$SUBTEXT_COLOR" "$(humanize_metric "$metric")" "$(escape_markup "$text")")"$'\n'
   done < <(
     printf '%s' "$context_json" \
       | jq -r '
@@ -771,22 +830,30 @@ build_view_payload() {
 	      card3_label="Switch Rate"
 	      card3_value="$switch_rate_label"
 	      card3_sub="$(printf '%s' "$context_json" | jq -r '.today.switch_count // 0') switches"
-      if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
-        card4_label="Deep Work [ACTIVE]"
+      local _wb_score
+      _wb_score="$(printf '%s' "$context_json" | jq -r '.today.scores.digital_wellbeing_score.value // null')"
+      if [ "$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')" = "High" ] || \
+         [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end')" = "y" ]; then
+        card4_label="Health [ALERT]"
       else
-        card4_label="Deep Work"
+        card4_label="Health Signal"
       fi
-      card4_value="$summary_study_ratio"
-      card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')") total"
+      card4_value="$(wellbeing_card_signal "$context_json")"
+      local _circ _eye_risk _cog
+      _circ="$(printf '%s' "$context_json" | jq -r '.today.metrics.circadian_phase // "Unknown"')"
+      _eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
+      _cog="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // "—"')"
+      card4_sub="$_circ • Eye: $_eye_risk • Load: $_cog"
       
       primary_title=""
-      primary_body="$(printf '%s\n\n%s\n\n<span foreground=\"%s\" weight=\"600\">App Usage Today</span>\n%s\n\n<span foreground=\"%s\" weight=\"600\">Primary Advice</span>\n%s' \
+      primary_body="$(printf '%s\n\n%s\n\n<span foreground=\"%s\" weight=\"600\">App Usage Today</span>\n%s\n\n<span foreground=\"%s\" weight=\"600\">Primary Advice</span>\n%s\n%s' \
         "$(render_goal_gauge "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')" "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')")" \
         "$(render_momentum_chart "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")" \
         "$ACCENT_COLOR" \
         "$(render_app_usage_timeline "$context_json" 5)" \
         "$ACCENT_COLOR" \
-        "$(render_recommendations "$context_json")")"
+        "$(render_recommendations "$context_json")" \
+        "$(render_digital_health "$context_json")")"
 
 	      chart_b_title="7-Day Trend"
 	      chart_b_body="$(render_metric_sparklines "$context_json")"
@@ -863,15 +930,20 @@ build_view_payload() {
         "$ACCENT_COLOR" \
         "$(render_focus_vs_baseline "$context_json")")"
         
-      chart_b_title="Mapping Gaps"
-      chart_b_body="$(render_unknown_apps "$context_json")"
+      local _wb_score_health _wb_label_health
+      _wb_score_health="$(score_value_text "$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')")"
+      _wb_label_health="$(score_subtext "$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')")"
+      chart_b_title="Digital Wellbeing"
+      chart_b_body="$(printf '%s\n%s\n%s\n%s\n%s' \
+        "$(kv_markup "Wellbeing Score" "$_wb_score_health • $_wb_label_health")" \
+        "$(kv_markup "Eye Strain Risk" "$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')")" \
+        "$(kv_markup "Cognitive Load" "$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // "—"')")" \
+        "$(kv_markup "Recovery Gaps" "$(printf '%s' "$context_json" | jq -r '.today.metrics.recovery_gap_count // 0') detected")" \
+        "$(kv_markup "Ultradian Cycles" "$(printf '%s' "$context_json" | jq -r '.today.metrics.ultradian_score // 0') complete")")"
+
+      chart_c_title="Mapping Gaps"
+      chart_c_body="$(render_unknown_apps "$context_json")"
       
-      chart_c_title="Trust Factors"
-      chart_c_body="$(printf '%s\n%s\n%s' \
-        "$(kv_markup "Cat ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.known_category_ratio')")")" \
-        "$(kv_markup "Ambiguity" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.browser_ambiguity_ratio')")")" \
-        "$(kv_markup "Unknown" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.data_quality.unknown_share')")")")"
-        
       insight_title="System Insight"
       insight_body="$(printf '%s' "$context_json" | jq -r '.insights.by_class.quality.text // "All systems operational."')"
       note_text="Metric health depends on the size of your category map."
@@ -993,6 +1065,8 @@ build_view_payload() {
 
 render_theme() {
   local json="$1"
+  local note_border_color
+  note_border_color="$(note_health_alert_color "$json")"
   cat <<EOF
 textbox-title { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.title')"); }
 textbox-subtitle { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.subtitle')"); }
@@ -1018,6 +1092,7 @@ textbox-chart-c-body { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.ch
 textbox-insight-title { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.insight.title')"); }
 textbox-insight-body { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.insight.body')"); }
 textbox-note { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.note')"); }
+note-box { border-color: $(rasi_quote "$note_border_color"); }
 EOF
 }
 

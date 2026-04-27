@@ -5,7 +5,7 @@
   window-border:    @accent;
   card-bg:          @mantle;
   card-alt:         @base;
-  card-border:      @card-bg;
+  card-border:      rgba(255, 255, 255, 0.12);
   card-muted:       @subtext;
   list-alt:         @base;
   
@@ -56,7 +56,7 @@ meta-group {
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
-  background-color: @mantle;
+  background-color: @card-bg;
   children:         [ textbox-meta ];
 }
 
@@ -97,7 +97,7 @@ card-1, card-2, card-3 {
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
-  background-color: @mantle;
+  background-color: @card-bg;
 }
 
 card-1 { children: [ textbox-card-1-label, textbox-card-1-value, textbox-card-1-sub ]; }
@@ -110,10 +110,10 @@ card-4 {
   expand:           true;
   padding:          10px;
   spacing:          6px;
-  border:           1px;
+  border:           2px;
   border-radius:    8px;
   border-color:     @accent;
-  background-color: @mantle;
+  background-color: @card-bg;
   children:         [ textbox-card-4-label, textbox-card-4-value, textbox-card-4-sub ];
 }
 
@@ -175,7 +175,7 @@ primary-panel {
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
-  background-color: @mantle;
+  background-color: @card-bg;
   children:         [ textbox-primary-title, textbox-primary-body ];
 }
 
@@ -184,7 +184,7 @@ textbox-primary-body {
   expand:      true;
   text-color:  @text;
   font:        "JetBrainsMono Nerd Font 12";
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 side-panel {
@@ -202,7 +202,7 @@ chart-b, chart-c, insight-box {
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
-  background-color: @mantle;
+  background-color: @card-bg;
 }
 
 chart-b     { children: [ textbox-chart-b-title, textbox-chart-b-body ]; }
@@ -215,15 +215,15 @@ textbox-chart-c-body {
   markup:      true;
   expand:      false;
   text-color:  @text;
-  font:        "JetBrainsMono Nerd Font 10";
-  line-height: 1.4;
+  font:        "JetBrainsMono Nerd Font 11";
+  line-height: 1.5;
 }
 
 textbox-insight-body {
   markup:      true;
   expand:      true;
   text-color:  @text;
-  font:        "JetBrainsMono Nerd Font 10";
+  font:        "JetBrainsMono Nerd Font 11";
   line-height: 1.6;
 }
 
@@ -232,10 +232,10 @@ textbox-insight-body {
 note-box {
   expand:           false;
   padding:          10px 12px;
-  border:           1px;
+  border:           2px;
   border-radius:    8px;
   border-color:     @card-border;
-  background-color: @mantle;
+  background-color: @card-bg;
   children:         [ textbox-note ];
 }
 
@@ -250,10 +250,10 @@ textbox-note {
 
 listview {
   expand:           false;
-  columns:          2;
-  lines:            5;
+  columns:          4;
+  lines:            2;
   fixed-height:     true;
-  spacing:          8px;
+  spacing:          6px;
   scrollbar:        false;
   background-color: transparent;
 }
@@ -261,12 +261,12 @@ listview {
 element {
   orientation:      horizontal;
   children:         [ element-icon, element-text ];
-  spacing:          8px;
-  padding:          4px 12px;
+  spacing:          6px;
+  padding:          3px 8px;
   border:           1px;
-  border-radius:    14px;
-  border-color:     rgba(255, 255, 255, 0.05);
-  background-color: rgba(255, 255, 255, 0.03);
+  border-radius:    8px;
+  border-color:     @card-border;
+  background-color: rgba(255, 255, 255, 0.05);
   text-color:       @text;
 }
 
@@ -276,7 +276,7 @@ element selected {
 }
 
 element-icon {
-  size:             1.2em;
+  size:             1.0em;
   vertical-align:   0.5;
   background-color: transparent;
 }
@@ -284,6 +284,6 @@ element-icon {
 element-text {
   markup:         true;
   text-color:     inherit;
-  font:           "JetBrainsMono Nerd Font 11";
+  font:           "JetBrainsMono Nerd Font 10";
   vertical-align: 0.0;
 }
