@@ -43,6 +43,8 @@ window#waybar {
 
 #workspaces button,
 #clock,
+#clock.time,
+#clock.calendar,
 #tray,
 #pulseaudio,
 #custom-screen_time,
@@ -67,6 +69,8 @@ menuitem,
 
 #workspaces button,
 #clock,
+#clock.time,
+#clock.calendar,
 #tray,
 #pulseaudio,
 #custom-screen_time,
@@ -99,6 +103,8 @@ menuitem,
 }
 
 #clock,
+#clock.time,
+#clock.calendar,
 #tray,
 #pulseaudio,
 #custom-screen_time,
@@ -130,7 +136,8 @@ tooltip label {
   padding: 0;
 }
 
-#clock tooltip label {
+#clock tooltip label,
+#clock.calendar tooltip label {
   font-family: "JetBrainsMono Nerd Font Mono", monospace;
   font-weight: normal;
   font-size: 15px;
@@ -153,6 +160,8 @@ menuitem,
 }
 
 #clock:hover,
+#clock.time:hover,
+#clock.calendar:hover,
 #tray:hover,
 #pulseaudio:hover,
 #custom-screen_time:hover,
@@ -249,6 +258,10 @@ menuitem:hover,
 
 #custom-screen_time.idle {
   color: @subtext;
+}
+
+#clock.calendar {
+  color: @accent;
 }
 
 #custom-power_profile.perf {
