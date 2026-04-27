@@ -21,6 +21,7 @@ ACTION_MOVE_BG="${THEME_STATIC_WARNING:-#fab387}"
 ACTION_CANCEL_BG="${THEME_STATIC_SUBTEXT:-#6c7086}"
 SECTION_BG="${THEME_STATIC_MANTLE:-#161b22}"
 SECTION_FG="${THEME_STATIC_TEXT:-#f0f6fc}"
+INFO_FG="${THEME_STATIC_SUBTEXT:-#8b949e}"
 TASK_CRITICAL_BG="${THEME_STATIC_ERROR:-#f38ba8}"
 TASK_HIGH_BG="${THEME_STATIC_WARNING:-#fab387}"
 TASK_MODERATE_BG="${THEME_STATIC_ACCENT:-#89b4fa}"
@@ -178,6 +179,10 @@ escape_markup() {
   printf '%s\n' "$value"
 }
 
+rasi_quote() {
+  jq -Rn --arg value "$1" '$value'
+}
+
 chip_label() {
   local icon="$1"
   local bg="$2"
@@ -212,15 +217,23 @@ empty_cell() {
   printf '<span foreground="%s"> </span>\n' "$SECTION_BG"
 }
 
+empty_task_label() {
+  printf '<span foreground="%s" weight="600">No active tasks</span>  <span foreground="%s" size="small">Nothing pending</span>\n' \
+    "$SECTION_FG" \
+    "$INFO_FG"
+}
+
 task_label() {
   local task="$1"
   local priority
   local body
   priority="$(task_priority "$task")"
   body="$(task_body "$task")"
-  printf '%s  %s\n' \
+  printf '%s  <span weight="600">%s</span>  <span foreground="%s" size="small">%s priority</span>\n' \
     "$(icon_chip "$(priority_icon "$priority")" "$(priority_bg "$priority")")" \
-    "$(escape_markup "$body")"
+    "$(escape_markup "$body")" \
+    "$INFO_FG" \
+    "$(priority_label "$priority")"
 }
 
 select_priority() {
@@ -535,17 +548,18 @@ rofi_menu() {
     local task
     local display_task
     local priority
+    local hot_count=0
+    local low_count=0
+    local total_count=0
     local row_count=0
     local menu_lines=0
+    local status_text
     local i
     local left_cell
     local right_cell
     local selection=""
     local status=0
     local action_theme
-
-    hot_header="$(section_label "Critical / High")"
-    low_header="$(section_label "Moderate / Low")"
 
     for task in "${TASKS[@]}"; do
       display_task="$(task_label "$task")"
@@ -560,6 +574,20 @@ rofi_menu() {
 
     hot_rows=("${hot_task_labels[@]}")
     low_rows=("${low_task_labels[@]}")
+    hot_count="${#hot_rows[@]}"
+    low_count="${#low_rows[@]}"
+    total_count="${#TASKS[@]}"
+    hot_header="$(section_label "Critical / High  $hot_count")"
+    low_header="$(section_label "Moderate / Low  $low_count")"
+
+    if [ "$total_count" -eq 0 ]; then
+      hot_rows=("$(empty_task_label)")
+      hot_count=0
+      low_count=0
+      status_text="No active tasks"
+    else
+      status_text="$total_count active  •  $hot_count urgent  •  $low_count later"
+    fi
 
     row_count="${#hot_rows[@]}"
     if [ "${#low_rows[@]}" -gt "$row_count" ]; then
@@ -575,14 +603,33 @@ rofi_menu() {
 @theme "~/.config/rofi/theme.rasi"
 
 window {
-  width: 50%;
+  width: 54%;
   children: [ mainbox ];
+  border-radius: 12px;
+  padding: 14px;
 }
 
 mainbox {
-  children: [ inputbar, actionbar, listview ];
-  spacing: 8px;
-  padding: 12px;
+  children: [ actionbar, inputbar, statusbar, listview ];
+  spacing: 10px;
+  padding: 10px;
+}
+
+statusbar {
+  expand: false;
+  padding: 7px 10px;
+  border: 1px;
+  border-radius: 8px;
+  border-color: rgba(255, 255, 255, 0.10);
+  background-color: ${SECTION_BG};
+  children: [ textbox-status ];
+}
+
+textbox-status {
+  markup: true;
+  content: $(rasi_quote "$status_text");
+  text-color: ${INFO_FG};
+  font: "JetBrainsMono Nerd Font 10";
 }
 
 actionbar {
@@ -598,63 +645,65 @@ button {
 
 button-add, button-open, button-clear {
   expand: false;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 5px 10px;
+  border-radius: 8px;
   border: 1px;
-  border-color: transparent;
+  background-color: ${SECTION_BG};
   font: "JetBrainsMono Nerd Font 10";
   horizontal-align: 0.5;
 }
 
 button selected,
 button selected.normal {
-  background-color: ${SECTION_BG};
+  text-color: ${ACTION_FG};
 }
 
 button-add {
   content: "󰐕 Add";
-  background-color: ${ACTION_ADD_BG};
-  text-color: ${ACTION_FG};
+  text-color: ${ACTION_ADD_BG};
+  border-color: ${ACTION_ADD_BG};
   action: "kb-custom-1";
 }
 
 button-add selected,
 button-add selected.normal {
-  background-color: ${SECTION_BG};
-  text-color: ${ACTION_ADD_BG};
-  border-color: ${ACTION_ADD_BG};
+  background-color: ${ACTION_ADD_BG};
+  text-color: ${ACTION_FG};
 }
 
 button-open {
   content: "󰈔 Open";
-  background-color: ${ACTION_OPEN_BG};
-  text-color: ${ACTION_FG};
+  text-color: ${ACTION_OPEN_BG};
+  border-color: ${ACTION_OPEN_BG};
   action: "kb-custom-2";
 }
 
 button-open selected,
 button-open selected.normal {
-  background-color: ${SECTION_BG};
-  text-color: ${ACTION_OPEN_BG};
-  border-color: ${ACTION_OPEN_BG};
+  background-color: ${ACTION_OPEN_BG};
+  text-color: ${ACTION_FG};
 }
 
 button-clear {
   content: "󰩹 Clear";
-  background-color: ${ACTION_CLEAR_BG};
-  text-color: ${ACTION_FG};
+  text-color: ${ACTION_CLEAR_BG};
+  border-color: ${ACTION_CLEAR_BG};
   action: "kb-custom-3";
 }
 
 button-clear selected,
 button-clear selected.normal {
-  background-color: ${SECTION_BG};
-  text-color: ${ACTION_CLEAR_BG};
-  border-color: ${ACTION_CLEAR_BG};
+  background-color: ${ACTION_CLEAR_BG};
+  text-color: ${ACTION_FG};
 }
 
 inputbar {
   margin: 0;
+  padding: 6px;
+  border: 1px;
+  border-radius: 8px;
+  border-color: rgba(255, 255, 255, 0.08);
+  background-color: ${SECTION_BG};
 }
 
 listview {
@@ -663,12 +712,19 @@ listview {
   flow: horizontal;
   fixed-columns: true;
   fixed-height: false;
-  spacing: 4px;
-  padding: 4px 0 0;
+  spacing: 6px;
+  padding: 0;
 }
 
 element {
-  padding: 4px 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  spacing: 8px;
+}
+
+element selected {
+  background-color: ${ACTION_ADD_BG};
+  text-color: ${ACTION_FG};
 }
 EOF
 
@@ -689,7 +745,7 @@ EOF
 
     selection="$(
       printf '%s\n' "${options[@]}" \
-        | rofi -dmenu -i -hover-select -markup-rows -p "Atomic Notes" \
+        | rofi -dmenu -i -hover-select -markup-rows -p "Atomic Tasks" \
           -kb-custom-1 "Alt+1" \
           -kb-custom-2 "Alt+2" \
           -kb-custom-3 "Alt+3" \
