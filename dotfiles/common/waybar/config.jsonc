@@ -3,7 +3,8 @@
   "position": "top",
   "height": 30,
   "modules-left": [
-    "clock",
+    "clock#time",
+    "clock#calendar",
     "custom/screen_time",
     "custom/power_profile",
     "custom/battery_mode",
@@ -24,11 +25,15 @@
   "hyprland/workspaces": {
     "format": "{name}"
   },
-  "clock": {
-    "format": " {:%a %d %b  %H:%M}",
+  "clock#time": {
+    "format": " {:%H:%M}",
     "interval": 60,
     "on-click": "setsid -f $HOME/.local/bin/rofi-study-timer",
-    "on-click-right": "setsid -f $HOME/.local/bin/rofi-screen-time",
+    "tooltip-format": "<b><span foreground='#58a6ff'>TIME</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{:%A, %d %B %Y\n%H:%M}</tt>"
+  },
+  "clock#calendar": {
+    "format": " {:%a %d %b}",
+    "interval": 60,
     "tooltip-format": "{calendar}",
     "calendar": {
       "mode": "month",
@@ -44,8 +49,6 @@
       }
     },
     "actions": {
-      "on-click-forward": "tz_up",
-      "on-click-backward": "tz_down",
       "on-scroll-up": "shift_up",
       "on-scroll-down": "shift_down"
     }
