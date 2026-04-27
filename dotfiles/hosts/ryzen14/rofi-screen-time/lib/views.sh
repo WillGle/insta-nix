@@ -205,11 +205,10 @@ render_digital_health() {
   [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 50 then "y" else "n" end')" = "y" ] && cog_color="$WARNING_COLOR"
   [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end')" = "y" ] && cog_color="$ERROR_COLOR"
 
-  printf '<span foreground="%s" weight="600">── Digital Health ──────────────</span>\n' "$ACCENT_COLOR"
-  printf '<span foreground="%s">Eye Strain: </span><span foreground="%s" weight="600">%-9s</span>  <span foreground="%s">Cog Load: </span><span foreground="%s" weight="600">%s</span>\n' "$SUBTEXT_COLOR" "$eye_color" "$eye_risk" "$SUBTEXT_COLOR" "$cog_color" "$cog_load"
-  printf '<span foreground="%s">Circadian:  </span><span weight="600">%-9s</span>  <span foreground="%s">Rec Gaps: </span><span weight="600">%s detected</span>\n' "$SUBTEXT_COLOR" "$circ_phase" "$SUBTEXT_COLOR" "$rec_gaps"
-  printf '<span foreground="%s">Ultradian:  </span><span weight="600">%-9s</span>  <span foreground="%s">Att Frag: </span><span weight="600">%s</span>\n' "$SUBTEXT_COLOR" "$ultr_score" "$SUBTEXT_COLOR" "$afi"
-  printf '<span foreground="%s">Wellbeing:  </span><span weight="600">%s</span> <span foreground="%s" size="small">%s</span>' "$SUBTEXT_COLOR" "$wellbeing_val" "$SUBTEXT_COLOR" "$(escape_markup "$wellbeing_label")"
+  printf '<span foreground="%s">Wellbeing</span> <span weight="600">%s</span> <span foreground="%s" size="small">%s</span>\n' "$SUBTEXT_COLOR" "$wellbeing_val" "$SUBTEXT_COLOR" "$(escape_markup "$wellbeing_label")"
+  printf '<span foreground="%s">Eye strain</span> <span foreground="%s" weight="600">%s</span>   <span foreground="%s">Load</span> <span foreground="%s" weight="600">%s</span>\n' "$SUBTEXT_COLOR" "$eye_color" "$eye_risk" "$SUBTEXT_COLOR" "$cog_color" "$cog_load"
+  printf '<span foreground="%s">Circadian</span> <span weight="600">%s</span>   <span foreground="%s">Gaps</span> <span weight="600">%s</span>\n' "$SUBTEXT_COLOR" "$circ_phase" "$SUBTEXT_COLOR" "$rec_gaps"
+  printf '<span foreground="%s">Ultradian</span> <span weight="600">%s</span>   <span foreground="%s">Frag</span> <span weight="600">%s</span>' "$SUBTEXT_COLOR" "$ultr_score" "$SUBTEXT_COLOR" "$afi"
 }
 
 wellbeing_card_signal() {
@@ -221,13 +220,7 @@ wellbeing_card_signal() {
     printf '—'
     return 0
   fi
-  if [ "$score" -ge 70 ]; then
-    printf '🟢 %s' "$score"
-  elif [ "$score" -ge 40 ]; then
-    printf '🟡 %s' "$score"
-  else
-    printf '🔴 %s' "$score"
-  fi
+  printf '%s' "$score"
 }
 
 note_health_alert_color() {
@@ -254,7 +247,7 @@ render_goal_gauge() {
   printf '<span foreground="%s">%s</span>\n%s\n' \
     "$SUBTEXT_COLOR" \
     "Study Goal: $(format_ratio_percent "$ratio") ($label)" \
-    "$(bar_markup "$current_seconds" "$target_seconds" 40 "$SUCCESS_COLOR" "$BASE_COLOR")"
+    "$(bar_markup "$current_seconds" "$target_seconds" 28 "$SUCCESS_COLOR" "$BASE_COLOR")"
 }
 
 action_row_markup() {
@@ -481,6 +474,83 @@ render_app_usage_timeline() {
       "$SUBTEXT_COLOR" \
       "${output%$'\n'}"
   fi
+}
+
+render_top_app_bars() {
+  local context_json="$1"
+  local limit="${2:-5}"
+  local output=""
+  local item=""
+  local name=""
+  local category=""
+  local seconds=0
+  local share=0
+  local max_seconds=0
+
+  max_seconds="$(printf '%s' "$context_json" | jq -r \
+    --argjson limit "$limit" '
+      .today.app_entries
+      | map(select((.seconds // 0) > 0))
+      | .[:$limit]
+      | ([.[].seconds] | max) // 0
+    ')"
+
+  while IFS= read -r item; do
+    [ -n "$item" ] || continue
+    name="$(printf '%s' "$item" | jq -r '.name // .key')"
+    category="$(printf '%s' "$item" | jq -r '.category // "Unknown"')"
+    seconds="$(printf '%s' "$item" | jq -r '.seconds // 0')"
+    share="$(printf '%s' "$item" | jq -r --argjson total "$(printf '%s' "$context_json" | jq -r '.today.total_seconds // 0')" 'if $total > 0 then ((.seconds // 0) / $total) else 0 end')"
+    output+="$(printf '<span foreground="%s">%-18s</span> %s  <span weight="600">%6s</span> <span foreground="%s">%4s</span> <span foreground="%s" size="small">%s</span>' \
+      "$TEXT_COLOR" \
+      "$(escape_markup "$(clip_text "$name" 18)")" \
+        "$(bar_markup "$seconds" "$max_seconds" 14 "$ACCENT_COLOR" "$BASE_COLOR")" \
+      "$(seconds_to_short "$seconds")" \
+      "$SUBTEXT_COLOR" \
+      "$(format_ratio_percent "$share")" \
+      "$SUBTEXT_COLOR" \
+      "$(escape_markup "$category")")"$'\n'
+  done < <(
+    printf '%s' "$context_json" | jq -c \
+      --argjson limit "$limit" '
+        .today.app_entries
+        | map(select((.seconds // 0) > 0))
+        | .[:$limit][]
+      '
+  )
+
+  if [ -z "$output" ]; then
+    printf '%s\n' "$(kv_markup "Apps" "No tracked app data yet")"
+  else
+    printf '<span foreground="%s" size="small">App                 Share          Time   Mix</span>\n%s' \
+      "$SUBTEXT_COLOR" \
+      "${output%$'\n'}"
+  fi
+}
+
+render_priority_insights() {
+  local context_json="$1"
+  local limit="${2:-3}"
+  local output=""
+  local text=""
+
+  while IFS= read -r text; do
+    [ -n "$text" ] || continue
+    output+="• $(escape_markup "$text")"$'\n'
+  done < <(
+    printf '%s' "$context_json" | jq -r \
+      --argjson limit "$limit" '
+        (.insights.all // [])
+        | if length == 0 then
+            ["No major insight available yet."]
+          else
+            map(.text)[:$limit]
+          end
+        | .[]
+      '
+  )
+
+  printf '%s' "${output%$'\n'}"
 }
 
 render_baseline_summary() {
@@ -839,31 +909,31 @@ build_view_payload() {
         card4_label="Health Signal"
       fi
       card4_value="$(wellbeing_card_signal "$context_json")"
-      local _circ _eye_risk _cog
+      local _circ _eye_risk _cog _wb_label
       _circ="$(printf '%s' "$context_json" | jq -r '.today.metrics.circadian_phase // "Unknown"')"
       _eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
       _cog="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // "—"')"
-      card4_sub="$_circ • Eye: $_eye_risk • Load: $_cog"
+      _wb_label="$(score_subtext "$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')")"
+      card4_sub="$_wb_label • Load $_cog"
       
-      primary_title=""
-      primary_body="$(printf '%s\n\n%s\n\n<span foreground=\"%s\" weight=\"600\">App Usage Today</span>\n%s\n\n<span foreground=\"%s\" weight=\"600\">Primary Advice</span>\n%s\n%s' \
+      primary_title="Top Apps"
+      primary_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">Daily Momentum</span>\n<span foreground=\"%s\" size=\"small\">00        06        12        18        24</span>\n%s\n\n<span foreground=\"%s\" weight=\"600\">Top App Share</span>\n%s' \
         "$(render_goal_gauge "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')" "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')")" \
-        "$(render_momentum_chart "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")" \
         "$ACCENT_COLOR" \
-        "$(render_app_usage_timeline "$context_json" 5)" \
+        "$SUBTEXT_COLOR" \
+        "$(momentum_sparkline_from_json "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")" \
         "$ACCENT_COLOR" \
-        "$(render_recommendations "$context_json")" \
-        "$(render_digital_health "$context_json")")"
+        "$(render_top_app_bars "$context_json" 4)")"
 
-	      chart_b_title="7-Day Trend"
-	      chart_b_body="$(render_metric_sparklines "$context_json")"
+	      chart_b_title="Health"
+	      chart_b_body="$(render_digital_health "$context_json")"
 
-	      chart_c_title="Behavior Pattern"
+	      chart_c_title="Focus Behavior"
 	      chart_c_body="$(render_behavior_summary "$context_json")"
 
-	      insight_title="Baseline & Insights"
+	      insight_title="Advice"
 	      insight_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">Compared to Usual</span>\n%s' \
-	        "$(render_insight_console "$context_json")" \
+	        "$(render_priority_insights "$context_json" 3)" \
 	        "$ACCENT_COLOR" \
 	        "$(render_baseline_summary "$context_json")")"
 
@@ -873,7 +943,7 @@ build_view_payload() {
       else
         study_status="Study session: Idle."
       fi
-	      note_text="$study_status  App timeline shows each top app by hour.  Longest focus: $(seconds_to_short "$longest_focus_seconds")."
+	      note_text="$study_status  Peak $peak_window.  Longest focus: $(seconds_to_short "$longest_focus_seconds").  Health: $_wb_label."
       ;;
 
     activity)
