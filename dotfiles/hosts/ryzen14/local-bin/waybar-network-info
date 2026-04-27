@@ -55,6 +55,7 @@ security_label() {
 active_wifi_line() {
   local iface="$1"
   nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | sed 's/\\:/\x01/g' \
     | awk -F: '$1 == "yes" { print; exit }'
 }
 
@@ -76,7 +77,12 @@ current_dns() {
 
 active_ethernet() {
   nmcli -t -f TYPE,NAME,DEVICE connection show --active \
-    | awk -F: '$1 == "802-3-ethernet" { print $2 ":" $3; exit }'
+    | sed 's/\\:/\x01/g' \
+    | awk -F: '$1 == "802-3-ethernet" {
+        name=$2; device=$3;
+        gsub(/\x01/, ":", name); gsub(/\x01/, ":", device);
+        print name "\t" device; exit
+      }'
 }
 
 emit_json() {
@@ -107,7 +113,7 @@ main() {
   local title="NETWORK"
 
   if [ -n "$ethernet_line" ]; then
-    IFS=: read -r ethernet_name ethernet_device <<< "$ethernet_line"
+    IFS=$'\t' read -r ethernet_name ethernet_device <<< "$ethernet_line"
     ip="$(current_ip "$ethernet_device")"
     gateway="$(current_gateway "$ethernet_device")"
     dns="$(current_dns "$ethernet_device")"
@@ -126,6 +132,8 @@ DNS:         ${dns:-None}</tt>"
 
     if [ -n "$active" ]; then
       IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
+      ssid="${ssid//$'\x01'/:}"
+      security="${security//$'\x01'/:}"
       tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>WI-FI (STANDBY)</span></b>
 $SEP
 <tt>SSID:        ${ssid:-<hidden>}
@@ -139,6 +147,8 @@ Band:        $(band_label "$freq")</tt>"
 
   if [ -n "$active" ]; then
     IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
+    ssid="${ssid//$'\x01'/:}"
+    security="${security//$'\x01'/:}"
     ip="$(current_ip "$iface")"
     gateway="$(current_gateway "$iface")"
     dns="$(current_dns "$iface")"

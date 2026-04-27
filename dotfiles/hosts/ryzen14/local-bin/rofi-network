@@ -10,6 +10,8 @@ ROFI_COMMON=(
   -theme-str 'listview { lines: 14; columns: 1; }'
 )
 
+NMCLI_CONNECT_TIMEOUT="${NMCLI_CONNECT_TIMEOUT:-20}"
+WAYBAR_NETWORK_SIGNAL="${WAYBAR_NETWORK_SIGNAL:-6}"
 status_message=""
 
 close_existing_rofi() {
@@ -71,6 +73,14 @@ security_label() {
 
 strip_ansi() {
   printf '%s' "$1" | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g'
+}
+
+first_line() {
+  strip_ansi "$1" | sed -n '1p'
+}
+
+refresh_waybar_network() {
+  pkill -RTMIN+"$WAYBAR_NETWORK_SIGNAL" waybar >/dev/null 2>&1 || true
 }
 
 active_wifi_line() {
@@ -166,6 +176,29 @@ saved_wifi_uuid_by_name() {
     | awk -F: -v target="$masked_ssid" '$3 == "802-11-wireless" && $1 == target { print $2; exit }'
 }
 
+wifi_network_entries() {
+  local iface="$1"
+
+  nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | sed 's/\\:/\x01/g' \
+    | while IFS=: read -r active s sig sec freq b; do
+        [ -n "$b" ] || continue
+        s="${s//$'\x01'/:}"
+        # Hidden SSIDs use the explicit hidden-network action.
+        [ -n "$s" ] || continue
+        [ "$active" = "yes" ] && prefix='󰄬' || prefix=' '
+        b="${b//$'\x01'/:}"
+        printf '%s  %s  %s  %s%%  %s  %s  %s\n' \
+          "$prefix" \
+          "$(signal_icon "$sig")" \
+          "$s" \
+          "${sig:-0}" \
+          "$(band_label "$freq")" \
+          "$(security_label "$sec")" \
+          "$b"
+      done
+}
+
 network_type_label() {
   case "${1:-}" in
     802-11-wireless)
@@ -237,11 +270,11 @@ connect_wired_network() {
       status_message="Ethernet ($iface) is already connected."
       return 0
     }
-    output="$(nmcli device connect "$iface" 2>&1)" && {
-      status_message="$(strip_ansi "$output" | sed -n '1p')"
+    output="$(nmcli --wait "$NMCLI_CONNECT_TIMEOUT" device connect "$iface" 2>&1)" && {
+      status_message="$(first_line "$output")"
       return 0
     }
-    status_message="$(strip_ansi "$output" | sed -n '1p')"
+    status_message="$(first_line "$output")"
     return 0
   fi
 
@@ -265,11 +298,11 @@ connect_wired_network() {
     return 0
   }
 
-  output="$(nmcli device connect "$iface" 2>&1)" && {
-    status_message="$(strip_ansi "$output" | sed -n '1p')"
+  output="$(nmcli --wait "$NMCLI_CONNECT_TIMEOUT" device connect "$iface" 2>&1)" && {
+    status_message="$(first_line "$output")"
     return 0
   }
-  status_message="$(strip_ansi "$output" | sed -n '1p')"
+  status_message="$(first_line "$output")"
 }
 
 disconnect_wired_network() {
@@ -298,25 +331,7 @@ connect_new_network() {
 
   entries="$(
     printf '󰖫  Connect to hidden network\n'
-    nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
-      | sed 's/\\:/\x01/g' \
-      | while IFS=: read -r active s sig sec freq b; do
-          [ -n "$b" ] || continue
-          s="${s//$'\x01'/:}"
-          # Hidden SSIDs already have a dedicated entry at the top of the menu.
-          # Leaving blank scan results in the list creates malformed-looking rows.
-          [ -n "$s" ] || continue
-          [ "$active" = "yes" ] && prefix='󰄬' || prefix=' '
-          b="${b//$'\x01'/:}"
-          printf '%s  %s  %s  %s%%  %s  %s  %s\n' \
-            "$prefix" \
-            "$(signal_icon "$sig")" \
-            "${s:-<hidden>}" \
-            "${sig:-0}" \
-            "$(band_label "$freq")" \
-            "$(security_label "$sec")" \
-            "$b"
-        done
+    wifi_network_entries "$iface"
   )"
 
   selection="$(
@@ -338,26 +353,26 @@ connect_new_network() {
 
     saved_uuid="$(saved_wifi_uuid_by_name "$ssid")"
     if [ -n "$saved_uuid" ]; then
-      output="$(nmcli connection up uuid "$saved_uuid" ifname "$iface" 2>&1)" && {
-        status_message="$(strip_ansi "$output" | sed -n '1p')"
+      output="$(nmcli --wait "$NMCLI_CONNECT_TIMEOUT" connection up uuid "$saved_uuid" ifname "$iface" 2>&1)" && {
+        status_message="$(first_line "$output")"
         return 0
       }
     fi
 
     password="$(rofi "${ROFI_COMMON[@]}" -password -p "Password (leave blank if open)" <<< "")"
     if [ -n "$password" ]; then
-      output="$(nmcli device wifi connect "$ssid" ifname "$iface" password "$password" hidden yes 2>&1)" && {
-        status_message="$(strip_ansi "$output" | sed -n '1p')"
+      output="$(nmcli --wait "$NMCLI_CONNECT_TIMEOUT" device wifi connect "$ssid" ifname "$iface" password "$password" hidden yes 2>&1)" && {
+        status_message="$(first_line "$output")"
         return 0
       }
     else
-      output="$(nmcli device wifi connect "$ssid" ifname "$iface" hidden yes 2>&1)" && {
-        status_message="$(strip_ansi "$output" | sed -n '1p')"
+      output="$(nmcli --wait "$NMCLI_CONNECT_TIMEOUT" device wifi connect "$ssid" ifname "$iface" hidden yes 2>&1)" && {
+        status_message="$(first_line "$output")"
         return 0
       }
     fi
 
-    status_message="$(strip_ansi "$output" | sed -n '1p')"
+    status_message="$(first_line "$output")"
     return 0
   fi
 
@@ -485,7 +500,6 @@ build_message() {
 
 build_menu() {
   local iface="$1"
-  local active_bssid=""
   local ethernet
   ethernet="$(active_ethernet)"
 
@@ -499,9 +513,12 @@ build_menu() {
   if [ -n "$iface" ] && wifi_enabled; then
     active="$(active_wifi_line "$iface")"
     if [ -n "$active" ]; then
-      active_bssid="${active##*:}"
       printf '󰤭  Disconnect current network\n'
     fi
+  fi
+
+  if [ -n "$iface" ] && wifi_enabled; then
+    wifi_network_entries "$iface"
   fi
 
   printf '󰌘  Edit saved network\n'
@@ -543,16 +560,11 @@ connect_ap() {
   security="${security//$'\x01'/:}"
   saved_uuid="$(saved_wifi_uuid_by_name "$ssid")"
   if [ -n "$saved_uuid" ]; then
-    output="$(nmcli connection up uuid "$saved_uuid" ifname "$iface" 2>&1)" && {
+    output="$(nmcli --wait "$NMCLI_CONNECT_TIMEOUT" connection up uuid "$saved_uuid" ifname "$iface" ap "$bssid" 2>&1)" && {
       status_message="Connected to ${ssid:-<hidden>}."
       return
     }
   fi
-
-  output="$(nmcli device wifi connect "$bssid" ifname "$iface" 2>&1)" && {
-    status_message="Connected to ${ssid:-<hidden>}."
-    return
-  }
 
   if [ -n "$security" ] && [ "$security" != "--" ]; then
     password="$(prompt_password "$ssid")"
@@ -561,13 +573,18 @@ connect_ap() {
       return
     fi
 
-    output="$(nmcli device wifi connect "$bssid" ifname "$iface" password "$password" 2>&1)" && {
+    output="$(nmcli --wait "$NMCLI_CONNECT_TIMEOUT" device wifi connect "$bssid" ifname "$iface" password "$password" 2>&1)" && {
+      status_message="Connected to ${ssid:-<hidden>}."
+      return
+    }
+  else
+    output="$(nmcli --wait "$NMCLI_CONNECT_TIMEOUT" device wifi connect "$bssid" ifname "$iface" 2>&1)" && {
       status_message="Connected to ${ssid:-<hidden>}."
       return
     }
   fi
 
-  status_message="$(strip_ansi "$output" | sed -n '1p')"
+  status_message="$(first_line "$output")"
 }
 
 main() {
@@ -604,7 +621,13 @@ main() {
         nmcli radio wifi off >/dev/null 2>&1 && status_message="Wi-Fi turned off." || status_message="Failed to turn Wi-Fi off."
         ;;
       "󰖩  Turn Wi-Fi on")
-        nmcli radio wifi on >/dev/null 2>&1 && status_message="Wi-Fi turned on." || status_message="Failed to turn Wi-Fi on."
+        if nmcli radio wifi on >/dev/null 2>&1; then
+          sleep 0.5
+          [ -n "$iface" ] && nmcli device wifi rescan ifname "$iface" >/dev/null 2>&1 || true
+          status_message="Wi-Fi turned on."
+        else
+          status_message="Failed to turn Wi-Fi on."
+        fi
         ;;
       "󰤭  Disconnect current network")
         if [ -n "$iface" ]; then
@@ -627,6 +650,7 @@ main() {
         ;;
     esac
 
+    refresh_waybar_network
     iface="$(wifi_iface)"
   done
 }
