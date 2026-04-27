@@ -50,6 +50,10 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-screen-time-track;
       executable = true;
     };
+    ".local/bin/screen-time-behavior-export" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/screen-time-behavior-export;
+      executable = true;
+    };
     ".local/bin/rofi-study-timer" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/rofi-study-timer;
       executable = true;
@@ -64,6 +68,10 @@ in
     };
     ".local/bin/waybar-network-info" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-network-info;
+      executable = true;
+    };
+    ".local/bin/waybar-screen-time" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/waybar-screen-time;
       executable = true;
     };
     ".local/bin/waybar-power-monitor" = {

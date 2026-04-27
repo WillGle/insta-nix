@@ -1,0 +1,299 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
+
+SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
+STATE_DIR="$SCREEN_TIME_HOME"
+DAYS="14"
+FROM_DATE=""
+TO_DATE="$(date +%F)"
+FORMAT="json"
+OUTPUT="-"
+
+usage() {
+  cat <<'EOF'
+Usage: screen-time-behavior-export [--days N] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--format json|csv] [--output PATH]
+
+Exports local screen-time behavior aggregates for deeper analysis.
+EOF
+}
+
+is_positive_integer() {
+  case "${1:-}" in
+    ''|*[!0-9]*|0)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+date_epoch() {
+  date -d "$1" +%s 2>/dev/null || printf '0\n'
+}
+
+resolve_dates() {
+  TO_DATE="$(date -d "$TO_DATE" +%F 2>/dev/null || date +%F)"
+  if [ -n "$FROM_DATE" ]; then
+    FROM_DATE="$(date -d "$FROM_DATE" +%F 2>/dev/null || date -d "$TO_DATE -$((DAYS - 1)) days" +%F)"
+  else
+    FROM_DATE="$(date -d "$TO_DATE -$((DAYS - 1)) days" +%F)"
+  fi
+}
+
+collect_files() {
+  local cursor="$FROM_DATE"
+  local end_epoch
+  local cursor_epoch
+  local file=""
+
+  end_epoch="$(date_epoch "$TO_DATE")"
+  while :; do
+    cursor_epoch="$(date_epoch "$cursor")"
+    [ "$cursor_epoch" -gt 0 ] || break
+    [ "$cursor_epoch" -le "$end_epoch" ] || break
+
+    file="${STATE_DIR}/days/${cursor}.json"
+    if [ -r "$file" ] && jq -e . "$file" >/dev/null 2>&1; then
+      printf '%s\n' "$file"
+    fi
+
+    cursor="$(date -d "$cursor +1 day" +%F)"
+  done
+}
+
+json_filter() {
+  cat <<'JQ'
+def slot_time($minutes):
+  (($minutes / 60) | floor | tostring | if length < 2 then "0" + . else . end)
+  + ":"
+  + (($minutes % 60) | tostring | if length < 2 then "0" + . else . end);
+def slot_label($index):
+  slot_time($index * 30) + "-" + slot_time((($index + 1) * 30) % 1440);
+def pct($part; $whole):
+  if ($whole // 0) <= 0 then 0 else ($part / $whole) end;
+def top_apps($day):
+  ($day.total_seconds // 0) as $total
+  | (($day.apps // {}) | to_entries | map({
+      key: .key,
+      name: (.value.name // .key),
+      seconds: (.value.seconds // 0),
+      sample_count: (.value.sample_count // 0),
+      session_count: (.value.session_count // 0),
+      share: pct((.value.seconds // 0); $total)
+    }) | sort_by(-.seconds, .name));
+def top_transitions($day):
+  (($day.behavior.transitions // {}) | to_entries | map({
+      key: .key,
+      from: (.value.from // ""),
+      to: (.value.to // ""),
+      count: (.value.count // 0),
+      first_seen: (.value.first_seen // ""),
+      last_seen: (.value.last_seen // "")
+    }) | sort_by(-.count, .key));
+def day_summary:
+  . as $day
+  | ($day.total_seconds // 0) as $total
+  | ($day.behavior.focus_blocks // {}) as $blocks
+  | (top_apps($day)) as $apps
+  | (top_transitions($day)) as $transitions
+  | {
+      date: $day.date,
+      first_seen: ($day.first_seen // ""),
+      last_seen: ($day.last_seen // ""),
+      updated_at: ($day.updated_at // ""),
+      active_seconds: $total,
+      study_seconds: ($day.study.total_seconds // 0),
+      sample_count: ($day.sample_count // 0),
+      session_count: ($day.session_count // 0),
+      switch_count: ($day.switch_count // 0),
+      switch_rate_per_hour: (if $total > 0 then (($day.switch_count // 0) / ($total / 3600)) else 0 end),
+      top_app: ($apps[0] // null),
+      top_apps: $apps[:10],
+      focus_blocks: {
+        current_app: ($blocks.current_app // ""),
+        current_started_at: ($blocks.current_started_at // ""),
+        current_seconds: ($blocks.current_seconds // 0),
+        completed_count: ($blocks.completed_count // 0),
+        deep_count: ($blocks.deep_count // 0),
+        short_count: ($blocks.short_count // 0),
+        longest_seconds: ([($blocks.longest_seconds // 0), ($blocks.current_seconds // 0)] | max)
+      },
+      top_transitions: $transitions[:10],
+      slots_30m: (($day.slots_30m // ([range(0;48)] | map(0))) | if length == 48 then . else ([range(0;48)] | map(0)) end)
+    };
+. as $raw_days
+| ($raw_days | map(day_summary)) as $days
+| {
+    schema_version: 1,
+    generated_at: $generated_at,
+    range: {
+      from: $from_date,
+      to: $to_date,
+      requested_days: $requested_days,
+      observed_days: ($days | length)
+    },
+    privacy: {
+      locality: "local-only",
+      raw_window_titles_exported: false,
+      note: "Aggregates are based on app classes, durations, switches, focus blocks, and time slots."
+    },
+    summary: {
+      active_seconds: ($days | map(.active_seconds) | add // 0),
+      study_seconds: ($days | map(.study_seconds) | add // 0),
+      avg_active_seconds_per_observed_day: (if ($days | length) > 0 then (($days | map(.active_seconds) | add) / ($days | length)) else 0 end),
+      avg_switch_rate_per_hour: (if ($days | length) > 0 then (($days | map(.switch_rate_per_hour) | add) / ($days | length)) else 0 end),
+      deep_focus_blocks: ($days | map(.focus_blocks.deep_count) | add // 0),
+      short_focus_blocks: ($days | map(.focus_blocks.short_count) | add // 0),
+      longest_focus_seconds: ($days | map(.focus_blocks.longest_seconds) | max // 0),
+      top_apps: (
+        [$days[].top_apps[]?]
+        | group_by(.key)
+        | map({
+            key: .[0].key,
+            name: .[0].name,
+            seconds: (map(.seconds) | add),
+            session_count: (map(.session_count) | add)
+          })
+        | sort_by(-.seconds, .name)
+        | .[:10]
+      ),
+      top_transitions: (
+        [$days[].top_transitions[]?]
+        | group_by(.key)
+        | map({
+            key: .[0].key,
+            from: .[0].from,
+            to: .[0].to,
+            count: (map(.count) | add)
+          })
+        | sort_by(-.count, .key)
+        | .[:10]
+      ),
+      slots_30m: (
+        [range(0;48) as $slot | {
+          index: $slot,
+          label: slot_label($slot),
+          seconds: ($days | map(.slots_30m[$slot] // 0) | add // 0)
+        }]
+      )
+    },
+    days: $days
+  }
+JQ
+}
+
+csv_filter() {
+  cat <<'JQ'
+def day_row:
+  . as $day
+  | ($day.total_seconds // 0) as $total
+  | ($day.behavior.focus_blocks // {}) as $blocks
+  | (($day.apps // {}) | to_entries | sort_by(-(.value.seconds // 0), (.value.name // .key)) | .[0]) as $top
+  | [
+      ($day.date // ""),
+      $total,
+      ($day.study.total_seconds // 0),
+      ($day.session_count // 0),
+      ($day.switch_count // 0),
+      (if $total > 0 then (($day.switch_count // 0) / ($total / 3600)) else 0 end),
+      ([($blocks.longest_seconds // 0), ($blocks.current_seconds // 0)] | max),
+      ($blocks.deep_count // 0),
+      ($blocks.short_count // 0),
+      ($top.key // ""),
+      ($top.value.name // ""),
+      ($top.value.seconds // 0)
+    ];
+(["date","active_seconds","study_seconds","session_count","switch_count","switch_rate_per_hour","longest_focus_seconds","deep_focus_blocks","short_focus_blocks","top_app_key","top_app_name","top_app_seconds"] | @csv),
+(.[] | day_row | @csv)
+JQ
+}
+
+write_output() {
+  if [ "$OUTPUT" = "-" ]; then
+    cat
+  else
+    mkdir -p "$(dirname "$OUTPUT")"
+    cat >"$OUTPUT"
+    printf '%s\n' "$OUTPUT" >&2
+  fi
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --days)
+      DAYS="${2:-}"
+      shift 2
+      ;;
+    --from)
+      FROM_DATE="${2:-}"
+      shift 2
+      ;;
+    --to)
+      TO_DATE="${2:-}"
+      shift 2
+      ;;
+    --format)
+      FORMAT="${2:-}"
+      shift 2
+      ;;
+    --output)
+      OUTPUT="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if ! is_positive_integer "$DAYS"; then
+  printf 'screen-time-behavior-export: --days must be a positive integer\n' >&2
+  exit 2
+fi
+
+case "$FORMAT" in
+  json|csv) ;;
+  *)
+    printf 'screen-time-behavior-export: invalid format %s\n' "$FORMAT" >&2
+    exit 2
+    ;;
+esac
+
+resolve_dates
+mapfile -t FILES < <(collect_files)
+
+case "$FORMAT" in
+  json)
+    if [ "${#FILES[@]}" -gt 0 ]; then
+      jq -s \
+        --arg generated_at "$(date --iso-8601=seconds)" \
+        --arg from_date "$FROM_DATE" \
+        --arg to_date "$TO_DATE" \
+        --argjson requested_days "$DAYS" \
+        "$(json_filter)" \
+        "${FILES[@]}" | write_output
+    else
+      jq -n \
+        --arg generated_at "$(date --iso-8601=seconds)" \
+        --arg from_date "$FROM_DATE" \
+        --arg to_date "$TO_DATE" \
+        --argjson requested_days "$DAYS" \
+        '[] | '"$(json_filter)" | write_output
+    fi
+    ;;
+  csv)
+    if [ "${#FILES[@]}" -gt 0 ]; then
+      jq -s -r "$(csv_filter)" "${FILES[@]}" | write_output
+    else
+      jq -n -r '[] | '"$(csv_filter)" | write_output
+    fi
+    ;;
+esac
