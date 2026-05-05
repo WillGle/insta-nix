@@ -125,6 +125,27 @@
     };
   };
 
+  # Re-apply the default CPU power profile after boot because firmware
+  # power management can overwrite RyzenAdj limits.
+  systemd.services.cpu-default-power-profile = {
+    description = "Set default CPU power profile";
+    wantedBy = [ "graphical.target" ];
+    wants = [ "power-profiles-daemon.service" ];
+    after = [
+      "systemd-modules-load.service"
+      "power-profiles-daemon.service"
+    ];
+    script = ''
+      /run/current-system/sw/bin/powerprofilesctl set power-saver
+      /run/current-system/sw/bin/ryzenadj-profile power-saver
+    '';
+    serviceConfig = {
+      Type = "oneshot";
+      StandardOutput = "journal";
+      StandardError = "journal";
+    };
+  };
+
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
@@ -177,7 +198,26 @@
     priority = 100;
   };
 
-  powerManagement.enable = true;
+  powerManagement = {
+    enable = true;
+    resumeCommands = ''
+      ${pkgs.coreutils}/bin/sleep 2
+      current_profile="$(
+        /run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo power-saver
+      )"
+      case "$current_profile" in
+        performance)
+          /run/current-system/sw/bin/ryzenadj-profile performance
+          ;;
+        balanced)
+          /run/current-system/sw/bin/ryzenadj-profile balanced
+          ;;
+        *)
+          /run/current-system/sw/bin/ryzenadj-profile power-saver
+          ;;
+      esac
+    '';
+  };
 
   virtualisation.docker = {
     enable = true;
