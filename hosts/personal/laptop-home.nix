@@ -25,6 +25,10 @@ in
       source = ../../dotfiles/hosts/ryzen14/local-bin/atomic-note;
       executable = true;
     };
+    ".local/bin/apu-stress-test" = {
+      source = ../../dotfiles/hosts/ryzen14/local-bin/apu-stress-test;
+      executable = true;
+    };
     ".local/bin/monitor-setup" = {
       source = ../../dotfiles/hosts/ryzen14/local-bin/monitor-setup;
       executable = true;

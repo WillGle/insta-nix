@@ -1,0 +1,1154 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+
+MODE="sequential"
+DURATION_MINUTES=15
+CPU_SECONDS=""
+GPU_SECONDS=""
+SAMPLE_MS=1000
+PERFORMANCE_MODE="auto"
+MAX_CPU_C="94"
+MAX_GPU_C="88"
+MAX_INPUT_W=""
+MAX_GFX_W=""
+MIN_CPU_GHZ=""
+MIN_GPU_MHZ=""
+OUTPUT_ROOT=""
+LIVE_VIEW=1
+
+RUN_ID="$(date +%Y%m%d-%H%M%S)"
+STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+DEFAULT_OUTPUT_ROOT="${STATE_HOME}/apu-stress-test/runs/${RUN_ID}"
+SAMPLE_DELAY_SEC=""
+
+RUN_LOG=""
+SAMPLES_CSV=""
+EVENTS_CSV=""
+SUMMARY_CSV=""
+CPU_THREADS_CSV=""
+RUN_STARTED=0
+SUMMARY_WRITTEN=0
+CLEANUP_DONE=0
+RESTORE_DONE=0
+SIGNALLED=0
+
+START_TIME="$(date -Iseconds)"
+END_TIME="$START_TIME"
+FINAL_STATUS="PASS"
+STOP_REASON=""
+CURRENT_PHASE="setup"
+LAST_LIMIT_STATE="ok"
+
+AMDGPU_HWMON=""
+GPU_BUSY_PATH=""
+PREV_CPU_TOTAL=""
+PREV_CPU_IDLE=""
+CHILD_PIDS=()
+LIMIT_PARTS=()
+
+POWER_PROFILE_BEFORE="unknown"
+POWER_PROFILE_AFTER="unknown"
+ACTIVE_POWER_PROFILE="unknown"
+POWER_RESTORE_PROFILE=""
+POWER_PROFILE_CHANGED=0
+
+RYZENADJ_BEFORE="unknown"
+RYZENADJ_AFTER="unknown"
+ACTIVE_RYZENADJ_PROFILE="unknown"
+RYZENADJ_RESTORE_PROFILE=""
+RYZENADJ_CHANGED=0
+
+CPU_GOVERNOR_BEFORE="unknown"
+CPU_GOVERNOR_AFTER="unknown"
+ACTIVE_CPU_GOVERNOR="unknown"
+
+CPU_PHASE_SECONDS=0
+GPU_PHASE_SECONDS=0
+CONCURRENT_SECONDS=0
+
+CUR_CPU_BUSY=""
+CUR_GPU_BUSY=""
+CUR_CPU_TEMP=""
+CUR_GPU_TEMP=""
+CUR_INPUT_POWER=""
+CUR_GFX_POWER=""
+CUR_AVG_CPU_GHZ=""
+CUR_TOTAL_CPU_GHZ=""
+CUR_MIN_CPU_GHZ=""
+CUR_MAX_CPU_GHZ=""
+CUR_GPU_MHZ=""
+CUR_CPU_CORE_VIEW=""
+
+MAX_CPU_TEMP_OBS=""
+MAX_GPU_TEMP_OBS=""
+MAX_INPUT_POWER_OBS=""
+MAX_GFX_POWER_OBS=""
+MIN_CPU_GHZ_OBS=""
+PEAK_TOTAL_CPU_GHZ_OBS=""
+PEAK_SINGLE_THREAD_GHZ_OBS=""
+MIN_GPU_MHZ_OBS=""
+SAMPLE_COUNT=0
+
+declare -A LIMIT_COUNTS=(
+  [cpu_temp]=0
+  [gpu_temp]=0
+  [input_power]=0
+  [gfx_power]=0
+  [cpu_ghz]=0
+  [gpu_mhz]=0
+)
+
+usage() {
+  cat <<'EOF'
+Usage:
+  apu-stress-test [options]
+
+Options:
+  --mode <sequential|concurrent|cpu|gpu>   Stress pattern (default: sequential)
+  --duration-minutes <n>                   Total run duration in minutes (default: 15)
+  --cpu-seconds <n>                        CPU phase seconds override
+  --gpu-seconds <n>                        GPU phase seconds override
+  --sample-ms <n>                          Sample interval in milliseconds (default: 1000)
+  --performance-mode <auto|off|prompt>    Performance handling (default: auto)
+  --max-cpu-c <n>                          Stop if CPU temp stays above this limit (default: 94)
+  --max-gpu-c <n>                          Stop if GPU temp stays above this limit (default: 88)
+  --max-input-w <n>                        Optional system input power ceiling
+  --max-gfx-w <n>                          Optional GPU power ceiling
+  --min-cpu-ghz <n>                        Optional average CPU GHz floor
+  --min-gpu-mhz <n>                        Optional GPU MHz floor
+  --output-root <dir>                      Output directory (default: ~/.local/state/apu-stress-test/runs/<timestamp>)
+  --no-live-view                           Disable terminal redraw
+  --help                                   Show this help
+EOF
+}
+
+die() {
+  printf 'apu-stress-test: %s\n' "$*" >&2
+  exit 2
+}
+
+is_uint() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+is_number() {
+  [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+log() {
+  if [ -n "$RUN_LOG" ]; then
+    printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >> "$RUN_LOG"
+  fi
+}
+
+csv_escape() {
+  local value="${1//$'\n'/ }"
+  value="${value//$'\r'/ }"
+  value="${value//\"/\"\"}"
+  printf '"%s"' "$value"
+}
+
+append_csv() {
+  local file="$1"
+  shift
+  local sep=""
+  {
+    for field in "$@"; do
+      printf '%s' "$sep"
+      csv_escape "${field:-}"
+      sep=","
+    done
+    printf '\n'
+  } >> "$file"
+}
+
+record_event() {
+  local event="$1"
+  local status="$2"
+  local details="${3:-}"
+  append_csv "$EVENTS_CSV" "$RUN_ID" "$(date -Iseconds)" "$event" "$status" "$details"
+  log "event=${event} status=${status} details=${details}"
+}
+
+read_power_profile() {
+  powerprofilesctl get 2>/dev/null || printf '%s\n' "unknown"
+}
+
+read_cpu_governor() {
+  cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null || printf '%s\n' "unknown"
+}
+
+read_ryzenadj_status() {
+  local status
+
+  if ! command -v sudo >/dev/null 2>&1; then
+    printf '%s\n' "unknown"
+    return 0
+  fi
+
+  status="$(sudo -n /run/current-system/sw/bin/ryzenadj-profile status 2>/dev/null || true)"
+  case "$status" in
+    performance|balanced|power-saver|custom|unknown)
+      printf '%s\n' "$status"
+      ;;
+    *)
+      printf '%s\n' "unknown"
+      ;;
+  esac
+}
+
+float_gt() {
+  awk -v left="$1" -v right="$2" 'BEGIN { exit !(left > right) }'
+}
+
+float_lt() {
+  awk -v left="$1" -v right="$2" 'BEGIN { exit !(left < right) }'
+}
+
+update_max() {
+  local var_name="$1"
+  local value="$2"
+  local current="${!var_name:-}"
+
+  [ -n "$value" ] || return 0
+  if [ -z "$current" ] || float_gt "$value" "$current"; then
+    printf -v "$var_name" '%s' "$value"
+  fi
+}
+
+update_min() {
+  local var_name="$1"
+  local value="$2"
+  local current="${!var_name:-}"
+
+  [ -n "$value" ] || return 0
+  if [ -z "$current" ] || float_lt "$value" "$current"; then
+    printf -v "$var_name" '%s' "$value"
+  fi
+}
+
+find_amdgpu_hwmon() {
+  local d
+
+  for d in /sys/class/hwmon/hwmon*; do
+    if [ "$(cat "$d/name" 2>/dev/null || true)" = "amdgpu" ]; then
+      AMDGPU_HWMON="$d"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+find_gpu_busy_path() {
+  local path
+
+  for path in /sys/class/drm/card*/device/gpu_busy_percent; do
+    if [ -r "$path" ]; then
+      GPU_BUSY_PATH="$path"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+read_proc_stat() {
+  local label user nice system idle iowait irq softirq steal guest guest_nice
+
+  read -r label user nice system idle iowait irq softirq steal guest guest_nice < /proc/stat
+  printf '%s\t%s\n' \
+    "$((user + nice + system + idle + iowait + irq + softirq + steal))" \
+    "$((idle + iowait))"
+}
+
+init_cpu_busy_state() {
+  IFS=$'\t' read -r PREV_CPU_TOTAL PREV_CPU_IDLE < <(read_proc_stat)
+}
+
+read_cpu_busy_pct() {
+  local total idle diff_total diff_idle
+
+  IFS=$'\t' read -r total idle < <(read_proc_stat)
+  if [ -z "$PREV_CPU_TOTAL" ] || [ -z "$PREV_CPU_IDLE" ]; then
+    PREV_CPU_TOTAL="$total"
+    PREV_CPU_IDLE="$idle"
+    printf '%s\n' ""
+    return 0
+  fi
+
+  diff_total=$((total - PREV_CPU_TOTAL))
+  diff_idle=$((idle - PREV_CPU_IDLE))
+  PREV_CPU_TOTAL="$total"
+  PREV_CPU_IDLE="$idle"
+
+  if [ "$diff_total" -le 0 ]; then
+    printf '%s\n' ""
+  else
+    printf '%s\n' "$((100 * (diff_total - diff_idle) / diff_total))"
+  fi
+}
+
+read_cpu_freq_stats() {
+  local sample_ts="$1"
+  local phase="$2"
+  local elapsed="$3"
+  local path cpu_id core_id freq_hz ghz total_ghz avg_ghz
+  local min_ghz="" max_ghz=""
+  local count=0
+  local -a cpu_paths core_ids
+  local -A core_view=()
+
+  total_ghz="0.00"
+  CUR_CPU_CORE_VIEW=""
+
+  mapfile -t cpu_paths < <(printf '%s\n' /sys/devices/system/cpu/cpu[0-9]* | sort -V)
+  for path in "${cpu_paths[@]}"; do
+    [ -r "$path/cpufreq/scaling_cur_freq" ] || continue
+
+    cpu_id="${path##*/cpu}"
+    core_id="$(cat "$path/topology/core_id" 2>/dev/null || echo "$cpu_id")"
+    freq_hz="$(cat "$path/cpufreq/scaling_cur_freq" 2>/dev/null || true)"
+    [ -n "$freq_hz" ] || continue
+
+    ghz="$(awk -v hz="$freq_hz" 'BEGIN { printf "%.2f", hz / 1000000 }')"
+    total_ghz="$(awk -v total="$total_ghz" -v ghz="$ghz" 'BEGIN { printf "%.2f", total + ghz }')"
+    count=$((count + 1))
+
+    if [ -z "$min_ghz" ] || float_lt "$ghz" "$min_ghz"; then
+      min_ghz="$ghz"
+    fi
+    if [ -z "$max_ghz" ] || float_gt "$ghz" "$max_ghz"; then
+      max_ghz="$ghz"
+    fi
+
+    append_csv "$CPU_THREADS_CSV" "$RUN_ID" "$sample_ts" "$phase" "$elapsed" "$core_id" "$cpu_id" "$ghz"
+
+    if [ -n "${core_view[$core_id]:-}" ]; then
+      core_view[$core_id]="${core_view[$core_id]} | cpu${cpu_id} ${ghz} GHz"
+    else
+      core_view[$core_id]="Core ${core_id}: cpu${cpu_id} ${ghz} GHz"
+    fi
+  done
+
+  if [ "$count" -gt 0 ]; then
+    avg_ghz="$(awk -v total="$total_ghz" -v count="$count" 'BEGIN { printf "%.2f", total / count }')"
+  else
+    avg_ghz=""
+    total_ghz=""
+  fi
+
+  CUR_AVG_CPU_GHZ="$avg_ghz"
+  CUR_TOTAL_CPU_GHZ="$total_ghz"
+  CUR_MIN_CPU_GHZ="$min_ghz"
+  CUR_MAX_CPU_GHZ="$max_ghz"
+
+  if [ "${#core_view[@]}" -gt 0 ]; then
+    mapfile -t core_ids < <(printf '%s\n' "${!core_view[@]}" | sort -n)
+    for core_id in "${core_ids[@]}"; do
+      if [ -z "$CUR_CPU_CORE_VIEW" ]; then
+        CUR_CPU_CORE_VIEW="${core_view[$core_id]}"
+      else
+        CUR_CPU_CORE_VIEW="${CUR_CPU_CORE_VIEW}"$'\n'"${core_view[$core_id]}"
+      fi
+    done
+  fi
+}
+
+format_value() {
+  if [ -n "${1:-}" ]; then
+    printf '%s' "$1"
+  else
+    printf '%s' "n/a"
+  fi
+}
+
+finalize_limit_state() {
+  if [ "${#LIMIT_PARTS[@]}" -eq 0 ]; then
+    LAST_LIMIT_STATE="ok"
+  else
+    LAST_LIMIT_STATE="$(IFS=';'; printf '%s' "${LIMIT_PARTS[*]}")"
+  fi
+}
+
+check_upper_limit() {
+  local key="$1"
+  local value="$2"
+  local limit="$3"
+
+  [ -n "$limit" ] || return 0
+
+  if [ -z "$value" ]; then
+    LIMIT_PARTS+=("${key}=missing")
+    STOP_REASON="missing_metric_${key}"
+    return 1
+  fi
+
+  if float_gt "$value" "$limit"; then
+    LIMIT_COUNTS["$key"]=$((LIMIT_COUNTS["$key"] + 1))
+    LIMIT_PARTS+=("${key}=${value}>${limit}(${LIMIT_COUNTS[$key]}/3)")
+    if [ "${LIMIT_COUNTS[$key]}" -ge 3 ]; then
+      STOP_REASON="limit_${key}"
+      return 1
+    fi
+  else
+    LIMIT_COUNTS["$key"]=0
+  fi
+
+  return 0
+}
+
+check_lower_limit() {
+  local key="$1"
+  local value="$2"
+  local limit="$3"
+
+  [ -n "$limit" ] || return 0
+
+  if [ -z "$value" ]; then
+    LIMIT_PARTS+=("${key}=missing")
+    STOP_REASON="missing_metric_${key}"
+    return 1
+  fi
+
+  if float_lt "$value" "$limit"; then
+    LIMIT_COUNTS["$key"]=$((LIMIT_COUNTS["$key"] + 1))
+    LIMIT_PARTS+=("${key}=${value}<${limit}(${LIMIT_COUNTS[$key]}/3)")
+    if [ "${LIMIT_COUNTS[$key]}" -ge 3 ]; then
+      STOP_REASON="limit_${key}"
+      return 1
+    fi
+  else
+    LIMIT_COUNTS["$key"]=0
+  fi
+
+  return 0
+}
+
+evaluate_limits() {
+  LIMIT_PARTS=()
+
+  if ! check_upper_limit "cpu_temp" "$CUR_CPU_TEMP" "$MAX_CPU_C"; then
+    finalize_limit_state
+    return 1
+  fi
+  if ! check_upper_limit "gpu_temp" "$CUR_GPU_TEMP" "$MAX_GPU_C"; then
+    finalize_limit_state
+    return 1
+  fi
+  if ! check_upper_limit "input_power" "$CUR_INPUT_POWER" "$MAX_INPUT_W"; then
+    finalize_limit_state
+    return 1
+  fi
+  if ! check_upper_limit "gfx_power" "$CUR_GFX_POWER" "$MAX_GFX_W"; then
+    finalize_limit_state
+    return 1
+  fi
+  if ! check_lower_limit "cpu_ghz" "$CUR_AVG_CPU_GHZ" "$MIN_CPU_GHZ"; then
+    finalize_limit_state
+    return 1
+  fi
+  if ! check_lower_limit "gpu_mhz" "$CUR_GPU_MHZ" "$MIN_GPU_MHZ"; then
+    finalize_limit_state
+    return 1
+  fi
+
+  finalize_limit_state
+  return 0
+}
+
+collect_metrics() {
+  local sample_ts="$1"
+  local phase="$2"
+  local elapsed="$3"
+  local amdgpu_json
+
+  CUR_CPU_BUSY="$(read_cpu_busy_pct)"
+  CUR_GPU_BUSY="$(cat "$GPU_BUSY_PATH" 2>/dev/null || true)"
+  read_cpu_freq_stats "$sample_ts" "$phase" "$elapsed"
+
+  amdgpu_json="$(amdgpu_top --json -n 1 -s 200 --apu 2>>"$RUN_LOG" || true)"
+  if [ -n "$amdgpu_json" ]; then
+    IFS=$'\t' read -r CUR_CPU_TEMP CUR_GPU_TEMP CUR_INPUT_POWER CUR_GFX_POWER CUR_GPU_MHZ < <(
+      printf '%s' "$amdgpu_json" | jq -r '
+        [
+          (.devices[0].Sensors["CPU Tctl"].value // ""),
+          (.devices[0].Sensors["Edge Temperature"].value // ""),
+          (.devices[0].Sensors["Input Power"].value // ""),
+          (.devices[0].Sensors["GFX Power"].value // ""),
+          (.devices[0].Sensors["GFX_SCLK"].value // "")
+        ] | @tsv
+      ' 2>>"$RUN_LOG" || printf '\t\t\t\t\n'
+    )
+  else
+    CUR_CPU_TEMP=""
+    CUR_GPU_TEMP=""
+    CUR_INPUT_POWER=""
+    CUR_GFX_POWER=""
+    CUR_GPU_MHZ=""
+    log "amdgpu_top returned no data"
+  fi
+}
+
+render_live_view() {
+  local phase="$1"
+  local elapsed="$2"
+  local duration="$3"
+
+  [ "$LIVE_VIEW" -eq 1 ] || return 0
+
+  printf '\033[H\033[2J'
+  printf 'apu-stress-test\n\n'
+  printf 'Run: %s\n' "$RUN_ID"
+  printf 'Phase: %s (%ss / %ss)\n' "$phase" "$elapsed" "$duration"
+  printf 'Output: %s\n\n' "$OUTPUT_ROOT"
+  printf 'CPU: busy %s%%  temp %s C  avg %s GHz  total %s GHz  peak-thread %s GHz\n' \
+    "$(format_value "$CUR_CPU_BUSY")" \
+    "$(format_value "$CUR_CPU_TEMP")" \
+    "$(format_value "$CUR_AVG_CPU_GHZ")" \
+    "$(format_value "$CUR_TOTAL_CPU_GHZ")" \
+    "$(format_value "$CUR_MAX_CPU_GHZ")"
+  printf '     min-thread %s GHz  governor %s\n' \
+    "$(format_value "$CUR_MIN_CPU_GHZ")" \
+    "$ACTIVE_CPU_GOVERNOR"
+  printf 'GPU: busy %s%%  temp %s C  gfx %s W  sclk %s MHz  input %s W\n' \
+    "$(format_value "$CUR_GPU_BUSY")" \
+    "$(format_value "$CUR_GPU_TEMP")" \
+    "$(format_value "$CUR_GFX_POWER")" \
+    "$(format_value "$CUR_GPU_MHZ")" \
+    "$(format_value "$CUR_INPUT_POWER")"
+  printf 'State: power=%s  ryzenadj=%s\n' \
+    "$ACTIVE_POWER_PROFILE" \
+    "$ACTIVE_RYZENADJ_PROFILE"
+  printf 'Limits: %s\n' "$LAST_LIMIT_STATE"
+  if [ -n "$CUR_CPU_CORE_VIEW" ]; then
+    printf '\nPer-core CPU view:\n%s\n' "$CUR_CPU_CORE_VIEW"
+  fi
+}
+
+sample_phase() {
+  local phase="$1"
+  local elapsed="$2"
+  local duration="$3"
+  local sample_ts
+
+  sample_ts="$(date -Iseconds)"
+  collect_metrics "$sample_ts" "$phase" "$elapsed"
+  update_max MAX_CPU_TEMP_OBS "$CUR_CPU_TEMP"
+  update_max MAX_GPU_TEMP_OBS "$CUR_GPU_TEMP"
+  update_max MAX_INPUT_POWER_OBS "$CUR_INPUT_POWER"
+  update_max MAX_GFX_POWER_OBS "$CUR_GFX_POWER"
+  update_min MIN_CPU_GHZ_OBS "$CUR_AVG_CPU_GHZ"
+  update_max PEAK_TOTAL_CPU_GHZ_OBS "$CUR_TOTAL_CPU_GHZ"
+  update_max PEAK_SINGLE_THREAD_GHZ_OBS "$CUR_MAX_CPU_GHZ"
+  update_min MIN_GPU_MHZ_OBS "$CUR_GPU_MHZ"
+
+  if ! evaluate_limits; then
+    FINAL_STATUS="FAIL"
+  fi
+
+  SAMPLE_COUNT=$((SAMPLE_COUNT + 1))
+  append_csv \
+    "$SAMPLES_CSV" \
+    "$RUN_ID" \
+    "$sample_ts" \
+    "$phase" \
+    "$elapsed" \
+    "$CUR_CPU_BUSY" \
+    "$CUR_GPU_BUSY" \
+    "$CUR_CPU_TEMP" \
+    "$CUR_GPU_TEMP" \
+    "$CUR_INPUT_POWER" \
+    "$CUR_GFX_POWER" \
+    "$CUR_AVG_CPU_GHZ" \
+    "$CUR_TOTAL_CPU_GHZ" \
+    "$CUR_MIN_CPU_GHZ" \
+    "$CUR_MAX_CPU_GHZ" \
+    "$CUR_GPU_MHZ" \
+    "$ACTIVE_POWER_PROFILE" \
+    "$ACTIVE_RYZENADJ_PROFILE" \
+    "$ACTIVE_CPU_GOVERNOR" \
+    "$LAST_LIMIT_STATE"
+  render_live_view "$phase" "$elapsed" "$duration"
+
+  if [ "$FINAL_STATUS" != "PASS" ]; then
+    record_event "limit" "fail" "phase=${phase} reason=${STOP_REASON} state=${LAST_LIMIT_STATE}"
+    return 1
+  fi
+
+  return 0
+}
+
+start_cpu_stress() {
+  local duration="$1"
+
+  (
+    printf '[cpu] start %s\n' "$(date -Iseconds)"
+    stress-ng --cpu "$(nproc)" --cpu-load 100 --timeout "${duration}s" --metrics-brief
+    rc=$?
+    printf '[cpu] end rc=%s %s\n' "$rc" "$(date -Iseconds)"
+    exit "$rc"
+  ) >>"$RUN_LOG" 2>&1 &
+  CHILD_PIDS+=("$!")
+}
+
+start_gpu_stress() {
+  local duration="$1"
+
+  (
+    printf '[gpu] start %s\n' "$(date -Iseconds)"
+    stress-ng --gpu 1 --timeout "${duration}s" --metrics-brief
+    rc=$?
+    printf '[gpu] end rc=%s %s\n' "$rc" "$(date -Iseconds)"
+    exit "$rc"
+  ) >>"$RUN_LOG" 2>&1 &
+  CHILD_PIDS+=("$!")
+}
+
+any_child_running() {
+  local pid
+
+  for pid in "${CHILD_PIDS[@]}"; do
+    if kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+wait_for_children() {
+  local pid
+  local rc=0
+  local child_rc
+
+  for pid in "${CHILD_PIDS[@]}"; do
+    if wait "$pid"; then
+      :
+    else
+      child_rc=$?
+      if [ "$rc" -eq 0 ]; then
+        rc="$child_rc"
+      fi
+    fi
+  done
+  CHILD_PIDS=()
+
+  return "$rc"
+}
+
+terminate_children() {
+  local pid
+
+  for pid in "${CHILD_PIDS[@]}"; do
+    if kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+    fi
+  done
+  for pid in "${CHILD_PIDS[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
+  CHILD_PIDS=()
+}
+
+apply_power_profile() {
+  local profile="$1"
+
+  if powerprofilesctl set "$profile" >>"$RUN_LOG" 2>&1; then
+    ACTIVE_POWER_PROFILE="$profile"
+    record_event "power_profile" "ok" "set=${profile}"
+    return 0
+  fi
+
+  record_event "power_profile" "warn" "set=${profile} failed"
+  return 1
+}
+
+apply_ryzenadj_profile() {
+  local profile="$1"
+
+  if ! command -v sudo >/dev/null 2>&1; then
+    record_event "ryzenadj_profile" "warn" "sudo_missing"
+    return 1
+  fi
+
+  if sudo -n /run/current-system/sw/bin/ryzenadj-profile "$profile" >>"$RUN_LOG" 2>&1; then
+    ACTIVE_RYZENADJ_PROFILE="$profile"
+    record_event "ryzenadj_profile" "ok" "set=${profile}"
+    return 0
+  fi
+
+  record_event "ryzenadj_profile" "warn" "set=${profile} failed"
+  return 1
+}
+
+apply_performance_settings() {
+  local answer
+
+  case "$PERFORMANCE_MODE" in
+    off)
+      record_event "performance_mode" "info" "disabled"
+      return 0
+      ;;
+    prompt)
+      if [ ! -t 0 ]; then
+        die "--performance-mode prompt requires a TTY"
+      fi
+      printf 'Current power profile: %s\n' "$POWER_PROFILE_BEFORE" >&2
+      printf 'Current ryzenadj preset: %s\n' "$RYZENADJ_BEFORE" >&2
+      printf 'Apply performance settings for this run? [y/N]: ' >&2
+      read -r answer
+      case "${answer,,}" in
+        y|yes)
+          ;;
+        *)
+          record_event "performance_mode" "info" "prompt_declined"
+          return 0
+          ;;
+      esac
+      ;;
+    auto)
+      ;;
+    *)
+      die "invalid --performance-mode: ${PERFORMANCE_MODE}"
+      ;;
+  esac
+
+  if apply_power_profile "performance"; then
+    POWER_PROFILE_CHANGED=1
+  fi
+  if apply_ryzenadj_profile "performance"; then
+    RYZENADJ_CHANGED=1
+  fi
+
+  if [ "$POWER_PROFILE_CHANGED" -eq 0 ] && [ "$RYZENADJ_CHANGED" -eq 0 ]; then
+    record_event "performance_mode" "warn" "no_change_applied"
+  fi
+}
+
+restore_power_state() {
+  if [ "$RESTORE_DONE" -eq 1 ]; then
+    return 0
+  fi
+  RESTORE_DONE=1
+
+  if [ "$POWER_PROFILE_CHANGED" -eq 1 ]; then
+    if [ -n "$POWER_RESTORE_PROFILE" ] && [ "$POWER_RESTORE_PROFILE" != "unknown" ]; then
+      if powerprofilesctl set "$POWER_RESTORE_PROFILE" >>"$RUN_LOG" 2>&1; then
+        ACTIVE_POWER_PROFILE="$POWER_RESTORE_PROFILE"
+        record_event "power_restore" "ok" "profile=${POWER_RESTORE_PROFILE}"
+      else
+        record_event "power_restore" "warn" "profile=${POWER_RESTORE_PROFILE} failed"
+      fi
+    else
+      record_event "power_restore" "warn" "skipped previous_unknown"
+    fi
+  fi
+
+  if [ "$RYZENADJ_CHANGED" -eq 1 ]; then
+    if [ -n "$RYZENADJ_RESTORE_PROFILE" ]; then
+      if command -v sudo >/dev/null 2>&1 && sudo -n /run/current-system/sw/bin/ryzenadj-profile "$RYZENADJ_RESTORE_PROFILE" >>"$RUN_LOG" 2>&1; then
+        ACTIVE_RYZENADJ_PROFILE="$RYZENADJ_RESTORE_PROFILE"
+        record_event "ryzenadj_restore" "ok" "profile=${RYZENADJ_RESTORE_PROFILE}"
+      else
+        record_event "ryzenadj_restore" "warn" "profile=${RYZENADJ_RESTORE_PROFILE} failed"
+      fi
+    else
+      record_event "ryzenadj_restore" "warn" "skipped previous=${RYZENADJ_BEFORE}"
+    fi
+  fi
+
+  POWER_PROFILE_AFTER="$(read_power_profile)"
+  if [ "$POWER_PROFILE_AFTER" = "unknown" ]; then
+    POWER_PROFILE_AFTER="$ACTIVE_POWER_PROFILE"
+  fi
+
+  RYZENADJ_AFTER="$(read_ryzenadj_status)"
+  if [ "$RYZENADJ_AFTER" = "unknown" ]; then
+    RYZENADJ_AFTER="$ACTIVE_RYZENADJ_PROFILE"
+  fi
+
+  CPU_GOVERNOR_AFTER="$(read_cpu_governor)"
+}
+
+finalize_summary() {
+  if [ "$SUMMARY_WRITTEN" -eq 1 ] || [ "$RUN_STARTED" -eq 0 ]; then
+    return 0
+  fi
+  SUMMARY_WRITTEN=1
+
+  END_TIME="$(date -Iseconds)"
+  if [ -z "$STOP_REASON" ]; then
+    if [ "$FINAL_STATUS" = "PASS" ]; then
+      STOP_REASON="completed"
+    else
+      STOP_REASON="script_error"
+    fi
+  fi
+
+  append_csv \
+    "$SUMMARY_CSV" \
+    "$RUN_ID" \
+    "$START_TIME" \
+    "$END_TIME" \
+    "$FINAL_STATUS" \
+    "$STOP_REASON" \
+    "$MODE" \
+    "$CPU_PHASE_SECONDS" \
+    "$GPU_PHASE_SECONDS" \
+    "$MAX_CPU_TEMP_OBS" \
+    "$MAX_GPU_TEMP_OBS" \
+    "$MAX_INPUT_POWER_OBS" \
+    "$MAX_GFX_POWER_OBS" \
+    "$MIN_CPU_GHZ_OBS" \
+    "$PEAK_TOTAL_CPU_GHZ_OBS" \
+    "$PEAK_SINGLE_THREAD_GHZ_OBS" \
+    "$MIN_GPU_MHZ_OBS" \
+    "$SAMPLE_COUNT" \
+    "$POWER_PROFILE_BEFORE" \
+    "$POWER_PROFILE_AFTER" \
+    "$RYZENADJ_BEFORE" \
+    "$RYZENADJ_AFTER" \
+    "$CPU_GOVERNOR_BEFORE" \
+    "$CPU_GOVERNOR_AFTER" \
+    "$OUTPUT_ROOT"
+}
+
+cleanup() {
+  local exit_status="$?"
+
+  if [ "$CLEANUP_DONE" -eq 1 ]; then
+    return 0
+  fi
+  CLEANUP_DONE=1
+
+  if [ "$exit_status" -ne 0 ] && [ "$FINAL_STATUS" = "PASS" ]; then
+    FINAL_STATUS="FAIL"
+  fi
+  if [ "$SIGNALLED" -eq 1 ] && [ -z "$STOP_REASON" ]; then
+    STOP_REASON="signal_interrupt"
+  fi
+
+  terminate_children
+  restore_power_state
+  finalize_summary
+
+  if [ "$LIVE_VIEW" -eq 1 ]; then
+    printf '\n'
+  fi
+}
+
+on_signal() {
+  SIGNALLED=1
+  FINAL_STATUS="FAIL"
+  STOP_REASON="${STOP_REASON:-signal_interrupt}"
+  exit 130
+}
+
+run_phase() {
+  local phase="$1"
+  local duration="$2"
+  local run_cpu="$3"
+  local run_gpu="$4"
+  local phase_start
+  local elapsed
+  local wait_rc=0
+
+  CURRENT_PHASE="$phase"
+  record_event "phase" "start" "name=${phase} duration_sec=${duration}"
+  log "phase=${phase} duration_sec=${duration} run_cpu=${run_cpu} run_gpu=${run_gpu}"
+
+  CHILD_PIDS=()
+  if [ "$run_cpu" -eq 1 ]; then
+    start_cpu_stress "$duration"
+  fi
+  if [ "$run_gpu" -eq 1 ]; then
+    start_gpu_stress "$duration"
+  fi
+
+  init_cpu_busy_state
+  phase_start="$(date +%s)"
+
+  while :; do
+    elapsed=$(( $(date +%s) - phase_start ))
+    if ! sample_phase "$phase" "$elapsed" "$duration"; then
+      terminate_children
+      record_event "phase" "end" "name=${phase} status=fail"
+      return 1
+    fi
+
+    if [ "$SIGNALLED" -eq 1 ]; then
+      terminate_children
+      record_event "phase" "end" "name=${phase} status=signal"
+      return 1
+    fi
+
+    if ! any_child_running; then
+      break
+    fi
+
+    if [ "$elapsed" -ge "$duration" ]; then
+      break
+    fi
+
+    sleep "$SAMPLE_DELAY_SEC"
+  done
+
+  if wait_for_children; then
+    :
+  else
+    wait_rc=$?
+  fi
+
+  if [ "$wait_rc" -ne 0 ]; then
+    FINAL_STATUS="FAIL"
+    STOP_REASON="stressor_exit_${phase}_${wait_rc}"
+    record_event "stressor" "fail" "phase=${phase} rc=${wait_rc}"
+    record_event "phase" "end" "name=${phase} status=fail"
+    return 1
+  fi
+
+  record_event "phase" "end" "name=${phase} status=ok"
+  return 0
+}
+
+trap cleanup EXIT
+trap on_signal INT TERM
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --mode)
+      MODE="${2:-}"
+      shift 2
+      ;;
+    --duration-minutes)
+      DURATION_MINUTES="${2:-}"
+      shift 2
+      ;;
+    --cpu-seconds)
+      CPU_SECONDS="${2:-}"
+      shift 2
+      ;;
+    --gpu-seconds)
+      GPU_SECONDS="${2:-}"
+      shift 2
+      ;;
+    --sample-ms)
+      SAMPLE_MS="${2:-}"
+      shift 2
+      ;;
+    --performance-mode)
+      PERFORMANCE_MODE="${2:-}"
+      shift 2
+      ;;
+    --max-cpu-c)
+      MAX_CPU_C="${2:-}"
+      shift 2
+      ;;
+    --max-gpu-c)
+      MAX_GPU_C="${2:-}"
+      shift 2
+      ;;
+    --max-input-w)
+      MAX_INPUT_W="${2:-}"
+      shift 2
+      ;;
+    --max-gfx-w)
+      MAX_GFX_W="${2:-}"
+      shift 2
+      ;;
+    --min-cpu-ghz)
+      MIN_CPU_GHZ="${2:-}"
+      shift 2
+      ;;
+    --min-gpu-mhz)
+      MIN_GPU_MHZ="${2:-}"
+      shift 2
+      ;;
+    --output-root)
+      OUTPUT_ROOT="${2:-}"
+      shift 2
+      ;;
+    --no-live-view)
+      LIVE_VIEW=0
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown option: $1"
+      ;;
+  esac
+done
+
+case "$MODE" in
+  sequential|concurrent|cpu|gpu)
+    ;;
+  *)
+    die "invalid --mode: ${MODE}"
+    ;;
+esac
+
+is_uint "$DURATION_MINUTES" || die "--duration-minutes must be an integer"
+[ "$DURATION_MINUTES" -ge 1 ] || die "--duration-minutes must be at least 1"
+TOTAL_SECONDS=$((DURATION_MINUTES * 60))
+
+if [ -n "$CPU_SECONDS" ]; then
+  is_uint "$CPU_SECONDS" || die "--cpu-seconds must be an integer"
+  [ "$CPU_SECONDS" -ge 1 ] || die "--cpu-seconds must be at least 1"
+fi
+
+if [ -n "$GPU_SECONDS" ]; then
+  is_uint "$GPU_SECONDS" || die "--gpu-seconds must be an integer"
+  [ "$GPU_SECONDS" -ge 1 ] || die "--gpu-seconds must be at least 1"
+fi
+
+is_uint "$SAMPLE_MS" || die "--sample-ms must be an integer"
+[ "$SAMPLE_MS" -ge 200 ] || die "--sample-ms must be at least 200"
+SAMPLE_DELAY_SEC="$(awk -v ms="$SAMPLE_MS" 'BEGIN { printf "%.3f", ms / 1000 }')"
+
+for value_name in MAX_CPU_C MAX_GPU_C MAX_INPUT_W MAX_GFX_W MIN_CPU_GHZ MIN_GPU_MHZ; do
+  value="${!value_name}"
+  if [ -n "$value" ] && ! is_number "$value"; then
+    die "--${value_name,,} must be numeric"
+  fi
+done
+
+case "$PERFORMANCE_MODE" in
+  auto|off|prompt)
+    ;;
+  *)
+    die "invalid --performance-mode: ${PERFORMANCE_MODE}"
+    ;;
+esac
+
+case "$MODE" in
+  sequential)
+    if [ -n "$CPU_SECONDS" ] && [ -n "$GPU_SECONDS" ]; then
+      CPU_PHASE_SECONDS="$CPU_SECONDS"
+      GPU_PHASE_SECONDS="$GPU_SECONDS"
+    elif [ -n "$CPU_SECONDS" ]; then
+      CPU_PHASE_SECONDS="$CPU_SECONDS"
+      GPU_PHASE_SECONDS=$((TOTAL_SECONDS - CPU_PHASE_SECONDS))
+    elif [ -n "$GPU_SECONDS" ]; then
+      GPU_PHASE_SECONDS="$GPU_SECONDS"
+      CPU_PHASE_SECONDS=$((TOTAL_SECONDS - GPU_PHASE_SECONDS))
+    else
+      CPU_PHASE_SECONDS=$((TOTAL_SECONDS / 2))
+      GPU_PHASE_SECONDS=$((TOTAL_SECONDS - CPU_PHASE_SECONDS))
+    fi
+    [ "$CPU_PHASE_SECONDS" -ge 1 ] || die "CPU phase duration must be at least 1 second"
+    [ "$GPU_PHASE_SECONDS" -ge 1 ] || die "GPU phase duration must be at least 1 second"
+    ;;
+  concurrent)
+    [ -z "$CPU_SECONDS" ] || die "--cpu-seconds is not valid with --mode concurrent"
+    [ -z "$GPU_SECONDS" ] || die "--gpu-seconds is not valid with --mode concurrent"
+    CONCURRENT_SECONDS="$TOTAL_SECONDS"
+    ;;
+  cpu)
+    [ -z "$GPU_SECONDS" ] || die "--gpu-seconds is not valid with --mode cpu"
+    CPU_PHASE_SECONDS="${CPU_SECONDS:-$TOTAL_SECONDS}"
+    ;;
+  gpu)
+    [ -z "$CPU_SECONDS" ] || die "--cpu-seconds is not valid with --mode gpu"
+    GPU_PHASE_SECONDS="${GPU_SECONDS:-$TOTAL_SECONDS}"
+    ;;
+esac
+
+if [ -z "$OUTPUT_ROOT" ]; then
+  OUTPUT_ROOT="$DEFAULT_OUTPUT_ROOT"
+fi
+mkdir -p "$OUTPUT_ROOT"
+
+RUN_LOG="$OUTPUT_ROOT/run.log"
+SAMPLES_CSV="$OUTPUT_ROOT/samples.csv"
+EVENTS_CSV="$OUTPUT_ROOT/events.csv"
+SUMMARY_CSV="$OUTPUT_ROOT/summary.csv"
+CPU_THREADS_CSV="$OUTPUT_ROOT/cpu_threads.csv"
+
+printf 'run_id,timestamp,phase,elapsed_sec,cpu_busy_pct,gpu_busy_pct,cpu_temp_c,gpu_temp_c,input_power_w,gfx_power_w,avg_cpu_ghz,total_cpu_ghz,min_cpu_ghz,max_cpu_ghz,gpu_sclk_mhz,power_profile,ryzenadj_profile,cpu_governor,limit_state\n' > "$SAMPLES_CSV"
+printf 'run_id,timestamp,event,status,details\n' > "$EVENTS_CSV"
+printf 'run_id,start_time,end_time,status,stop_reason,mode,cpu_phase_seconds,gpu_phase_seconds,max_cpu_temp_c,max_gpu_temp_c,max_input_power_w,max_gfx_power_w,min_cpu_ghz,peak_total_cpu_ghz,peak_single_thread_ghz,min_gpu_mhz,sample_count,power_profile_before,power_profile_after,ryzenadj_before,ryzenadj_after,cpu_governor_before,cpu_governor_after,output_dir\n' > "$SUMMARY_CSV"
+printf 'run_id,timestamp,phase,elapsed_sec,core_id,cpu_id,cpu_ghz\n' > "$CPU_THREADS_CSV"
+: > "$RUN_LOG"
+RUN_STARTED=1
+
+if [ ! -t 1 ]; then
+  LIVE_VIEW=0
+fi
+
+require_cmd stress-ng
+require_cmd amdgpu_top
+require_cmd jq
+require_cmd powerprofilesctl
+require_cmd sensors
+sensors >/dev/null 2>&1 || die "sensors failed"
+find_amdgpu_hwmon || die "amdgpu hwmon node not found"
+find_gpu_busy_path || die "gpu_busy_percent node not found"
+
+if [ "$MODE" != "cpu" ] && [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+  die "GPU stress requires an active graphical session"
+fi
+
+amdgpu_top --json -n 1 -s 200 --apu >/dev/null 2>>"$RUN_LOG" || die "amdgpu_top JSON probe failed"
+
+POWER_PROFILE_BEFORE="$(read_power_profile)"
+ACTIVE_POWER_PROFILE="$POWER_PROFILE_BEFORE"
+POWER_RESTORE_PROFILE="$POWER_PROFILE_BEFORE"
+RYZENADJ_BEFORE="$(read_ryzenadj_status)"
+ACTIVE_RYZENADJ_PROFILE="$RYZENADJ_BEFORE"
+case "$RYZENADJ_BEFORE" in
+  performance|balanced|power-saver)
+    RYZENADJ_RESTORE_PROFILE="$RYZENADJ_BEFORE"
+    ;;
+  *)
+    RYZENADJ_RESTORE_PROFILE=""
+    ;;
+esac
+CPU_GOVERNOR_BEFORE="$(read_cpu_governor)"
+ACTIVE_CPU_GOVERNOR="$CPU_GOVERNOR_BEFORE"
+CPU_GOVERNOR_AFTER="$CPU_GOVERNOR_BEFORE"
+POWER_PROFILE_AFTER="$POWER_PROFILE_BEFORE"
+RYZENADJ_AFTER="$RYZENADJ_BEFORE"
+
+log "run_id=${RUN_ID} mode=${MODE} duration_minutes=${DURATION_MINUTES} output_root=${OUTPUT_ROOT}"
+log "baseline power_profile=${POWER_PROFILE_BEFORE} ryzenadj=${RYZENADJ_BEFORE} cpu_governor=${CPU_GOVERNOR_BEFORE}"
+record_event "run" "start" "mode=${MODE} output_root=${OUTPUT_ROOT}"
+
+apply_performance_settings
+
+case "$MODE" in
+  sequential)
+    run_phase "cpu" "$CPU_PHASE_SECONDS" 1 0
+    if [ "$FINAL_STATUS" = "PASS" ]; then
+      run_phase "gpu" "$GPU_PHASE_SECONDS" 0 1
+    fi
+    ;;
+  concurrent)
+    run_phase "concurrent" "$CONCURRENT_SECONDS" 1 1
+    ;;
+  cpu)
+    run_phase "cpu" "$CPU_PHASE_SECONDS" 1 0
+    ;;
+  gpu)
+    run_phase "gpu" "$GPU_PHASE_SECONDS" 0 1
+    ;;
+esac
+
+if [ "$FINAL_STATUS" = "PASS" ]; then
+  STOP_REASON="completed"
+  record_event "run" "end" "status=ok"
+  printf 'Run completed: %s\nOutput: %s\n' "$RUN_ID" "$OUTPUT_ROOT"
+  exit 0
+fi
+
+record_event "run" "end" "status=fail reason=${STOP_REASON}"
+printf 'Run failed: %s (%s)\nOutput: %s\n' "$RUN_ID" "$STOP_REASON" "$OUTPUT_ROOT" >&2
+exit 1

@@ -114,36 +114,62 @@ in
       set -euo pipefail
 
       PROFILE="''${1:-}"
+      STATE_DIR="/var/lib/ryzenadj-profile"
+      STATE_FILE="$STATE_DIR/current"
 
       usage() {
-        echo "Usage: ryzenadj-profile [performance|balanced|power-saver]" >&2
+        echo "Usage: ryzenadj-profile [status|performance|balanced|power-saver]" >&2
+      }
+
+      write_state() {
+        mkdir -p "$STATE_DIR" 2>/dev/null || true
+        printf '%s\n' "$1" > "$STATE_FILE" 2>/dev/null || true
       }
 
       case "$PROFILE" in
+        status)
+          if [ -r "$STATE_FILE" ]; then
+            current="$(tr -d '[:space:]' < "$STATE_FILE" 2>/dev/null || true)"
+            case "$current" in
+              performance|balanced|power-saver|custom|unknown)
+                printf '%s\n' "$current"
+                ;;
+              *)
+                printf '%s\n' "custom"
+                ;;
+            esac
+          else
+            printf '%s\n' "unknown"
+          fi
+          ;;
+
         performance)
-          exec /run/current-system/sw/bin/ryzenadj \
+          /run/current-system/sw/bin/ryzenadj \
             --stapm-limit=54000 \
             --fast-limit=54000 \
             --slow-limit=54000 \
             --tctl-temp=95 \
             --vrm-current=70000 \
             --vrmmax-current=90000
+          write_state "performance"
           ;;
 
         balanced)
-          exec /run/current-system/sw/bin/ryzenadj \
+          /run/current-system/sw/bin/ryzenadj \
             --stapm-limit=28000 \
             --fast-limit=28000 \
             --slow-limit=28000 \
             --tctl-temp=85
+          write_state "balanced"
           ;;
 
         power-saver)
-          exec /run/current-system/sw/bin/ryzenadj \
+          /run/current-system/sw/bin/ryzenadj \
             --stapm-limit=15000 \
             --fast-limit=15000 \
             --slow-limit=15000 \
             --tctl-temp=75
+          write_state "power-saver"
           ;;
 
         *)
