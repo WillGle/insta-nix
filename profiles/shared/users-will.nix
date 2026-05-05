@@ -121,16 +121,21 @@ in
 
       case "$PROFILE" in
         performance)
+          # Disable scheduler autogroup for better throughput (desktop interactivity tradeoff accepted)
+          echo 0 > /proc/sys/kernel/sched_autogroup_enabled || true
           exec /run/current-system/sw/bin/ryzenadj \
-            --stapm-limit=54000 \
-            --fast-limit=54000 \
-            --slow-limit=54000 \
+            --stapm-limit=56000 \
+            --fast-limit=72000 \
+            --slow-limit=67000 \
             --tctl-temp=95 \
-            --vrm-current=70000 \
-            --vrmmax-current=90000
+            --apu-skin-temp=43 \
+            --vrm-current=85000 \
+            --vrmmax-current=105000 \
+            --max-performance
           ;;
 
         balanced)
+          echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
           exec /run/current-system/sw/bin/ryzenadj \
             --stapm-limit=28000 \
             --fast-limit=28000 \
@@ -139,6 +144,7 @@ in
           ;;
 
         power-saver)
+          echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
           exec /run/current-system/sw/bin/ryzenadj \
             --stapm-limit=15000 \
             --fast-limit=15000 \
