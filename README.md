@@ -59,7 +59,6 @@ Shared app entrypoints:
 
 Host-specific app entrypoints for `Think14GRyzen`:
 
-- `apu-stress-test`: terminal CPU/GPU stress runner with live telemetry and CSV export
 - `rofi-network`: interactive network menu using `nmcli`
 - `rofi-screen-time`: rofi dashboard for app usage stats
 - `rofi-study-timer`: rofi UI for building and launching study sessions
@@ -124,7 +123,6 @@ That guide covers:
 ## Documentation Map
 
 - [`docs/README.md`](./docs/README.md): index for tracked documentation
-- [`docs/guides/APU_STRESS_TEST.md`](./docs/guides/APU_STRESS_TEST.md): host-local CPU/GPU stress and telemetry workflow
 - [`docs/guides/HOST_ONBOARDING.md`](./docs/guides/HOST_ONBOARDING.md): add a new host
 - [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md): remote install workflow
 - [`docs/guides/AMD_PERF_SUITE.md`](./docs/guides/AMD_PERF_SUITE.md): optional AMD performance workflow

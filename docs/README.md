@@ -9,7 +9,6 @@ Tracked documentation lives in this directory tree. Local-only operational notes
 
 ## Specialized Guides
 
-- [`guides/APU_STRESS_TEST.md`](./guides/APU_STRESS_TEST.md): use this when running the host-local CPU/GPU stress tool with CSV export.
 - [`guides/AMD_PERF_SUITE.md`](./guides/AMD_PERF_SUITE.md): use this when you need the optional AMD performance test workflow.
 - [`guides/LOCAL_LLM.md`](./guides/LOCAL_LLM.md): use this when running local LLM tools on `Think14GRyzen`.
 - [`ROFI_UTILITIES.md`](./ROFI_UTILITIES.md): use this for Study Timer and Screen Time dashboard documentation.

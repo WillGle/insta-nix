@@ -263,21 +263,27 @@
       fastfetch
       fd
       gawk
+      glmark2
       htop
       imagemagick
       jq
       matugen
       lm_sensors
+      phoronix-test-suite
       linuxPackages.cpupower
       nvtopPackages.amd
       p7zip
       poppler-utils
       ripgrep
       ryzen-monitor-ng
+      s-tui
       pkgsUnstable.lmstudio
       pkgsUnstable.ollama-vulkan
+      stressapptest
+      sysbench
       vulkan-tools
       vulkan-caps-viewer
+      vkmark
       clinfo
       amdgpu_top
       radeontop
@@ -344,7 +350,6 @@
       davinci-resolve
 
       # System GUI apps
-      gnome-console
       gnome-disk-utility
       mission-center
       nautilus
