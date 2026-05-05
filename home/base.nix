@@ -11,6 +11,9 @@
     username = "will";
     homeDirectory = "/home/will";
     stateVersion = "25.11";
+    sessionVariables = {
+      TERMINAL = "foot";
+    };
 
     packages = with pkgs; [
       # Apps moved to system modules for stability.
@@ -190,6 +193,11 @@
       enable = true;
       systemd.enable = false;
     };
+  };
+
+  dconf.settings."org/gnome/desktop/default-applications/terminal" = {
+    exec = "foot";
+    "exec-arg" = "-e";
   };
 
   xdg = {
