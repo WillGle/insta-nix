@@ -76,11 +76,11 @@ humanize_class() {
 humanize_metric() {
   local key="$1"
   case "$key" in
-    browser_ambiguity_ratio) printf "Browser Ambiguity\n" ;;
-    unknown_share)          printf "Unknown Apps\n" ;;
-    switch_rate)            printf "Switch Rate\n" ;;
-    focus_score)            printf "Focus Score\n" ;;
-    fragmentation_score)    printf "Fragmentation\n" ;;
+    browser_ambiguity_ratio) printf "Browser Time Unclear\n" ;;
+    unknown_share)          printf "Unsorted Apps\n" ;;
+    switch_rate)            printf "App Switching\n" ;;
+    focus_score)            printf "Focus\n" ;;
+    fragmentation_score)    printf "Interruptions\n" ;;
     *) humanize_class "$key" ;;
   esac
 }
