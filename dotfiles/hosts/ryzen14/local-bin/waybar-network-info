@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 export PATH="$PATH:/run/current-system/sw/bin"
+
+escape_markup() {
+  printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+}
 
 wifi_iface() {
   nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" { print $1; exit }'
@@ -36,7 +41,9 @@ band_label() {
     return
   fi
 
-  if [ "$freq" -ge 5000 ]; then
+  if [ "$freq" -ge 5925 ]; then
+    printf '6 GHz'
+  elif [ "$freq" -ge 5000 ]; then
     printf '5 GHz'
   else
     printf '2.4 GHz'
@@ -52,11 +59,52 @@ security_label() {
   fi
 }
 
-active_wifi_line() {
+active_wifi_connection() {
   local iface="$1"
-  nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+  nmcli -t -f NAME,UUID,TYPE,DEVICE connection show --active \
     | sed 's/\\:/\x01/g' \
-    | awk -F: '$1 == "yes" { print; exit }'
+    | awk -F: -v target="$iface" '$3 == "802-11-wireless" && $4 == target {
+        gsub(/\x01/, ":", $1); gsub(/\x01/, ":", $4);
+        print $1 "\t" $2 "\t" $4; exit
+      }'
+}
+
+active_wifi_ap_line() {
+  local iface="$1"
+  local target_ssid="${2:-}"
+  local masked_ssid="${target_ssid//:/$'\x01'}"
+  local ap_line=""
+
+  ap_line="$(nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | sed 's/\\:/\x01/g' \
+    | awk -F: '$1 == "*" { print; exit }')"
+
+  if [ -n "$ap_line" ]; then
+    printf '%s\n' "$ap_line"
+    return 0
+  fi
+
+  [ -n "$masked_ssid" ] || return 0
+
+  nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | sed 's/\\:/\x01/g' \
+    | awk -F: -v target="$masked_ssid" '$2 == target { print; exit }'
+}
+
+connection_ssid() {
+  local uuid="$1"
+  local name="${2:-}"
+  local ssid=""
+
+  if [ -n "$uuid" ]; then
+    ssid="$(nmcli -g 802-11-wireless.ssid connection show "$uuid" 2>/dev/null | sed -n '1p' || true)"
+  fi
+
+  if [ -n "$ssid" ]; then
+    printf '%s' "$ssid"
+  elif [ -n "$name" ]; then
+    printf '%s' "$name"
+  fi
 }
 
 current_ip() {
@@ -98,30 +146,54 @@ emit_json() {
 }
 
 main() {
-  local iface ethernet_line active ssid signal security freq ip gateway dns tooltip
-
-  iface="$(wifi_iface)"
-  ethernet_line="$(active_ethernet)"
-  active=""
-
-  if [ -n "$iface" ] && wifi_enabled; then
-    active="$(active_wifi_line "$iface")"
-  fi
-
+  local iface ethernet_line wifi_conn wifi_name wifi_uuid wifi_device wifi_ssid wifi_ap
+  local ssid signal security freq ip gateway dns tooltip
   local ACCENT="#58a6ff"
   local SEP="<span alpha='30%'>──────────────────────────</span>"
   local title="NETWORK"
+  local escaped_ssid escaped_security escaped_ethernet_name escaped_ethernet_device
+
+  iface="$(wifi_iface)"
+  ethernet_line="$(active_ethernet)"
+  wifi_conn=""
+  wifi_name=""
+  wifi_uuid=""
+  wifi_device=""
+  wifi_ssid=""
+  wifi_ap=""
+
+  if [ -n "$iface" ]; then
+    wifi_conn="$(active_wifi_connection "$iface")"
+    if [ -n "$wifi_conn" ]; then
+      IFS=$'\t' read -r wifi_name wifi_uuid wifi_device <<< "$wifi_conn"
+      wifi_ssid="$(connection_ssid "$wifi_uuid" "$wifi_name")"
+      wifi_ap="$(active_wifi_ap_line "$iface" "$wifi_ssid")"
+    fi
+  fi
+
+  ssid="$wifi_ssid"
+  signal=""
+  security=""
+  freq=""
+
+  if [ -n "$wifi_ap" ]; then
+    IFS=: read -r _in_use ssid signal security freq _bssid <<< "$wifi_ap"
+    ssid="${ssid//$'\x01'/:}"
+    security="${security//$'\x01'/:}"
+  fi
 
   if [ -n "$ethernet_line" ]; then
     IFS=$'\t' read -r ethernet_name ethernet_device <<< "$ethernet_line"
     ip="$(current_ip "$ethernet_device")"
     gateway="$(current_gateway "$ethernet_device")"
     dns="$(current_dns "$ethernet_device")"
+    escaped_ethernet_name="$(escape_markup "${ethernet_name:-Connected}")"
+    escaped_ethernet_device="$(escape_markup "${ethernet_device:-Unknown}")"
 
     tooltip="<b><span foreground='$ACCENT'>$title (ETHERNET)</span></b>
 $SEP
-<tt>SSID/Name:   ${ethernet_name:-Connected}
-Device:      ${ethernet_device:-Unknown}
+<tt>SSID/Name:   $escaped_ethernet_name
+Device:      $escaped_ethernet_device
 Status:      Connected</tt>
 
 <b><span foreground='$ACCENT'>CONNECTIVITY</span></b>
@@ -130,48 +202,63 @@ $SEP
 Gateway:     ${gateway:-Unavailable}
 DNS:         ${dns:-None}</tt>"
 
-    if [ -n "$active" ]; then
-      IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
-      ssid="${ssid//$'\x01'/:}"
-      security="${security//$'\x01'/:}"
+    if [ -n "$wifi_conn" ]; then
+      escaped_ssid="$(escape_markup "${ssid:-<hidden>}")"
       tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>WI-FI (STANDBY)</span></b>
 $SEP
-<tt>SSID:        ${ssid:-<hidden>}
-Signal:      ${signal:-0}% ($(signal_icon "$signal"))
+<tt>SSID:        $escaped_ssid"
+      if [ -n "$wifi_ap" ]; then
+        tooltip+=$'\n'"Signal:      ${signal:-0}% ($(signal_icon "$signal"))
 Band:        $(band_label "$freq")</tt>"
+      else
+        tooltip+=$'\n'"Status:      Connected
+Signal:      Unavailable
+Band:        ?
+Security:    Unavailable</tt>"
+      fi
     fi
     tooltip+=$'\n\n<span size="small" alpha="50%">Click: Network menu</span>'
     emit_json "󰈀" "$tooltip" "ethernet"
     exit 0
   fi
 
-  if [ -n "$active" ]; then
-    IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
-    ssid="${ssid//$'\x01'/:}"
-    security="${security//$'\x01'/:}"
+  if [ -n "$wifi_conn" ]; then
     ip="$(current_ip "$iface")"
     gateway="$(current_gateway "$iface")"
     dns="$(current_dns "$iface")"
+    escaped_ssid="$(escape_markup "${ssid:-<hidden>}")"
+    escaped_security="$(escape_markup "$(security_label "$security")")"
 
     tooltip="<b><span foreground='$ACCENT'>$title (WI-FI)</span></b>
 $SEP
-<tt>SSID:        ${ssid:-<hidden>}
-Signal:      ${signal:-0}% ($(signal_icon "$signal"))
+<tt>SSID:        $escaped_ssid"
+    if [ -n "$wifi_ap" ]; then
+      tooltip+=$'\n'"Signal:      ${signal:-0}% ($(signal_icon "$signal"))
 Band:        $(band_label "$freq")
-Security:    $(security_label "$security")</tt>
+Security:    $escaped_security</tt>"
+    else
+      tooltip+=$'\n'"Status:      Connected
+Signal:      Unavailable
+Band:        ?
+Security:    Unavailable</tt>"
+    fi
 
-<b><span foreground='$ACCENT'>CONNECTIVITY</span></b>
+    tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>CONNECTIVITY</span></b>
 $SEP
 <tt>IP:          ${ip:-Unavailable}
 Gateway:     ${gateway:-Unavailable}
 DNS:         ${dns:-None}</tt>"
 
     tooltip+=$'\n\n<span size="small" alpha="50%">Click: Network menu</span>'
-    emit_json "$(signal_icon "$signal")" "$tooltip" "connected"
+    if [ -n "$wifi_ap" ]; then
+      emit_json "$(signal_icon "$signal")" "$tooltip" "connected"
+    else
+      emit_json "󰖩" "$tooltip" "connected"
+    fi
     exit 0
   fi
 
-  if [ -n "$iface" ] && ! wifi_enabled; then
+  if [ -n "$iface" ] && [ -z "$wifi_conn" ] && ! wifi_enabled; then
     emit_json "󰖪" $'<b>Network</b>\nWi-Fi disabled\n\nClick: open network menu' "disabled"
     exit 0
   fi

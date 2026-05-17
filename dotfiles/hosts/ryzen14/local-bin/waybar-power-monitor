@@ -6,9 +6,15 @@ export LC_ALL=C
 
 MODE="${1:-pwr}"
 WARN_DIR="${XDG_RUNTIME_DIR:-/tmp}/waybar-power-monitor"
+STATE_DIR="$WARN_DIR/state"
+CPU_STAT_FILE="$STATE_DIR/cpu.stat"
 BAT_DIR=""
 AMDGPU_HWMON=""
 GPU_BUSY_PATH=""
+CPU_FREQ_AVG="0.00"
+CPU_FREQ_CORES="Unavailable"
+CPU_FREQ_PEAK_CORE="C0"
+CPU_FREQ_PEAK_GHZ="0.00"
 
 # --- Icons (Nerd Font Hex) ---
 ICON_CPU=$(printf "\uf2db")
@@ -65,6 +71,17 @@ warn_once() {
 clear_warn() {
     local key="$1"
     rm -f "$WARN_DIR/$key" 2>/dev/null || true
+}
+
+is_uint() {
+    case "$1" in
+        ''|*[!0-9]*)
+            return 1
+            ;;
+        *)
+            return 0
+            ;;
+    esac
 }
 
 detect_battery_dir() {
@@ -228,23 +245,67 @@ detect_gpu_busy_path() {
     return 1
 }
 
-get_gpu_power_uw() {
-    if detect_amdgpu_hwmon; then
-        if [ -r "$AMDGPU_HWMON/power1_input" ]; then
-            clear_warn "gpu_power"
-            cat "$AMDGPU_HWMON/power1_input" 2>/dev/null || echo 0
+ac_online() {
+    local d type online
+
+    for d in /sys/class/power_supply/*; do
+        [ -d "$d" ] || continue
+        type="$(cat "$d/type" 2>/dev/null || true)"
+        [ "$type" = "Mains" ] || continue
+        online="$(cat "$d/online" 2>/dev/null || echo 0)"
+        if [ "$online" = "1" ]; then
+            echo 1
             return 0
         fi
+    done
 
-        if [ -r "$AMDGPU_HWMON/power1_average" ]; then
-            clear_warn "gpu_power"
-            cat "$AMDGPU_HWMON/power1_average" 2>/dev/null || echo 0
+    echo 0
+}
+
+get_ppt_input_uw() {
+    if detect_amdgpu_hwmon; then
+        if [ -r "$AMDGPU_HWMON/power1_input" ]; then
+            clear_warn "ppt_input"
+            cat "$AMDGPU_HWMON/power1_input" 2>/dev/null || echo 0
             return 0
         fi
     fi
 
-    warn_once "gpu_power" "missing amdgpu power node: power1_input/power1_average"
+    warn_once "ppt_input" "missing amdgpu PPT node: power1_input"
     echo 0
+}
+
+get_ppt_average_uw() {
+    if detect_amdgpu_hwmon; then
+        if [ -r "$AMDGPU_HWMON/power1_average" ]; then
+            clear_warn "ppt_average"
+            cat "$AMDGPU_HWMON/power1_average" 2>/dev/null || echo 0
+            return 0
+        fi
+
+        if [ -r "$AMDGPU_HWMON/power1_input" ]; then
+            clear_warn "ppt_average"
+            cat "$AMDGPU_HWMON/power1_input" 2>/dev/null || echo 0
+            return 0
+        fi
+    fi
+
+    warn_once "ppt_average" "missing amdgpu PPT node: power1_average/power1_input"
+    echo 0
+}
+
+get_ppt_label() {
+    local label
+
+    if detect_amdgpu_hwmon && [ -r "$AMDGPU_HWMON/power1_label" ]; then
+        label="$(cat "$AMDGPU_HWMON/power1_label" 2>/dev/null || true)"
+        if [ -n "$label" ]; then
+            echo "$label"
+            return 0
+        fi
+    fi
+
+    echo "PPT"
 }
 
 warning_count() {
@@ -282,23 +343,114 @@ get_temp() {
     echo 0
 }
 
-get_cpu_usage() {
-    # Calculate CPU usage over a short interval (0.1s)
-    # Read 1
-    read -r cpu a b c d e f g _ < /proc/stat
-    prev_idle=$e
-    prev_total=$((a+b+c+d+e+f+g))
-    sleep 0.1
-    # Read 2
-    read -r cpu a b c d e f g _ < /proc/stat
-    idle=$e
-    total=$((a+b+c+d+e+f+g))
-    
-    diff_idle=$((idle - prev_idle))
+read_cpu_stat_sample() {
+    local cpu user nice system idle iowait irq softirq steal guest guest_nice
+
+    read -r cpu user nice system idle iowait irq softirq steal guest guest_nice < /proc/stat || return 1
+
+    if ! is_uint "$user" || ! is_uint "$nice" || ! is_uint "$system" || ! is_uint "$idle" || \
+       ! is_uint "$iowait" || ! is_uint "$irq" || ! is_uint "$softirq" || ! is_uint "$steal"; then
+        return 1
+    fi
+
+    idle=$((idle + iowait))
+    printf '%s %s\n' "$((user + nice + system + idle + irq + softirq + steal))" "$idle"
+}
+
+calc_cpu_usage_from_samples() {
+    local prev_total="$1"
+    local prev_idle="$2"
+    local total="$3"
+    local idle="$4"
+    local diff_total diff_idle usage
+
     diff_total=$((total - prev_total))
-    
-    if [ "$diff_total" -eq 0 ]; then echo 0; else
-        echo $((100 * (diff_total - diff_idle) / diff_total))
+    diff_idle=$((idle - prev_idle))
+    usage=0
+
+    if [ "$diff_total" -gt 0 ]; then
+        usage=$((100 * (diff_total - diff_idle) / diff_total))
+    fi
+
+    if [ "$usage" -lt 0 ]; then
+        usage=0
+    elif [ "$usage" -gt 100 ]; then
+        usage=100
+    fi
+
+    echo "$usage"
+}
+
+get_cpu_usage() {
+    local sample total idle prev_total prev_idle next_total next_idle usage
+
+    mkdir -p "$STATE_DIR"
+
+    sample="$(read_cpu_stat_sample 2>/dev/null)" || {
+        echo 0
+        return
+    }
+    read -r total idle <<< "$sample"
+
+    if [ -r "$CPU_STAT_FILE" ] && read -r prev_total prev_idle < "$CPU_STAT_FILE" 2>/dev/null && \
+       is_uint "$prev_total" && is_uint "$prev_idle"; then
+        usage="$(calc_cpu_usage_from_samples "$prev_total" "$prev_idle" "$total" "$idle")"
+    else
+        sleep 0.1
+        sample="$(read_cpu_stat_sample 2>/dev/null)" || {
+            printf '%s %s\n' "$total" "$idle" > "$CPU_STAT_FILE"
+            echo 0
+            return
+        }
+        read -r next_total next_idle <<< "$sample"
+        usage="$(calc_cpu_usage_from_samples "$total" "$idle" "$next_total" "$next_idle")"
+        total="$next_total"
+        idle="$next_idle"
+    fi
+
+    printf '%s %s\n' "$total" "$idle" > "$CPU_STAT_FILE"
+    echo "$usage"
+}
+
+get_cpu_freq_data() {
+    local cpu_path cpu_name cpu_idx khz avg_sum avg_count peak_khz peak_idx core_line
+
+    CPU_FREQ_AVG="0.00"
+    CPU_FREQ_CORES="Unavailable"
+    CPU_FREQ_PEAK_CORE="C0"
+    CPU_FREQ_PEAK_GHZ="0.00"
+    avg_sum=0
+    avg_count=0
+    peak_khz=0
+    peak_idx=0
+    core_line=""
+
+    while IFS= read -r cpu_path; do
+        [ -r "$cpu_path" ] || continue
+
+        khz="$(cat "$cpu_path" 2>/dev/null || echo 0)"
+        if ! is_uint "$khz"; then
+            khz=0
+        fi
+
+        cpu_name="${cpu_path%/cpufreq/scaling_cur_freq}"
+        cpu_name="${cpu_name##*/}"
+        cpu_idx="${cpu_name#cpu}"
+        core_line+="C${cpu_idx} $(awk -v khz="$khz" 'BEGIN{printf "%.2f", khz/1000000}') "
+        avg_sum=$((avg_sum + khz))
+        avg_count=$((avg_count + 1))
+
+        if [ "$khz" -gt "$peak_khz" ]; then
+            peak_khz="$khz"
+            peak_idx="$cpu_idx"
+        fi
+    done < <(printf '%s\n' /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq | sort -V)
+
+    if [ "$avg_count" -gt 0 ]; then
+        CPU_FREQ_AVG="$(awk -v sum="$avg_sum" -v count="$avg_count" 'BEGIN{printf "%.2f", sum/count/1000000}')"
+        CPU_FREQ_CORES="${core_line% }"
+        CPU_FREQ_PEAK_CORE="C${peak_idx}"
+        CPU_FREQ_PEAK_GHZ="$(awk -v khz="$peak_khz" 'BEGIN{printf "%.2f", khz/1000000}')"
     fi
 }
 
@@ -308,11 +460,6 @@ get_gpu_usage() {
     else
         echo 0
     fi
-}
-
-get_cpu_freq() {
-    # Average current frequency of all cores in GHz
-    awk '{sum+=$1} END {printf "%.1f", sum/NR/1000000}' /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
 }
 
 get_gpu_freq() {
@@ -356,6 +503,7 @@ volt_uv=$(battery_num "voltage_now")
 volt_v=$(awk -v uv="${volt_uv:-0}" "BEGIN{printf \"%.2f\", uv/1000000}")
 cap=$(battery_num "capacity")
 stat=$(battery_text "status" "Unknown")
+ac_is_online=$(ac_online)
 
 # Battery Time Estimation
 time_str=""
@@ -402,17 +550,20 @@ else
     health_text="N/A"
 fi
 
-# GPU Power & Temp
+# PPT Power & GPU Temp
 gpu_temp_raw=$(get_temp "amdgpu")
-gpu_uw=$(get_gpu_power_uw)
-gpu_w=$(awk -v uw="${gpu_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
+ppt_label=$(get_ppt_label)
+ppt_input_uw=$(get_ppt_input_uw)
+ppt_avg_uw=$(get_ppt_average_uw)
+ppt_now_w=$(awk -v uw="${ppt_input_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
+ppt_avg_w=$(awk -v uw="${ppt_avg_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
 
 cpu_temp_raw=$(get_temp "k10temp")
-cpu_w=$(awk -v sw="${sys_w:-0}" -v gw="${gpu_w:-0}" -v stat="$stat" 'BEGIN{
+cpu_w=$(awk -v sw="${sys_w:-0}" -v pw="${ppt_avg_w:-0}" -v stat="$stat" 'BEGIN{
     if(stat == "Charging" || stat == "Full") {
         print "5.0";
     } else {
-        v=sw-gw; if(v<0) v=0; printf "%.1f", v;
+        v=sw-pw; if(v<0) v=0; printf "%.1f", v;
     }
 }')
 
@@ -439,7 +590,7 @@ fi
 
 case "$MODE" in
     apu) # Formerly GPU
-        # APU Metrics: Power (Pkg), Temp (CPU & GPU), Usage, Freq
+        # APU Metrics: PPT power, thermals, CPU usage, CPU/GPU clocks
         t_gpu_raw=$(get_temp "amdgpu")
         t_cpu_raw=$(get_temp "k10temp")
         
@@ -447,10 +598,12 @@ case "$MODE" in
         t_cpu=$(awk -v tr="${t_cpu_raw:-0}" "BEGIN{printf \"%.0f\", tr/1000}")
         
         # Usage & Freq
-        # Note: calling usage functions first as they might sleep
         cpu_util=$(get_cpu_usage)
         gpu_util=$(get_gpu_usage)
-        cpu_freq=$(get_cpu_freq)
+        get_cpu_freq_data
+        cpu_freq="$CPU_FREQ_AVG"
+        cpu_peak_core="$CPU_FREQ_PEAK_CORE"
+        cpu_peak_freq="$CPU_FREQ_PEAK_GHZ"
         gpu_freq=$(get_gpu_freq)
 
         # Classes
@@ -459,14 +612,16 @@ case "$MODE" in
         elif [ "$t_cpu" -ge 70 ] || [ "$t_gpu" -ge 70 ]; then t_cls="hot";
         fi
         
-        # Format: [Chip] [CPU°] [GPU_Icon] [GPU°] [APU W]
-        # Tooltip: Usage, Freq, Detailed Power
-        # Format: [Chip Icon] [CPU°] [GPU Icon] [GPU°] [CPU Freq] [APU W]
-        # Tooltip: Usage, Freq, Detailed Power
+        # Format: [GPU Temp] [CPU Temp] [Avg CPU GHz] [CPU Usage] [PPT avg W]
+        # Tooltip: Usage, quick clock summary, thermals, PPT power
         tooltip="<b><span foreground='$ACCENT'>APU (RYZEN 7 8845H)</span></b>
 $SEP
-<tt>CPU:  $(printf "%3d" "$cpu_util")% $(progress_bar "$cpu_util") @ $cpu_freq GHz
+<tt>CPU:  $(printf "%3d" "$cpu_util")% $(progress_bar "$cpu_util") @ $cpu_freq GHz avg
 GPU:  $(printf "%3d" "$gpu_util")% $(progress_bar "$gpu_util") @ $gpu_freq MHz</tt>
+
+<b><span foreground='$ACCENT'>CLOCK</span></b>
+$SEP
+<tt>Peak CPU:   $cpu_peak_core @ $cpu_peak_freq GHz</tt>
 
 <b><span foreground='$ACCENT'>THERMALS</span></b>
 $SEP
@@ -475,12 +630,13 @@ iGPU:       $t_gpu°C</tt>
 
 <b><span foreground='$ACCENT'>POWER</span></b>
 $SEP
-<tt>Package:    $gpu_w W</tt>
+<tt>${ppt_label} avg:    $ppt_avg_w W
+${ppt_label} now:    $ppt_now_w W</tt>
 
 <span size='small' alpha='50%'>$health_msg</span>"
 
-        printf '{"text":" %s°C %s %s°C %sGHz %sW", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
-            "$t_cpu" "$ICON_GPU" "$t_gpu" "$cpu_freq" "$gpu_w" \
+        printf '{"text":"%s %s°C %s %s°C %sGHz %s%% %sW", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
+            "$ICON_GPU" "$t_gpu" "$ICON_CPU" "$t_cpu" "$cpu_freq" "$cpu_util" "$ppt_avg_w" \
             "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
             "$t_cls" "$health_cls"
         ;;
@@ -504,50 +660,64 @@ Power:      $cpu_w W</tt>
     pwr)
         # Power Profile info (for tooltip only)
         profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
+        battery_w_abs=$(awk -v uw="${sys_uw:-0}" 'BEGIN{v=uw/1000000; if(v<0) v=-v; printf "%.1f", v}')
 
-        # Determine Intake vs Consumption vs Battery Flow
         if [ "$stat" = "Discharging" ]; then
-            w_in="0.0"
-            w_out="$sys_w"
-            w_batt=$(awk -v sw="${sys_w:-0}" "BEGIN{printf \"-%.1f\", sw}")
+            source_label="Battery"
+            state_label="Discharging"
+            battery_flow="-${battery_w_abs} W"
+            time_line="Time left:    ${time_str:-N/A}"
+            primary_w="$battery_w_abs"
+            text_label="BAT -${battery_w_abs}W"
+        elif [ "$stat" = "Charging" ]; then
+            source_label="AC"
+            state_label="Charging"
+            battery_flow="+${battery_w_abs} W"
+            time_line="Time to full: ${time_str:-N/A}"
+            primary_w="$battery_w_abs"
+            text_label="BAT +${battery_w_abs}W"
+        elif [ "${ac_is_online:-0}" = "1" ]; then
+            source_label="AC"
+            state_label="$stat"
+            battery_flow="Idle (~0 W)"
+            time_line="Time:         N/A"
+            primary_w="$ppt_avg_w"
+            text_label="AC ${ppt_avg_w}W"
         else
-            w_out=$(awk -v gw="${gpu_w:-0}" "BEGIN{printf \"%.1f\", gw + 5.0}") 
-            if [ "$stat" = "Charging" ]; then
-                w_in=$(awk -v out="${w_out:-0}" -v sw="${sys_w:-0}" "BEGIN{printf \"%.1f\", out + sw}")
-                w_batt=$(awk -v sw="${sys_w:-0}" "BEGIN{printf \"+%.1f\", sw}")
-            elif [ "$stat" = "Full" ]; then
-                 w_in="$w_out"
-                 w_batt="0.0"
-                 # Ensure we show 100% properly
-                 cap="100"
-            else
-                w_in="$w_out"
-                w_batt="0.0"
-            fi
+            source_label="Battery"
+            state_label="$stat"
+            battery_flow="-${battery_w_abs} W"
+            time_line="Time:         N/A"
+            primary_w="$battery_w_abs"
+            text_label="BAT -${battery_w_abs}W"
         fi
 
-        w_cls=$(awk -v win="${w_in:-0}" "BEGIN{if(win>=80) print \"high\"; else if(win>=40) print \"medium\"; else print \"normal\"}")
-        
-        # Power Flow display: ↓[In]W  ↑[Out]W  [BatIcon] [Cap]%
-  tooltip="<b><span foreground='$ACCENT'>SYSTEM ENERGY FLOW</span></b>
-$SEP
-<tt>Wall Intake:  ${w_in}W
-Consumption:  ${w_out}W
-  └─ APU:     ${gpu_w}W</tt>
+        w_cls=$(awk -v w="${primary_w:-0}" 'BEGIN{if(w>=45) print "high"; else if(w>=25) print "medium"; else print "normal"}')
 
-<b><span foreground='$ACCENT'>BATTERY STATUS</span></b>
+        tooltip="<b><span foreground='$ACCENT'>SYSTEM ENERGY</span></b>
+$SEP
+<tt>Source:        $source_label
+Battery state: $state_label
+Battery flow: $battery_flow</tt>
+
+<b><span foreground='$ACCENT'>PPT</span></b>
+$SEP
+<tt>${ppt_label} avg:    ${ppt_avg_w} W
+${ppt_label} now:    ${ppt_now_w} W</tt>
+
+<b><span foreground='$ACCENT'>BATTERY</span></b>
 $SEP
 <tt>Charge:       $cap% ($stat) $(progress_bar "$cap")
 Health:       $health_text
 Capacity:     $wh_now / $wh_full Wh
-Remaining:    ${time_str:-N/A}
+$time_line
 Voltage:      ${volt_v}V
 Cycles:       $cycles</tt>
 
 <span size='small' alpha='50%'>Profile: $profile · $health_msg</span>"
 
-        printf '{"text":"↓%sW  ↑%sW  %s  %s%%", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s"]}\n' \
-            "$w_in" "$w_out" "$icon" "$cap" \
+        printf '{"text":"%s  %s  %s%%", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s"]}\n' \
+            "$text_label" "$icon" "$cap" \
             "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
             "$w_cls" "$b_cls" "$health_cls"
         ;;

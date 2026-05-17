@@ -4,8 +4,8 @@
   "height": 30,
   "modules-left": [
     "clock#time",
-    "clock#calendar",
     "custom/screen_time",
+    "clock#calendar",
     "custom/power_profile",
     "custom/battery_mode",
     "custom/refresh_rate",
@@ -28,7 +28,6 @@
   "clock#time": {
     "format": " {:%H:%M}",
     "interval": 60,
-    "on-click": "setsid -f $HOME/.local/bin/rofi-study-timer",
     "tooltip-format": "<b><span foreground='#58a6ff'>TIME</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{:%A, %d %B %Y\n%H:%M}</tt>"
   },
   "clock#calendar": {

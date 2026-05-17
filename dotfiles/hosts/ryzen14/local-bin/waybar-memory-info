@@ -8,13 +8,28 @@ export LC_ALL=C
 # missing-glyph/error-icon rendering on some font stacks.
 ICON_MEM="RAM"
 
+escape_markup() {
+  printf '%s' "$1" | sed \
+    -e 's/&/\&amp;/g' \
+    -e 's/</\&lt;/g' \
+    -e 's/>/\&gt;/g'
+}
+
 # Get used/total RAM in GiB with 1 decimal place
 used=$(free -m | awk '/Mem:/ {printf "%.1f", $3/1024}')
 total=$(free -m | awk '/Mem:/ {printf "%.1f", $2/1024}')
+available=$(free -m | awk '/Mem:/ {printf "%.1f", $7/1024}')
 perc=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100.0}')
 
 # Get top 5 processes by memory %
-top_procs=$(ps -eo comm,pmem --sort=-pmem | head -n 6 | tail -n 5 | awk '{printf "%-18s %5.1f%%\n", $1, $2}')
+top_procs="$(
+  ps -eo comm=,pmem= --sort=-pmem | head -n 5 | while read -r proc pmem; do
+    [ -n "${proc:-}" ] || continue
+    proc="$(escape_markup "$proc")"
+    printf '%-18s %5.1f%%\n' "$proc" "${pmem:-0}"
+  done
+)"
+[ -n "$top_procs" ] || top_procs="Unavailable"
 
 # Progress bar helper
 progress_bar() {
@@ -36,7 +51,8 @@ SEP="<span alpha='30%'>───────────────────
 
 tooltip="<b><span foreground='$ACCENT'>MEMORY USAGE</span></b>
 $SEP
-<tt>Total Usage:  $used G / $total G
+<tt>Used:         $used G / $total G
+Available:    $available G
 Status:       $perc% $(progress_bar "$perc")</tt>
 
 <b><span foreground='$ACCENT'>TOP CONSUMERS</span></b>
