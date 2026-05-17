@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 export PATH="$PATH:/run/current-system/sw/bin"
 
 ROFI_COMMON=(
@@ -55,7 +56,9 @@ band_label() {
     return
   fi
 
-  if [ "$freq" -ge 5000 ]; then
+  if [ "$freq" -ge 5925 ]; then
+    printf '6 GHz'
+  elif [ "$freq" -ge 5000 ]; then
     printf '5 GHz'
   else
     printf '2.4 GHz'
@@ -83,11 +86,52 @@ refresh_waybar_network() {
   pkill -RTMIN+"$WAYBAR_NETWORK_SIGNAL" waybar >/dev/null 2>&1 || true
 }
 
-active_wifi_line() {
+active_wifi_connection() {
   local iface="$1"
-  nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+  nmcli -t -f NAME,UUID,TYPE,DEVICE connection show --active \
     | sed 's/\\:/\x01/g' \
-    | awk -F: '$1 == "yes" { print; exit }'
+    | awk -F: -v target="$iface" '$3 == "802-11-wireless" && $4 == target {
+        gsub(/\x01/, ":", $1); gsub(/\x01/, ":", $4);
+        print $1 "\t" $2 "\t" $4; exit
+      }'
+}
+
+active_wifi_ap_line() {
+  local iface="$1"
+  local target_ssid="${2:-}"
+  local masked_ssid="${target_ssid//:/$'\x01'}"
+  local ap_line=""
+
+  ap_line="$(nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | sed 's/\\:/\x01/g' \
+    | awk -F: '$1 == "*" { print; exit }')"
+
+  if [ -n "$ap_line" ]; then
+    printf '%s\n' "$ap_line"
+    return 0
+  fi
+
+  [ -n "$masked_ssid" ] || return 0
+
+  nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+    | sed 's/\\:/\x01/g' \
+    | awk -F: -v target="$masked_ssid" '$2 == target { print; exit }'
+}
+
+connection_ssid() {
+  local uuid="$1"
+  local name="${2:-}"
+  local ssid=""
+
+  if [ -n "$uuid" ]; then
+    ssid="$(nmcli -g 802-11-wireless.ssid connection show "$uuid" 2>/dev/null | sed -n '1p' || true)"
+  fi
+
+  if [ -n "$ssid" ]; then
+    printf '%s' "$ssid"
+  elif [ -n "$name" ]; then
+    printf '%s' "$name"
+  fi
 }
 
 lookup_ap() {
@@ -446,15 +490,37 @@ append_network_info() {
 build_message() {
   local iface="$1"
   local lines=()
-  local ethernet active
+  local ethernet wifi_conn wifi_name wifi_uuid wifi_device wifi_ssid wifi_ap
   local ssid signal security freq
   local ethernet_device=""
 
   ethernet="$(active_ethernet)"
-  active=""
+  wifi_conn=""
+  wifi_name=""
+  wifi_uuid=""
+  wifi_device=""
+  wifi_ssid=""
+  wifi_ap=""
+  ssid=""
+  signal=""
+  security=""
+  freq=""
 
-  if [ -n "$iface" ] && wifi_enabled; then
-    active="$(active_wifi_line "$iface")"
+  if [ -n "$iface" ]; then
+    wifi_conn="$(active_wifi_connection "$iface")"
+    if [ -n "$wifi_conn" ]; then
+      IFS=$'\t' read -r wifi_name wifi_uuid wifi_device <<< "$wifi_conn"
+      wifi_ssid="$(connection_ssid "$wifi_uuid" "$wifi_name")"
+      wifi_ap="$(active_wifi_ap_line "$iface" "$wifi_ssid")"
+    fi
+  fi
+
+  if [ -n "$wifi_ap" ]; then
+    IFS=: read -r _in_use ssid signal security freq _bssid <<< "$wifi_ap"
+    ssid="${ssid//$'\x01'/:}"
+    security="${security//$'\x01'/:}"
+  else
+    ssid="$wifi_ssid"
   fi
 
   if [ -n "$ethernet" ]; then
@@ -462,14 +528,17 @@ build_message() {
     lines+=("Ethernet: $ethernet")
     append_network_info "$ethernet_device"
 
-    if [ -n "$active" ]; then
-      IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
-      ssid="${ssid//$'\x01'/:}"
-      security="${security//$'\x01'/:}"
+    if [ -n "$wifi_conn" ]; then
       lines+=("")
-      lines+=("Wi-Fi: ${ssid:-<hidden>} ($(signal_icon "$signal") ${signal}%, $(band_label "$freq"))")
+      if [ -n "$wifi_ap" ]; then
+        lines+=("Wi-Fi: ${ssid:-<hidden>} ($(signal_icon "$signal") ${signal}%, $(band_label "$freq"))")
+      else
+        lines+=("Wi-Fi: ${ssid:-<hidden>} (connected)")
+      fi
       append_network_info "$iface"
-      lines+=("Security: $(security_label "$security")")
+      if [ -n "$wifi_ap" ]; then
+        lines+=("Security: $(security_label "$security")")
+      fi
     elif [ -n "$iface" ] && ! wifi_enabled; then
       lines+=("Wi-Fi: disabled")
     elif [ -n "$iface" ]; then
@@ -477,13 +546,16 @@ build_message() {
     fi
   elif [ -z "$iface" ]; then
     lines+=("No Wi-Fi adapter detected")
-  elif [ -n "$active" ]; then
-    IFS=: read -r _active ssid signal security freq _bssid <<< "$active"
-    ssid="${ssid//$'\x01'/:}"
-    security="${security//$'\x01'/:}"
-    lines+=("Wi-Fi: ${ssid:-<hidden>} ($(signal_icon "$signal") ${signal}%, $(band_label "$freq"))")
+  elif [ -n "$wifi_conn" ]; then
+    if [ -n "$wifi_ap" ]; then
+      lines+=("Wi-Fi: ${ssid:-<hidden>} ($(signal_icon "$signal") ${signal}%, $(band_label "$freq"))")
+    else
+      lines+=("Wi-Fi: ${ssid:-<hidden>} (connected)")
+    fi
     append_network_info "$iface"
-    lines+=("Security: $(security_label "$security")")
+    if [ -n "$wifi_ap" ]; then
+      lines+=("Security: $(security_label "$security")")
+    fi
   elif wifi_enabled; then
     lines+=("Wi-Fi: enabled, not connected")
   else
@@ -500,8 +572,13 @@ build_message() {
 
 build_menu() {
   local iface="$1"
-  local ethernet
+  local ethernet wifi_conn
   ethernet="$(active_ethernet)"
+  wifi_conn=""
+
+  if [ -n "$iface" ]; then
+    wifi_conn="$(active_wifi_connection "$iface")"
+  fi
 
   printf '󰈀  Connect wired network\n'
   if [ -n "$ethernet" ]; then
@@ -509,12 +586,8 @@ build_menu() {
   fi
   printf '󰖫  Connect new network\n'
 
-  local active=""
-  if [ -n "$iface" ] && wifi_enabled; then
-    active="$(active_wifi_line "$iface")"
-    if [ -n "$active" ]; then
-      printf '󰤭  Disconnect current network\n'
-    fi
+  if [ -n "$wifi_conn" ]; then
+    printf '󰤭  Disconnect current network\n'
   fi
 
   if [ -n "$iface" ] && wifi_enabled; then
