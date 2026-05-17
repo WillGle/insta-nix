@@ -124,13 +124,13 @@ in
           # Disable scheduler autogroup for better throughput (desktop interactivity tradeoff accepted)
           echo 0 > /proc/sys/kernel/sched_autogroup_enabled || true
           exec /run/current-system/sw/bin/ryzenadj \
-            --stapm-limit=56000 \
-            --fast-limit=72000 \
-            --slow-limit=67000 \
-            --tctl-temp=95 \
-            --apu-skin-temp=43 \
-            --vrm-current=85000 \
-            --vrmmax-current=105000 \
+            --stapm-limit=48000 \
+            --fast-limit=64000 \
+            --slow-limit=60000 \
+            --tctl-temp=98 \
+            --apu-skin-temp=45 \
+            --vrm-current=90000 \
+            --vrmmax-current=110000 \
             --max-performance
           ;;
 
