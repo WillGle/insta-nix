@@ -1,4 +1,10 @@
-{ config, osConfig, pkgs, lib, ... }:
+{
+  config,
+  osConfig,
+  pkgs,
+  lib,
+  ...
+}:
 let
   homeDir = config.home.homeDirectory;
   themeGeneratedDir = "${config.xdg.configHome}/theme/generated";
@@ -123,7 +129,10 @@ in
   systemd.user.services.rofi-screen-time-cache = {
     Unit = {
       Description = "Warm the default rofi screen-time popup cache";
-      After = [ "graphical-session.target" "rofi-screen-time-tracker.service" ];
+      After = [
+        "graphical-session.target"
+        "rofi-screen-time-tracker.service"
+      ];
       PartOf = [ "graphical-session.target" ];
     };
     Service = {

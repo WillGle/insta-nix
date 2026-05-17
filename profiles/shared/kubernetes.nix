@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 
 {
   # Enable K3s service
@@ -8,6 +8,9 @@
     # Extra flags for k3s
     extraFlags = "--disable traefik --disable servicelb"; # We can add these back or use better alternatives later
   };
+
+  # Keep k3s available for manual start, but do not start it at boot.
+  systemd.services.k3s.wantedBy = lib.mkForce [ ];
 
   # System packages for Kubernetes
   environment.systemPackages = with pkgs; [
