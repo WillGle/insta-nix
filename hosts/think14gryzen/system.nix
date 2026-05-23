@@ -1,0 +1,914 @@
+{ pkgs, pkgsUnstable, ... }:
+let
+  llmOllamaSessionLib = pkgs.writeShellScript "llm-ollama-session-lib" ''
+    OLLAMA_HOST_ADDR="127.0.0.1"
+    OLLAMA_PORT="11434"
+    OLLAMA_URL="http://''${OLLAMA_HOST_ADDR}:''${OLLAMA_PORT}"
+    OLLAMA_BIN="${pkgsUnstable.ollama-vulkan}/bin/ollama"
+    CURL_BIN="${pkgs.curl}/bin/curl"
+    MKDIR_BIN="${pkgs.coreutils}/bin/mkdir"
+    MKTEMP_BIN="${pkgs.coreutils}/bin/mktemp"
+    CAT_BIN="${pkgs.coreutils}/bin/cat"
+    RM_BIN="${pkgs.coreutils}/bin/rm"
+    SLEEP_BIN="${pkgs.coreutils}/bin/sleep"
+    SETSID_BIN="${pkgs.util-linux}/bin/setsid"
+    SS_BIN="${pkgs.iproute2}/bin/ss"
+    GREP_BIN="${pkgs.gnugrep}/bin/grep"
+
+    llm_ollama_cleanup() {
+      local status=$?
+
+      trap - EXIT INT TERM
+      if [ -n "''${SERVER_PID:-}" ]; then
+        kill -- "-''${SERVER_PID}" 2>/dev/null || kill "''${SERVER_PID}" 2>/dev/null || true
+        wait "''${SERVER_PID}" 2>/dev/null || true
+      fi
+      if [ -n "''${OLLAMA_LOG:-}" ] && [ -f "''${OLLAMA_LOG}" ]; then
+        "''${RM_BIN}" -f "''${OLLAMA_LOG}"
+      fi
+
+      exit "$status"
+    }
+
+    llm_ollama_prepare() {
+      export PATH="${pkgsUnstable.ollama-vulkan}/bin:''${PATH}"
+      export OLLAMA_HOST="''${OLLAMA_HOST_ADDR}:''${OLLAMA_PORT}"
+      export OLLAMA_MODELS="$HOME/.ollama/models"
+      export OLLAMA_VULKAN="1"
+
+      if "''${SS_BIN}" -H -ltn "( sport = :''${OLLAMA_PORT} )" | "''${GREP_BIN}" -q .; then
+        echo "[llm-ollama] port ''${OLLAMA_PORT} is already in use; refusing to attach to an unknown server" >&2
+        return 1
+      fi
+
+      "''${MKDIR_BIN}" -p "''${OLLAMA_MODELS}"
+      OLLAMA_LOG="$("''${MKTEMP_BIN}" -t llm-ollama.XXXXXX.log)"
+      trap llm_ollama_cleanup EXIT INT TERM
+      "''${SETSID_BIN}" "''${OLLAMA_BIN}" serve >"''${OLLAMA_LOG}" 2>&1 &
+      SERVER_PID="$!"
+
+      local attempt=0
+      while [ "$attempt" -lt 50 ]; do
+        if "''${CURL_BIN}" -fsS "''${OLLAMA_URL}/api/version" >/dev/null 2>&1; then
+          return 0
+        fi
+        if ! kill -0 "''${SERVER_PID}" 2>/dev/null; then
+          break
+        fi
+        attempt=$((attempt + 1))
+        "''${SLEEP_BIN}" 0.2
+      done
+
+      echo "[llm-ollama] failed to start temporary ollama server" >&2
+      if [ -f "''${OLLAMA_LOG}" ]; then
+        echo "[llm-ollama] startup log:" >&2
+        "''${CAT_BIN}" "''${OLLAMA_LOG}" >&2
+      fi
+      return 1
+    }
+  '';
+
+  hostToolPackages = [
+    (pkgs.writeShellScriptBin "ryzenadj-profile" ''
+      set -euo pipefail
+
+      PROFILE="''${1:-}"
+
+      usage() {
+        echo "Usage: ryzenadj-profile [performance|balanced|power-saver]" >&2
+      }
+
+      case "$PROFILE" in
+        performance)
+          # Disable scheduler autogroup for better throughput (desktop interactivity tradeoff accepted)
+          echo 0 > /proc/sys/kernel/sched_autogroup_enabled || true
+          exec /run/current-system/sw/bin/ryzenadj \
+            --stapm-limit=48000 \
+            --fast-limit=64000 \
+            --slow-limit=60000 \
+            --tctl-temp=98 \
+            --apu-skin-temp=45 \
+            --vrm-current=90000 \
+            --vrmmax-current=110000 \
+            --max-performance
+          ;;
+
+        balanced)
+          echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
+          exec /run/current-system/sw/bin/ryzenadj \
+            --stapm-limit=28000 \
+            --fast-limit=28000 \
+            --slow-limit=28000 \
+            --tctl-temp=85
+          ;;
+
+        power-saver)
+          echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
+          exec /run/current-system/sw/bin/ryzenadj \
+            --stapm-limit=15000 \
+            --fast-limit=15000 \
+            --slow-limit=15000 \
+            --tctl-temp=75
+          ;;
+
+        *)
+          usage
+          exit 2
+          ;;
+      esac
+    '')
+
+    (pkgs.writeShellScriptBin "toggle-battery-reserve" ''
+      set -euo pipefail
+
+      CMD="''${1:-toggle}"
+      WAIT_SECONDS=0
+      NODE_GLOB="/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode"
+      NODE=""
+
+      if [ "$#" -gt 0 ]; then
+        shift
+      fi
+
+      usage() {
+        echo "Usage: toggle-battery-reserve [status|on|off|toggle] [--wait SECONDS]" >&2
+      }
+
+      log() {
+        echo "[toggle-battery-reserve] $*" >&2
+      }
+
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --wait)
+            if [ "$#" -lt 2 ]; then
+              usage
+              exit 2
+            fi
+            WAIT_SECONDS="$2"
+            shift 2
+            ;;
+          -h|--help)
+            usage
+            exit 0
+            ;;
+          *)
+            usage
+            exit 2
+            ;;
+        esac
+      done
+
+      if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
+        log "invalid --wait value: $WAIT_SECONDS"
+        exit 2
+      fi
+
+      find_node_once() {
+        local candidate
+        for candidate in $NODE_GLOB; do
+          if [ -f "$candidate" ]; then
+            printf "%s\n" "$candidate"
+            return 0
+          fi
+        done
+        return 1
+      }
+
+      resolve_node() {
+        if [ -n "$NODE" ] && [ -f "$NODE" ]; then
+          printf "%s\n" "$NODE"
+          return 0
+        fi
+
+        local deadline now candidate
+        deadline=$(( $(date +%s) + WAIT_SECONDS ))
+
+        while :; do
+          if candidate="$(find_node_once)"; then
+            NODE="$candidate"
+            printf "%s\n" "$NODE"
+            return 0
+          fi
+
+          now=$(date +%s)
+          if [ "$now" -ge "$deadline" ]; then
+            log "conservation_mode node not found (searched $NODE_GLOB)"
+            return 1
+          fi
+          sleep 1
+        done
+      }
+
+      read_state_raw() {
+        local node state
+
+        if ! node="$(resolve_node)"; then
+          return 1
+        elif ! state="$(cat "$node" 2>/dev/null)"; then
+          log "failed to read $node"
+          return 1
+        fi
+
+        case "$state" in
+          0|1) printf "%s\n" "$state" ;;
+          *)
+            log "unexpected value '$state' in $node"
+            return 1
+            ;;
+        esac
+      }
+
+      write_state_raw() {
+        local target="$1"
+        local node
+
+        if ! node="$(resolve_node)"; then
+          return 1
+        fi
+
+        if ! printf "%s" "$target" > "$node" 2>/dev/null; then
+          log "failed to write $target to $node"
+          return 1
+        fi
+      }
+
+      print_state_word() {
+        local raw="$1"
+        case "$raw" in
+          1) echo "on" ;;
+          0) echo "off" ;;
+          *) echo "unknown" ;;
+        esac
+      }
+
+      case "$CMD" in
+        status)
+          if RAW_STATE="$(read_state_raw)"; then
+            print_state_word "$RAW_STATE"
+            exit 0
+          fi
+          echo "unknown"
+          exit 1
+          ;;
+
+        on)
+          if ! RAW_STATE="$(read_state_raw)"; then
+            exit 1
+          fi
+          if [ "$RAW_STATE" != "1" ]; then
+            write_state_raw "1" || exit 1
+          fi
+          echo "on"
+          ;;
+
+        off)
+          if ! RAW_STATE="$(read_state_raw)"; then
+            exit 1
+          fi
+          if [ "$RAW_STATE" != "0" ]; then
+            write_state_raw "0" || exit 1
+          fi
+          echo "off"
+          ;;
+
+        toggle)
+          if ! RAW_STATE="$(read_state_raw)"; then
+            exit 1
+          fi
+
+          if [ "$RAW_STATE" = "1" ]; then
+            write_state_raw "0" || exit 1
+            echo "off"
+          else
+            write_state_raw "1" || exit 1
+            echo "on"
+          fi
+          ;;
+
+        *)
+          usage
+          exit 2
+          ;;
+      esac
+    '')
+
+    (pkgs.writeShellScriptBin "llm-ollama-with" ''
+      set -euo pipefail
+      . ${llmOllamaSessionLib}
+
+      usage() {
+        echo "Usage: llm-ollama-with <command> [args...]" >&2
+      }
+
+      if [ "$#" -eq 0 ]; then
+        usage
+        exit 2
+      fi
+
+      llm_ollama_prepare
+      "$@"
+    '')
+
+    (pkgs.writeShellScriptBin "llm-ollama-run" ''
+      set -euo pipefail
+
+      usage() {
+        echo "Usage: llm-ollama-run <model> [args...]" >&2
+      }
+
+      MODEL="''${1:-}"
+      if [ -z "$MODEL" ]; then
+        usage
+        exit 2
+      fi
+      shift
+
+      exec llm-ollama-with \
+        ${pkgsUnstable.ollama-vulkan}/bin/ollama run "$MODEL" "$@"
+    '')
+
+    (pkgs.writeShellScriptBin "llm-ollama-shell" ''
+      set -euo pipefail
+
+      SHELL_BIN="''${SHELL:-${pkgs.fish}/bin/fish}"
+      if [ ! -x "$SHELL_BIN" ]; then
+        SHELL_BIN="${pkgs.fish}/bin/fish"
+      fi
+
+      exec llm-ollama-with "$SHELL_BIN" -l
+    '')
+
+    (pkgs.writeShellScriptBin "llm-ollama-migrate-models" ''
+      set -euo pipefail
+
+      usage() {
+        echo "Usage: sudo llm-ollama-migrate-models [user]" >&2
+      }
+
+      TARGET_USER="''${1:-will}"
+      if [ "$#" -gt 1 ]; then
+        usage
+        exit 2
+      fi
+
+      if [ "$(${pkgs.coreutils}/bin/id -u)" -ne 0 ]; then
+        usage
+        exit 1
+      fi
+
+      USER_ENTRY="$(/run/current-system/sw/bin/getent passwd "$TARGET_USER" || true)"
+      if [ -z "$USER_ENTRY" ]; then
+        echo "[llm-ollama] user not found: $TARGET_USER" >&2
+        exit 1
+      fi
+
+      TARGET_HOME="$(printf '%s\n' "$USER_ENTRY" | ${pkgs.coreutils}/bin/cut -d: -f6)"
+      DEST_ROOT="$TARGET_HOME/.ollama"
+      DEST_MODELS="$DEST_ROOT/models"
+      SRC_MODELS=""
+
+      for candidate in /var/lib/private/ollama/models /var/lib/ollama/models; do
+        if [ -d "$candidate" ]; then
+          SRC_MODELS="$candidate"
+          break
+        fi
+      done
+
+      if [ -z "$SRC_MODELS" ]; then
+        echo "[llm-ollama] source model store not found under /var/lib/private/ollama/models or /var/lib/ollama/models" >&2
+        exit 1
+      fi
+
+      /run/current-system/sw/bin/systemctl stop ollama.service 2>/dev/null || true
+      ${pkgs.coreutils}/bin/mkdir -p "$DEST_MODELS"
+      ${pkgs.rsync}/bin/rsync -aH "$SRC_MODELS"/ "$DEST_MODELS"/
+      ${pkgs.coreutils}/bin/chown -R "$TARGET_USER:users" "$DEST_ROOT"
+
+      READABLE_ENTRY="$(${pkgs.util-linux}/bin/runuser -u "$TARGET_USER" -- ${pkgs.findutils}/bin/find "$DEST_MODELS" -mindepth 1 -maxdepth 2 -readable | ${pkgs.coreutils}/bin/head -n 1 || true)"
+      if [ -z "$READABLE_ENTRY" ]; then
+        echo "[llm-ollama] migration completed, but readability verification failed for $TARGET_USER" >&2
+        exit 1
+      fi
+
+      echo "[llm-ollama] migrated model cache to $DEST_MODELS"
+      echo "[llm-ollama] verify with: llm-ollama-with ${pkgsUnstable.ollama-vulkan}/bin/ollama list"
+    '')
+  ];
+in
+{
+  # Ryzen laptop hardware + desktop + apps + gaming stack.
+  programs.fish.enable = true;
+
+  # Threat model (intentional):
+  # `will` is the primary owner-admin account for this personal machine,
+  # so near-root capabilities are accepted for operational convenience.
+  users.users.will = {
+    shell = pkgs.fish;
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+      "video"
+      "input"
+      "seat"
+      "audio"
+      "bluetooth"
+      "docker"
+      "render"
+    ];
+  };
+
+  # Passwordless sudo for approved power wrappers only.
+  security.sudo.extraRules = [
+    {
+      users = [ "will" ];
+      commands = [
+        {
+          command = "/run/current-system/sw/bin/ryzenadj-profile";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/run/current-system/sw/bin/toggle-battery-reserve";
+          options = [ "NOPASSWD" ];
+        }
+      ];
+    }
+  ];
+
+  services = {
+    xserver = {
+      enable = true;
+      xkb.layout = "us";
+      videoDrivers = [ "amdgpu" ];
+    };
+
+    # Power daemon (pick one).
+    power-profiles-daemon.enable = true;
+
+    # SSD trim.
+    fstrim.enable = true;
+
+    hypridle.enable = true;
+    cpupower-gui.enable = true;
+
+    displayManager = {
+      sddm = {
+        enable = true;
+        wayland.enable = true;
+        theme = "sddm-astronaut-theme";
+        extraPackages = with pkgs; [
+          kdePackages.qtmultimedia
+          kdePackages.qtsvg
+          kdePackages.qtvirtualkeyboard
+          kdePackages.qt5compat
+          sddm-astronaut
+        ];
+      };
+      defaultSession = "hyprland";
+    };
+
+    pulseaudio.enable = false;
+    pipewire = {
+      enable = true;
+      audio.enable = true;
+      pulse.enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      jack.enable = false;
+      extraConfig.pipewire."92-low-latency" = {
+        "context.properties" = {
+          "default.clock.rate" = 48000;
+          "default.clock.allowed-rates" = [
+            44100
+            48000
+            88200
+            96000
+            176400
+            192000
+          ];
+          "default.clock.quantum" = 1024;
+          "default.clock.min-quantum" = 32;
+          "default.clock.max-quantum" = 8192;
+        };
+      };
+      wireplumber = {
+        enable = true;
+        extraConfig = {
+          "10-policy" = {
+            "wireplumber.settings" = {
+              "device.restore-default-node" = true;
+              "node.restore-default-node" = true;
+            };
+          };
+          "11-bluetooth-policy" = {
+            "wireplumber.settings" = {
+              "bluetooth.autoswitch-to-headset-profile" = true;
+            };
+            "monitor.bluez.properties" = {
+              "bluez5.enable-sbc-xq" = true;
+              "bluez5.enable-msbc" = true;
+              "bluez5.enable-hw-volume" = true;
+              "bluez5.roles" = [
+                "a2dp_sink"
+                "a2dp_source"
+                "headset_head_unit"
+                "headset_audio_gateway"
+              ];
+            };
+            "monitor.bluez.rules" = [
+              {
+                matches = [
+                  {
+                    "device.api" = "bluez5";
+                  }
+                ];
+                actions = {
+                  update-props = {
+                    "priority.driver" = 5000;
+                    "priority.session" = 5000;
+                  };
+                };
+              }
+            ];
+          };
+        };
+      };
+    };
+  };
+
+  services.udev.extraRules = ''
+    # FiiO DAC (JadeAudio JA11 / SNOWSKY Melody) for WebHID access
+    ATTRS{idVendor}=="2972", ATTRS{idProduct}=="0126", MODE="0666", GROUP="users"
+  '';
+
+  # Keep Lenovo battery reserve mode ON at boot.
+  # Path discovery is dynamic inside toggle-battery-reserve.
+  systemd.services.battery-reserve-default = {
+    description = "Set Lenovo battery reserve mode to ON";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "systemd-udev-settle.service" ];
+    after = [
+      "systemd-modules-load.service"
+      "systemd-udev-settle.service"
+    ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "/run/current-system/sw/bin/toggle-battery-reserve on --wait 45";
+      StandardOutput = "journal";
+      StandardError = "journal";
+    };
+  };
+
+  # Re-apply the default CPU power profile after boot because firmware
+  # power management can overwrite RyzenAdj limits.
+  systemd.services.cpu-default-power-profile = {
+    description = "Set default CPU power profile";
+    wantedBy = [ "graphical.target" ];
+    wants = [ "power-profiles-daemon.service" ];
+    after = [
+      "systemd-modules-load.service"
+      "power-profiles-daemon.service"
+    ];
+    script = ''
+      /run/current-system/sw/bin/powerprofilesctl set power-saver
+      /run/current-system/sw/bin/ryzenadj-profile power-saver
+    '';
+    serviceConfig = {
+      Type = "oneshot";
+      StandardOutput = "journal";
+      StandardError = "journal";
+    };
+  };
+
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [
+      vulkan-loader
+      vulkan-tools
+      vulkan-validation-layers
+      libva
+      libva-utils
+      libva-vdpau-driver
+      mesa
+      # Restore the AMD OpenCL ICD so DaVinci Resolve can see the 780M again.
+      rocmPackages.clr
+      rocmPackages.clr.icd
+    ];
+    extraPackages32 = with pkgs.pkgsi686Linux; [
+      libva
+      libva-utils
+      libva-vdpau-driver
+    ];
+  };
+
+  boot = {
+    loader = {
+      systemd-boot.enable = true;
+      efi.canTouchEfiVariables = true;
+    };
+
+    kernelParams = [ "amd_pstate=active" ];
+    kernelModules = [
+      "msr"
+      "ryzen_smu"
+    ];
+    kernelPackages = pkgs.linuxPackages_6_12;
+    extraModulePackages = [ pkgs.linuxPackages_6_12.ryzen-smu ];
+
+    initrd.kernelModules = [ "amdgpu" ];
+    blacklistedKernelModules = [ "lenovo_wmi_gamezone" ];
+
+    kernel.sysctl = {
+      # zram-friendly swapping (tune 10-30).
+      "vm.swappiness" = 20;
+    };
+  };
+
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 37;
+    priority = 100;
+  };
+
+  powerManagement = {
+    enable = true;
+    resumeCommands = ''
+      ${pkgs.coreutils}/bin/sleep 2
+      current_profile="$(
+        /run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo power-saver
+      )"
+      case "$current_profile" in
+        performance)
+          /run/current-system/sw/bin/ryzenadj-profile performance
+          ;;
+        balanced)
+          /run/current-system/sw/bin/ryzenadj-profile balanced
+          ;;
+        *)
+          /run/current-system/sw/bin/ryzenadj-profile power-saver
+          ;;
+      esac
+    '';
+  };
+
+  virtualisation.docker = {
+    enable = true;
+    storageDriver = "overlay2";
+  };
+
+  security.rtkit.enable = true;
+
+  programs = {
+    hyprland.enable = true;
+
+    steam = {
+      enable = true;
+      # Keep firewall surface minimal by default.
+      # Open ports explicitly in host modules when remote play/server is needed.
+      remotePlay.openFirewall = false;
+      dedicatedServer.openFirewall = false;
+    };
+
+    gamemode.enable = true;
+  };
+
+  xdg.portal = {
+    enable = true;
+    wlr.enable = false;
+    extraPortals = with pkgs; [
+      xdg-desktop-portal-hyprland
+      xdg-desktop-portal-gtk
+    ];
+    config.common.default = [
+      "hyprland"
+      "gtk"
+    ];
+  };
+
+  i18n.inputMethod = {
+    enable = true;
+    type = "fcitx5";
+    fcitx5 = {
+      addons = with pkgs; [
+        qt6Packages.fcitx5-unikey
+        fcitx5-gtk
+        libsForQt5.fcitx5-qt
+      ];
+      waylandFrontend = true;
+    };
+  };
+
+  environment.sessionVariables = {
+    QT_FONT_DPI = "144";
+    QT_SCALE_FACTOR = "1";
+    QT_AUTO_SCREEN_SCALE_FACTOR = "0";
+  };
+
+  environment.systemPackages =
+    hostToolPackages
+    ++ (with pkgs; [
+      adwaita-icon-theme
+      bibata-cursors
+      sddm-astronaut
+
+      # Wayland & WM helpers
+      brightnessctl
+      cliphist
+      dunst
+      grim
+      hyprlock
+      hyprpaper
+      neovim
+      playerctl
+      rofi
+      slurp
+      sxhkd
+      wl-clipboard
+      wlr-randr
+      xdg-utils
+
+      # CLI utilities
+      btop
+      chafa
+      cpupower-gui
+      curl
+      eza
+      fastfetch
+      fd
+      gawk
+      glmark2
+      htop
+      imagemagick
+      jq
+      matugen
+      lm_sensors
+      phoronix-test-suite
+      linuxPackages.cpupower
+      nvtopPackages.amd
+      p7zip
+      poppler-utils
+      ripgrep
+      ryzen-monitor-ng
+      s-tui
+      pkgsUnstable.lmstudio
+      pkgsUnstable.ollama-vulkan
+      stressapptest
+      sysbench
+      vulkan-tools
+      vulkan-caps-viewer
+      vkmark
+      clinfo
+      amdgpu_top
+      radeontop
+      rocmPackages.rocminfo
+      rocmPackages.rocm-smi
+      stress-ng
+      tree
+      unzip
+      wget
+      xz
+      zip
+      zstd
+
+      # Filesystem
+      dosfstools
+      exfatprogs
+      ntfs3g
+      pciutils
+      udiskie
+      usbutils
+      bluez-tools
+      solaar
+
+      # Shell & version control
+      bash
+      git
+
+      # Networking (CLI)
+      bind
+      impala
+
+      # Auth agents
+      lxqt.lxqt-policykit
+
+      # Nix audit tools
+      deadnix
+      nixfmt-rfc-style
+      statix
+
+      # Browsers
+      brave
+      firefox
+
+      # Office & productivity
+      gsimplecal
+      libreoffice-fresh
+      wpsoffice
+      xournalpp
+      zotero
+      vscode
+      calibre
+
+      # Media apps
+      darktable
+      evince
+      gthumb
+      guvcview
+      obs-studio
+      rawtherapee
+      sonic-visualiser
+      vlc
+      strawberry
+      wavpack
+      davinci-resolve
+
+      # System GUI apps
+      gnome-disk-utility
+      mission-center
+      nautilus
+      networkmanagerapplet
+      pavucontrol
+      protonvpn-gui
+      qpwgraph
+
+      # Media tools & codecs
+      ffmpeg-full
+      ffmpegthumbnailer
+      gnome-epub-thumbnailer
+      libavif
+      libheif
+      v4l-utils
+      alsa-utils
+
+      # Extended codecs
+      faac
+      faad2
+      fdk_aac
+      flac
+      lame
+      libmad
+      libogg
+      libvorbis
+      opusTools
+      libdvdcss
+      libdvdread
+      libdvdnav
+      x264
+      x265
+
+      # GStreamer
+      gst_all_1.gstreamer
+      gst_all_1.gst-plugins-base
+      gst_all_1.gst-plugins-good
+      gst_all_1.gst-plugins-bad
+      gst_all_1.gst-plugins-ugly
+      gst_all_1.gst-libav
+      gst_all_1.gst-vaapi
+
+      # Gaming tools and helpers
+      mesa-demos
+      steam-run
+      mangohud
+
+    ])
+    ++ [
+      pkgsUnstable.antigravity
+      pkgsUnstable.ryzenadj
+    ];
+
+  fonts = {
+    enableDefaultPackages = true;
+    fontconfig.enable = true;
+
+    packages = with pkgs; [
+      nerd-fonts.meslo-lg
+      nerd-fonts.fira-code
+      nerd-fonts.jetbrains-mono
+
+      noto-fonts
+      noto-fonts-cjk-sans
+      noto-fonts-color-emoji
+
+      roboto
+      unifont
+      freefont_ttf
+      ipaexfont
+      corefonts
+    ];
+
+    fontconfig.defaultFonts = {
+      monospace = [
+        "JetBrainsMono Nerd Font"
+        "FiraCode Nerd Font"
+      ];
+      sansSerif = [
+        "Noto Sans"
+        "Roboto"
+      ];
+      serif = [ "Noto Serif" ];
+      emoji = [ "Noto Color Emoji" ];
+    };
+  };
+}
