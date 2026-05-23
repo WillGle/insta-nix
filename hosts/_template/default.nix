@@ -1,11 +1,11 @@
 { ... }:
 {
   imports = [
-    ./hardware-configuration.nix
-    ./networking.nix
-    ../../profiles/shared/base.nix
-    ../../profiles/shared/users-will.nix
-    # Add a personal system profile if needed, for example:
-    # ../../profiles/personal/think14gryzen-system.nix
+    ./hardware.nix
+    ./storage.nix
+    ./network.nix
+    ../../modules/nixos/base.nix
+    ../../users/will.nix
+    ./system.nix
   ];
 }
