@@ -1,0 +1,304 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
+
+SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
+TIMER_BIN="${TIMER_BIN:-${HOME}/.local/bin/study-timer}"
+TARGET_DATE="$(date +%F)"
+DAY_FILE="${SCREEN_TIME_HOME}/days/${TARGET_DATE}.json"
+
+seconds_to_short() {
+  local total="${1:-0}"
+  local hours=$((total / 3600))
+  local minutes=$(((total % 3600) / 60))
+
+  if [ "$total" -gt 0 ] && [ "$hours" -eq 0 ] && [ "$minutes" -eq 0 ]; then
+    printf '~1m\n'
+    return 0
+  fi
+  if [ "$hours" -gt 0 ] && [ "$minutes" -gt 0 ]; then
+    printf '%dh %dm\n' "$hours" "$minutes"
+    return 0
+  fi
+  if [ "$hours" -gt 0 ]; then
+    printf '%dh\n' "$hours"
+    return 0
+  fi
+  printf '%dm\n' "$minutes"
+}
+
+format_ratio_percent() {
+  local raw="${1:-0}"
+  jq -nr --arg raw "$raw" '
+    ($raw | if . == "" or . == "null" then 0 else tonumber? // 0 end) as $ratio
+    | (($ratio * 100) | round | tostring) + "%"
+  '
+}
+
+format_decimal_label() {
+  local raw="${1:-}"
+  local suffix="${2:-}"
+  local fallback="${3:-Unavailable}"
+  jq -nr --arg raw "$raw" --arg suffix "$suffix" --arg fallback "$fallback" '
+    ($raw | if . == "" or . == "null" then null else tonumber? end) as $number
+    | if $number == null then
+        $fallback
+      else
+        (($number * 10 | round / 10) | tostring) + $suffix
+      end
+  '
+}
+
+escape_markup() {
+  printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+}
+
+humanize_class() {
+  local value="${1//[_-]/ }"
+  local out=""
+  local word=""
+
+  for word in $value; do
+    out+="${word^} "
+  done
+  printf '%s\n' "${out%" "}"
+}
+
+normalize_class() {
+  local value="${1,,}"
+  value="${value%.exe}"
+  value="${value%-updater}"
+  value="${value%_updater}"
+  value="${value% updater}"
+  printf '%s\n' "$value"
+}
+
+default_day_json() {
+  jq -n \
+    --arg date "$TARGET_DATE" \
+    --arg now "$(date --iso-8601=seconds)" \
+    '{
+      version: 2,
+      date: $date,
+      updated_at: $now,
+      sample_seconds: 5,
+      sample_count: 0,
+      session_count: 0,
+      switch_count: 0,
+      total_seconds: 0,
+      apps: {},
+      study: {
+        total_seconds: 0,
+        session_count: 0,
+        active_overlap_seconds: 0
+      }
+    }'
+}
+
+load_day_json() {
+  if [ -r "$DAY_FILE" ] && jq -e . "$DAY_FILE" >/dev/null 2>&1; then
+    jq -c . "$DAY_FILE"
+  else
+    default_day_json
+  fi
+}
+
+load_timer_json() {
+  if [ -x "$TIMER_BIN" ]; then
+    "$TIMER_BIN" status --format json 2>/dev/null || true
+  fi | jq -c '
+    if type == "object" then
+      .
+    else
+      {
+        active: false,
+        elapsed_seconds: 0,
+        remaining_total_seconds: null,
+        current_session: null,
+        planned_sessions: null,
+        mode: null,
+        daily_total_seconds: 0
+      }
+    end
+  '
+}
+
+active_window_json() {
+  hyprctl activewindow -j 2>/dev/null || jq -n '{}'
+}
+
+emit_json() {
+  local text="$1"
+  local tooltip="$2"
+  local class="$3"
+
+  jq -cn \
+    --arg text "$text" \
+    --arg tooltip "$tooltip" \
+    --arg class "$class" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+top_apps_tooltip() {
+  local day_json="$1"
+  local output=""
+  local name=""
+  local seconds=0
+  local share=0
+
+  while IFS=$'\t' read -r name seconds share; do
+    [ -n "$name" ] || continue
+    output+="$(printf '<tt>%-16s %6s %4s</tt>' "$(escape_markup "$name")" "$(seconds_to_short "$seconds")" "$(format_ratio_percent "$share")")"$'\n'
+  done < <(
+    printf '%s' "$day_json" | jq -r '
+      (.total_seconds // 0) as $total
+      |
+      (.apps // {})
+      | to_entries
+      | sort_by(-(.value.seconds // 0), (.value.name // .key))
+      | .[:5][]
+      | [
+          (.value.name // .key),
+          ((.value.seconds // 0) | tostring),
+          (if $total > 0 then ((.value.seconds // 0) / $total) else 0 end | tostring)
+        ]
+      | @tsv
+    '
+  )
+
+  if [ -n "$output" ]; then
+    printf '%s' "${output%$'\n'}"
+  else
+    printf '<tt>No tracked apps yet</tt>'
+  fi
+}
+
+main() {
+  local day_json timer_json active_window
+  local total_seconds study_logged timer_active active_elapsed study_visible
+  local switch_count session_count updated_at updated_label top_app top_app_seconds
+  local active_class active_key active_name active_seconds active_title
+  local longest_focus current_focus deep_blocks short_blocks top_transition top_transition_count switch_rate
+  local timer_line class text tooltip sep
+
+  day_json="$(load_day_json)"
+  timer_json="$(load_timer_json)"
+  active_window="$(active_window_json)"
+
+  total_seconds="$(printf '%s' "$day_json" | jq -r '.total_seconds // 0')"
+  study_logged="$(printf '%s' "$day_json" | jq -r '.study.total_seconds // 0')"
+  switch_count="$(printf '%s' "$day_json" | jq -r '.switch_count // 0')"
+  session_count="$(printf '%s' "$day_json" | jq -r '.session_count // 0')"
+  updated_at="$(printf '%s' "$day_json" | jq -r '.updated_at // empty')"
+  timer_active="$(printf '%s' "$timer_json" | jq -r '.active // false')"
+  active_elapsed="$(printf '%s' "$timer_json" | jq -r '.elapsed_seconds // 0')"
+  current_focus="$(printf '%s' "$day_json" | jq -r '.behavior.focus_blocks.current_seconds // 0')"
+  longest_focus="$(printf '%s' "$day_json" | jq -r '[(.behavior.focus_blocks.longest_seconds // 0), (.behavior.focus_blocks.current_seconds // 0)] | max')"
+  deep_blocks="$(printf '%s' "$day_json" | jq -r '.behavior.focus_blocks.deep_count // 0')"
+  short_blocks="$(printf '%s' "$day_json" | jq -r '.behavior.focus_blocks.short_count // 0')"
+  switch_rate="$(jq -nr --argjson switches "$switch_count" --argjson total "$total_seconds" 'if $total <= 0 then 0 else ($switches / ($total / 3600)) end')"
+  top_transition="$(
+    printf '%s' "$day_json" | jq -r '
+      def app_name($apps; $key): ($apps[$key].name // $key);
+      . as $day
+      |
+      (.behavior.transitions // {})
+      | to_entries
+      | sort_by(-(.value.count // 0), .key)
+      | .[0] as $item
+      | if $item == null then
+          "None yet"
+        else
+          app_name($day.apps; ($item.value.from // "")) + " -> " + app_name($day.apps; ($item.value.to // ""))
+        end
+    '
+  )"
+  top_transition_count="$(printf '%s' "$day_json" | jq -r '(.behavior.transitions // {}) | to_entries | sort_by(-(.value.count // 0), .key) | .[0].value.count // 0')"
+
+  if [ "$timer_active" = "true" ]; then
+    study_visible=$((study_logged + active_elapsed))
+    timer_line="Active study: $(seconds_to_short "$active_elapsed")"
+    if [ "$(printf '%s' "$timer_json" | jq -r '.remaining_total_seconds != null')" = "true" ]; then
+      timer_line+=" · $(seconds_to_short "$(printf '%s' "$timer_json" | jq -r '.remaining_total_seconds // 0')") left"
+    fi
+  else
+    study_visible="$study_logged"
+    timer_line="Study timer: idle"
+  fi
+
+  top_app="$(printf '%s' "$day_json" | jq -r '(.apps // {}) | to_entries | sort_by(-(.value.seconds // 0), (.value.name // .key)) | .[0].value.name // "None"')"
+  top_app_seconds="$(printf '%s' "$day_json" | jq -r '(.apps // {}) | to_entries | sort_by(-(.value.seconds // 0), (.value.name // .key)) | .[0].value.seconds // 0')"
+
+  active_class="$(printf '%s' "$active_window" | jq -r '.class // .initialClass // empty')"
+  active_key="$(normalize_class "$active_class")"
+  active_name="$(printf '%s' "$day_json" | jq -r --arg key "$active_key" '.apps[$key].name // empty')"
+  [ -n "$active_name" ] || active_name="$(humanize_class "${active_key:-unknown}")"
+  active_seconds="$(printf '%s' "$day_json" | jq -r --arg key "$active_key" '.apps[$key].seconds // 0')"
+  active_title="$(printf '%s' "$active_window" | jq -r '.title // empty')"
+
+  if [ -n "$updated_at" ]; then
+    updated_label="$(date -d "$updated_at" '+%H:%M' 2>/dev/null || printf 'unknown')"
+  else
+    updated_label="unknown"
+  fi
+
+  class="normal"
+  if [ "$timer_active" = "true" ]; then
+    class="studying"
+  elif [ "$total_seconds" -eq 0 ]; then
+    class="idle"
+  elif [ "$total_seconds" -ge 28800 ]; then
+    class="high"
+  elif [ "$total_seconds" -ge 14400 ]; then
+    class="medium"
+  fi
+
+  text="󰔟 $(seconds_to_short "$total_seconds")"
+  sep="<span alpha='30%'>──────────────────────────</span>"
+  tooltip="<b><span foreground='#58a6ff'>SCREEN TIME</span></b>
+$sep
+<tt>Total:       $(seconds_to_short "$total_seconds")
+Study:       $(seconds_to_short "$study_visible")
+Sessions:    ${session_count}
+Switches:    ${switch_count}
+Updated:     ${updated_label}</tt>
+
+<b><span foreground='#58a6ff'>CURRENT</span></b>
+$sep
+<tt>App:         $(escape_markup "$active_name") ($(seconds_to_short "$active_seconds"))"
+  if [ -n "$active_title" ]; then
+    tooltip+="
+Title:       $(escape_markup "$active_title")"
+  fi
+  tooltip+="</tt>
+
+<b><span foreground='#58a6ff'>BEHAVIOR</span></b>
+$sep
+<tt>Focus block: $(seconds_to_short "$current_focus")
+Longest:     $(seconds_to_short "$longest_focus")
+Deep blocks: ${deep_blocks}
+Short blocks:${short_blocks}
+Switch rate: $(format_decimal_label "$switch_rate" "/h")</tt>"
+  if [ "$top_transition_count" -gt 0 ]; then
+    tooltip+="
+<tt>Top switch:  $(escape_markup "$top_transition") (${top_transition_count}x)</tt>"
+  fi
+  tooltip+="
+
+<b><span foreground='#58a6ff'>TOP APPS</span></b>
+$sep
+$(top_apps_tooltip "$day_json")
+
+<span size='small' alpha='50%'>$(escape_markup "$timer_line")</span>
+<span size='small' alpha='50%'>Click: dashboard · Right: timer · Middle: activity</span>"
+
+  if [ "$top_app" != "None" ] && [ "$top_app_seconds" -gt 0 ]; then
+    tooltip+="
+<span size='small' alpha='50%'>Top: $(escape_markup "$top_app") $(seconds_to_short "$top_app_seconds")</span>"
+  fi
+
+  emit_json "$text" "$tooltip" "$class"
+}
+
+main "$@"
