@@ -1,6 +1,6 @@
 # Rofi Utilities Guide
 
-This guide covers the specialized Rofi-based tools used for productivity tracking and system dashboards on `Think14GRyzen`.
+This guide covers the specialized Rofi-based tools used for productivity tracking and system dashboards on `think14gryzen`.
 
 ## 1. Study Timer (`rofi-study-timer`)
 
@@ -74,4 +74,4 @@ Both tools are designed to work together:
 
 - `rofi-study-timer` can launch `rofi-screen-time` via the "Open screen time" option.
 - `rofi-screen-time` can launch the study timer via the study status row.
-- Themes are located in `dotfiles/hosts/ryzen14/rofi/` (`study-timer.rasi` and `screen-time.rasi`).
+- Themes are located in `hosts/think14gryzen/assets/rofi/` (`study-timer.rasi` and `screen-time.rasi`).

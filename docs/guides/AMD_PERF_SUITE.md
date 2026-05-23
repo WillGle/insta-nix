@@ -8,7 +8,7 @@ This tooling is optional. It is not required for normal host builds or remote in
 
 ## When to use
 
-Use this guide when you want repeatable CPU, GPU, or CPDA performance checks on `Think14GRyzen`.
+Use this guide when you want repeatable CPU, GPU, or CPDA performance checks on `think14gryzen`.
 
 ## Prerequisites
 
