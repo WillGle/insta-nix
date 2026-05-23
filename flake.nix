@@ -33,8 +33,8 @@
           useUserPackages = true;
           backupFileExtension = "backup";
           users.will.imports = [
-            ./home/base.nix
-            ./home/desktop-common.nix
+            ./modules/home/base.nix
+            ./modules/home/desktop.nix
             homeOverlay
           ];
           extraSpecialArgs = {
@@ -49,7 +49,7 @@
           hostModule,
           sshModule,
           enableHome ? false,
-          homeOverlay ? null,
+          homeModule ? null,
         }:
         lib.nixosSystem {
           inherit system;
@@ -64,22 +64,22 @@
             ]
             ++ lib.optionals enableHome [
               home-manager.nixosModules.home-manager
-              (mkHomeModule homeOverlay)
+              (mkHomeModule homeModule)
             ];
         };
     in
     {
       nixosConfigurations = {
-        Think14GRyzen = mkHost {
-          hostModule = ./hosts/personal/think14gryzen.nix;
+        think14gryzen = mkHost {
+          hostModule = ./hosts/think14gryzen/default.nix;
           enableHome = true;
-          homeOverlay = ./hosts/personal/think14gryzen-home.nix;
-          sshModule = ./profiles/shared/ssh-strict.nix;
+          homeModule = ./hosts/think14gryzen/home.nix;
+          sshModule = ./modules/nixos/ssh/strict.nix;
         };
 
-        PlankGeneric = mkHost {
-          hostModule = ./hosts/generic/plank.nix;
-          sshModule = ./profiles/shared/ssh-plank.nix;
+        plank = mkHost {
+          hostModule = ./hosts/plank/default.nix;
+          sshModule = ./modules/nixos/ssh/plank.nix;
         };
       };
     };

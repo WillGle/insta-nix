@@ -37,8 +37,8 @@
   };
 
   wallpaper = {
-    source = ./assets/wallpaper.png;
-    name = "wallpaper.png";
+    source = ./assets/699940446_27093267803673575_2255830419586770226_n.jpg;
+    name = "699940446_27093267803673575_2255830419586770226_n.jpg";
   };
 
   runtime = {
