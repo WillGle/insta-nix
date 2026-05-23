@@ -2,15 +2,15 @@
 
 ## Purpose
 
-This guide explains how to install `PlankGeneric` on a remote machine without `disko`.
+This guide explains how to install `plank` on a remote machine without `disko`.
 
 ## When to use
 
-Use this guide for new remote installs that should boot into the generic installer configuration.
+Use this guide for new remote installs that should boot into the bootstrap installer configuration.
 
 ## Prerequisites
 
-- You can build `PlankGeneric` from this repo.
+- You can build `plank` from this repo.
 - The target machine is booted into a NixOS installer environment.
 - You can reach the target over the network.
 - Local-private files live under `/etc/nixos/.local/remote-install/`.
@@ -21,7 +21,7 @@ Use this guide for new remote installs that should boot into the generic install
 
    ```bash
    nix flake check --no-build --no-write-lock-file path:/etc/nixos
-   nixos-rebuild build --flake path:/etc/nixos#PlankGeneric
+   nixos-rebuild build --flake path:/etc/nixos#plank
    ```
 
 2. Prepare the required disk labels on the target.
@@ -71,7 +71,7 @@ Use this guide for new remote installs that should boot into the generic install
    rsync -a --delete /etc/nixos/ root@<ip>:/mnt/etc/nixos/
    scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
      root@<ip>:/mnt/etc/plank/authorized_keys
-   ssh root@<ip> 'nixos-install --root /mnt --flake path:/mnt/etc/nixos#PlankGeneric'
+   ssh root@<ip> 'nixos-install --root /mnt --flake path:/mnt/etc/nixos#plank'
    ```
 
    GitHub source:
@@ -79,7 +79,7 @@ Use this guide for new remote installs that should boot into the generic install
    ```bash
    scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
      root@<ip>:/mnt/etc/plank/authorized_keys
-   ssh root@<ip> 'nixos-install --root /mnt --flake github:<owner>/<repo>#PlankGeneric'
+   ssh root@<ip> 'nixos-install --root /mnt --flake github:<owner>/<repo>#plank'
    ```
 
 5. If key injection is not ready, add a temporary key in the installer environment and replace it after first login.
@@ -103,4 +103,3 @@ git -C /etc/nixos ls-files | rg -n "remote-install|authorized_keys|\\.local"
 
 - [`HOST_ONBOARDING.md`](./HOST_ONBOARDING.md)
 - [`../README.md`](../README.md)
-- [`../STYLE.md`](../STYLE.md)

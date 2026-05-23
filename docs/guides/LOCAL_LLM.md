@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This guide records the basic local LLM setup on `Think14GRyzen`.
+This guide records the basic local LLM setup on `think14gryzen`.
 
 ## When to use
 
@@ -10,7 +10,7 @@ Use this guide when you want a quick reminder for the local CLI or GUI path for 
 
 ## Prerequisites
 
-- You are on `Think14GRyzen`.
+- You are on `think14gryzen`.
 - `ollama` or `LM Studio` is installed in the current system.
 
 ## Steps

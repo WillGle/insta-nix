@@ -11,8 +11,7 @@ Use this guide when creating a new machine entrypoint or checking which modules 
 ## Prerequisites
 
 - The new host has a stable host ID.
-- You can generate or copy a valid `hardware-configuration.nix`.
-- You know whether the host belongs under `hosts/personal/` or `hosts/generic/`.
+- You can generate or copy a valid hardware module.
 
 ## Steps
 
@@ -24,34 +23,36 @@ Use this guide when creating a new machine entrypoint or checking which modules 
 
 2. Fill the host files.
 
-   - `hosts/<host-id>/hardware-configuration.nix`: generated from `nixos-generate-config`
-   - `hosts/<host-id>/networking.nix`: hostname and network settings
-   - `hosts/<host-id>/home-overlay.nix`: host-specific Home Manager additions
+   - `hosts/<host-id>/hardware.nix`: generated from `nixos-generate-config`
+   - `hosts/<host-id>/network.nix`: hostname and network settings
+   - `hosts/<host-id>/storage.nix`: host-local filesystems, swap, or automounts
+   - `hosts/<host-id>/system.nix`: host-specific services, packages, and policy
+   - `hosts/<host-id>/home.nix`: host-specific Home Manager additions for desktop hosts
+   - `hosts/<host-id>/assets/`: host-specific scripts and config assets deployed by Home Manager
 
-3. Add the host entrypoint in the correct directory.
-
-   - Personal machine: `hosts/personal/`
-   - Generic installer or blank profile: `hosts/generic/`
-
-4. Import the modules the host needs.
+3. Wire the host entrypoint in `hosts/<host-id>/default.nix`.
 
    Minimum imports:
 
-   - `profiles/shared/base.nix`
-   - one user module from `profiles/shared/users-*.nix`
+   - `../../modules/nixos/base.nix`
+   - `../../users/will.nix`
+   - host-local modules such as `./hardware.nix`, `./storage.nix`, `./network.nix`, and `./system.nix`
 
-   Add host-specific modules as needed:
+4. Import any reusable role modules the host needs.
 
-   - personal system modules from `profiles/personal/*.nix`
-   - host-local networking, storage, or hardware modules
-   - Home Manager overlay for desktop hosts
+   Common examples:
+
+   - `../../modules/nixos/roles/iac.nix`
+   - `../../modules/nixos/roles/kubernetes.nix`
+   - `../../modules/nixos/ssh/strict.nix`
+   - `../../modules/nixos/ssh/plank.nix`
 
 5. Add the output to `flake.nix` under `nixosConfigurations`.
 
    Example key:
 
    ```nix
-   nixosConfigurations.<HostKey>
+   nixosConfigurations.<host-id>
    ```
 
 ## Verification
