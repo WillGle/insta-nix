@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This guide records the basic local LLM setup on `Laptop`.
+This guide records the basic local LLM setup on `laptop`.
 
 ## When to use
 
@@ -10,7 +10,7 @@ Use this guide when you want a quick reminder for the local CLI or GUI path for 
 
 ## Prerequisites
 
-- You are on `Laptop`.
+- You are on `laptop`.
 - `ollama` or `LM Studio` is installed in the current system.
 
 ## Steps
