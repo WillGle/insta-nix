@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+# Waybar Memory Info - Top 5 RAM consumers
+# Outputs JSON for custom module
+
+# Use a stable text prefix instead of a private-use glyph to avoid
+# missing-glyph/error-icon rendering on some font stacks.
+ICON_MEM="RAM"
+
+escape_markup() {
+  printf '%s' "$1" | sed \
+    -e 's/&/\&amp;/g' \
+    -e 's/</\&lt;/g' \
+    -e 's/>/\&gt;/g'
+}
+
+# Get used/total RAM in GiB with 1 decimal place
+used=$(free -m | awk '/Mem:/ {printf "%.1f", $3/1024}')
+total=$(free -m | awk '/Mem:/ {printf "%.1f", $2/1024}')
+available=$(free -m | awk '/Mem:/ {printf "%.1f", $7/1024}')
+perc=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100.0}')
+
+# Get top 5 processes by memory %
+top_procs="$(
+  ps -eo comm=,pmem= --sort=-pmem | head -n 5 | while read -r proc pmem; do
+    [ -n "${proc:-}" ] || continue
+    proc="$(escape_markup "$proc")"
+    printf '%-18s %5.1f%%\n' "$proc" "${pmem:-0}"
+  done
+)"
+[ -n "$top_procs" ] || top_procs="Unavailable"
+
+# Progress bar helper
+progress_bar() {
+  local p=$1
+  local width=15
+  local filled=$((p * width / 100))
+  local empty=$((width - filled))
+  local bar=""
+  for ((i=0; i<filled; i++)); do bar+="■"; done
+  for ((i=0; i<empty; i++)); do bar+="□"; done
+  printf '[%s]' "$bar"
+}
+
+class=$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) print "warning"; else print "normal"}')
+
+# Color for accent
+ACCENT="#58a6ff"
+SEP="<span alpha='30%'>──────────────────────────</span>"
+
+tooltip="<b><span foreground='$ACCENT'>MEMORY USAGE</span></b>
+$SEP
+<tt>Used:         $used G / $total G
+Available:    $available G
+Status:       $perc% $(progress_bar "$perc")</tt>
+
+<b><span foreground='$ACCENT'>TOP CONSUMERS</span></b>
+$SEP
+<tt>$top_procs</tt>"
+
+jq -cn \
+    --arg text "${ICON_MEM} ${used}G (${perc}%)" \
+    --arg tooltip "$tooltip" \
+    --arg class "$class" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
