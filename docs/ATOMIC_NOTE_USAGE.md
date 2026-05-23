@@ -6,9 +6,9 @@ Atomic Note is a small task queue integrated into Waybar and managed through `at
 
 Atomic Note currently depends on these files:
 
-- `dotfiles/hosts/.../local-bin/atomic-note`: main script for task storage, Waybar JSON rendering, and the Rofi menus
-- `dotfiles/common/waybar/config.jsonc`: Waybar module wiring for `custom/atomic_note`
-- your Home Manager host module: installs the script as `~/.local/bin/atomic-note`
+- `hosts/think14gryzen/assets/local-bin/atomic-note`: main script for task storage, Waybar JSON rendering, and the Rofi menus
+- `assets/common/waybar/config.jsonc`: Waybar module wiring for `custom/atomic_note`
+- `hosts/think14gryzen/home.nix`: installs the script as `~/.local/bin/atomic-note`
 
 Recent related changes that matter operationally:
 

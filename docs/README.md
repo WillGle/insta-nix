@@ -5,12 +5,12 @@ Tracked documentation lives in this directory tree. Local-only operational notes
 ## Active Guides
 
 - [`guides/HOST_ONBOARDING.md`](./guides/HOST_ONBOARDING.md): use this when adding a new host or checking where host files belong.
-- [`guides/PLANK_REMOTE_INSTALL.md`](./guides/PLANK_REMOTE_INSTALL.md): use this when installing `PlankGeneric` on a remote machine.
+- [`guides/PLANK_REMOTE_INSTALL.md`](./guides/PLANK_REMOTE_INSTALL.md): use this when installing `plank` on a remote machine.
 
 ## Specialized Guides
 
 - [`guides/AMD_PERF_SUITE.md`](./guides/AMD_PERF_SUITE.md): use this when you need the optional AMD performance test workflow.
-- [`guides/LOCAL_LLM.md`](./guides/LOCAL_LLM.md): use this when running local LLM tools on `Think14GRyzen`.
+- [`guides/LOCAL_LLM.md`](./guides/LOCAL_LLM.md): use this when running local LLM tools on `think14gryzen`.
 - [`ROFI_UTILITIES.md`](./ROFI_UTILITIES.md): use this for Study Timer and Screen Time dashboard documentation.
 
 ## Archived Material

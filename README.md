@@ -1,13 +1,13 @@
 # NixOS Flake Configuration
 
-This repository contains a small multi-host NixOS flake with a personal laptop profile and a generic remote-install target.
+This repository contains a small multi-host NixOS flake with a personal laptop profile and a remote-install bootstrap target.
 
 Public documentation in this repo is intentionally limited to structure, workflows, and setup. Sensitive operational notes should stay under `docs/internal/`, which is git-ignored on purpose.
 
 ## Outputs
 
-- `Think14GRyzen`: the main personal laptop with Home Manager enabled
-- `PlankGeneric`: a generic remote-install target used as a bootstrap system
+- `think14gryzen`: the main personal laptop with Home Manager enabled
+- `plank`: a remote-install bootstrap target
 
 List them locally with:
 
@@ -22,15 +22,16 @@ nix flake show --no-write-lock-file path:/etc/nixos
 ├── flake.nix
 ├── README.md
 ├── docs/
-│   ├── README.md
-│   ├── guides/
-│   └── archive/
 ├── hosts/
-├── profiles/
-├── home/
-├── dotfiles/
-│   ├── common/
-│   └── hosts/
+│   ├── _template/
+│   ├── plank/
+│   └── think14gryzen/
+├── modules/
+│   ├── home/
+│   └── nixos/
+├── users/
+├── assets/
+│   └── common/
 ├── theme/
 └── scripts/
 ```
@@ -38,11 +39,11 @@ nix flake show --no-write-lock-file path:/etc/nixos
 Main layout:
 
 - `flake.nix`: declares flake inputs and exported `nixosConfigurations`
-- `hosts/`: host entry modules and host-local Nix overlays
-- `profiles/`: reusable NixOS modules split into shared and personal layers
-- `home/`: shared Home Manager modules
-- `dotfiles/common/`: reusable desktop assets and shared scripts
-- `dotfiles/hosts/<host>/`: host-specific desktop configs and scripts
+- `hosts/`: one directory per host, including host-local Nix modules and host assets
+- `modules/nixos/`: reusable NixOS modules such as `base`, `theme`, `roles`, and `ssh`
+- `modules/home/`: shared Home Manager modules
+- `users/`: shared user base definitions
+- `assets/common/`: reusable desktop assets and shared scripts
 - `theme/`: generated-theme templates and theme application scripts
 - `docs/guides/`: active setup and maintenance guides
 - `docs/archive/`: retired or historical notes
@@ -57,7 +58,7 @@ Shared app entrypoints:
 - `rofi-clipboard`: clipboard picker backed by `cliphist`
 - `theme-lock`: lock-screen wrapper tied to the repo theme
 
-Host-specific app entrypoints for `Think14GRyzen`:
+Host-specific app entrypoints for `think14gryzen`:
 
 - `rofi-network`: interactive network menu using `nmcli`
 - `rofi-screen-time`: rofi dashboard for app usage stats
@@ -67,13 +68,13 @@ Host-specific app entrypoints for `Think14GRyzen`:
 - `monitor-setup`: manual monitor layout picker using `hyprctl`
 - `waybar-*`: waybar helper scripts for memory, power, network, and refresh status
 
-These are wired in [hosts/personal/think14gryzen-home.nix](./hosts/personal/think14gryzen-home.nix) and sourced from:
+These are wired in [home.nix](/etc/nixos/hosts/think14gryzen/home.nix) and sourced from:
 
-- `dotfiles/common/rofi/`: core desktop utilities
-- `dotfiles/hosts/ryzen14/rofi/`: host-specific themes
-- `dotfiles/hosts/ryzen14/local-bin/`: host-specific binaries
-- `dotfiles/hosts/ryzen14/rofi-screen-time/`: screen-time suite logic
-- `dotfiles/common/waybar/`: shared waybar widgets
+- `assets/common/rofi/`: core desktop utilities
+- `hosts/think14gryzen/assets/rofi/`: host-specific themes
+- `hosts/think14gryzen/assets/local-bin/`: host-specific binaries
+- `hosts/think14gryzen/assets/rofi-screen-time/`: screen-time suite logic
+- `assets/common/waybar/`: shared waybar widgets
 
 ## Setup
 
@@ -86,13 +87,13 @@ nix flake check --no-build --no-write-lock-file path:/etc/nixos
 Build the personal host:
 
 ```bash
-nixos-rebuild build --flake path:/etc/nixos#Think14GRyzen
+nixos-rebuild build --flake path:/etc/nixos#think14gryzen
 ```
 
 Apply the personal host:
 
 ```bash
-sudo nixos-rebuild switch --flake path:/etc/nixos#Think14GRyzen
+sudo nixos-rebuild switch --flake path:/etc/nixos#think14gryzen
 ```
 
 Useful rule:
@@ -101,12 +102,12 @@ Useful rule:
 
 ## Remote Setup
 
-The remote bootstrap path uses `PlankGeneric`.
+The remote bootstrap path uses `plank`.
 
 Build it locally:
 
 ```bash
-nixos-rebuild build --flake path:/etc/nixos#PlankGeneric
+nixos-rebuild build --flake path:/etc/nixos#plank
 ```
 
 Then follow the dedicated guide:
