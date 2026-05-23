@@ -20,6 +20,7 @@ CPDA_CLI_COOLDOWN_SEC=2
 CPDA_THREAD_COUNT=""
 SECONDARY_KPI_MODE="both"
 BASELINE_POLICY="varlib_current_safe_manual_promotion"
+NIXOS_REPO_ROOT="${NIXOS_REPO_ROOT:-/etc/nixos}"
 
 START_ISO="$(date -Iseconds)"
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -570,7 +571,7 @@ lsblk -o NAME,TYPE,SIZE,FSTYPE,MOUNTPOINTS > "${LOG_DIR}/0-lsblk.log" 2>&1 || tr
 nix-env -p /nix/var/nix/profiles/system --list-generations > "${LOG_DIR}/0-generations.log" 2>&1 || true
 readlink -f /run/current-system > "${LOG_DIR}/0-current-system.log" 2>&1 || true
 
-NIXOS_GIT_REV="$(git -C /etc/nixos rev-parse HEAD 2>/dev/null || echo unknown)"
+NIXOS_GIT_REV="$(git -C "${NIXOS_REPO_ROOT}" rev-parse HEAD 2>/dev/null || echo unknown)"
 CPDA_GIT_REV="$(git -C "${CPDA_DIR}" rev-parse HEAD 2>/dev/null || echo unknown)"
 
 COMPARE_SUMMARY_CSV=""
@@ -626,7 +627,7 @@ CPU_DRIVER="$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_driver 2>/dev/
 CPU_GOV="$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null || echo unknown)"
 CPU_EPP="$(cat /sys/devices/system/cpu/cpufreq/policy0/energy_performance_preference 2>/dev/null || echo unknown)"
 
-param_row "cpu" "amd_pstate" "${CPU_STATUS}" "$( [[ "${CPU_STATUS}" != "active" ]] && echo true || echo false )" "/etc/nixos/profiles/personal/think14gryzen-system.nix" "CPU power-state driver mode"
+param_row "cpu" "amd_pstate" "${CPU_STATUS}" "$( [[ "${CPU_STATUS}" != "active" ]] && echo true || echo false )" "${NIXOS_REPO_ROOT}/hosts/think14gryzen/system.nix" "CPU power-state driver mode"
 param_row "cpu" "scaling_driver" "${CPU_DRIVER}" "$( [[ "${CPU_DRIVER}" != "amd-pstate-epp" ]] && echo true || echo false )" "sysfs" "CPU frequency driver"
 param_row "cpu" "governor" "${CPU_GOV}" "$( [[ "${CPU_GOV}" != "performance" ]] && echo true || echo false )" "sysfs" "CPU scaling governor"
 param_row "cpu" "epp" "${CPU_EPP}" "$( [[ "${CPU_EPP}" != "performance" ]] && echo true || echo false )" "sysfs" "Energy-performance preference"
