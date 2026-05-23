@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
+
+SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME}/.cache}/rofi-screen-time}"
+STATS_BIN="${STATS_BIN:-${HOME}/.local/bin/rofi-screen-time-stats}"
+
+if [ ! -x "$STATS_BIN" ]; then
+  printf 'rofi-screen-time-cache: stats binary not found at %s. Skipping refresh.\n' "$STATS_BIN" >&2
+  exit 0
+fi
+CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
+TARGET_DATE="$(date +%F)"
+
+theme_file() {
+  printf '%s/default-summary-theme.rasi\n' "$CACHE_DIR"
+}
+
+rows_file() {
+  printf '%s/default-summary-rows.txt\n' "$CACHE_DIR"
+}
+
+date_file() {
+  printf '%s/default-summary-date.txt\n' "$CACHE_DIR"
+}
+
+mkdir -p "$CACHE_DIR"
+
+date_tmp="$(mktemp "${CACHE_DIR}/date.XXXXXX")"
+
+"$STATS_BIN" \
+  --view summary \
+  --date "$TARGET_DATE" \
+  --format files \
+  --theme-file "$(theme_file)" \
+  --rows-file "$(rows_file)"
+printf '%s\n' "$TARGET_DATE" >"$date_tmp"
+
+mv "$date_tmp" "$(date_file)"
