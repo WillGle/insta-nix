@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+# monitor-setup: Dynamic Monitor Configuration using Rofi & Hyprland
+# Author: Antigravity (Assistant)
+
+export PATH="$PATH:/run/current-system/sw/bin"
+
+# Get all monitors (including disabled ones)
+MONITORS_JSON=$(hyprctl monitors all -j)
+
+# 1. Select Monitor
+SELECTABLE_MONITORS=$(echo "$MONITORS_JSON" | jq -r '.[] | "\(.name) (\(.width)x\(.height)) [\(if .disabled then "Disabled" else "Active" end)]"')
+CHOSEN_MON_DESC=$(echo "$SELECTABLE_MONITORS" | rofi -dmenu -i -p "Select Monitor:" -config ~/.config/rofi/config.rasi)
+
+[ -z "$CHOSEN_MON_DESC" ] && exit 0
+CHOSEN_MON=$(echo "$CHOSEN_MON_DESC" | awk '{print $1}')
+
+# 2. Select Mode (Resolution@Hz)
+# Get modes for the chosen monitor
+MODES=$(echo "$MONITORS_JSON" | jq -r ".[] | select(.name == \"$CHOSEN_MON\") | .availableModes[]")
+CHOSEN_MODE=$(echo "$MODES" | rofi -dmenu -i -p "Select Mode for $CHOSEN_MON:" -config ~/.config/rofi/config.rasi)
+
+[ -z "$CHOSEN_MODE" ] && exit 0
+
+# 3. Select Action/Position
+declare -A ACTIONS
+ACTIONS=(
+    ["Extend - Right"]="auto-right"
+    ["Extend - Left"]="auto-left"
+    ["Extend - Up"]="auto-up"
+    ["Extend - Down"]="auto-down"
+    ["Mirror - Laptop"]="mirror,eDP-1"
+    ["Disable"]="disable"
+    ["Standalone (0,0)"]="0x0"
+)
+
+ACTION_NAMES=$(printf "%s\n" "${!ACTIONS[@]}")
+CHOSEN_ACTION_NAME=$(echo "$ACTION_NAMES" | rofi -dmenu -i -p "Action for $CHOSEN_MON:" -config ~/.config/rofi/config.rasi)
+
+[ -z "$CHOSEN_ACTION_NAME" ] && exit 0
+ACTION_VAL="${ACTIONS[$CHOSEN_ACTION_NAME]}"
+
+# 4. Apply Configuration
+# Note: Scale defaults to 1 for external, 1.5 for laptop if re-enabled.
+# You can customize this logic if you prefer different scales.
+SCALE=1
+[ "$CHOSEN_MON" == "eDP-1" ] && SCALE=1.5
+
+if [ "$ACTION_VAL" == "disable" ]; then
+    CMD="hyprctl keyword monitor $CHOSEN_MON,disable"
+elif [[ "$ACTION_VAL" == mirror* ]]; then
+    MIRROR_TARGET=$(echo "$ACTION_VAL" | cut -d',' -f2)
+    CMD="hyprctl keyword monitor $CHOSEN_MON,$CHOSEN_MODE,auto,$SCALE,mirror,$MIRROR_TARGET"
+else
+    # For auto-right, etc., we use 'auto' or the specific relative position
+    CMD="hyprctl keyword monitor $CHOSEN_MON,$CHOSEN_MODE,$ACTION_VAL,$SCALE"
+fi
+
+eval "$CMD"
+notify-send "Monitor Setup" "Applied: $CHOSEN_MON @ $CHOSEN_MODE ($CHOSEN_ACTION_NAME)"
