@@ -65,6 +65,7 @@ Host-specific app entrypoints for `laptop`:
 - `study-timer`: timer/session backend used by the rofi timer UI
 - `atomic-note`: quick task capture and task-list UI for rofi and waybar
 - `monitor-setup`: manual monitor layout picker using `hyprctl`
+- `llm-pull` / `llm-fit` / `llm-run`: fetch, fit-check, and serve local LLMs via llama.cpp Vulkan (see [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md))
 - `waybar-*`: waybar helper scripts for memory, power, network, and refresh status
 
 These are wired in [home.nix](/etc/nixos/hosts/laptop/home.nix) and sourced from:
