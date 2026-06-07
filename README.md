@@ -32,8 +32,7 @@ nix flake show --no-write-lock-file path:/etc/nixos
 ├── users/
 ├── assets/
 │   └── common/
-├── theme/
-└── scripts/
+└── theme/
 ```
 
 Main layout:
@@ -126,7 +125,6 @@ That guide covers:
 - [`docs/README.md`](./docs/README.md): index for tracked documentation
 - [`docs/guides/HOST_ONBOARDING.md`](./docs/guides/HOST_ONBOARDING.md): add a new host
 - [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md): remote install workflow
-- [`docs/guides/AMD_PERF_SUITE.md`](./docs/guides/AMD_PERF_SUITE.md): optional AMD performance workflow
 - [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md): local LLM notes
 
 Private operational notes belong under `docs/internal/` and are not tracked by git.
