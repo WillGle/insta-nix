@@ -119,7 +119,7 @@
             "type": "disk",
             "key": " DK",
             "keyColor": "green",
-            "folders": "/:/boot:/mnt:/run/media"
+            "folders": "/:/boot:/mnt/vault:/run/media"
         },
         {
             "type": "battery",
