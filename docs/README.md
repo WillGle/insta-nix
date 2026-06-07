@@ -9,11 +9,10 @@ Tracked documentation lives in this directory tree. Local-only operational notes
 
 ## Specialized Guides
 
-- [`guides/AMD_PERF_SUITE.md`](./guides/AMD_PERF_SUITE.md): use this when you need the optional AMD performance test workflow.
 - [`guides/LOCAL_LLM.md`](./guides/LOCAL_LLM.md): use this when running local LLM tools on `think14gryzen`.
 - [`ROFI_UTILITIES.md`](./ROFI_UTILITIES.md): use this for Study Timer and Screen Time dashboard documentation.
 
 ## Archived Material
 
 - [`archive/REMOTE_MIGRATION.md`](./archive/REMOTE_MIGRATION.md): legacy remote migration note kept for historical reference.
-- [`archive/rocm/README.md`](./archive/rocm/README.md): index for archived ROCm investigation files and reports.
+- [`archive/rocm/README.md`](./archive/rocm/README.md): ROCm status + investigation archive — runtime (Tier A) active since 2026-06-07; framework lane still NO-GO.
