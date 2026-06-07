@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# llm-pull: download a GGUF from HuggingFace into the local model dir — ollama-like
+# "find + fetch in one command" for the fast llm-run flow. Prefers Unsloth UD quants.
+# Handles sharded GGUFs. Plain files you keep yourself (no hidden registry).
+#
+# Usage: llm-pull [--dry-run] <hf-repo> [quant-substring=UD-Q4_K_XL]
+#   llm-pull unsloth/gemma-3-12b-it-GGUF
+#   llm-pull bartowski/Qwen2.5-Coder-14B-Instruct-GGUF Q4_K_M
+set -uo pipefail
+export PATH="/run/current-system/sw/bin:${PATH:-}"
+DRY=0; [ "${1:-}" = "--dry-run" ] && { DRY=1; shift; }
+REPO="${1:?usage: llm-pull [--dry-run] <hf-repo> [quant-substring=UD-Q4_K_XL]}"
+QUANT="${2:-UD-Q4_K_XL}"
+DEST_ROOT="${LLM_MODELS_DIR:-$HOME/.lmstudio/models}"
+base_url="https://huggingface.co/$REPO/resolve/main"
+
+files="$(curl -fsSL "https://huggingface.co/api/models/$REPO" 2>/dev/null \
+  | grep -oE '"rfilename":"[^"]*\.gguf"' | sed 's/"rfilename":"//;s/"//')"
+[ -n "$files" ] || { echo "no .gguf in repo '$REPO' (check huggingface.co/$REPO)"; exit 1; }
+
+pick="$(printf '%s\n' "$files" | grep -iF "$QUANT" | grep -viE 'mmproj' | head -1)"
+if [ -z "$pick" ]; then
+  echo "quant '$QUANT' not found. Available quants in $REPO:"
+  printf '%s\n' "$files" | grep -viE 'mmproj' | sed -E 's/.*-(UD-)?(I?Q[0-9][^.]*|BF16|F16).*/   \1\2/' | sort -u
+  for q in UD-Q4_K_XL Q4_K_M UD-Q4_K_M Q4_0; do
+    pick="$(printf '%s\n' "$files" | grep -iF "$q" | grep -viE 'mmproj' | head -1)"
+    [ -n "$pick" ] && { echo "-> falling back to: $pick"; break; }
+  done
+  [ -n "$pick" ] || { echo "pick one explicitly: llm-pull $REPO <quant>"; exit 1; }
+fi
+
+dest="$DEST_ROOT/$REPO"
+# collect shards if pick is part 1 of N, else just the single file
+if printf '%s' "$pick" | grep -qE '\-[0-9]{5}-of-[0-9]{5}\.gguf$'; then
+  stem="$(printf '%s' "$pick" | sed -E 's/-[0-9]{5}-of-[0-9]{5}\.gguf$//')"
+  todo="$(printf '%s\n' "$files" | grep -E "^${stem}-[0-9]{5}-of-[0-9]{5}\.gguf$" | sort)"
+  echo "sharded model: $(printf '%s\n' "$todo" | grep -c .) parts"
+else
+  todo="$pick"
+fi
+
+echo "repo:  $REPO"
+echo "quant: $QUANT  ->  $(printf '%s\n' "$todo" | head -1)$([ "$(printf '%s\n' "$todo" | grep -c .)" -gt 1 ] && echo ' (+shards)')"
+echo "dest:  $dest/"
+if [ "$DRY" = 1 ]; then
+  echo "(dry-run) would download:"; printf '   %s/%s\n' "$base_url" $todo
+  exit 0
+fi
+mkdir -p "$dest"
+for f in $todo; do
+  echo ":: $f"
+  curl -fL --retry 3 -C - -o "$dest/$f" "$base_url/$f" || { echo "download failed: $f"; exit 1; }
+done
+first="$(printf '%s\n' "$todo" | head -1)"
+echo
+echo "done -> $dest/$first"
+echo "next:"
+echo "   llm-fit \"$dest/$first\" 8192     # (optional) check it fits a context"
+echo "   llm-run \"$dest/$first\" 8192     # serve -> http://127.0.0.1:8080"
