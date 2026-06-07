@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# llm-fit: does <model> at <context> fit the GPU (GTT) without overflow?
+# Model-agnostic: uses llama.cpp's own llama-fit-params (reads the GGUF metadata +
+# live device memory), so it works for ANY model you load, not a baked example.
+# Output: FIT verdict + the lightest KV-cache type that keeps full GPU offload,
+# or a GTT-raise / smaller-context / smaller-model suggestion if nothing fits.
+#
+# Usage: llm-fit <model.gguf> [context=8192]
+set -uo pipefail
+export PATH="/run/current-system/sw/bin:${PATH:-}"   # find llama-fit-params from systemPackages
+FIT="${LLAMA_FIT_PARAMS:-llama-fit-params}"
+MODEL="${1:?usage: llm-fit <model.gguf> [context]}"
+CTX="${2:-8192}"
+[ -f "$MODEL" ] || { echo "no such model: $MODEL" >&2; exit 2; }
+
+GTT="$(awk '{printf "%.1f", $1/1073741824}' /sys/class/drm/card*/device/mem_info_gtt_total 2>/dev/null | head -1)"
+ngl_of(){ "$FIT" -m "$MODEL" -c "$CTX" "$@" 2>/dev/null | grep -oE '\-ngl[[:space:]]+-?[0-9]+' | awk '{print $2}'; }
+
+printf 'Model: %s | context: %s | GTT ceiling: %s GiB\n' "$(basename "$MODEL")" "$CTX" "${GTT:-?}"
+
+base="$(ngl_of)"
+if [ "$base" = "-1" ]; then
+  echo "✅ FITS fully on GPU with f16 KV (no overflow). Run: -ngl 999 -fa on   (default KV = best quality)"
+  exit 0
+fi
+echo "⚠️  f16 KV OVERFLOWS: only ${base:-?} layers fit on GPU; the rest spill to CPU (slow)."
+
+q8="$(ngl_of -fa on --cache-type-k q8_0 --cache-type-v q8_0)"
+if [ "$q8" = "-1" ]; then
+  echo "✅ FIXED with Flash-Attn + KV q8_0 -> full GPU offload (≈no quality loss)."
+  echo "   Run: -ngl 999 -fa on --cache-type-k q8_0 --cache-type-v q8_0"
+  exit 0
+fi
+
+q4="$(ngl_of -fa on --cache-type-k q4_0 --cache-type-v q4_0)"
+if [ "$q4" = "-1" ]; then
+  echo "✅ FIXED with Flash-Attn + KV q4_0 (more aggressive; small quality/speed cost)."
+  echo "   Run: -ngl 999 -fa on --cache-type-k q4_0 --cache-type-v q4_0"
+  exit 0
+fi
+
+echo "❌ Still overflows even with KV q4_0. Pick one:"
+echo "   • reduce context (e.g. llm-fit \"$(basename "$MODEL")\" $((CTX/2)))"
+echo "   • raise GTT: add ttm.pages_limit to boot.kernelParams (5767168 = 22 GiB) + reboot"
+echo "   • use a smaller / more-quantized model, or a small-active MoE (e.g. Qwen3-30B-A3B)"
+exit 1
