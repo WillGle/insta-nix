@@ -6,9 +6,7 @@ _: {
       "defaults"
       "noatime"
       "nofail"
-      "x-systemd.automount"
       "x-systemd.device-timeout=5s"
-      "x-systemd.idle-timeout=60"
     ];
   };
 }
