@@ -265,7 +265,7 @@ Goal
 - Prove the runtime can survive safe, non-framework validation before touching framework canary.
 
 Required actions
-- Run safe-lane validation only. Prefer existing generic tooling such as `/etc/nixos/scripts/amd-perf-suite.sh` where appropriate.
+- Run safe-lane validation only. Prefer existing generic tooling where appropriate.
 - Keep framework canary disabled in this phase.
 - Run at least two clean safe-lane passes before considering promotion to F4.
 - Compare against the preserved safe baseline/evidence referenced by the checkpoint document when possible.
