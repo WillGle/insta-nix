@@ -4,10 +4,12 @@ configuration {
   modi: "drun,window";
   show-icons: true;
   drun-display-format: "{icon}  {name}";
+  drun-match-fields: "name,generic";
   display-drun: "Apps";
   display-window: "Windows";
   window-format: "{w}  {c}  {t}";
   matching: "fuzzy";
+  sorting-method: "fzf";
   sort: true;
   cycle: false;
   hover-select: false;
