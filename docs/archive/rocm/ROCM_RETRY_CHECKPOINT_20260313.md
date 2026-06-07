@@ -51,15 +51,10 @@ Danh gia:
   - `btop-rocm`
   - `vulkan-caps-viewer`
   - `rocmPackages.rocm-smi`
-- Script rollout/an toan da tung su dung:
-  - `scripts/rocm-rollout-precheck.sh`
-  - `scripts/rocm-stability-supervisor.sh`
-  - `scripts/rocm-night-watchdog.sh`
-  - `scripts/amd-perf-suite.sh`
 
 ### 2.2 CPDA side (da thu)
 - Da co giai doan pin Torch ROCm (`2.9.1+rocm6.4`) de test framework lane.
-- Da dung `scripts/rocm_phase6_canary.sh` de canary trong CPDA env.
+- Da dung canary script de canary trong CPDA env.
 - Da gap tinh huong model/bench CPDA khong on dinh khi backend tu dong chon GPU (PyOD AutoEncoder).
 
 ## 3) Nhung yeu to quan trong can nho
