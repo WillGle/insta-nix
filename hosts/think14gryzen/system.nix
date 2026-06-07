@@ -1,72 +1,11 @@
 { pkgs, pkgsUnstable, ... }:
 let
-  llmOllamaSessionLib = pkgs.writeShellScript "llm-ollama-session-lib" ''
-    OLLAMA_HOST_ADDR="127.0.0.1"
-    OLLAMA_PORT="11434"
-    OLLAMA_URL="http://''${OLLAMA_HOST_ADDR}:''${OLLAMA_PORT}"
-    OLLAMA_BIN="${pkgsUnstable.ollama-vulkan}/bin/ollama"
-    CURL_BIN="${pkgs.curl}/bin/curl"
-    MKDIR_BIN="${pkgs.coreutils}/bin/mkdir"
-    MKTEMP_BIN="${pkgs.coreutils}/bin/mktemp"
-    CAT_BIN="${pkgs.coreutils}/bin/cat"
-    RM_BIN="${pkgs.coreutils}/bin/rm"
-    SLEEP_BIN="${pkgs.coreutils}/bin/sleep"
-    SETSID_BIN="${pkgs.util-linux}/bin/setsid"
-    SS_BIN="${pkgs.iproute2}/bin/ss"
-    GREP_BIN="${pkgs.gnugrep}/bin/grep"
-
-    llm_ollama_cleanup() {
-      local status=$?
-
-      trap - EXIT INT TERM
-      if [ -n "''${SERVER_PID:-}" ]; then
-        kill -- "-''${SERVER_PID}" 2>/dev/null || kill "''${SERVER_PID}" 2>/dev/null || true
-        wait "''${SERVER_PID}" 2>/dev/null || true
-      fi
-      if [ -n "''${OLLAMA_LOG:-}" ] && [ -f "''${OLLAMA_LOG}" ]; then
-        "''${RM_BIN}" -f "''${OLLAMA_LOG}"
-      fi
-
-      exit "$status"
-    }
-
-    llm_ollama_prepare() {
-      export PATH="${pkgsUnstable.ollama-vulkan}/bin:''${PATH}"
-      export OLLAMA_HOST="''${OLLAMA_HOST_ADDR}:''${OLLAMA_PORT}"
-      export OLLAMA_MODELS="$HOME/.ollama/models"
-      export OLLAMA_VULKAN="1"
-
-      if "''${SS_BIN}" -H -ltn "( sport = :''${OLLAMA_PORT} )" | "''${GREP_BIN}" -q .; then
-        echo "[llm-ollama] port ''${OLLAMA_PORT} is already in use; refusing to attach to an unknown server" >&2
-        return 1
-      fi
-
-      "''${MKDIR_BIN}" -p "''${OLLAMA_MODELS}"
-      OLLAMA_LOG="$("''${MKTEMP_BIN}" -t llm-ollama.XXXXXX.log)"
-      trap llm_ollama_cleanup EXIT INT TERM
-      "''${SETSID_BIN}" "''${OLLAMA_BIN}" serve >"''${OLLAMA_LOG}" 2>&1 &
-      SERVER_PID="$!"
-
-      local attempt=0
-      while [ "$attempt" -lt 50 ]; do
-        if "''${CURL_BIN}" -fsS "''${OLLAMA_URL}/api/version" >/dev/null 2>&1; then
-          return 0
-        fi
-        if ! kill -0 "''${SERVER_PID}" 2>/dev/null; then
-          break
-        fi
-        attempt=$((attempt + 1))
-        "''${SLEEP_BIN}" 0.2
-      done
-
-      echo "[llm-ollama] failed to start temporary ollama server" >&2
-      if [ -f "''${OLLAMA_LOG}" ]; then
-        echo "[llm-ollama] startup log:" >&2
-        "''${CAT_BIN}" "''${OLLAMA_LOG}" >&2
-      fi
-      return 1
-    }
-  '';
+  # llama.cpp with the Vulkan backend, from nixpkgs-unstable (current build incl. the
+  # RDNA3 Wave32 flash-attention path). Pinned via flake.lock -> reproducible &
+  # persistent (part of the system closure, never GC'd). Measured fastest local-LLM
+  # backend on the 780M: ~1.8x ollama's bundled engine (32 vs ~18 t/s decode, gemma-4B).
+  # See docs/internal/LLM_BENCHMARK_20260607.md.
+  llamaCppVulkan = pkgsUnstable.llama-cpp.override { vulkanSupport = true; };
 
   hostToolPackages = [
     (pkgs.writeShellScriptBin "ryzenadj-profile" ''
@@ -293,107 +232,18 @@ let
       esac
     '')
 
-    (pkgs.writeShellScriptBin "llm-ollama-with" ''
-      set -euo pipefail
-      . ${llmOllamaSessionLib}
-
-      usage() {
-        echo "Usage: llm-ollama-with <command> [args...]" >&2
-      }
-
-      if [ "$#" -eq 0 ]; then
-        usage
-        exit 2
-      fi
-
-      llm_ollama_prepare
-      "$@"
-    '')
-
-    (pkgs.writeShellScriptBin "llm-ollama-run" ''
-      set -euo pipefail
-
-      usage() {
-        echo "Usage: llm-ollama-run <model> [args...]" >&2
-      }
-
-      MODEL="''${1:-}"
-      if [ -z "$MODEL" ]; then
-        usage
-        exit 2
-      fi
-      shift
-
-      exec llm-ollama-with \
-        ${pkgsUnstable.ollama-vulkan}/bin/ollama run "$MODEL" "$@"
-    '')
-
-    (pkgs.writeShellScriptBin "llm-ollama-shell" ''
-      set -euo pipefail
-
-      SHELL_BIN="''${SHELL:-${pkgs.fish}/bin/fish}"
-      if [ ! -x "$SHELL_BIN" ]; then
-        SHELL_BIN="${pkgs.fish}/bin/fish"
-      fi
-
-      exec llm-ollama-with "$SHELL_BIN" -l
-    '')
-
-    (pkgs.writeShellScriptBin "llm-ollama-migrate-models" ''
-      set -euo pipefail
-
-      usage() {
-        echo "Usage: sudo llm-ollama-migrate-models [user]" >&2
-      }
-
-      TARGET_USER="''${1:-will}"
-      if [ "$#" -gt 1 ]; then
-        usage
-        exit 2
-      fi
-
-      if [ "$(${pkgs.coreutils}/bin/id -u)" -ne 0 ]; then
-        usage
-        exit 1
-      fi
-
-      USER_ENTRY="$(/run/current-system/sw/bin/getent passwd "$TARGET_USER" || true)"
-      if [ -z "$USER_ENTRY" ]; then
-        echo "[llm-ollama] user not found: $TARGET_USER" >&2
-        exit 1
-      fi
-
-      TARGET_HOME="$(printf '%s\n' "$USER_ENTRY" | ${pkgs.coreutils}/bin/cut -d: -f6)"
-      DEST_ROOT="$TARGET_HOME/.ollama"
-      DEST_MODELS="$DEST_ROOT/models"
-      SRC_MODELS=""
-
-      for candidate in /var/lib/private/ollama/models /var/lib/ollama/models; do
-        if [ -d "$candidate" ]; then
-          SRC_MODELS="$candidate"
-          break
-        fi
-      done
-
-      if [ -z "$SRC_MODELS" ]; then
-        echo "[llm-ollama] source model store not found under /var/lib/private/ollama/models or /var/lib/ollama/models" >&2
-        exit 1
-      fi
-
-      /run/current-system/sw/bin/systemctl stop ollama.service 2>/dev/null || true
-      ${pkgs.coreutils}/bin/mkdir -p "$DEST_MODELS"
-      ${pkgs.rsync}/bin/rsync -aH "$SRC_MODELS"/ "$DEST_MODELS"/
-      ${pkgs.coreutils}/bin/chown -R "$TARGET_USER:users" "$DEST_ROOT"
-
-      READABLE_ENTRY="$(${pkgs.util-linux}/bin/runuser -u "$TARGET_USER" -- ${pkgs.findutils}/bin/find "$DEST_MODELS" -mindepth 1 -maxdepth 2 -readable | ${pkgs.coreutils}/bin/head -n 1 || true)"
-      if [ -z "$READABLE_ENTRY" ]; then
-        echo "[llm-ollama] migration completed, but readability verification failed for $TARGET_USER" >&2
-        exit 1
-      fi
-
-      echo "[llm-ollama] migrated model cache to $DEST_MODELS"
-      echo "[llm-ollama] verify with: llm-ollama-with ${pkgsUnstable.ollama-vulkan}/bin/ollama list"
-    '')
+    # --- Optimal local-LLM stack: llama.cpp Vulkan (measured fastest on the 780M) ---
+    # Provides llama-server (OpenAI-compatible API), llama-bench, llama-fit-params, llama-cli.
+    llamaCppVulkan
+    # llm-pull: ollama-like one-command fetch of a GGUF from HuggingFace into the local
+    # model dir (prefers Unsloth UD quants, handles shards). `llm-pull <hf-repo> [quant]`.
+    (pkgs.writeShellScriptBin "llm-pull" (builtins.readFile ./assets/local-bin/llm-pull))
+    # llm-fit: model-agnostic GTT-overflow check. `llm-fit <model.gguf> [ctx]` -> does it
+    # fit the GPU? if not, the lightest KV-cache type that fixes it, or a GTT-raise hint.
+    (pkgs.writeShellScriptBin "llm-fit" (builtins.readFile ./assets/local-bin/llm-fit))
+    # llm-run: auto-sized, overflow-safe llama-server launcher. `llm-run <model.gguf> [ctx]`
+    # picks the lightest KV that keeps FULL GPU offload (f16->q8_0->q4_0), -fa on, mmap.
+    (pkgs.writeShellScriptBin "llm-run" (builtins.readFile ./assets/local-bin/llm-run))
   ];
 in
 {
@@ -580,6 +430,11 @@ in
     };
   };
 
+  # Drop the ~5.4s boot blocker on the critical chain: docker is the only
+  # consumer of network-online.target and brings up its own docker0 bridge,
+  # so waiting for full connectivity before graphical.target buys nothing.
+  systemd.services.NetworkManager-wait-online.enable = false;
+
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
@@ -622,6 +477,9 @@ in
     kernel.sysctl = {
       # zram-friendly swapping (tune 10-30).
       "vm.swappiness" = 20;
+      # zram is per-page CPU-decompressed: disable swap readahead so one fault
+      # doesn't decompress 8 pages to serve 1. Recommended for compressed RAM swap.
+      "vm.page-cluster" = 0;
     };
   };
 
@@ -655,6 +513,7 @@ in
 
   virtualisation.docker = {
     enable = true;
+    package = pkgs.docker_29;
     storageDriver = "overlay2";
   };
 
@@ -753,7 +612,6 @@ in
       ryzen-monitor-ng
       s-tui
       pkgsUnstable.lmstudio
-      pkgsUnstable.ollama-vulkan
       stressapptest
       sysbench
       vulkan-tools
@@ -764,6 +622,31 @@ in
       radeontop
       rocmPackages.rocminfo
       rocmPackages.rocm-smi
+      # Full ROCm runtime/library stack (Tier A). Cache-served on the 25.11 pin
+      # (no local compile); library-only so it dispatches no GPU kernels and
+      # cannot trigger the gfx1103 MES-reset/logout lane. Do NOT set
+      # nixpkgs.config.rocmSupport or HSA_OVERRIDE_GFX_VERSION globally (the
+      # latter would break DaVinci's shared OpenCL ICD). gfx1103 is absent from
+      # the default gpuTargets, so any ROCm *compute* stays NO-GO; LLM inference
+      # uses Vulkan via llm-run (llama.cpp), not ROCm. See
+      # docs/archive/rocm/ROCM_WORKLOG_20260607-113702.md.
+      rocmPackages.rocm-runtime
+      rocmPackages.amdsmi
+      rocmPackages.rocblas
+      rocmPackages.hipblas
+      rocmPackages.hipblaslt
+      rocmPackages.rocsolver
+      rocmPackages.rocsparse
+      rocmPackages.hipsparse
+      rocmPackages.rocfft
+      rocmPackages.hipfft
+      rocmPackages.rocrand
+      rocmPackages.hiprand
+      rocmPackages.rocprim
+      rocmPackages.rocthrust
+      rocmPackages.hipcub
+      rocmPackages.miopen
+      rocmPackages.rocm-bandwidth-test
       stress-ng
       tree
       unzip
@@ -804,25 +687,27 @@ in
 
       # Office & productivity
       gsimplecal
-      libreoffice-fresh
+      pkgsUnstable.libreoffice-fresh
       wpsoffice
-      xournalpp
-      zotero
-      vscode
-      calibre
+      pkgsUnstable.xournalpp
+      pkgsUnstable.zotero
+      pkgsUnstable.vscode
+      pkgsUnstable.calibre
 
       # Media apps
-      darktable
+      pkgsUnstable.darktable
       evince
       gthumb
       guvcview
-      obs-studio
+      imv
+      loupe
+      pkgsUnstable.obs-studio
       rawtherapee
-      sonic-visualiser
+      pkgsUnstable.sonic-visualiser
       vlc
-      strawberry
+      pkgsUnstable.strawberry
       wavpack
-      davinci-resolve
+      pkgsUnstable.davinci-resolve
 
       # System GUI apps
       gnome-disk-utility
@@ -830,7 +715,7 @@ in
       nautilus
       networkmanagerapplet
       pavucontrol
-      protonvpn-gui
+      pkgsUnstable.proton-vpn
       qpwgraph
 
       # Media tools & codecs
