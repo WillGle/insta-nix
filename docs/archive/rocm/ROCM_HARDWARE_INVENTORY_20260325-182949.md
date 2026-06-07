@@ -3,7 +3,7 @@
 ## Status
 
 - Archived
-- ROCm is not part of the active configuration in this repo
+- Historical record; ROCm runtime was later reinstated 2026-06-07 (Tier A library stack active, framework lane still NO-GO) — see [`ROCM_WORKLOG_20260607-113702.md`](./ROCM_WORKLOG_20260607-113702.md)
 
 ## Summary
 
