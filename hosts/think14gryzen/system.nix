@@ -463,7 +463,11 @@ in
       efi.canTouchEfiVariables = true;
     };
 
-    kernelParams = [ "amd_pstate=active" ];
+    kernelParams = [
+      "amd_pstate=active"
+      "transparent_hugepage=always"
+      "ttm.pages_limit=5767168"
+    ];
     kernelModules = [
       "msr"
       "ryzen_smu"
