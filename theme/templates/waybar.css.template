@@ -22,6 +22,17 @@
   }
 }
 
+@keyframes pulse-critical {
+  from {
+    background-color: @error;
+    color: @base;
+  }
+  to {
+    background-color: rgba(248, 81, 73, 0.15);
+    color: @text;
+  }
+}
+
 * {
   border: none;
   border-radius: 0;
@@ -52,10 +63,11 @@ window#waybar {
 #custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
-#custom-power_profile,
-#custom-battery_mode,
 #custom-refresh_rate,
 #custom-atomic_note,
+#backlight,
+#idle_inhibitor,
+#custom-systemd_failed,
 tooltip,
 menuitem,
 .popup menuitem {
@@ -78,10 +90,11 @@ menuitem,
 #custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
-#custom-power_profile,
-#custom-battery_mode,
 #custom-refresh_rate,
-#custom-atomic_note {
+#custom-atomic_note,
+#backlight,
+#idle_inhibitor,
+#custom-systemd_failed {
   border-radius: 0;
   padding-top: 0;
   padding-bottom: 0;
@@ -112,10 +125,11 @@ menuitem,
 #custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
-#custom-power_profile,
-#custom-battery_mode,
 #custom-refresh_rate,
-#custom-atomic_note {
+#custom-atomic_note,
+#backlight,
+#idle_inhibitor,
+#custom-systemd_failed {
   background: rgba(255, 255, 255, 0.05);
   border-left: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -143,7 +157,6 @@ tooltip label {
   font-size: 15px;
 }
 
-tooltip *,
 tooltip label,
 menu *,
 .menu *,
@@ -169,10 +182,11 @@ menuitem,
 #custom-network_info:hover,
 #custom-apu_info:hover,
 #custom-power_flow:hover,
-#custom-power_profile:hover,
-#custom-battery_mode:hover,
 #custom-refresh_rate:hover,
 #custom-atomic_note:hover,
+#backlight:hover,
+#idle_inhibitor:hover,
+#custom-systemd_failed:hover,
 #workspaces button:hover,
 menuitem:hover,
 .popup menuitem:hover {
@@ -190,29 +204,24 @@ menuitem:hover,
 }
 
 #custom-apu_info.critical {
-  background-color: @error;
-  color: @base;
-  animation-name: blink;
-  animation-duration: 0.5s;
+  animation-name: pulse-critical;
+  animation-duration: 0.8s;
   animation-direction: alternate;
   animation-iteration-count: infinite;
-}
-
-#custom-apu_info.medium,
-#custom-power_flow.medium {
-  border-top: 2px solid @warning;
-}
-
-#custom-apu_info.high,
-#custom-power_flow.high {
-  color: @error;
-  font-weight: bold;
-  border-top: 2px solid @error;
 }
 
 #custom-power_flow.charging {
   color: @battery-eco;
   border-bottom: 2px solid @battery-eco;
+}
+
+#custom-power_flow.medium {
+  border-top: 2px solid @warning;
+}
+
+#custom-power_flow.high {
+  color: @error;
+  border-top: 2px solid @error;
 }
 
 #custom-power_flow.critical {
@@ -264,27 +273,6 @@ menuitem:hover,
   color: @accent;
 }
 
-#custom-power_profile.perf {
-  color: @error;
-  border-bottom: 2px solid @error;
-}
-
-#custom-power_profile.saver {
-  color: @battery-eco;
-  border-bottom: 2px solid @battery-eco;
-}
-
-#custom-battery_mode.reserve-on {
-  color: @battery-eco;
-  border-bottom: 2px solid @battery-eco;
-}
-
-#custom-battery_mode.reserve-off,
-#custom-battery_mode.reserve-unknown {
-  color: @warning;
-  border-bottom: 2px solid @warning;
-}
-
 tooltip {
   padding-top: 6px;
   padding-bottom: 6px;
@@ -325,4 +313,21 @@ menu,
 
 #custom-atomic_note.empty {
   color: @subtext;
+}
+
+#custom-systemd_failed.failed {
+  color: @error;
+  font-weight: bold;
+  animation-name: blink;
+  animation-duration: 0.8s;
+  animation-direction: alternate;
+  animation-iteration-count: infinite;
+}
+
+#custom-systemd_failed.ok {
+  color: transparent;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  border: none;
 }

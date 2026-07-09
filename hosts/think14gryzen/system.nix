@@ -44,10 +44,11 @@ let
         power-saver)
           echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
           exec /run/current-system/sw/bin/ryzenadj \
-            --stapm-limit=15000 \
-            --fast-limit=15000 \
-            --slow-limit=15000 \
-            --tctl-temp=75
+            --stapm-limit=10000 \
+            --fast-limit=10000 \
+            --slow-limit=10000 \
+            --tctl-temp=65 \
+            --power-saving
           ;;
 
         *)

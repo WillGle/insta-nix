@@ -92,6 +92,10 @@ in
       source = ./assets/local-bin/waybar-refresh-toggle;
       executable = true;
     };
+    ".local/bin/waybar-systemd-failed" = {
+      source = ./assets/local-bin/waybar-systemd-failed;
+      executable = true;
+    };
   };
 
   xdg.configFile = {

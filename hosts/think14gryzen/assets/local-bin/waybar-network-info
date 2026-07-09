@@ -7,6 +7,38 @@ escape_markup() {
   printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
 
+get_bluetooth_status() {
+  if ! systemctl is-active --quiet bluetooth; then
+    echo "Disabled"
+    return
+  fi
+  
+  local connected
+  connected=$(bluetoothctl devices Connected 2>/dev/null || true)
+  if [ -z "$connected" ]; then
+    echo "Active (No devices connected)"
+    return
+  fi
+
+  local output=""
+  while read -r _ mac name; do
+    local battery=""
+    if command -v bluetoothctl >/dev/null 2>&1; then
+      battery=$(bluetoothctl info "$mac" 2>/dev/null | grep "Battery Percentage" | awk -F'[\(\)]' '{print $2}' | tr -d ' ' || true)
+      if [ -z "$battery" ]; then
+        battery=$(bluetoothctl info "$mac" 2>/dev/null | grep "Battery Percentage" | awk '{print $NF}' | tr -d ' ' || true)
+      fi
+    fi
+    if [ -n "$battery" ]; then
+      output+="${name} (${battery}%), "
+    else
+      output+="${name}, "
+    fi
+  done <<< "$connected"
+  
+  echo "${output%, }"
+}
+
 wifi_iface() {
   nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" { print $1; exit }'
 }
@@ -75,7 +107,7 @@ active_wifi_ap_line() {
   local masked_ssid="${target_ssid//:/$'\x01'}"
   local ap_line=""
 
-  ap_line="$(nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+  ap_line="$(nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID,RATE device wifi list ifname "$iface" --rescan no \
     | sed 's/\\:/\x01/g' \
     | awk -F: '$1 == "*" { print; exit }')"
 
@@ -86,7 +118,7 @@ active_wifi_ap_line() {
 
   [ -n "$masked_ssid" ] || return 0
 
-  nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID device wifi list ifname "$iface" --rescan no \
+  nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID,RATE device wifi list ifname "$iface" --rescan no \
     | sed 's/\\:/\x01/g' \
     | awk -F: -v target="$masked_ssid" '$2 == target { print; exit }'
 }
@@ -175,12 +207,26 @@ main() {
   signal=""
   security=""
   freq=""
+  bssid=""
+  rate=""
 
   if [ -n "$wifi_ap" ]; then
-    IFS=: read -r _in_use ssid signal security freq _bssid <<< "$wifi_ap"
+    IFS=: read -r _in_use ssid signal security freq _bssid rate <<< "$wifi_ap"
     ssid="${ssid//$'\x01'/:}"
     security="${security//$'\x01'/:}"
+    bssid="${_bssid//$'\x01'/:}"
   fi
+
+  # Check for active VPN/Wireguard tunnels
+  vpn_interfaces=$(ip link show | grep -E -o ' (wg[0-9a-zA-Z_-]+|tun[0-9a-zA-Z_-]+|tailscale[0-9a-zA-Z_-]+|proton[0-9a-zA-Z_-]+)' || true)
+  if [ -n "$vpn_interfaces" ]; then
+    vpn_interfaces=$(echo "$vpn_interfaces" | tr -d ' ' | sort -u | tr '\n' ' ' | sed 's/ $//')
+  else
+    vpn_interfaces="None"
+  fi
+
+  bt_status="$(get_bluetooth_status)"
+  escaped_bt_status="$(escape_markup "$bt_status")"
 
   if [ -n "$ethernet_line" ]; then
     IFS=$'\t' read -r ethernet_name ethernet_device <<< "$ethernet_line"
@@ -200,7 +246,12 @@ Status:      Connected</tt>
 $SEP
 <tt>IP:          ${ip:-Unavailable}
 Gateway:     ${gateway:-Unavailable}
-DNS:         ${dns:-None}</tt>"
+DNS:         ${dns:-None}
+VPN Active:  $vpn_interfaces</tt>
+
+<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
+$SEP
+<tt>Devices:     $escaped_bt_status</tt>"
 
     if [ -n "$wifi_conn" ]; then
       escaped_ssid="$(escape_markup "${ssid:-<hidden>}")"
@@ -228,10 +279,15 @@ Security:    Unavailable</tt>"
     dns="$(current_dns "$iface")"
     escaped_ssid="$(escape_markup "${ssid:-<hidden>}")"
     escaped_security="$(escape_markup "$(security_label "$security")")"
+    escaped_bssid="$(escape_markup "${bssid:-Unavailable}")"
+    escaped_rate="$(escape_markup "${rate:-Unavailable}")"
 
     tooltip="<b><span foreground='$ACCENT'>$title (WI-FI)</span></b>
 $SEP
-<tt>SSID:        $escaped_ssid"
+<tt>SSID:        $escaped_ssid
+Interface:   $iface
+BSSID:       $escaped_bssid
+Link Speed:  $escaped_rate"
     if [ -n "$wifi_ap" ]; then
       tooltip+=$'\n'"Signal:      ${signal:-0}% ($(signal_icon "$signal"))
 Band:        $(band_label "$freq")
@@ -247,7 +303,12 @@ Security:    Unavailable</tt>"
 $SEP
 <tt>IP:          ${ip:-Unavailable}
 Gateway:     ${gateway:-Unavailable}
-DNS:         ${dns:-None}</tt>"
+DNS:         ${dns:-None}
+VPN Active:  $vpn_interfaces</tt>
+
+<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
+$SEP
+<tt>Devices:     $escaped_bt_status</tt>"
 
     tooltip+=$'\n\n<span size="small" alpha="50%">Click: Network menu</span>'
     if [ -n "$wifi_ap" ]; then
@@ -259,11 +320,13 @@ DNS:         ${dns:-None}</tt>"
   fi
 
   if [ -n "$iface" ] && [ -z "$wifi_conn" ] && ! wifi_enabled; then
-    emit_json "󰖪" $'<b>Network</b>\nWi-Fi disabled\n\nClick: open network menu' "disabled"
+    tooltip="<b>Network</b>\nWi-Fi disabled\n\n<b>Bluetooth</b>\nDevices: $escaped_bt_status\n\nClick: open network menu"
+    emit_json "󰖪" "$tooltip" "disabled"
     exit 0
   fi
 
-  emit_json "󰤮" $'<b>Network</b>\nDisconnected\n\nClick: open network menu' "disconnected"
+  tooltip="<b>Network</b>\nDisconnected\n\n<b>Bluetooth</b>\nDevices: $escaped_bt_status\n\nClick: open network menu"
+  emit_json "󰤮" "$tooltip" "disconnected"
 }
 
 main "$@"
