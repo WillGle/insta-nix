@@ -92,6 +92,33 @@ let
       [ "__HYPRLOCK_BIN__" "${pkgs.hyprlock}/bin/hyprlock" ]
     ]
   ) ../../theme/scripts/theme-lock.sh.template;
+
+  waybarRestartScript = ''
+    if ${pkgs.procps}/bin/pgrep -x waybar >/dev/null || ${pkgs.procps}/bin/pgrep -x .waybar-wrapped >/dev/null; then
+      USER_UID=$(${pkgs.coreutils}/bin/id -u)
+      export XDG_RUNTIME_DIR="/run/user/$USER_UID"
+
+      if [ -z "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+        if [ -d "$XDG_RUNTIME_DIR/hypr" ]; then
+          export HYPRLAND_INSTANCE_SIGNATURE="$(${pkgs.coreutils}/bin/ls -1t "$XDG_RUNTIME_DIR/hypr" 2>/dev/null | ${pkgs.coreutils}/bin/head -n1 || true)"
+        elif [ -d /tmp/hypr ]; then
+          export HYPRLAND_INSTANCE_SIGNATURE="$(${pkgs.coreutils}/bin/ls -1t /tmp/hypr 2>/dev/null | ${pkgs.coreutils}/bin/head -n1 || true)"
+        fi
+      fi
+
+      if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+        ${pkgs.procps}/bin/pkill -x waybar || true
+        ${pkgs.procps}/bin/pkill -x .waybar-wrapped || true
+        ${pkgs.coreutils}/bin/sleep 0.5
+        ${pkgs.hyprland}/bin/hyprctl dispatch exec ${pkgs.waybar}/bin/waybar >/dev/null 2>&1 || true
+      else
+        ${pkgs.procps}/bin/pkill -x waybar || true
+        ${pkgs.procps}/bin/pkill -x .waybar-wrapped || true
+        ${pkgs.coreutils}/bin/sleep 0.5
+        env WAYLAND_DISPLAY=wayland-1 nohup ${pkgs.waybar}/bin/waybar >/dev/null 2>&1 &
+      fi
+    fi
+  '';
 in
 {
   wayland.systemd.target = "default.target";
@@ -130,7 +157,10 @@ in
       executable = true;
     };
 
-    "waybar/config.jsonc".source = ../../assets/common/waybar/config.jsonc;
+    "waybar/config.jsonc" = {
+      source = ../../assets/common/waybar/config.jsonc;
+      onChange = waybarRestartScript;
+    };
     "waybar/style.css".text = ''
       @import url("file://${themeGeneratedDir}/waybar.css");
     '';
@@ -188,6 +218,8 @@ in
   home.activation.themeApplyTrigger = lib.mkIf theme.runtime.enable (lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     run ${themeApplyPath} || true
   '');
+
+  home.activation.restartWaybar = lib.hm.dag.entryAfter [ "linkGeneration" ] waybarRestartScript;
 
   systemd.user.services.theme-apply = lib.mkIf theme.runtime.enable {
     Unit = {

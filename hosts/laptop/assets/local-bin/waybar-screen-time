@@ -175,6 +175,27 @@ top_apps_tooltip() {
 }
 
 main() {
+  local mode_file="${XDG_RUNTIME_DIR:-/tmp}/waybar_clock_mode"
+  
+  if [ "${1:-}" = "toggle" ]; then
+    local current_mode="0"
+    if [ -f "$mode_file" ]; then
+      current_mode="$(cat "$mode_file")"
+    fi
+    if [ "$current_mode" = "0" ]; then
+      echo "1" > "$mode_file"
+    else
+      echo "0" > "$mode_file"
+    fi
+    pkill -RTMIN+7 -x waybar || pkill -RTMIN+7 -x .waybar-wrapped || true
+    return 0
+  fi
+  
+  local display_mode="0"
+  if [ -f "$mode_file" ]; then
+    display_mode="$(cat "$mode_file")"
+  fi
+
   local day_json timer_json active_window
   local total_seconds study_logged timer_active active_elapsed study_visible
   local switch_count session_count updated_at updated_label top_app top_app_seconds
@@ -254,9 +275,24 @@ main() {
     class="medium"
   fi
 
-  text="󰔟 $(seconds_to_short "$total_seconds")"
+  local current_time
+  current_time="$(date +'%H:%M')"
+  local current_date_tooltip
+  current_date_tooltip="$(date +'%A, %d %B %Y')"
+
+  if [ "$display_mode" = "1" ]; then
+    text=" ${current_time}   󰔟 $(seconds_to_short "$total_seconds")"
+  else
+    text=" ${current_time}"
+  fi
+  
   sep="<span alpha='30%'>──────────────────────────</span>"
-  tooltip="<b><span foreground='#58a6ff'>SCREEN TIME</span></b>
+  tooltip="<b><span foreground='#58a6ff'>TIME</span></b>
+$sep
+<tt>${current_date_tooltip}
+${current_time}</tt>
+
+<b><span foreground='#58a6ff'>SCREEN TIME</span></b>
 $sep
 <tt>Total:       $(seconds_to_short "$total_seconds")
 Study:       $(seconds_to_short "$study_visible")
@@ -291,7 +327,7 @@ $sep
 $(top_apps_tooltip "$day_json")
 
 <span size='small' alpha='50%'>$(escape_markup "$timer_line")</span>
-<span size='small' alpha='50%'>Click: dashboard · Right: timer · Middle: activity</span>"
+<span size='small' alpha='50%'>Click: toggle view · Right: dashboard · Middle: timer</span>"
 
   if [ "$top_app" != "None" ] && [ "$top_app_seconds" -gt 0 ]; then
     tooltip+="

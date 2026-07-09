@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+
+escape_markup() {
+  printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+}
+
+failed=$(systemctl --failed --no-legend --plain | wc -l)
+
+if [ "$failed" -gt 0 ]; then
+  # Get failed units names
+  units=$(systemctl --failed --no-legend --plain | awk '{print $1}')
+  escaped_units=$(escape_markup "$units")
+  tooltip=$(printf "<b><span foreground='#f85149'>FAILED SYSTEMD UNITS</span></b>\n<span alpha='30%%'>──────────────────────────</span>\n<tt>%s</tt>\n\n<span size='small' alpha='50%%'>Run 'systemctl --failed' to check details</span>" "$escaped_units")
+  jq -cn \
+    --arg text "  ${failed} failed" \
+    --arg tooltip "$tooltip" \
+    --arg class "failed" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+else
+  jq -cn \
+    --arg text "" \
+    --arg tooltip "" \
+    --arg class "ok" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+fi

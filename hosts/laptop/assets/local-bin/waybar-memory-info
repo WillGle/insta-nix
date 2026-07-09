@@ -21,6 +21,11 @@ total=$(free -m | awk '/Mem:/ {printf "%.1f", $2/1024}')
 available=$(free -m | awk '/Mem:/ {printf "%.1f", $7/1024}')
 perc=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100.0}')
 
+# Get used/total Swap (ZRAM) in GiB
+swap_used=$(free -m | awk '/Swap:/ {printf "%.1f", $3/1024}')
+swap_total=$(free -m | awk '/Swap:/ {printf "%.1f", $2/1024}')
+swap_perc=$(free | awk '/Swap:/ {if ($2 > 0) printf "%.0f", $3/$2 * 100.0; else print "0"}')
+
 # Get top 5 processes by memory %
 top_procs="$(
   ps -eo comm=,pmem= --sort=-pmem | head -n 5 | while read -r proc pmem; do
@@ -49,11 +54,28 @@ class=$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) 
 ACCENT="#58a6ff"
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
+# Get disk usage for /
+disk_used=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$3); print $3}')
+disk_total=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$2); print $2}')
+disk_perc=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+disk_free=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
+
 tooltip="<b><span foreground='$ACCENT'>MEMORY USAGE</span></b>
 $SEP
 <tt>Used:         $used G / $total G
 Available:    $available G
 Status:       $perc% $(progress_bar "$perc")</tt>
+
+<b><span foreground='$ACCENT'>SWAP &amp; ZRAM</span></b>
+$SEP
+<tt>Swap/ZRAM:    $swap_used G / $swap_total G
+Status:       $swap_perc% $(progress_bar "$swap_perc")</tt>
+
+<b><span foreground='$ACCENT'>DISK (/)</span></b>
+$SEP
+<tt>Used:         ${disk_used} G / ${disk_total} G
+Free:         ${disk_free} G
+Status:       ${disk_perc}% $(progress_bar "${disk_perc}")</tt>
 
 <b><span foreground='$ACCENT'>TOP CONSUMERS</span></b>
 $SEP
