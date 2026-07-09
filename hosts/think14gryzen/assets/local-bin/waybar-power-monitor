@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
+echo "called with $1" >> /tmp/waybar_click.log
 set -euo pipefail
 export LC_ALL=C
 # Waybar consolidated hardware monitor
 # Usage: waybar-power-monitor apu|sys|pwr|prof|toggle|bmode|bmode-toggle
 
 MODE="${1:-pwr}"
+THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
+if [ -r "$THEME_STATIC_ENV" ]; then
+    # shellcheck disable=SC1090
+    . "$THEME_STATIC_ENV"
+fi
 WARN_DIR="${XDG_RUNTIME_DIR:-/tmp}/waybar-power-monitor"
 STATE_DIR="$WARN_DIR/state"
 CPU_STAT_FILE="$STATE_DIR/cpu.stat"
@@ -606,18 +612,46 @@ case "$MODE" in
         cpu_peak_freq="$CPU_FREQ_PEAK_GHZ"
         gpu_freq=$(get_gpu_freq)
 
+        # Governor & EPP
+        governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "unknown")
+        epp=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo "unknown")
+        profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
+
+        case "$profile" in
+          performance)
+            limits_text="TDP Limits:   STAPM 48W / Slow 60W / Fast 64W
+Temp Limit:   98°C"
+            ;;
+          balanced)
+            limits_text="TDP Limits:   STAPM 28W / Slow 28W / Fast 28W
+Temp Limit:   85°C"
+            ;;
+          power-saver)
+            limits_text="TDP Limits:   STAPM 10W / Slow 10W / Fast 10W
+Temp Limit:   65°C"
+            ;;
+          *)
+            limits_text="TDP Limits:   Unknown"
+            ;;
+        esac
+
         # Classes
         t_cls="normal"
         if [ "$t_cpu" -ge 85 ] || [ "$t_gpu" -ge 85 ]; then t_cls="critical";
-        elif [ "$t_cpu" -ge 70 ] || [ "$t_gpu" -ge 70 ]; then t_cls="hot";
+        elif [ "$t_cpu" -ge 75 ] || [ "$t_gpu" -ge 75 ]; then t_cls="hot";
+        elif [ "$t_cpu" -ge 60 ] || [ "$t_gpu" -ge 60 ]; then t_cls="warm";
         fi
         
         # Format: [GPU Temp] [CPU Temp] [Avg CPU GHz] [CPU Usage] [PPT avg W]
-        # Tooltip: Usage, quick clock summary, thermals, PPT power
         tooltip="<b><span foreground='$ACCENT'>APU (RYZEN 7 8845H)</span></b>
 $SEP
 <tt>CPU:  $(printf "%3d" "$cpu_util")% $(progress_bar "$cpu_util") @ $cpu_freq GHz avg
 GPU:  $(printf "%3d" "$gpu_util")% $(progress_bar "$gpu_util") @ $gpu_freq MHz</tt>
+
+<b><span foreground='$ACCENT'>GOVERNOR &amp; HARDWARE LIMITS</span></b>
+$SEP
+<tt>Gov / EPP:    $governor / $epp
+$limits_text</tt>
 
 <b><span foreground='$ACCENT'>CLOCK</span></b>
 $SEP
@@ -628,15 +662,10 @@ $SEP
 <tt>CPU Core:   $t_cpu°C
 iGPU:       $t_gpu°C</tt>
 
-<b><span foreground='$ACCENT'>POWER</span></b>
-$SEP
-<tt>${ppt_label} avg:    $ppt_avg_w W
-${ppt_label} now:    $ppt_now_w W</tt>
-
 <span size='small' alpha='50%'>$health_msg</span>"
 
-        printf '{"text":"%s %s°C %s %s°C %sGHz %s%% %sW", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
-            "$ICON_GPU" "$t_gpu" "$ICON_CPU" "$t_cpu" "$cpu_freq" "$cpu_util" "$ppt_avg_w" \
+        printf '{"text":"%s %s°C %s %s°C %sGHz %s%%", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
+            "$ICON_GPU" "$t_gpu" "$ICON_CPU" "$t_cpu" "$cpu_freq" "$cpu_util" \
             "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
             "$t_cls" "$health_cls"
         ;;
@@ -694,6 +723,27 @@ Power:      $cpu_w W</tt>
 
         w_cls=$(awk -v w="${primary_w:-0}" 'BEGIN{if(w>=45) print "high"; else if(w>=25) print "medium"; else print "normal"}')
 
+        # Reserve mode state
+        reserve_state="$(get_reserve_state || true)"
+        case "$reserve_state" in
+            on)  reserve_label="ON" ;;
+            off) reserve_label="OFF" ;;
+            *)   reserve_label="UNKNOWN" ;;
+        esac
+
+        # Load theme static colors or defaults for profile styling
+        color_perf="${THEME_STATIC_PURPLE:-#cba6f7}"
+        color_saver="${THEME_STATIC_CYAN:-#74c7ec}"
+        color_bal="${THEME_STATIC_ACCENT:-#58a6ff}"
+
+        # Power profile cheat-sheet
+        case "$profile" in
+            performance) active_marker_perf=" ◀" ; active_marker_bal="" ; active_marker_sav="" ; prof_cls="prof-perf" ; p_icon="<span foreground='$color_perf'>$ICON_PERF</span>" ;;
+            balanced)    active_marker_perf="" ;   active_marker_bal=" ◀" ; active_marker_sav="" ; prof_cls="prof-normal" ; p_icon="<span foreground='$color_bal'>$ICON_BALANCED</span>" ;;
+            power-saver) active_marker_perf="" ;   active_marker_bal="" ;   active_marker_sav=" ◀" ; prof_cls="prof-saver" ; p_icon="<span foreground='$color_saver'>$ICON_SAVER</span>" ;;
+            *)           active_marker_perf="" ;   active_marker_bal="" ;   active_marker_sav="" ; prof_cls="prof-normal" ; p_icon="?" ;;
+        esac
+
         tooltip="<b><span foreground='$ACCENT'>SYSTEM ENERGY</span></b>
 $SEP
 <tt>Source:        $source_label
@@ -711,15 +761,24 @@ $SEP
 Health:       $health_text
 Capacity:     $wh_now / $wh_full Wh
 $time_line
-Voltage:      ${volt_v}V
-Cycles:       $cycles</tt>
+Voltage:      ${volt_v}V  |  Cycles: $cycles</tt>
 
-<span size='small' alpha='50%'>Profile: $profile · $health_msg</span>"
+<b><span foreground='$ACCENT'>POWER PROFILE</span></b>
+$SEP
+<tt>Performance:  48W / 64W / 98°C${active_marker_perf}
+Balanced:     28W / 28W / 85°C${active_marker_bal}
+Power Saver:  10W / 10W / 65°C${active_marker_sav}</tt>
 
-        printf '{"text":"%s  %s  %s%%", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s"]}\n' \
-            "$text_label" "$icon" "$cap" \
+<b><span foreground='$ACCENT'>BATTERY RESERVE</span></b>
+$SEP
+<tt>Mode:         ${reserve_label}</tt>
+
+<span size='small' alpha='50%'>Click: cycle profile  |  Right-click: toggle reserve  |  $health_msg</span>"
+
+        printf '{"text":"%s  %s  %s%%  %s", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s", "%s"]}\n' \
+            "$text_label" "$icon" "$cap" "$p_icon" \
             "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
-            "$w_cls" "$b_cls" "$health_cls"
+            "$w_cls" "$b_cls" "$health_cls" "$prof_cls"
         ;;
     bmode)
         reserve_state="$(get_reserve_state || true)"
@@ -752,7 +811,7 @@ $SEP
     bmode-toggle)
         if sudo -n /run/current-system/sw/bin/toggle-battery-reserve toggle >/dev/null 2>&1; then
             clear_warn "reserve_toggle"
-            pkill -RTMIN+4 waybar
+            pkill -RTMIN+2 -x waybar || pkill -RTMIN+2 -x .waybar-wrapped || true
         else
             warn_once "reserve_toggle" "failed to toggle battery reserve mode via sudo"
         fi
@@ -765,9 +824,15 @@ $SEP
             power-saver)  p_icon="$ICON_SAVER"; p_cls="saver" ;;
             *)            p_icon="?"; p_cls="normal" ;;
         esac
-        tooltip="<b><span foreground='$ACCENT'>POWER PROFILE</span></b>
+        tooltip="<b><span foreground='$ACCENT'>POWER PROFILE CHEAT-SHEET</span></b>
 $SEP
-<tt>Current:      $profile</tt>
+<tt>Performance: 48W / 64W / 98°C
+Balanced:    28W / 28W / 85°C
+Power Saver: 10W / 10W / 65°C</tt>
+
+<b><span foreground='$ACCENT'>CURRENT ACTIVE</span></b>
+$SEP
+<tt>Profile:     $profile</tt>
 
 <span size='small' alpha='50%'>Click to cycle profiles</span>"
         printf '{"text":" %s ", "tooltip":"%s", "class":"%s"}\n' "$p_icon" "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" "$p_cls"
@@ -788,6 +853,6 @@ $SEP
                 apply_ryzen_settings "performance"
                 ;;
         esac
-        pkill -RTMIN+2 waybar
+        pkill -RTMIN+2 -x waybar || pkill -RTMIN+2 -x .waybar-wrapped || true
         ;;
 esac

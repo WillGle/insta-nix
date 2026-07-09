@@ -172,7 +172,7 @@ apply_if_changed() {
 }
 
 ensure_waybar_running() {
-  if ! "$PGREP_BIN" -x waybar >/dev/null 2>&1; then
+  if ! "$PGREP_BIN" -x waybar >/dev/null 2>&1 && ! "$PGREP_BIN" -x .waybar-wrapped >/dev/null 2>&1; then
     "$NOHUP_BIN" "$WAYBAR_BIN" >/dev/null 2>&1 &
     sleep 0.2
   fi
@@ -209,9 +209,10 @@ apply_if_changed "$TMP_DIR/hyprland-decoration.conf" "$THEME_GENERATED_DIR/hyprl
 apply_if_changed "$TMP_DIR/nvim-matugen.lua" "$THEME_GENERATED_DIR/nvim-matugen.lua" nvim_changed
 apply_if_changed "$PALETTE_TMP" "$THEME_GENERATED_DIR/palette.json" palette_changed
 
-if "$PGREP_BIN" -x waybar >/dev/null 2>&1; then
+if "$PGREP_BIN" -x waybar >/dev/null 2>&1 || "$PGREP_BIN" -x .waybar-wrapped >/dev/null 2>&1; then
   if [ "$waybar_changed" -eq 1 ]; then
-    "$PKILL_BIN" -SIGUSR2 waybar >/dev/null 2>&1 || true
+    "$PKILL_BIN" -SIGUSR2 -x waybar >/dev/null 2>&1 || true
+    "$PKILL_BIN" -SIGUSR2 -x .waybar-wrapped >/dev/null 2>&1 || true
   fi
 else
   ensure_waybar_running

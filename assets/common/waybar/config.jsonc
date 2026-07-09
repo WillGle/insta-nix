@@ -3,17 +3,17 @@
   "position": "top",
   "height": 30,
   "modules-left": [
-    "clock#time",
     "custom/screen_time",
     "clock#calendar",
-    "custom/power_profile",
-    "custom/battery_mode",
     "custom/refresh_rate",
+    "backlight",
+    "idle_inhibitor",
     "pulseaudio",
     "hyprland/workspaces"
   ],
   "modules-center": [
-    "custom/atomic_note"
+    "custom/atomic_note",
+    "custom/systemd_failed"
   ],
   "modules-right": [
     "custom/memory_info",
@@ -57,9 +57,9 @@
     "return-type": "json",
     "interval": 30,
     "signal": 7,
-    "on-click": "setsid -f $HOME/.local/bin/rofi-screen-time",
-    "on-click-right": "setsid -f $HOME/.local/bin/rofi-study-timer",
-    "on-click-middle": "setsid -f $HOME/.local/bin/rofi-screen-time --view activity",
+    "on-click": "$HOME/.local/bin/waybar-screen-time toggle",
+    "on-click-right": "setsid -f $HOME/.local/bin/rofi-screen-time",
+    "on-click-middle": "setsid -f $HOME/.local/bin/rofi-study-timer",
     "tooltip": true
   },
   // ─── Memory (custom with top-process tooltip) ─────────────────────
@@ -101,22 +101,10 @@
   "custom/power_flow": {
     "exec": "$HOME/.local/bin/waybar-power-monitor pwr",
     "return-type": "json",
+    "format": "{}",
     "interval": 2,
-    "tooltip": true
-  },
-  "custom/power_profile": {
-    "exec": "$HOME/.local/bin/waybar-power-monitor prof",
-    "return-type": "json",
-    "interval": 30,
     "signal": 2,
     "on-click": "$HOME/.local/bin/waybar-power-monitor toggle",
-    "tooltip": true
-  },
-  "custom/battery_mode": {
-    "exec": "$HOME/.local/bin/waybar-power-monitor bmode",
-    "return-type": "json",
-    "interval": 10,
-    "signal": 4,
     "on-click-right": "$HOME/.local/bin/waybar-power-monitor bmode-toggle",
     "tooltip": true
   },
@@ -145,6 +133,27 @@
     "signal": 6,
     "on-click": "$HOME/.local/bin/rofi-network",
     "on-click-right": "$HOME/.local/bin/rofi-network",
+    "tooltip": true
+  },
+  "backlight": {
+    "device": "amd_backlight",
+    "format": "{icon} {percent}%",
+    "format-icons": ["󰃞", "󰃟", "󰃠"],
+    "tooltip": false
+  },
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "󰈈",
+      "deactivated": "󰈉"
+    },
+    "tooltip-format-activated": "Idle Inhibitor: Active",
+    "tooltip-format-deactivated": "Idle Inhibitor: Inactive"
+  },
+  "custom/systemd_failed": {
+    "exec": "$HOME/.local/bin/waybar-systemd-failed",
+    "return-type": "json",
+    "interval": 10,
     "tooltip": true
   },
   "tray": {}
