@@ -55,6 +55,10 @@
     settings = {
       General = {
         Experimental = true;
+        FastConnectable = true;
+      };
+      Policy = {
+        AutoEnable = true;
       };
     };
   };
