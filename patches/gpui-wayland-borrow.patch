@@ -1,0 +1,39 @@
+--- a/src/linux/wayland/client.rs
++++ b/src/linux/wayland/client.rs
+@@ -624,11 +624,13 @@
+                 move |event, _, client| match event {
+                     XDPEvent::WindowAppearance(appearance) => {
+                         if let Some(client) = client.0.upgrade() {
+-                            let mut client = client.borrow_mut();
+-
+-                            client.common.appearance = appearance;
+-
+-                            for window in client.windows.values_mut() {
++                            let windows = {
++                                let mut client = client.borrow_mut();
++                                client.common.appearance = appearance;
++                                client.windows.values().cloned().collect::<Vec<_>>()
++                            };
++
++                            for mut window in windows {
+                                 window.set_appearance(appearance);
+                             }
+                         }
+@@ -638,10 +640,13 @@
+                             let layout = WindowButtonLayout::parse(&layout_str)
+                                 .log_err()
+                                 .unwrap_or_else(WindowButtonLayout::linux_default);
+-                            let mut client = client.borrow_mut();
+-                            client.common.button_layout = layout;
+-
+-                            for window in client.windows.values_mut() {
++                            let windows = {
++                                let mut client = client.borrow_mut();
++                                client.common.button_layout = layout;
++                                client.windows.values().cloned().collect::<Vec<_>>()
++                            };
++
++                            for mut window in windows {
+                                 window.set_button_layout();
+                             }
+                         }
