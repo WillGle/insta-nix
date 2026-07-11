@@ -57,6 +57,21 @@ let
         component_parent=$(dirname "$component")
         ln -s "$component_parent"/gpui-component-assets-* "$component_parent/assets"
       done
+
+      # Patch gpui_linux to prevent re-entrant borrow panic when window appearance/button layout events fire
+      # (e.g. at startup under Wayland/Hyprland).
+      echo "Patching gpui_linux wayland client..."
+      gpui_linux_dir=$(find "$cargoDepsCopy" -type d -name "gpui_linux*" | while read -r d; do
+        if [ -f "$d/src/linux/wayland/client.rs" ]; then
+          echo "$d"
+          break
+        fi
+      done)
+      if [ -n "$gpui_linux_dir" ]; then
+        patch -p1 -d "$gpui_linux_dir" < ${../../patches/gpui-wayland-borrow.patch}
+      else
+        echo "WARNING: gpui_linux directory not found!"
+      fi
     '';
 
     preBuild = ''
