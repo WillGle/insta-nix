@@ -76,6 +76,9 @@ let
       install -Dm755 "$release_target/openlogi-agent" -t "$out/bin"
       install -Dm755 "$release_target/openlogi-gui" -t "$out/bin"
 
+      install -Dm644 packaging/linux/desktop/openlogi.desktop -t "$out/share/applications"
+      install -Dm644 design/icon/openlogi.png -t "$out/share/icons/hicolor/512x512/apps"
+
       runHook postInstall
     '';
 
