@@ -5,6 +5,7 @@
     ./storage.nix
     ./network.nix
     ../../modules/nixos/base.nix
+    ../../modules/nixos/openlogi.nix
     ../../users/will.nix
     ./system.nix
     ../../modules/nixos/roles/kubernetes.nix

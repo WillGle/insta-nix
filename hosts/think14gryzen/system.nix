@@ -301,6 +301,7 @@ in
 
     hypridle.enable = true;
     cpupower-gui.enable = true;
+    openlogi.enable = true;
 
     displayManager = {
       sddm = {
@@ -668,7 +669,6 @@ in
       udiskie
       usbutils
       bluez-tools
-      solaar
 
       # Shell & version control
       bash
