@@ -360,11 +360,14 @@ in
               "bluez5.enable-sbc-xq" = true;
               "bluez5.enable-msbc" = true;
               "bluez5.enable-hw-volume" = true;
+              "bluez5.codecs" = [ "sbc" "sbc_xq" "aac" "ldac" "aptx" "aptx_hd" ];
               "bluez5.roles" = [
                 "a2dp_sink"
                 "a2dp_source"
                 "headset_head_unit"
                 "headset_audio_gateway"
+                "bap_sink"
+                "bap_source"
               ];
             };
             "monitor.bluez.rules" = [
