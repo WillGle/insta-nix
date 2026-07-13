@@ -31,6 +31,10 @@ in
       source = ./assets/local-bin/atomic-note;
       executable = true;
     };
+    ".local/bin/rofi-code" = {
+      source = ./assets/local-bin/rofi-code;
+      executable = true;
+    };
     ".local/bin/monitor-setup" = {
       source = ./assets/local-bin/monitor-setup;
       executable = true;
