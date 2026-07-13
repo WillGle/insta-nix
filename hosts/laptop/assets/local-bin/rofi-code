@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Scan directories in ~/dev up to 2 levels deep
+DEV_DIR="$HOME/dev"
+
+if [ ! -d "$DEV_DIR" ]; then
+  echo "Directory $DEV_DIR does not exist." >&2
+  exit 1
+fi
+
+if pgrep -x rofi >/dev/null 2>&1; then
+  pkill -x rofi
+  exit 0
+fi
+
+# Find directories, filter out common hidden/ignored folders
+selected=$(find "$DEV_DIR" -mindepth 1 -maxdepth 2 -type d \
+  -not -path '*/.*' \
+  -not -path '*/node_modules*' \
+  -not -path '*/target*' \
+  -not -path '*/build*' \
+  | sort -V \
+  | rofi -dmenu -i -p "VSCode Project:" -config ~/.config/rofi/config.rasi)
+
+if [ -n "$selected" ]; then
+  code "$selected"
+fi
