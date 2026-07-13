@@ -591,6 +591,7 @@ in
       neovim
       playerctl
       (rofi.override { plugins = [ rofi-calc rofi-emoji ]; })
+      rofi-power-menu
       slurp
       sxhkd
       wl-clipboard
