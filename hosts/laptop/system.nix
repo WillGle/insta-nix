@@ -590,7 +590,7 @@ in
       hyprpaper
       neovim
       playerctl
-      rofi
+      (rofi.override { plugins = [ rofi-calc rofi-emoji ]; })
       slurp
       sxhkd
       wl-clipboard
