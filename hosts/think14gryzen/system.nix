@@ -266,8 +266,13 @@ in
       "bluetooth"
       "docker"
       "render"
+      "wireshark"
     ];
   };
+
+  # Non-root packet capture (dumpcap gets CAP_NET_RAW/CAP_NET_ADMIN via setcap
+  # instead of running wireshark/tshark as root). tcpdump itself still needs sudo.
+  programs.wireshark.enable = true;
 
   # Passwordless sudo for approved power wrappers only.
   security.sudo.extraRules = [
@@ -360,7 +365,14 @@ in
               "bluez5.enable-sbc-xq" = true;
               "bluez5.enable-msbc" = true;
               "bluez5.enable-hw-volume" = true;
-              "bluez5.codecs" = [ "sbc" "sbc_xq" "aac" "ldac" "aptx" "aptx_hd" ];
+              "bluez5.codecs" = [
+                "sbc"
+                "sbc_xq"
+                "aac"
+                "ldac"
+                "aptx"
+                "aptx_hd"
+              ];
               "bluez5.roles" = [
                 "a2dp_sink"
                 "a2dp_source"
@@ -590,7 +602,12 @@ in
       hyprpaper
       neovim
       playerctl
-      (rofi.override { plugins = [ rofi-calc rofi-emoji ]; })
+      (rofi.override {
+        plugins = [
+          rofi-calc
+          rofi-emoji
+        ];
+      })
       rofi-power-menu
       slurp
       sxhkd
@@ -678,8 +695,57 @@ in
       bash
       git
 
-      # Networking (CLI)
-      bind
+      # Networking — packet capture & protocol analysis
+      tcpdump
+      wireshark
+      termshark
+      ngrep
+      tcpflow
+
+      # Networking — scanning & recon
+      nmap
+      arp-scan
+      whois
+      hping
+      macchanger
+
+      # Networking — diagnostics & troubleshooting
+      bind # dig / nslookup / host
+      mtr
+      traceroute
+      netcat-gnu
+      socat
+      iperf
+      ethtool
+      ipcalc
+
+      # Networking — bandwidth & traffic monitoring
+      bmon
+      iftop
+      nload
+      vnstat
+
+      # Networking — core stack (routing, bridges, namespaces, firewall)
+      iproute2
+      nettools
+      bridge-utils
+      openvswitch
+      conntrack-tools
+      nftables
+
+      # Networking — VPN / overlay / virtual networking
+      wireguard-tools
+      openvpn
+      dnsmasq
+
+      # Deep Linux tracing & observability
+      strace
+      ltrace
+      lsof
+      sysstat
+      numactl
+      perf
+
       impala
 
       # Auth agents
