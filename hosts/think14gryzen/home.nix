@@ -117,6 +117,10 @@ in
       source = ./assets/hypr/rotate_select.sh;
       executable = true;
     };
+    "hypr/toggle_touchpad.sh" = {
+      source = ./assets/hypr/toggle_touchpad.sh;
+      executable = true;
+    };
     "rofi/screen-time.rasi".source = ./assets/rofi/screen-time.rasi;
     "rofi/study-timer.rasi".source = ./assets/rofi/study-timer.rasi;
   };
