@@ -624,6 +624,7 @@ in
       fastfetch
       fd
       gawk
+      gdu
       glmark2
       htop
       imagemagick
@@ -785,6 +786,7 @@ in
       pkgsUnstable.davinci-resolve
 
       # System GUI apps
+      baobab
       gnome-disk-utility
       mission-center
       nautilus
@@ -834,7 +836,8 @@ in
 
     ])
     ++ [
-      pkgsUnstable.antigravity
+      pkgsUnstable.antigravity-ide
+      pkgsUnstable.antigravity-cli
       pkgsUnstable.ryzenadj
     ];
 
