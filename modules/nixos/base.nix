@@ -44,6 +44,15 @@
     options = "--delete-older-than 14d";
   };
 
+  # /tmp cleanup: wipe on every boot, and shorten the vendor default's
+  # unused-file age (10d) so leaked nix-shell.* dirs from killed shells
+  # don't accumulate for over a week between reboots.
+  boot.tmp.cleanOnBoot = true;
+  environment.etc."tmpfiles.d/tmp.conf".text = ''
+    q /tmp 1777 root root 3d
+    q /var/tmp 1777 root root 30d
+  '';
+
   nixpkgs.config.allowUnfree = true;
   hardware.enableAllFirmware = true;
   hardware.logitech.wireless.enable = true;
