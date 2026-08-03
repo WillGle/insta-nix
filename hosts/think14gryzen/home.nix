@@ -183,6 +183,12 @@ in
       ${pkgs.coreutils}/bin/cp \
         "${homeDir}/.local/lib/rofi-screen-time/category-map.default.json" \
         "${config.xdg.configHome}/rofi-screen-time/category-map.json"
+    else
+      ${pkgs.jq}/bin/jq -s '.[0] as $defaults | .[1] as $current | $defaults + {categories: ($defaults.categories + $current.categories)}' \
+        "${homeDir}/.local/lib/rofi-screen-time/category-map.default.json" \
+        "${config.xdg.configHome}/rofi-screen-time/category-map.json" \
+        > "${config.xdg.configHome}/rofi-screen-time/category-map.json.tmp" && \
+      ${pkgs.coreutils}/bin/mv "${config.xdg.configHome}/rofi-screen-time/category-map.json.tmp" "${config.xdg.configHome}/rofi-screen-time/category-map.json"
     fi
   '';
 
