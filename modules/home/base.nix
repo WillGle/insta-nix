@@ -31,6 +31,7 @@
       enable = true;
       shellInit = ''
         fish_add_path "$HOME/.cargo/bin"
+        fish_add_path "$HOME/.opencode/bin"
       '';
       interactiveShellInit = ''
         set fish_greeting
@@ -227,7 +228,12 @@
         "text/plain" = "code.desktop";
         "application/pdf" = "draw.desktop";
 
-        "image/jpeg" = "org.gnome.gThumb.desktop";
+        "image/jpeg" = "org.gnome.Loupe.desktop";
+        "image/png" = "org.gnome.Loupe.desktop";
+        "image/webp" = "org.gnome.Loupe.desktop";
+        "image/gif" = "org.gnome.Loupe.desktop";
+        "image/bmp" = "org.gnome.Loupe.desktop";
+        "image/tiff" = "org.gnome.Loupe.desktop";
         "application/wps-office.docx" = "wps-office-wps.desktop";
         "application/wps-office.xlsx" = "wps-office-et.desktop";
         "application/wps-office.pptx" = "wps-office-wpp.desktop";
@@ -241,6 +247,17 @@
         "video/x-msvideo" = "vlc.desktop";
         "video/x-ms-wmv" = "vlc.desktop";
         "video/ogg" = "vlc.desktop";
+        "video/x-ms-asf" = "vlc.desktop";
+        "video/3gpp" = "vlc.desktop";
+        "video/x-ogm+ogg" = "vlc.desktop";
+
+        "audio/flac" = "tauonmb.desktop";
+        "audio/x-flac" = "tauonmb.desktop";
+        "audio/wav" = "tauonmb.desktop";
+        "audio/x-wav" = "tauonmb.desktop";
+        "audio/mpeg" = "tauonmb.desktop";
+        "audio/x-wavpack" = "tauonmb.desktop";
+
       };
     };
   };
