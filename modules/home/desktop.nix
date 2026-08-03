@@ -1,6 +1,6 @@
 { config, pkgs, osConfig, lib, ... }:
 let
-  theme = osConfig.theme;
+  inherit (osConfig) theme;
   themeRoot = "${config.xdg.configHome}/theme";
   themeAssetsDir = "${themeRoot}/assets";
   themeGeneratedDir = "${themeRoot}/generated";
@@ -64,7 +64,7 @@ let
   paletteSeed = pkgs.writeText "theme-palette.json" (
     builtins.toJSON {
       source = "static-fallback";
-      colors = theme.colors;
+      inherit (theme) colors;
     }
   );
   themeApplyScript = replaceMany [
@@ -178,88 +178,98 @@ in
     "hypr/hyprpaper.conf".text = renderTheme ../../theme/templates/hyprpaper.conf.template;
   };
 
-  home.file = {
-    ".local/bin/theme-lock" = {
-      text = themeLockScript;
-      executable = true;
+  home = {
+    file = {
+      ".local/bin/theme-lock" = {
+        text = themeLockScript;
+        executable = true;
+      };
+      ".local/bin/rofi-show" = {
+        source = ../../assets/common/rofi/rofi-show;
+        executable = true;
+      };
+      ".local/bin/rofi-clipboard" = {
+        source = ../../assets/common/rofi/rofi-clipboard;
+        executable = true;
+      };
     };
-    ".local/bin/rofi-show" = {
-      source = ../../assets/common/rofi/rofi-show;
-      executable = true;
-    };
-    ".local/bin/rofi-clipboard" = {
-      source = ../../assets/common/rofi/rofi-clipboard;
-      executable = true;
+
+    activation = {
+      themeGeneratedSeed = lib.hm.dag.entryBetween [ "reloadSystemd" ] [ "linkGeneration" ] ''
+        mkdir -p "${themeGeneratedDir}"
+        if [ ! -e "${themeGeneratedDir}/waybar.css" ]; then
+          ${pkgs.coreutils}/bin/cp "${waybarSeed}" "${themeGeneratedDir}/waybar.css"
+        fi
+        if [ ! -e "${themeGeneratedDir}/rofi.rasi" ]; then
+          ${pkgs.coreutils}/bin/cp "${rofiSeed}" "${themeGeneratedDir}/rofi.rasi"
+        fi
+        if [ ! -e "${themeGeneratedDir}/hyprlock.conf" ]; then
+          ${pkgs.coreutils}/bin/cp "${hyprlockSeed}" "${themeGeneratedDir}/hyprlock.conf"
+        fi
+        if [ ! -e "${themeGeneratedDir}/hyprland-decoration.conf" ]; then
+          ${pkgs.coreutils}/bin/cp "${hyprlandSeed}" "${themeGeneratedDir}/hyprland-decoration.conf"
+        fi
+        if [ ! -e "${themeGeneratedDir}/nvim-matugen.lua" ]; then
+          ${pkgs.coreutils}/bin/cp "${nvimSeed}" "${themeGeneratedDir}/nvim-matugen.lua"
+        fi
+        if [ ! -e "${themeGeneratedDir}/palette.json" ]; then
+          ${pkgs.coreutils}/bin/cp "${paletteSeed}" "${themeGeneratedDir}/palette.json"
+        fi
+      '';
+
+      themeApplyTrigger = lib.mkIf theme.runtime.enable (lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+        run ${themeApplyPath} || true
+      '');
+
+      restartWaybar = lib.hm.dag.entryAfter [ "linkGeneration" ] waybarRestartScript;
     };
   };
 
-  home.activation.themeGeneratedSeed = lib.hm.dag.entryBetween [ "reloadSystemd" ] [ "linkGeneration" ] ''
-    mkdir -p "${themeGeneratedDir}"
-    if [ ! -e "${themeGeneratedDir}/waybar.css" ]; then
-      ${pkgs.coreutils}/bin/cp "${waybarSeed}" "${themeGeneratedDir}/waybar.css"
-    fi
-    if [ ! -e "${themeGeneratedDir}/rofi.rasi" ]; then
-      ${pkgs.coreutils}/bin/cp "${rofiSeed}" "${themeGeneratedDir}/rofi.rasi"
-    fi
-    if [ ! -e "${themeGeneratedDir}/hyprlock.conf" ]; then
-      ${pkgs.coreutils}/bin/cp "${hyprlockSeed}" "${themeGeneratedDir}/hyprlock.conf"
-    fi
-    if [ ! -e "${themeGeneratedDir}/hyprland-decoration.conf" ]; then
-      ${pkgs.coreutils}/bin/cp "${hyprlandSeed}" "${themeGeneratedDir}/hyprland-decoration.conf"
-    fi
-    if [ ! -e "${themeGeneratedDir}/nvim-matugen.lua" ]; then
-      ${pkgs.coreutils}/bin/cp "${nvimSeed}" "${themeGeneratedDir}/nvim-matugen.lua"
-    fi
-    if [ ! -e "${themeGeneratedDir}/palette.json" ]; then
-      ${pkgs.coreutils}/bin/cp "${paletteSeed}" "${themeGeneratedDir}/palette.json"
-    fi
-  '';
+  systemd.user = {
+    services = {
+      theme-apply = lib.mkIf theme.runtime.enable {
+        Unit = {
+          Description = "Generate runtime theme palette for core Wayland surfaces";
+        };
+        Service = {
+          Type = "oneshot";
+          ExecStart = themeApplyPath;
+        };
+        Install = {
+          WantedBy = [ "default.target" ];
+        };
+      };
 
-  home.activation.themeApplyTrigger = lib.mkIf theme.runtime.enable (lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-    run ${themeApplyPath} || true
-  '');
+      polkit-agent = {
+        Unit = {
+          Description = "Polkit Authentication Agent";
+          StartLimitBurst = 3;
+          StartLimitIntervalSec = "30s";
+        };
+        Service = {
+          ExecStart = "${pkgs.lxqt.lxqt-policykit}/bin/lxqt-policykit-agent";
+          Restart = "on-failure";
+          RestartSec = "3s";
+          RestartPreventExitStatus = [ "SIGABRT" ];
+        };
+        Install = {
+          WantedBy = [ "default.target" ];
+        };
+      };
+    };
 
-  home.activation.restartWaybar = lib.hm.dag.entryAfter [ "linkGeneration" ] waybarRestartScript;
-
-  systemd.user.services.theme-apply = lib.mkIf theme.runtime.enable {
-    Unit = {
-      Description = "Generate runtime theme palette for core Wayland surfaces";
-    };
-    Service = {
-      Type = "oneshot";
-      ExecStart = themeApplyPath;
-    };
-    Install = {
-      WantedBy = [ "default.target" ];
-    };
-  };
-
-  systemd.user.paths.theme-apply = lib.mkIf theme.runtime.enable {
-    Unit = {
-      Description = "Watch wallpaper asset and re-apply the runtime theme";
-    };
-    Path = {
-      PathChanged = themeWallpaperPath;
-    };
-    Install = {
-      WantedBy = [ "default.target" ];
-    };
-  };
-
-  systemd.user.services.polkit-agent = {
-    Unit = {
-      Description = "Polkit Authentication Agent";
-      StartLimitBurst = 3;
-      StartLimitIntervalSec = "30s";
-    };
-    Service = {
-      ExecStart = "${pkgs.lxqt.lxqt-policykit}/bin/lxqt-policykit-agent";
-      Restart = "on-failure";
-      RestartSec = "3s";
-      RestartPreventExitStatus = [ "SIGABRT" ];
-    };
-    Install = {
-      WantedBy = [ "default.target" ];
+    paths = {
+      theme-apply = lib.mkIf theme.runtime.enable {
+        Unit = {
+          Description = "Watch wallpaper asset and re-apply the runtime theme";
+        };
+        Path = {
+          PathChanged = themeWallpaperPath;
+        };
+        Install = {
+          WantedBy = [ "default.target" ];
+        };
+      };
     };
   };
 }
