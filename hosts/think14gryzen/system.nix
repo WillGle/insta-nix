@@ -249,7 +249,6 @@ let
 in
 {
   # Ryzen laptop hardware + desktop + apps + gaming stack.
-  programs.fish.enable = true;
 
   # Threat model (intentional):
   # `will` is the primary owner-admin account for this personal machine,
@@ -269,10 +268,6 @@ in
       "wireshark"
     ];
   };
-
-  # Non-root packet capture (dumpcap gets CAP_NET_RAW/CAP_NET_ADMIN via setcap
-  # instead of running wireshark/tshark as root). tcpdump itself still needs sudo.
-  programs.wireshark.enable = true;
 
   # Passwordless sudo for approved power wrappers only.
   security.sudo.extraRules = [
@@ -408,49 +403,52 @@ in
     ATTRS{idVendor}=="2972", ATTRS{idProduct}=="0126", MODE="0666", GROUP="users"
   '';
 
-  # Keep Lenovo battery reserve mode ON at boot.
-  # Path discovery is dynamic inside toggle-battery-reserve.
-  systemd.services.battery-reserve-default = {
-    description = "Set Lenovo battery reserve mode to ON";
-    wantedBy = [ "multi-user.target" ];
-    wants = [ "systemd-udev-settle.service" ];
-    after = [
-      "systemd-modules-load.service"
-      "systemd-udev-settle.service"
-    ];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "/run/current-system/sw/bin/toggle-battery-reserve on --wait 45";
-      StandardOutput = "journal";
-      StandardError = "journal";
+  # Systemd services configuration
+  systemd.services = {
+    # Keep Lenovo battery reserve mode ON at boot.
+    # Path discovery is dynamic inside toggle-battery-reserve.
+    battery-reserve-default = {
+      description = "Set Lenovo battery reserve mode to ON";
+      wantedBy = [ "multi-user.target" ];
+      wants = [ "systemd-udev-settle.service" ];
+      after = [
+        "systemd-modules-load.service"
+        "systemd-udev-settle.service"
+      ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "/run/current-system/sw/bin/toggle-battery-reserve on --wait 45";
+        StandardOutput = "journal";
+        StandardError = "journal";
+      };
     };
-  };
 
-  # Re-apply the default CPU power profile after boot because firmware
-  # power management can overwrite RyzenAdj limits.
-  systemd.services.cpu-default-power-profile = {
-    description = "Set default CPU power profile";
-    wantedBy = [ "graphical.target" ];
-    wants = [ "power-profiles-daemon.service" ];
-    after = [
-      "systemd-modules-load.service"
-      "power-profiles-daemon.service"
-    ];
-    script = ''
-      /run/current-system/sw/bin/powerprofilesctl set power-saver
-      /run/current-system/sw/bin/ryzenadj-profile power-saver
-    '';
-    serviceConfig = {
-      Type = "oneshot";
-      StandardOutput = "journal";
-      StandardError = "journal";
+    # Re-apply the default CPU power profile after boot because firmware
+    # power management can overwrite RyzenAdj limits.
+    cpu-default-power-profile = {
+      description = "Set default CPU power profile";
+      wantedBy = [ "graphical.target" ];
+      wants = [ "power-profiles-daemon.service" ];
+      after = [
+        "systemd-modules-load.service"
+        "power-profiles-daemon.service"
+      ];
+      script = ''
+        /run/current-system/sw/bin/powerprofilesctl set power-saver
+        /run/current-system/sw/bin/ryzenadj-profile power-saver
+      '';
+      serviceConfig = {
+        Type = "oneshot";
+        StandardOutput = "journal";
+        StandardError = "journal";
+      };
     };
-  };
 
-  # Drop the ~5.4s boot blocker on the critical chain: docker is the only
-  # consumer of network-online.target and brings up its own docker0 bridge,
-  # so waiting for full connectivity before graphical.target buys nothing.
-  systemd.services.NetworkManager-wait-online.enable = false;
+    # Drop the ~5.4s boot blocker on the critical chain: docker is the only
+    # consumer of network-online.target and brings up its own docker0 bridge,
+    # so waiting for full connectivity before graphical.target buys nothing.
+    NetworkManager-wait-online.enable = false;
+  };
 
   hardware.graphics = {
     enable = true;
@@ -463,6 +461,7 @@ in
       libva-utils
       libva-vdpau-driver
       mesa
+      mesa.opencl
       # Restore the AMD OpenCL ICD so DaVinci Resolve can see the 780M again.
       rocmPackages.clr
       rocmPackages.clr.icd
@@ -541,6 +540,8 @@ in
   security.rtkit.enable = true;
 
   programs = {
+    fish.enable = true;
+    wireshark.enable = true;
     hyprland.enable = true;
 
     steam = {
@@ -581,6 +582,7 @@ in
   };
 
   environment.sessionVariables = {
+    QT_QPA_PLATFORM = "wayland;xcb";
     QT_FONT_DPI = "144";
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
@@ -593,7 +595,10 @@ in
       bibata-cursors
       sddm-astronaut
 
-      # Wayland & WM helpers
+      # Wayland & Qt helpers
+      qt5.qtwayland
+      qt6.qtwayland
+      xorg.xcbutilcursor
       brightnessctl
       cliphist
       dunst
@@ -776,14 +781,14 @@ in
       gthumb
       guvcview
       imv
+      lightworks
+      pkgsUnstable.losslesscut-bin
       loupe
       pkgsUnstable.obs-studio
       rawtherapee
-      pkgsUnstable.sonic-visualiser
       vlc
-      pkgsUnstable.strawberry
+      pkgsUnstable.tauon
       wavpack
-      pkgsUnstable.davinci-resolve
 
       # System GUI apps
       baobab
@@ -794,6 +799,7 @@ in
       pavucontrol
       pkgsUnstable.proton-vpn
       qpwgraph
+      pkgsUnstable.waypaper
 
       # Media tools & codecs
       ffmpeg-full
@@ -801,6 +807,9 @@ in
       gnome-epub-thumbnailer
       libavif
       libheif
+      mediainfo
+      mediainfo-gui
+      spek
       v4l-utils
       alsa-utils
 
