@@ -121,7 +121,7 @@ build_insighted_context() {
           + maybe((($today.scores.fragmentation_score.value // 0) >= $t.quality.high_fragmentation) and ((($today.scores.focus_score.value // 0) < $t.quality.strong_focus)); {
             kind: "Focus",
             priority: 88,
-            text: $msg.quality.high_fragmentation,
+            text: ("Activity is more fragmented than your usual pattern. Most frequent transition: " + ($today.metrics.top_transition_label // "app switching") + ". This may represent a single work context, not a distraction source."),
             metric: "fragmentation_score"
           })
           + maybe((($today.scores.focus_score.value // 0) >= $t.quality.strong_focus) and ((($today.scores.fragmentation_score.value // 0) < $t.quality.high_fragmentation)); {
@@ -133,7 +133,7 @@ build_insighted_context() {
           + maybe(($baseline.available and ($today.metrics.switch_rate != null) and ($baseline.averages.switch_rate != null) and ($baseline.averages.switch_rate > 0) and ($today.metrics.switch_rate > ($t.quality.switch_above_baseline_mult * $baseline.averages.switch_rate))); {
             kind: "Focus",
             priority: 76,
-            text: $msg.quality.switch_above_baseline,
+            text: ("Switching pace is " + (((($today.metrics.switch_rate / $baseline.averages.switch_rate) - 1) * 100 | round | tostring)) + "% higher than your 7-day norm."),
             metric: "switch_rate"
           })
           + maybe(($today.metrics.avg_session_length_proxy_seconds != null) and ($today.metrics.avg_session_length_proxy_seconds < $t.quality.short_session_proxy_seconds); {
@@ -199,7 +199,7 @@ build_insighted_context() {
           maybe(($today.metrics.eye_strain_risk == "High"); {
             kind: "Health",
             priority: 92,
-            text: "Take a 20-min screen break — eye strain risk is elevated (20-20-20 rule).",
+            text: "Look 20 feet away for 20 seconds every 20 minutes (20-20-20 rule) — eye strain is elevated.",
             metric: "eye_strain_risk"
           })
           + maybe(($today.metrics.circadian_phase == "Night" or $today.metrics.circadian_phase == "Evening"); {
