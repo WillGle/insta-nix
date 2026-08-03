@@ -30,12 +30,13 @@ build_metrics_context() {
         else
           slot_time($index * 30) + "-" + slot_time((($index + 1) * 30) % 1440)
         end;
-      def focus_window($slots):
-        ([ $slots | to_entries[] | select(.value > 0) | .key ]) as $active
-        | if ($active | length) == 0 then
-            "No tracked focus"
-          else
-            slot_time(($active[0] * 30)) + "-" + slot_time(((($active[-1] + 1) * 30)) % 1440)
+      def peak_activity_window($slots):
+        (reduce range(0; 46) as $i ({best: -1, best_i: -1};
+          (($slots[$i] // 0) + ($slots[$i+1] // 0) + ($slots[$i+2] // 0)) as $w
+          | if $w > .best then {best: $w, best_i: $i} else . end
+        )) as $r
+        | if $r.best <= 0 then "No peak yet"
+          else slot_time($r.best_i * 30) + "\u2013" + slot_time(($r.best_i + 3) * 30)
           end;
       def app_entries($apps; $map):
         (($apps // {}) | to_entries | map(
@@ -114,13 +115,21 @@ build_metrics_context() {
             else {run: 0, max_run: .max_run}
             end
           ) | (.max_run / 3 | floor)) as $ultradian_score
-        | (if $peak.key < 0 then "Unknown"
-           elif $peak.key < 12 then "Night"
-           elif $peak.key < 24 then "Morning"
-           elif $peak.key < 36 then "Afternoon"
-           elif $peak.key < 44 then "Evening"
-           else "Night"
-           end) as $circadian_phase
+        | (
+            if ($day.updated_at != null and ($day.updated_at | contains(":"))) then
+              ($day.updated_at | split("T") | last | split(":") | .[0] | tonumber? // (now | (. / 3600 % 24 | floor)))
+            else
+              (now | (. / 3600 % 24 | floor))
+            end
+          ) as $current_hour
+        | (
+            if $current_hour < 6 then "Night"
+            elif $current_hour < 12 then "Morning"
+            elif $current_hour < 18 then "Afternoon"
+            elif $current_hour < 22 then "Evening"
+            else "Night"
+            end
+          ) as $circadian_phase
         | (if ($total / 3600) < 4 then "Low"
            elif (($total / 3600) < 7 and $recovery_gap_count >= 2) then "Low"
            elif ($total / 3600) < 7 then "Moderate"
@@ -139,6 +148,17 @@ build_metrics_context() {
              ($raw_switch_rate // 0) / (if ($focus_blocks.deep_count // 0) > 0 then ($focus_blocks.deep_count // 0) else 1 end)
            else null
            end) as $attention_fragmentation_index
+        | (reduce $transitions[] as $t ({within_task: 0, cross_context: 0, interruption: 0};
+            ($map[$t.from] // "Unknown") as $cat_from
+            | ($map[$t.to] // "Unknown") as $cat_to
+            | if ($cat_from == "Communication" or $cat_to == "Communication") then
+                .interruption += ($t.count // 0)
+              elif ($cat_from == $cat_to and $cat_from != "Unknown") then
+                .within_task += ($t.count // 0)
+              else
+                .cross_context += ($t.count // 0)
+              end
+          )) as $classified_transitions
         | {
             date: $day.date,
             version: $day.version,
@@ -185,6 +205,7 @@ build_metrics_context() {
 	            },
 	            behavior: {
 	              transitions: $transitions,
+	              classified_transitions: $classified_transitions,
 	              top_transition: $top_transition,
 	              focus_blocks: {
 	                current_app: ($focus_blocks.current_app // ""),
@@ -202,7 +223,7 @@ build_metrics_context() {
               safe_total_seconds: (if $total > 0 then $total else 1 end),
               active_slot_count: $active_slot_count,
               active_spread: $active_slot_count,
-              focus_window: focus_window($slots),
+              focus_window: peak_activity_window($slots),
               peak_slot_index: $peak.key,
               peak_slot_label: (if $peak.key >= 0 then slot_label($peak.key) else "No peak yet" end),
               peak_slot_seconds: $peak.value,
