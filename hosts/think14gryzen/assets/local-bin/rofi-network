@@ -509,7 +509,7 @@ build_message() {
   if [ -n "$iface" ]; then
     wifi_conn="$(active_wifi_connection "$iface")"
     if [ -n "$wifi_conn" ]; then
-      IFS=$'\t' read -r wifi_name wifi_uuid wifi_device <<< "$wifi_conn"
+      IFS=$'\t' read -r wifi_name wifi_uuid _wifi_device <<< "$wifi_conn"
       wifi_ssid="$(connection_ssid "$wifi_uuid" "$wifi_name")"
       wifi_ap="$(active_wifi_ap_line "$iface" "$wifi_ssid")"
     fi
