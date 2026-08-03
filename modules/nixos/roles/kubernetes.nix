@@ -25,8 +25,4 @@
   environment.variables = {
     KUBECONFIG = "/etc/rancher/k3s/k3s.yaml";
   };
-  
-  # Ensure the config exists and is readable by the 'will' user group (or just set permissions)
-  # A common NixOS pattern for K3s local dev:
-  # systemd.services.k3s.after = [ "network.target" ];
 }
