@@ -427,9 +427,13 @@ acquire_lock() {
   local lock_dir="${XDG_RUNTIME_DIR:-/tmp}/rofi-screen-time.lock"
   local lock_pid=""
 
+  cleanup_lock() {
+    rm -rf "${XDG_RUNTIME_DIR:-/tmp}/rofi-screen-time.lock" >/dev/null 2>&1 || true
+  }
+
   if mkdir "$lock_dir" 2>/dev/null; then
     printf '%s\n' "$$" >"$lock_dir/pid"
-    trap "rm -rf '$lock_dir' >/dev/null 2>&1 || true" EXIT INT TERM
+    trap cleanup_lock EXIT INT TERM
     return 0
   fi
 
@@ -444,7 +448,7 @@ acquire_lock() {
   rm -rf "$lock_dir"
   if mkdir "$lock_dir" 2>/dev/null; then
     printf '%s\n' "$$" >"$lock_dir/pid"
-    trap "rm -rf '$lock_dir' >/dev/null 2>&1 || true" EXIT INT TERM
+    trap cleanup_lock EXIT INT TERM
     return 0
   fi
 

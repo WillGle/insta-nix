@@ -43,7 +43,7 @@ echo "repo:  $REPO"
 echo "quant: $QUANT  ->  $(printf '%s\n' "$todo" | head -1)$([ "$(printf '%s\n' "$todo" | grep -c .)" -gt 1 ] && echo ' (+shards)')"
 echo "dest:  $dest/"
 if [ "$DRY" = 1 ]; then
-  echo "(dry-run) would download:"; printf '   %s/%s\n' "$base_url" $todo
+  echo "(dry-run) would download:"; printf '   %s/%s\n' "$base_url" "$todo"
   exit 0
 fi
 mkdir -p "$dest"
