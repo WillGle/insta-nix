@@ -125,34 +125,55 @@ in
     "rofi/study-timer.rasi".source = ./assets/rofi/study-timer.rasi;
   };
 
-  systemd.user.services.rofi-screen-time-tracker = {
-    Unit = {
-      Description = "Track active application usage for the rofi screen-time dashboard";
-      After = [ "graphical-session.target" ];
-      PartOf = [ "graphical-session.target" ];
-    };
-    Service = {
-      ExecStart = "${homeDir}/.local/bin/rofi-screen-time-track --interval-seconds 5";
-      Restart = "always";
-      RestartSec = "2s";
-    };
-  };
+  systemd.user = {
+    services = {
+      rofi-screen-time-tracker = {
+        Unit = {
+          Description = "Track active application usage for the rofi screen-time dashboard";
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
+        Service = {
+          ExecStart = "${homeDir}/.local/bin/rofi-screen-time-track --interval-seconds 5";
+          Restart = "always";
+          RestartSec = "2s";
+        };
+      };
 
-  systemd.user.services.rofi-screen-time-cache = {
-    Unit = {
-      Description = "Warm the default rofi screen-time popup cache";
-      After = [
-        "graphical-session.target"
-        "rofi-screen-time-tracker.service"
-      ];
-      PartOf = [ "graphical-session.target" ];
+      rofi-screen-time-cache = {
+        Unit = {
+          Description = "Warm the default rofi screen-time popup cache";
+          After = [
+            "graphical-session.target"
+            "rofi-screen-time-tracker.service"
+          ];
+          PartOf = [ "graphical-session.target" ];
+        };
+        Service = {
+          Type = "oneshot";
+          ExecStart = "${homeDir}/.local/bin/rofi-screen-time-cache";
+        };
+        Install = {
+          WantedBy = [ "graphical-session.target" ];
+        };
+      };
     };
-    Service = {
-      Type = "oneshot";
-      ExecStart = "${homeDir}/.local/bin/rofi-screen-time-cache";
-    };
-    Install = {
-      WantedBy = [ "graphical-session.target" ];
+
+    timers = {
+      rofi-screen-time-cache = {
+        Unit = {
+          Description = "Refresh the default rofi screen-time popup cache";
+          PartOf = [ "graphical-session.target" ];
+        };
+        Timer = {
+          OnBootSec = "20s";
+          OnUnitActiveSec = "2m";
+          Unit = "rofi-screen-time-cache.service";
+        };
+        Install = {
+          WantedBy = [ "timers.target" ];
+        };
+      };
     };
   };
 
@@ -164,21 +185,6 @@ in
         "${config.xdg.configHome}/rofi-screen-time/category-map.json"
     fi
   '';
-
-  systemd.user.timers.rofi-screen-time-cache = {
-    Unit = {
-      Description = "Refresh the default rofi screen-time popup cache";
-      PartOf = [ "graphical-session.target" ];
-    };
-    Timer = {
-      OnBootSec = "20s";
-      OnUnitActiveSec = "2m";
-      Unit = "rofi-screen-time-cache.service";
-    };
-    Install = {
-      WantedBy = [ "timers.target" ];
-    };
-  };
 
   xdg.dataFile."applications/org.rnd2.cpupower_gui.desktop".text = ''
     [Desktop Entry]
