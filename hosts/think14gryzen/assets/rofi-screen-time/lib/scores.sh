@@ -82,10 +82,11 @@ build_scored_context() {
             }
           else
             ($active_slot_count / (if ($active_hours * 2) > 1 then ($active_hours * 2) else 1 end)) as $spread_ratio
-            | (norm_range($session_density; 2; 20)) as $session_density_norm
             | (norm_range($switch_rate; 4; 30)) as $switch_rate_norm
             | (norm_range($spread_ratio; 0.6; 1.4)) as $spread_norm
-            | ((0.45 * $session_density_norm) + (0.45 * $switch_rate_norm) + (0.10 * $spread_norm)) as $fragmentation_norm
+            | ($day.metrics.avg_session_length_proxy_seconds // 60) as $avg_session_seconds
+            | (norm_range($avg_session_seconds; 30; 300)) as $avg_session_length_norm
+            | ((0.55 * $switch_rate_norm) + (0.30 * (1 - $avg_session_length_norm)) + (0.15 * $spread_norm)) as $fragmentation_norm
             | (($fragmentation_norm * 100) | round) as $fragmentation_score
             | (clamp01($study_ratio)) as $study_ratio_norm
             | (clamp01($work_study_share)) as $work_study_norm
@@ -96,7 +97,7 @@ build_scored_context() {
             | (clamp01($communication_load)) as $comm_norm
             | (clamp01($leisure_load)) as $leisure_norm
             | (clamp01($browser_ratio)) as $browser_norm
-            | ((0.30 * $comm_norm) + (0.25 * $leisure_norm) + (0.20 * $browser_norm) + (0.15 * $switch_rate_norm) + (0.10 * $session_density_norm)) as $distraction_norm
+            | ((0.40 * $comm_norm) + (0.35 * $leisure_norm) + (0.25 * $browser_norm)) as $distraction_norm
             | (($distraction_norm * 100) | round) as $distraction_score
             | . + {
               scores: {
@@ -115,12 +116,13 @@ build_scored_context() {
                   value: $fragmentation_score,
                   partial: false,
                   label: score_label_fragmentation($fragmentation_score),
-                  reason: "",
+                  reason: "Measures switching frequency, session depth, and daily spread — three independent signals.",
                   components: {
-                    session_density_norm: $session_density_norm,
                     switch_rate_norm: $switch_rate_norm,
+                    avg_session_length_norm: $avg_session_length_norm,
                     spread_norm: $spread_norm,
-                    spread_ratio: $spread_ratio
+                    spread_ratio: $spread_ratio,
+                    avg_session_seconds: $avg_session_seconds
                   }
                 },
                 focus_score: {
@@ -162,13 +164,11 @@ build_scored_context() {
                   value: $distraction_score,
                   partial: true,
                   label: score_label_distraction($distraction_score),
-                  reason: "Browser activity is treated as ambiguity pressure, not confirmed distraction.",
+                  reason: "Based on category composition: communication, leisure, and browser ambiguity. Switching rate is captured separately in fragmentation.",
                   components: {
                     communication_norm: $comm_norm,
                     leisure_norm: $leisure_norm,
-                    browser_norm: $browser_norm,
-                    switch_norm: $switch_rate_norm,
-                    session_density_norm: $session_density_norm
+                    browser_norm: $browser_norm
                   }
                 },
                 daily_consistency_score: unavailable_score("Requires at least 3 version 2 days."; false)
@@ -292,57 +292,80 @@ build_scored_context() {
         end
       | .today.scores.digital_wellbeing_score = (
           if (.today.schema_ready) then
-            (
-              ((.today.scores.focus_score.value // 0) / 100) * 0.30
-              + ((1 - ((.today.scores.fragmentation_score.value // 0) / 100)) * 0.25)
-              + ([(.today.metrics.study_goal_progress // 0), 1] | min) * 0.20
-              + ([(.today.metrics.recovery_gap_count // 0) / 2, 1] | min) * 0.15
-              + ((1 - ((.today.scores.distraction_load.value // 0) / 100)) * 0.10)
-            ) * 100 | round
+            (.today.categories.unknown_share // 0) as $unk
+            | (if $unk < 0.10 then "High" elif $unk < 0.25 then "Medium" else "Low" end) as $conf
+            | (
+                (
+                  ((.today.scores.focus_score.value // 0) / 100) * 0.30
+                  + ((1 - ((.today.scores.fragmentation_score.value // 0) / 100)) * 0.25)
+                  + ([(.today.metrics.study_goal_progress // 0), 1] | min) * 0.20
+                  + ([(.today.metrics.recovery_gap_count // 0) / 2, 1] | min) * 0.15
+                  + ((1 - ((.today.scores.distraction_load.value // 0) / 100)) * 0.10)
+                ) * 100 | round
+              ) as $val
             | {
                 available: true,
-                value: .,
+                value: $val,
                 label: (
-                  if . >= 70 then "Strong digital wellness"
-                  elif . >= 40 then "Moderate digital wellness"
+                  if $val >= 70 then "Strong digital wellness"
+                  elif $val >= 40 then "Moderate digital wellness"
                   else "Needs attention"
                   end
                 ),
+                confidence: $conf,
+                untracked_percent: (($unk * 100) | round),
+                drivers: [
+                  (if (.today.scores.fragmentation_score.value // 0) >= 50 then {name: "High context switching", impact: (-1 * (((.today.scores.fragmentation_score.value // 0) / 100 * 25) | round)), type: "negative"} else empty end),
+                  (if (.today.scores.distraction_load.value // 0) >= 50 then {name: "Distraction pressure", impact: (-1 * (((.today.scores.distraction_load.value // 0) / 100 * 10) | round)), type: "negative"} else empty end),
+                  (if (.today.metrics.recovery_gap_count // 0) < 1 then {name: "Low recovery time", impact: -15, type: "negative"} else empty end),
+                  (if (.today.scores.focus_score.value // 0) >= 60 then {name: "Deep focus blocks", impact: (((.today.scores.focus_score.value // 0) / 100 * 30) | round), type: "positive"} else empty end),
+                  (if (.today.metrics.study_goal_progress // 0) >= 0.5 then {name: "Goal progress", impact: (([(.today.metrics.study_goal_progress // 0), 1] | min * 20) | round), type: "positive"} else empty end)
+                ],
                 reason: ""
               }
           else
             {available: false, value: null, label: "Unavailable", reason: "Requires version 2 tracking data."}
           end
         )
-      | .data_quality = {
-          schema_version: .today.version,
-          schema_ready: .today.schema_ready,
-          title_tracking: false,
-          focus_score_partial: (.today.scores.focus_score.partial // true),
-          baseline_available: .baseline.available,
-          baseline_eligible_days: .baseline.eligible_days,
-          category_map_path: .category_map_path,
-          category_map_size: .category_map_size,
-          known_category_ratio: .today.categories.known_category_ratio,
-          browser_ambiguity_ratio: .today.categories.browser_ambiguity_ratio,
-          unknown_share: .today.categories.unknown_share,
-          unavailable_metrics: [
-            if (.today.schema_ready | not) then
-              "Advanced focus and fragmentation metrics require version 2 day data."
-            else
-              empty
-            end,
-            if (.baseline.available | not) then
-              "7-day baselines need at least 3 version 2 days in the trailing window."
-            else
-              empty
-            end,
-            if .today.categories.browser_ambiguity_ratio > 0 then
-              "Browser activity remains semantically neutral without title tracking."
-            else
-              empty
-            end
-          ]
-        }
+      | .data_quality = (
+          (.today.categories.unknown_share // 0) as $dq_unk
+          | (.today.categories.browser_ambiguity_ratio // 0) as $dq_browser
+          | (.today.categories.known_category_ratio // 0) as $dq_mapped
+          | (if ($dq_mapped > 0.85 and $dq_unk < 0.10 and $dq_browser < 0.30) then "High"
+             elif ($dq_mapped > 0.65 and $dq_unk < 0.25) then "Medium"
+             else "Low"
+             end) as $model_conf
+          | {
+              schema_version: .today.version,
+              schema_ready: .today.schema_ready,
+              title_tracking: false,
+              focus_score_partial: (.today.scores.focus_score.partial // true),
+              baseline_available: .baseline.available,
+              baseline_eligible_days: .baseline.eligible_days,
+              category_map_path: .category_map_path,
+              category_map_size: .category_map_size,
+              known_category_ratio: .today.categories.known_category_ratio,
+              browser_ambiguity_ratio: .today.categories.browser_ambiguity_ratio,
+              unknown_share: .today.categories.unknown_share,
+              model_confidence: $model_conf,
+              unavailable_metrics: [
+                if (.today.schema_ready | not) then
+                  "Advanced focus and fragmentation metrics require version 2 day data."
+                else
+                  empty
+                end,
+                if (.baseline.available | not) then
+                  "7-day baselines need at least 3 version 2 days in the trailing window."
+                else
+                  empty
+                end,
+                if .today.categories.browser_ambiguity_ratio > 0 then
+                  "Browser activity remains semantically neutral without title tracking."
+                else
+                  empty
+                end
+              ]
+            }
+        )
     '
 }
