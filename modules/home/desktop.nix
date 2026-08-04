@@ -8,6 +8,14 @@ let
   themeStaticEnv = "${themeRoot}/static.env";
   themeApplyPath = "${themeRoot}/theme-apply";
   themeWallpaperPath = "${themeAssetsDir}/${theme.wallpaper.name}";
+
+  # Runtime state lives outside the Home Manager generation so a user-selected
+  # wallpaper survives rebuilds and is never a read-only store path.
+  themeStateDir = "${config.xdg.stateHome}/theme";
+  themeWallpaperStore = "${themeStateDir}/wallpapers";
+  themeWallpaperPointer = "${themeStateDir}/wallpaper.path";
+  themeLockFile = "${themeStateDir}/theme-apply.lock";
+
   generatedLink = path: config.lib.file.mkOutOfStoreSymlink "${themeGeneratedDir}/${path}";
 
   strip = color: lib.removePrefix "#" color;
@@ -61,30 +69,46 @@ let
   hyprlandSeed =
     pkgs.writeText "theme-hyprland-decoration.conf" (renderTheme ../../theme/templates/hyprland-decoration.conf.template);
   nvimSeed = pkgs.writeText "theme-nvim-matugen.lua" (renderTheme ../../theme/templates/nvim-colors.lua.template);
+  hyprpaperSeed = pkgs.writeText "theme-hyprpaper.conf" (renderTheme ../../theme/templates/hyprpaper.conf.template);
   paletteSeed = pkgs.writeText "theme-palette.json" (
     builtins.toJSON {
       source = "static-fallback";
       inherit (theme) colors;
     }
   );
-  themeApplyScript = replaceMany [
+  themeBinReplacements = [
+    [ "__BASH_BIN__" "${pkgs.bash}/bin/bash" ]
     [ "__MATUGEN_BIN__" "${pkgs.matugen}/bin/matugen" ]
     [ "__JQ_BIN__" "${pkgs.jq}/bin/jq" ]
     [ "__SED_BIN__" "${pkgs.gnused}/bin/sed" ]
+    [ "__GREP_BIN__" "${pkgs.gnugrep}/bin/grep" ]
+    [ "__FIND_BIN__" "${pkgs.findutils}/bin/find" ]
+    [ "__SORT_BIN__" "${pkgs.coreutils}/bin/sort" ]
+    [ "__ROFI_BIN__" "${pkgs.rofi}/bin/rofi" ]
     [ "__MKTEMP_BIN__" "${pkgs.coreutils}/bin/mktemp" ]
     [ "__MKDIR_BIN__" "${pkgs.coreutils}/bin/mkdir" ]
     [ "__MV_BIN__" "${pkgs.coreutils}/bin/mv" ]
+    [ "__CP_BIN__" "${pkgs.coreutils}/bin/cp" ]
     [ "__RM_BIN__" "${pkgs.coreutils}/bin/rm" ]
+    [ "__CAT_BIN__" "${pkgs.coreutils}/bin/cat" ]
+    [ "__OD_BIN__" "${pkgs.coreutils}/bin/od" ]
+    [ "__TR_BIN__" "${pkgs.coreutils}/bin/tr" ]
+    [ "__SHA256_BIN__" "${pkgs.coreutils}/bin/sha256sum" ]
+    [ "__READLINK_BIN__" "${pkgs.coreutils}/bin/readlink" ]
+    [ "__TIMEOUT_BIN__" "${pkgs.coreutils}/bin/timeout" ]
+    [ "__SLEEP_BIN__" "${pkgs.coreutils}/bin/sleep" ]
     [ "__CMP_BIN__" "${pkgs.diffutils}/bin/cmp" ]
+    [ "__FLOCK_BIN__" "${pkgs.util-linux}/bin/flock" ]
+    [ "__SYSTEMCTL_BIN__" "${pkgs.systemd}/bin/systemctl" ]
     [ "__LS_BIN__" "${pkgs.coreutils}/bin/ls" ]
     [ "__HEAD_BIN__" "${pkgs.coreutils}/bin/head" ]
-    [ "__NOHUP_BIN__" "${pkgs.coreutils}/bin/nohup" ]
-    [ "__PKILL_BIN__" "${pkgs.procps}/bin/pkill" ]
-    [ "__PGREP_BIN__" "${pkgs.procps}/bin/pgrep" ]
-    [ "__WAYBAR_BIN__" "${pkgs.waybar}/bin/waybar" ]
     [ "__HYPRCTL_BIN__" "${pkgs.hyprland}/bin/hyprctl" ]
     [ "__THEME_STATIC_ENV__" themeStaticEnv ]
-  ] ../../theme/scripts/theme-apply.sh.template;
+    [ "__THEME_APPLY_BIN__" themeApplyPath ]
+  ];
+
+  themeApplyScript = replaceMany themeBinReplacements ../../theme/scripts/theme-apply.sh.template;
+  wallpaperScript = replaceMany themeBinReplacements ../../theme/scripts/wallpaper.sh.template;
 
   themeLockScript = replaceMany (
     commonReplacements
@@ -93,45 +117,24 @@ let
     ]
   ) ../../theme/scripts/theme-lock.sh.template;
 
-  waybarRestartScript = ''
-    if ${pkgs.procps}/bin/pgrep -x waybar >/dev/null || ${pkgs.procps}/bin/pgrep -x .waybar-wrapped >/dev/null; then
-      USER_UID=$(${pkgs.coreutils}/bin/id -u)
-      export XDG_RUNTIME_DIR="/run/user/$USER_UID"
-
-      if [ -z "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
-        if [ -d "$XDG_RUNTIME_DIR/hypr" ]; then
-          export HYPRLAND_INSTANCE_SIGNATURE="$(${pkgs.coreutils}/bin/ls -1t "$XDG_RUNTIME_DIR/hypr" 2>/dev/null | ${pkgs.coreutils}/bin/head -n1 || true)"
-        elif [ -d /tmp/hypr ]; then
-          export HYPRLAND_INSTANCE_SIGNATURE="$(${pkgs.coreutils}/bin/ls -1t /tmp/hypr 2>/dev/null | ${pkgs.coreutils}/bin/head -n1 || true)"
-        fi
-      fi
-
-      if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
-        ${pkgs.procps}/bin/pkill -x waybar || true
-        ${pkgs.procps}/bin/pkill -x .waybar-wrapped || true
-        ${pkgs.coreutils}/bin/sleep 0.5
-        ${pkgs.hyprland}/bin/hyprctl dispatch exec ${pkgs.waybar}/bin/waybar >/dev/null 2>&1 || true
-      else
-        ${pkgs.procps}/bin/pkill -x waybar || true
-        ${pkgs.procps}/bin/pkill -x .waybar-wrapped || true
-        ${pkgs.coreutils}/bin/sleep 0.5
-        env WAYLAND_DISPLAY=wayland-1 nohup ${pkgs.waybar}/bin/waybar >/dev/null 2>&1 &
-      fi
-    fi
-  '';
 in
 {
-  wayland.systemd.target = "default.target";
+  programs.waybar.systemd.enable = lib.mkForce true;
+  wayland.systemd.target = "hyprland-session.target";
 
 
   xdg.configFile = {
     "theme/templates".source = ../../theme/templates;
     "theme/assets/${theme.wallpaper.name}".source = theme.wallpaper.source;
     "theme/static.env".text = ''
-      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v3"}
+      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v4"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
       THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
       THEME_GENERATED_DIR=${lib.escapeShellArg themeGeneratedDir}
+      THEME_STATE_DIR=${lib.escapeShellArg themeStateDir}
+      THEME_WALLPAPER_STORE=${lib.escapeShellArg themeWallpaperStore}
+      THEME_WALLPAPER_POINTER=${lib.escapeShellArg themeWallpaperPointer}
+      THEME_LOCK_FILE=${lib.escapeShellArg themeLockFile}
       THEME_WALLPAPER=${lib.escapeShellArg themeWallpaperPath}
       THEME_UI_FONT=${lib.escapeShellArg theme.fonts.ui.family}
       THEME_UI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.ui.size)}
@@ -159,7 +162,11 @@ in
 
     "waybar/config.jsonc" = {
       source = ../../assets/common/waybar/config.jsonc;
-      onChange = waybarRestartScript;
+      onChange = ''
+        if ${pkgs.systemd}/bin/systemctl --user is-active --quiet waybar.service; then
+          ${pkgs.systemd}/bin/systemctl --user reload waybar.service
+        fi
+      '';
     };
     "waybar/style.css".text = ''
       @import url("file://${themeGeneratedDir}/waybar.css");
@@ -175,7 +182,7 @@ in
       pcall(vim.cmd.colorscheme, "matugen")
     '';
 
-    "hypr/hyprpaper.conf".text = renderTheme ../../theme/templates/hyprpaper.conf.template;
+    "hypr/hyprpaper.conf".source = generatedLink "hyprpaper.conf";
   };
 
   home = {
@@ -190,6 +197,10 @@ in
       };
       ".local/bin/rofi-clipboard" = {
         source = ../../assets/common/rofi/rofi-clipboard;
+        executable = true;
+      };
+      ".local/bin/wallpaper" = {
+        text = wallpaperScript;
         executable = true;
       };
     };
@@ -212,28 +223,45 @@ in
         if [ ! -e "${themeGeneratedDir}/nvim-matugen.lua" ]; then
           ${pkgs.coreutils}/bin/cp "${nvimSeed}" "${themeGeneratedDir}/nvim-matugen.lua"
         fi
+        if [ ! -e "${themeGeneratedDir}/hyprpaper.conf" ]; then
+          ${pkgs.coreutils}/bin/cp "${hyprpaperSeed}" "${themeGeneratedDir}/hyprpaper.conf"
+        fi
         if [ ! -e "${themeGeneratedDir}/palette.json" ]; then
           ${pkgs.coreutils}/bin/cp "${paletteSeed}" "${themeGeneratedDir}/palette.json"
         fi
       '';
 
-      themeApplyTrigger = lib.mkIf theme.runtime.enable (lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-        run ${themeApplyPath} || true
-      '');
-
-      restartWaybar = lib.hm.dag.entryAfter [ "linkGeneration" ] waybarRestartScript;
+      # Runs after the seed has populated the generated directory and after
+      # reloadSystemd, so a reload can never race the generation it triggers.
+      themeApplyTrigger = lib.mkIf theme.runtime.enable (
+        lib.hm.dag.entryAfter [ "themeGeneratedSeed" "reloadSystemd" ] ''
+          # theme-apply stages every output and only commits once the whole
+          # generation succeeded, so a failure here leaves the previously
+          # generated theme intact. Let it surface instead of swallowing it:
+          # a silent warning would hide a broken theme behind a green rebuild.
+          run ${pkgs.bash}/bin/bash ${themeApplyPath}
+        ''
+      );
     };
   };
 
   systemd.user = {
     services = {
+      waybar = {
+        Unit.PartOf = lib.mkForce [ "hyprland-session.target" ];
+        Install.WantedBy = lib.mkForce [ "hyprland-session.target" ];
+      };
+
       theme-apply = lib.mkIf theme.runtime.enable {
         Unit = {
           Description = "Generate runtime theme palette for core Wayland surfaces";
         };
         Service = {
           Type = "oneshot";
-          ExecStart = themeApplyPath;
+          # Absolute interpreter: the unit starts with an empty PATH, so a
+          # `/usr/bin/env bash` shebang would fail before the script runs.
+          ExecStart = "${pkgs.bash}/bin/bash ${themeApplyPath}";
+          TimeoutStartSec = "120s";
         };
         Install = {
           WantedBy = [ "default.target" ];
@@ -251,20 +279,6 @@ in
           Restart = "on-failure";
           RestartSec = "3s";
           RestartPreventExitStatus = [ "SIGABRT" ];
-        };
-        Install = {
-          WantedBy = [ "default.target" ];
-        };
-      };
-    };
-
-    paths = {
-      theme-apply = lib.mkIf theme.runtime.enable {
-        Unit = {
-          Description = "Watch wallpaper asset and re-apply the runtime theme";
-        };
-        Path = {
-          PathChanged = themeWallpaperPath;
         };
         Install = {
           WantedBy = [ "default.target" ];
