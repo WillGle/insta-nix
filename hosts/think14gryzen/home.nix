@@ -126,6 +126,16 @@ in
   };
 
   systemd.user = {
+    targets.hyprland-session = {
+      Unit = {
+        Description = "Hyprland graphical session";
+        BindsTo = [ "graphical-session.target" ];
+        Wants = [ "graphical-session-pre.target" ];
+        After = [ "graphical-session-pre.target" ];
+        PropagatesStopTo = [ "graphical-session.target" ];
+      };
+    };
+
     services = {
       rofi-screen-time-tracker = {
         Unit = {
@@ -137,6 +147,9 @@ in
           ExecStart = "${homeDir}/.local/bin/rofi-screen-time-track --interval-seconds 5";
           Restart = "always";
           RestartSec = "2s";
+        };
+        Install = {
+          WantedBy = [ "graphical-session.target" ];
         };
       };
 
@@ -166,12 +179,12 @@ in
           PartOf = [ "graphical-session.target" ];
         };
         Timer = {
-          OnBootSec = "20s";
+          OnActiveSec = "20s";
           OnUnitActiveSec = "2m";
           Unit = "rofi-screen-time-cache.service";
         };
         Install = {
-          WantedBy = [ "timers.target" ];
+          WantedBy = [ "graphical-session.target" ];
         };
       };
     };

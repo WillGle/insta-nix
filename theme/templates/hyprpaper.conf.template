@@ -1,4 +1,4 @@
 splash = false
+ipc = on
 preload = __WALLPAPER_PATH__
-wallpaper = eDP-1,__WALLPAPER_PATH__
-wallpaper = HDMI-A-1,__WALLPAPER_PATH__
+wallpaper = ,__WALLPAPER_PATH__
