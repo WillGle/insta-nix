@@ -8,12 +8,12 @@
 @define-color subtext __SUBTEXT__;
 @define-color accent __ACCENT__;
 @define-color success __SUCCESS__;
-@define-color warning #d29922;
-@define-color error #f85149;
+@define-color warning __WARNING__;
+@define-color error __ERROR__;
 @define-color purple __PURPLE__;
 @define-color cyan __CYAN__;
 
-@define-color battery-eco #00ffcc;
+@define-color battery-eco __CYAN__;
 
 @keyframes blink {
   to {
@@ -28,7 +28,7 @@
     color: @base;
   }
   to {
-    background-color: rgba(248, 81, 73, 0.15);
+    background-color: alpha(@error, 0.15);
     color: @text;
   }
 }
@@ -48,7 +48,7 @@
 
 window#waybar {
   background: @base;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid alpha(@text, 0.1);
   min-height: 28px;
 }
 
@@ -106,12 +106,12 @@ menuitem,
 
 #workspaces button.focused {
   color: @accent;
-  background: rgba(255, 255, 255, 0.05);
+  background: alpha(@text, 0.05);
   border-bottom: 2px solid @accent;
 }
 
 #workspaces button:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: alpha(@text, 0.1);
   color: @text;
 }
 
@@ -130,8 +130,8 @@ menuitem,
 #backlight,
 #idle_inhibitor,
 #custom-systemd_failed {
-  background: rgba(255, 255, 255, 0.05);
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  background: alpha(@text, 0.05);
+  border-left: 1px solid alpha(@text, 0.05);
 }
 
 tooltip,
@@ -190,7 +190,7 @@ menuitem,
 #workspaces button:hover,
 menuitem:hover,
 .popup menuitem:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: alpha(@text, 0.1);
   color: @text;
 }
 

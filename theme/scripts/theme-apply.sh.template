@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!__BASH_BIN__
 set -euo pipefail
 
 MATUGEN_BIN="__MATUGEN_BIN__"
@@ -9,13 +9,18 @@ MKDIR_BIN="__MKDIR_BIN__"
 MV_BIN="__MV_BIN__"
 RM_BIN="__RM_BIN__"
 CMP_BIN="__CMP_BIN__"
+SYSTEMCTL_BIN="__SYSTEMCTL_BIN__"
 LS_BIN="__LS_BIN__"
 HEAD_BIN="__HEAD_BIN__"
-NOHUP_BIN="__NOHUP_BIN__"
-PKILL_BIN="__PKILL_BIN__"
-PGREP_BIN="__PGREP_BIN__"
-WAYBAR_BIN="__WAYBAR_BIN__"
 HYPRCTL_BIN="__HYPRCTL_BIN__"
+SHA256_BIN="__SHA256_BIN__"
+CAT_BIN="__CAT_BIN__"
+OD_BIN="__OD_BIN__"
+TR_BIN="__TR_BIN__"
+GREP_BIN="__GREP_BIN__"
+FLOCK_BIN="__FLOCK_BIN__"
+TIMEOUT_BIN="__TIMEOUT_BIN__"
+SLEEP_BIN="__SLEEP_BIN__"
 
 STATIC_ENV="__THEME_STATIC_ENV__"
 
@@ -30,14 +35,70 @@ if [ "${THEME_RUNTIME_ENABLE:-0}" != "1" ]; then
   exit 0
 fi
 
-"$MKDIR_BIN" -p "$THEME_GENERATED_DIR"
-
-TMP_DIR="$("$MKTEMP_BIN" -d)"
-trap '"$RM_BIN" -rf "$TMP_DIR"' EXIT INT TERM
-
 log() {
   printf '[theme-apply] %s\n' "$*" >&2
 }
+
+usage() {
+  "$CAT_BIN" >&2 <<'EOF'
+usage: theme-apply [--wallpaper PATH] [--strict] [--force]
+
+  --wallpaper PATH  generate the theme from PATH instead of the stored selection
+  --strict          never fall back to the static palette; fail without touching
+                    the previous wallpaper, generated theme or live applications
+  --force           regenerate even when the inputs are unchanged
+EOF
+}
+
+OPT_WALLPAPER=""
+OPT_STRICT=0
+OPT_FORCE=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --wallpaper)
+      [ "$#" -ge 2 ] || { usage; exit 2; }
+      OPT_WALLPAPER="$2"
+      shift 2
+      ;;
+    --strict)
+      OPT_STRICT=1
+      shift
+      ;;
+    --force)
+      OPT_FORCE=1
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      log "unknown argument: $1"
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+"$MKDIR_BIN" -p "$THEME_GENERATED_DIR" "$THEME_STATE_DIR" "$THEME_WALLPAPER_STORE"
+
+# Serialize concurrent runs (login service, activation, `wallpaper set`) so two
+# generations can never interleave their renames. Locking a file descriptor we
+# hold for the rest of the process keeps the original argv intact: no re-exec,
+# no recursion, and the lock is released when this shell exits.
+exec 9>>"$THEME_LOCK_FILE"
+if ! "$FLOCK_BIN" -w 60 9; then
+  log "another theme-apply run still holds $THEME_LOCK_FILE after 60s"
+  exit 1
+fi
+
+# Stage generated files inside the generated directory itself so every commit is
+# a same-filesystem rename, and therefore atomic per file.
+STAGE_DIR="$("$MKTEMP_BIN" -d "$THEME_GENERATED_DIR/.stage.XXXXXX")"
+trap '"$RM_BIN" -rf "$STAGE_DIR"' EXIT INT TERM
+
+GENERATED_OUTPUTS="waybar.css rofi.rasi hyprlock.conf hyprland-decoration.conf nvim-matugen.lua hyprpaper.conf palette.json"
 
 escape_sed() {
   printf '%s' "$1" | "$SED_BIN" 's/[\/&]/\\&/g'
@@ -45,6 +106,43 @@ escape_sed() {
 
 strip_hex() {
   printf '%s' "${1#\#}"
+}
+
+# Cheap, dependency-free sanity check: supported extension plus matching magic
+# bytes. Truly corrupt payloads are still caught by Matugen failing below.
+is_supported_image() {
+  local file="$1" ext magic
+
+  [ -f "$file" ] && [ -r "$file" ] || return 1
+
+  ext="${file##*.}"
+  ext="${ext,,}"
+  magic="$("$OD_BIN" -An -v -tx1 -N16 "$file" 2>/dev/null | "$TR_BIN" -d ' \n')" || return 1
+
+  case "$ext" in
+    png) [ "${magic:0:16}" = "89504e470d0a1a0a" ] ;;
+    jpg | jpeg) [ "${magic:0:6}" = "ffd8ff" ] ;;
+    webp) [ "${magic:0:8}" = "52494646" ] && [ "${magic:16:8}" = "57454250" ] ;;
+    *) return 1 ;;
+  esac
+}
+
+have_previous_theme() {
+  local name
+  for name in $GENERATED_OUTPUTS; do
+    [ -s "$THEME_GENERATED_DIR/$name" ] || return 1
+  done
+}
+
+# Identity of everything that can change the rendered output.
+compute_stamp() {
+  {
+    printf '%s\n' "${THEME_GENERATOR_VERSION:-v0}"
+    printf '%s\n' "$WALLPAPER"
+    "$SHA256_BIN" "$WALLPAPER"
+    "$SHA256_BIN" "$STATIC_ENV"
+    "$SHA256_BIN" "$THEME_TEMPLATE_DIR"/*.template
+  } | "$SHA256_BIN" | "$SED_BIN" 's/ .*//'
 }
 
 set_fallback_palette() {
@@ -64,10 +162,7 @@ set_dynamic_palette() {
   local palette_tmp="$1"
   local base mantle text subtext accent success warning error purple cyan
 
-  # Explicitly clear matugen cache to ensure fresh palette generation
-  "$RM_BIN" -rf "${XDG_CACHE_HOME:-${HOME}/.cache}/matugen" >/dev/null 2>&1 || true
-
-  if ! "$MATUGEN_BIN" image "$THEME_WALLPAPER" -m dark -j hex -q > "$palette_tmp"; then
+  if ! "$TIMEOUT_BIN" 45 "$MATUGEN_BIN" image "$WALLPAPER" -m dark -j hex -q > "$palette_tmp"; then
     return 1
   fi
 
@@ -102,7 +197,7 @@ set_dynamic_palette() {
 
 write_fallback_palette_json() {
   local output="$1"
-  cat > "$output" <<EOF
+  "$CAT_BIN" > "$output" <<EOF
 {
   "source": "static-fallback",
   "colors": {
@@ -154,10 +249,12 @@ render_template() {
     -e "s/__LOCK_FONT_BOLD__/$(escape_sed "$THEME_LOCK_FONT_BOLD")/g" \
     -e "s/__LOCK_CLOCK_SIZE__/$(escape_sed "$THEME_LOCK_CLOCK_SIZE")/g" \
     -e "s/__LOCK_TEXT_SIZE__/$(escape_sed "$THEME_LOCK_TEXT_SIZE")/g" \
-    -e "s#__WALLPAPER_PATH__#$(escape_sed "$THEME_WALLPAPER")#g" \
+    -e "s/__WALLPAPER_PATH__/$(escape_sed "$WALLPAPER")/g" \
     "$input" > "$output"
 }
 
+# The third argument names the variable to set when the output changed, or is
+# "-" for outputs no live surface reacts to.
 apply_if_changed() {
   local src="$1"
   local dest="$2"
@@ -165,67 +262,183 @@ apply_if_changed() {
 
   if [ ! -f "$dest" ] || ! "$CMP_BIN" -s "$src" "$dest"; then
     "$MV_BIN" "$src" "$dest"
-    printf -v "$changed_var" '1'
+    if [ "$changed_var" != "-" ]; then
+      printf -v "$changed_var" '1'
+    fi
   else
     "$RM_BIN" -f "$src"
   fi
 }
 
-ensure_waybar_running() {
-  if ! "$PGREP_BIN" -x waybar >/dev/null 2>&1 && ! "$PGREP_BIN" -x .waybar-wrapped >/dev/null 2>&1; then
-    "$NOHUP_BIN" "$WAYBAR_BIN" >/dev/null 2>&1 &
-    sleep 0.2
-  fi
+# Persist the selection only once the generation it produced has been committed.
+store_selection() {
+  local tmp
+  [ -n "$OPT_WALLPAPER" ] || return 0
+  tmp="$("$MKTEMP_BIN" "$THEME_STATE_DIR/.wallpaper.XXXXXX")"
+  printf '%s\n' "$WALLPAPER" > "$tmp"
+  "$MV_BIN" "$tmp" "$THEME_WALLPAPER_POINTER"
 }
 
-PALETTE_TMP="$TMP_DIR/palette.json"
+# Hyprland >= 0.41 keeps its instance sockets under $XDG_RUNTIME_DIR/hypr;
+# /tmp/hypr is only kept as a fallback for older releases.
+ensure_hypr_signature() {
+  local dir candidate
+
+  [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || return 0
+
+  for dir in "${XDG_RUNTIME_DIR:-}/hypr" /tmp/hypr; do
+    [ "$dir" != "/hypr" ] || continue
+    [ -d "$dir" ] || continue
+    candidate="$("$LS_BIN" -1t "$dir" 2>/dev/null | "$HEAD_BIN" -n1 || true)"
+    if [ -n "$candidate" ]; then
+      HYPRLAND_INSTANCE_SIGNATURE="$candidate"
+      export HYPRLAND_INSTANCE_SIGNATURE
+      return 0
+    fi
+  done
+}
+
+# Best effort: when hyprpaper (or Hyprland) is not running the generated config
+# is simply picked up on its next start.
+sync_hyprpaper() {
+  ensure_hypr_signature
+  [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || return 0
+
+  "$HYPRCTL_BIN" hyprpaper preload "$WALLPAPER" >/dev/null 2>&1 || return 0
+
+  # `grep -x -F` still matches the whole line literally, but without -q it drains
+  # hyprctl's output instead of closing the pipe early: under `set -o pipefail` a
+  # short read would surface as a 141 exit status from the pipeline.
+  for _ in 1 2 3 4 5; do
+    if "$HYPRCTL_BIN" hyprpaper listloaded 2>/dev/null | "$GREP_BIN" -xF "$WALLPAPER" >/dev/null; then
+      break
+    fi
+    "$SLEEP_BIN" 0.2
+  done
+
+  if ! "$HYPRCTL_BIN" hyprpaper listloaded 2>/dev/null | "$GREP_BIN" -xF "$WALLPAPER" >/dev/null; then
+    log "hyprpaper did not confirm preload, leaving the live wallpaper untouched"
+    return 0
+  fi
+
+  "$HYPRCTL_BIN" hyprpaper wallpaper ",$WALLPAPER" >/dev/null 2>&1 || return 0
+  "$HYPRCTL_BIN" hyprpaper unload unused >/dev/null 2>&1 || true
+}
+
+# --- resolve the wallpaper -------------------------------------------------
+
 PALETTE_SOURCE="dynamic"
 
-if [ ! -f "$THEME_WALLPAPER" ]; then
-  log "wallpaper not found, using static fallback palette"
-  PALETTE_SOURCE="fallback"
-  set_fallback_palette
-  write_fallback_palette_json "$PALETTE_TMP"
-elif ! set_dynamic_palette "$PALETTE_TMP"; then
-  log "matugen failed or returned an invalid palette, using static fallback palette"
-  PALETTE_SOURCE="fallback"
+if [ -n "$OPT_WALLPAPER" ]; then
+  WALLPAPER="$OPT_WALLPAPER"
+  if ! is_supported_image "$WALLPAPER"; then
+    log "not a readable jpg/jpeg/png/webp image: $WALLPAPER"
+    exit 1
+  fi
+else
+  WALLPAPER=""
+  if [ -s "$THEME_WALLPAPER_POINTER" ]; then
+    WALLPAPER="$("$HEAD_BIN" -n1 "$THEME_WALLPAPER_POINTER")"
+  fi
+  if [ -z "$WALLPAPER" ] || ! is_supported_image "$WALLPAPER"; then
+    WALLPAPER="$THEME_WALLPAPER"
+  fi
+  if ! is_supported_image "$WALLPAPER"; then
+    log "wallpaper not found, using static fallback palette"
+    PALETTE_SOURCE="fallback"
+  fi
+fi
+
+# --- short-circuit unchanged input ----------------------------------------
+
+STAMP_FILE="$THEME_GENERATED_DIR/stamp"
+STAMP=""
+
+if [ "$PALETTE_SOURCE" = "dynamic" ]; then
+  STAMP="$(compute_stamp)"
+  if [ "$OPT_FORCE" -eq 0 ] && have_previous_theme && [ -s "$STAMP_FILE" ] \
+    && [ "$STAMP" = "$("$HEAD_BIN" -n1 "$STAMP_FILE")" ]; then
+    store_selection
+    exit 0
+  fi
+fi
+
+# --- phase 1: generate everything off to the side --------------------------
+
+PALETTE_TMP="$STAGE_DIR/palette.json"
+
+if [ "$PALETTE_SOURCE" = "dynamic" ]; then
+  if ! set_dynamic_palette "$PALETTE_TMP"; then
+    if [ "$OPT_STRICT" -eq 1 ] || have_previous_theme; then
+      log "matugen failed or returned an invalid palette, keeping the previous theme"
+      exit 1
+    fi
+    log "matugen failed or returned an invalid palette, using static fallback palette"
+    PALETTE_SOURCE="fallback"
+  fi
+fi
+
+if [ "$PALETTE_SOURCE" = "fallback" ]; then
   set_fallback_palette
   write_fallback_palette_json "$PALETTE_TMP"
 fi
 
-render_template "$THEME_TEMPLATE_DIR/waybar.css.template" "$TMP_DIR/waybar.css"
-render_template "$THEME_TEMPLATE_DIR/rofi.rasi.template" "$TMP_DIR/rofi.rasi"
-render_template "$THEME_TEMPLATE_DIR/hyprlock.conf.template" "$TMP_DIR/hyprlock.conf"
-render_template "$THEME_TEMPLATE_DIR/hyprland-decoration.conf.template" "$TMP_DIR/hyprland-decoration.conf"
-render_template "$THEME_TEMPLATE_DIR/nvim-colors.lua.template" "$TMP_DIR/nvim-matugen.lua"
+render_template "$THEME_TEMPLATE_DIR/waybar.css.template" "$STAGE_DIR/waybar.css"
+render_template "$THEME_TEMPLATE_DIR/rofi.rasi.template" "$STAGE_DIR/rofi.rasi"
+render_template "$THEME_TEMPLATE_DIR/hyprlock.conf.template" "$STAGE_DIR/hyprlock.conf"
+render_template "$THEME_TEMPLATE_DIR/hyprland-decoration.conf.template" "$STAGE_DIR/hyprland-decoration.conf"
+render_template "$THEME_TEMPLATE_DIR/nvim-colors.lua.template" "$STAGE_DIR/nvim-matugen.lua"
+render_template "$THEME_TEMPLATE_DIR/hyprpaper.conf.template" "$STAGE_DIR/hyprpaper.conf"
 
+# --- phase 2: commit -------------------------------------------------------
+
+# Only the three surfaces refreshed below need a flag; Rofi, hyprlock, Neovim
+# and the palette dump are read from disk on their next use.
 waybar_changed=0
 hyprland_changed=0
+hyprpaper_changed=0
 
-apply_if_changed "$TMP_DIR/waybar.css" "$THEME_GENERATED_DIR/waybar.css" waybar_changed
-apply_if_changed "$TMP_DIR/rofi.rasi" "$THEME_GENERATED_DIR/rofi.rasi" rofi_changed
-apply_if_changed "$TMP_DIR/hyprlock.conf" "$THEME_GENERATED_DIR/hyprlock.conf" hyprlock_changed
-apply_if_changed "$TMP_DIR/hyprland-decoration.conf" "$THEME_GENERATED_DIR/hyprland-decoration.conf" hyprland_changed
-apply_if_changed "$TMP_DIR/nvim-matugen.lua" "$THEME_GENERATED_DIR/nvim-matugen.lua" nvim_changed
-apply_if_changed "$PALETTE_TMP" "$THEME_GENERATED_DIR/palette.json" palette_changed
+apply_if_changed "$STAGE_DIR/waybar.css" "$THEME_GENERATED_DIR/waybar.css" waybar_changed
+apply_if_changed "$STAGE_DIR/rofi.rasi" "$THEME_GENERATED_DIR/rofi.rasi" -
+apply_if_changed "$STAGE_DIR/hyprlock.conf" "$THEME_GENERATED_DIR/hyprlock.conf" -
+apply_if_changed "$STAGE_DIR/hyprland-decoration.conf" "$THEME_GENERATED_DIR/hyprland-decoration.conf" hyprland_changed
+apply_if_changed "$STAGE_DIR/nvim-matugen.lua" "$THEME_GENERATED_DIR/nvim-matugen.lua" -
+apply_if_changed "$STAGE_DIR/hyprpaper.conf" "$THEME_GENERATED_DIR/hyprpaper.conf" hyprpaper_changed
+apply_if_changed "$PALETTE_TMP" "$THEME_GENERATED_DIR/palette.json" -
 
-if "$PGREP_BIN" -x waybar >/dev/null 2>&1 || "$PGREP_BIN" -x .waybar-wrapped >/dev/null 2>&1; then
-  if [ "$waybar_changed" -eq 1 ]; then
-    "$PKILL_BIN" -SIGUSR2 -x waybar >/dev/null 2>&1 || true
-    "$PKILL_BIN" -SIGUSR2 -x .waybar-wrapped >/dev/null 2>&1 || true
-  fi
+store_selection
+
+if [ -n "$STAMP" ]; then
+  printf '%s\n' "$STAMP" > "$STAGE_DIR/stamp"
+  "$MV_BIN" "$STAGE_DIR/stamp" "$STAMP_FILE"
 else
-  ensure_waybar_running
+  "$RM_BIN" -f "$STAMP_FILE"
+fi
+
+# --- refresh the live surfaces --------------------------------------------
+#
+# Everything below is best effort. The generated files and the selection are
+# already committed at this point, so a surface that refuses to pick them up
+# right now must not be reported as a generation failure: callers such as
+# `wallpaper set` would then roll back an image that is in fact in use.
+
+if [ "$waybar_changed" -eq 1 ] && "$SYSTEMCTL_BIN" --user is-active --quiet waybar.service; then
+  if ! "$SYSTEMCTL_BIN" --user reload waybar.service; then
+    log "waybar is running but did not reload; the new style applies on its next restart"
+  fi
 fi
 
 if [ "$hyprland_changed" -eq 1 ]; then
-  if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && [ -d /tmp/hypr ]; then
-    HYPRLAND_INSTANCE_SIGNATURE="$("$LS_BIN" -1t /tmp/hypr 2>/dev/null | "$HEAD_BIN" -n1 || true)"
-    export HYPRLAND_INSTANCE_SIGNATURE
-  fi
+  ensure_hypr_signature
   "$HYPRCTL_BIN" reload config-only >/dev/null 2>&1 || true
+fi
+
+if [ "$hyprpaper_changed" -eq 1 ]; then
+  sync_hyprpaper
 fi
 
 if [ "$PALETTE_SOURCE" = "fallback" ]; then
   log "applied static fallback palette"
 fi
+
+exit 0

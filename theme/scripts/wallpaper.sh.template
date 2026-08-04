@@ -1,0 +1,264 @@
+#!__BASH_BIN__
+set -euo pipefail
+
+THEME_APPLY_BIN="__THEME_APPLY_BIN__"
+CAT_BIN="__CAT_BIN__"
+CP_BIN="__CP_BIN__"
+FIND_BIN="__FIND_BIN__"
+GREP_BIN="__GREP_BIN__"
+HEAD_BIN="__HEAD_BIN__"
+MKDIR_BIN="__MKDIR_BIN__"
+MKTEMP_BIN="__MKTEMP_BIN__"
+MV_BIN="__MV_BIN__"
+OD_BIN="__OD_BIN__"
+READLINK_BIN="__READLINK_BIN__"
+RM_BIN="__RM_BIN__"
+ROFI_BIN="__ROFI_BIN__"
+SHA256_BIN="__SHA256_BIN__"
+SORT_BIN="__SORT_BIN__"
+TR_BIN="__TR_BIN__"
+
+STATIC_ENV="__THEME_STATIC_ENV__"
+
+if [ ! -f "$STATIC_ENV" ]; then
+  printf 'wallpaper: missing %s\n' "$STATIC_ENV" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+. "$STATIC_ENV"
+
+log() {
+  printf 'wallpaper: %s\n' "$*" >&2
+}
+
+usage() {
+  "$CAT_BIN" <<'EOF'
+usage: wallpaper [command]
+
+  pick          choose an image in Rofi from ~/Pictures/Wallpapers and the
+                wallpapers shipped with the Nix configuration, then apply it
+                (this is also what running `wallpaper` with no argument does)
+  set <image>   use <image> (jpg, jpeg, png or webp) as the wallpaper and
+                regenerate the theme from it
+  current       print the wallpaper currently in use
+  reset         go back to the wallpaper shipped with the Nix configuration
+  reapply       re-render and re-apply the current wallpaper
+  help          show this message
+
+The selected image is copied into the XDG state directory, so it survives
+Home Manager and NixOS rebuilds and stays valid if the original is moved or
+deleted.
+EOF
+}
+
+# Supported extension plus matching magic bytes; corrupt payloads are rejected
+# later by Matugen, before anything is committed.
+is_supported_image() {
+  local file="$1" ext magic
+
+  [ -f "$file" ] && [ -r "$file" ] || return 1
+
+  ext="${file##*.}"
+  ext="${ext,,}"
+  magic="$("$OD_BIN" -An -v -tx1 -N16 "$file" 2>/dev/null | "$TR_BIN" -d ' \n')" || return 1
+
+  case "$ext" in
+    png) [ "${magic:0:16}" = "89504e470d0a1a0a" ] ;;
+    jpg | jpeg) [ "${magic:0:6}" = "ffd8ff" ] ;;
+    webp) [ "${magic:0:8}" = "52494646" ] && [ "${magic:16:8}" = "57454250" ] ;;
+    *) return 1 ;;
+  esac
+}
+
+current_wallpaper() {
+  local stored=""
+
+  if [ -s "$THEME_WALLPAPER_POINTER" ]; then
+    stored="$("$HEAD_BIN" -n1 "$THEME_WALLPAPER_POINTER")"
+  fi
+  if [ -n "$stored" ] && [ -r "$stored" ]; then
+    printf '%s\n' "$stored"
+  else
+    printf '%s\n' "$THEME_WALLPAPER"
+  fi
+}
+
+# Drop copies that are no longer referenced. Only ever called after a
+# successful generation, so the live selection is never removed.
+prune_store() {
+  local keep="$1" entry
+  for entry in "$THEME_WALLPAPER_STORE"/*; do
+    [ -f "$entry" ] || continue
+    if [ "$entry" != "$keep" ]; then
+      "$RM_BIN" -f "$entry"
+    fi
+  done
+}
+
+cmd_set() {
+  local source="$1" resolved ext digest dest tmp existed=0
+
+  resolved="$("$READLINK_BIN" -f -- "$source" 2>/dev/null || true)"
+  if [ -z "$resolved" ] || [ ! -f "$resolved" ] || [ ! -r "$resolved" ]; then
+    log "cannot read image: $source"
+    exit 1
+  fi
+
+  if ! is_supported_image "$resolved"; then
+    log "unsupported or invalid image (want jpg, jpeg, png or webp): $source"
+    exit 1
+  fi
+
+  ext="${resolved##*.}"
+  ext="${ext,,}"
+  if [ "$ext" = "jpeg" ]; then
+    ext="jpg"
+  fi
+  digest="$("$SHA256_BIN" -- "$resolved")"
+  digest="${digest%% *}"
+  dest="$THEME_WALLPAPER_STORE/$digest.$ext"
+
+  "$MKDIR_BIN" -p "$THEME_WALLPAPER_STORE"
+
+  if [ -f "$dest" ]; then
+    existed=1
+  else
+    # Copy into the store first, then rename within it, so cross-filesystem
+    # sources still land atomically under a name that is safe for sed,
+    # hyprpaper and hyprctl (hex digest only).
+    tmp="$("$MKTEMP_BIN" "$THEME_WALLPAPER_STORE/.incoming.XXXXXX")"
+    if ! "$CP_BIN" -- "$resolved" "$tmp"; then
+      "$RM_BIN" -f "$tmp"
+      log "failed to copy $source into $THEME_WALLPAPER_STORE"
+      exit 1
+    fi
+    "$MV_BIN" "$tmp" "$dest"
+  fi
+
+  if ! "$THEME_APPLY_BIN" --wallpaper "$dest" --strict; then
+    if [ "$existed" -eq 0 ]; then
+      "$RM_BIN" -f "$dest"
+    fi
+    log "keeping the previous wallpaper and theme"
+    exit 1
+  fi
+
+  prune_store "$dest"
+  printf '%s\n' "$dest"
+}
+
+cmd_reset() {
+  # Generate from the wallpaper the current Nix configuration ships. Only once
+  # that has succeeded is the user override dropped: theme-apply persisted the
+  # default path as a selection, and leaving it there would pin today's store
+  # path across future rebuilds instead of following the Nix default.
+  if ! "$THEME_APPLY_BIN" --wallpaper "$THEME_WALLPAPER" --strict; then
+    log "keeping the previous wallpaper and theme"
+    exit 1
+  fi
+  "$RM_BIN" -f "$THEME_WALLPAPER_POINTER"
+  prune_store ""
+  printf '%s\n' "$THEME_WALLPAPER"
+}
+
+# Collect candidate images from the user's wallpaper directory and from the
+# asset directory Home Manager populates, keeping full paths in an array so
+# spaces and duplicate basenames stay unambiguous.
+collect_candidates() {
+  local dir resolved entry seen=""
+
+  CANDIDATES=()
+
+  for dir in "$HOME/Pictures/Wallpapers" "${THEME_WALLPAPER%/*}"; do
+    resolved="$("$READLINK_BIN" -f -- "$dir" 2>/dev/null || true)"
+    [ -n "$resolved" ] && [ -d "$resolved" ] || continue
+    case "$seen" in
+      *"|$resolved|"*) continue ;;
+    esac
+    seen="$seen|$resolved|"
+
+    while IFS= read -r -d '' entry; do
+      is_supported_image "$entry" || continue
+      CANDIDATES+=("$entry")
+    done < <("$FIND_BIN" "$resolved" -maxdepth 1 -type f -print0 2>/dev/null | "$SORT_BIN" -z)
+  done
+}
+
+cmd_pick() {
+  local entry choice
+  local -a rofi_args=(-dmenu -i -format i -p "Wallpaper")
+  local icons=0
+
+  collect_candidates
+
+  if [ "${#CANDIDATES[@]}" -eq 0 ]; then
+    log "no jpg/jpeg/png/webp images in $HOME/Pictures/Wallpapers or ${THEME_WALLPAPER%/*}"
+    exit 1
+  fi
+
+  # Thumbnails only if this Rofi understands dmenu icon metadata. The grep must
+  # read all of its input rather than exiting early on the first match: under
+  # `set -o pipefail` a short read would kill Rofi with SIGPIPE and turn the
+  # whole pipeline into a 141 exit status.
+  if "$ROFI_BIN" -h 2>&1 | "$GREP_BIN" -- '-show-icons' >/dev/null; then
+    icons=1
+    rofi_args+=(-show-icons -theme-str 'element-icon { size: 2.5em; }')
+  fi
+  if [ -r "$HOME/.config/rofi/config.rasi" ]; then
+    rofi_args+=(-config "$HOME/.config/rofi/config.rasi")
+  fi
+
+  # Rofi returns the index of the chosen row, so the label never has to be
+  # parsed back into a path. Cancelling prints nothing and exits non-zero.
+  choice="$(
+    for entry in "${CANDIDATES[@]}"; do
+      if [ "$icons" -eq 1 ]; then
+        printf '%s\0icon\x1f%s\n' "${entry##*/}" "$entry"
+      else
+        printf '%s\n' "${entry##*/}"
+      fi
+    done | "$ROFI_BIN" "${rofi_args[@]}"
+  )" || return 0
+
+  case "$choice" in
+    '' | *[!0-9]*) return 0 ;;
+  esac
+  [ "$choice" -lt "${#CANDIDATES[@]}" ] || return 0
+
+  cmd_set "${CANDIDATES[$choice]}"
+}
+
+cmd_reapply() {
+  "$THEME_APPLY_BIN" --force
+}
+
+case "${1-}" in
+  "" | pick)
+    [ "$#" -le 1 ] || { usage >&2; exit 2; }
+    cmd_pick
+    ;;
+  set)
+    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+    cmd_set "$2"
+    ;;
+  current)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    current_wallpaper
+    ;;
+  reset)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    cmd_reset
+    ;;
+  reapply)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    cmd_reapply
+    ;;
+  help | -h | --help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
