@@ -51,7 +51,7 @@ progress_bar() {
 class=$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) print "warning"; else print "normal"}')
 
 # Color for accent
-ACCENT="#58a6ff"
+ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
 # Get disk usage for /

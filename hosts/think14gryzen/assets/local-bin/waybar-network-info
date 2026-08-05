@@ -180,7 +180,7 @@ emit_json() {
 main() {
   local iface ethernet_line wifi_conn wifi_name wifi_uuid wifi_device wifi_ssid wifi_ap
   local ssid signal security freq ip gateway dns tooltip
-  local ACCENT="#58a6ff"
+  local ACCENT="@themeAccent@"
   local SEP="<span alpha='30%'>──────────────────────────</span>"
   local title="NETWORK"
   local escaped_ssid escaped_security escaped_ethernet_name escaped_ethernet_device

@@ -423,37 +423,29 @@ sample_once() {
   record_sample "$payload"
 }
 
+# Mutual exclusion through flock instead of a hand-rolled directory lock.
+#
+# The previous version left a window between creating the lock directory and
+# writing its pid file. A second instance arriving inside that window saw a
+# directory with no readable pid, concluded the owner was dead, `rm -rf`'d the
+# live owner's lock and took it — leaving two trackers running and each one's
+# exit trap deleting the other's lock. flock is atomic in the kernel, so the
+# check-then-act that caused this no longer exists.
+#
+# The descriptor is held for the process lifetime and released by the kernel on
+# exit, which also removes the stale-lock case the pid probe existed to handle.
 acquire_lock() {
-  local lock_dir="${XDG_RUNTIME_DIR:-/tmp}/rofi-screen-time.lock"
-  local lock_pid=""
+  local lock_file="${XDG_RUNTIME_DIR:-/tmp}/rofi-screen-time-track.lock"
 
-  cleanup_lock() {
-    rm -rf "${XDG_RUNTIME_DIR:-/tmp}/rofi-screen-time.lock" >/dev/null 2>&1 || true
-  }
-
-  if mkdir "$lock_dir" 2>/dev/null; then
-    printf '%s\n' "$$" >"$lock_dir/pid"
-    trap cleanup_lock EXIT INT TERM
-    return 0
+  if ! exec 9>"$lock_file"; then
+    printf 'rofi-screen-time-track: cannot open %s\n' "$lock_file" >&2
+    return 1
   fi
 
-  if [ -r "$lock_dir/pid" ]; then
-    lock_pid="$(cat "$lock_dir/pid" 2>/dev/null || true)"
-    if [ -n "$lock_pid" ] && kill -0 "$lock_pid" >/dev/null 2>&1; then
-      printf 'rofi-screen-time-track: another tracker instance is already running\n' >&2
-      return 1
-    fi
+  if ! flock -n 9; then
+    printf 'rofi-screen-time-track: another tracker instance is already running\n' >&2
+    return 1
   fi
-
-  rm -rf "$lock_dir"
-  if mkdir "$lock_dir" 2>/dev/null; then
-    printf '%s\n' "$$" >"$lock_dir/pid"
-    trap cleanup_lock EXIT INT TERM
-    return 0
-  fi
-
-  printf 'rofi-screen-time-track: another tracker instance is already running\n' >&2
-  return 1
 }
 
 while [ "$#" -gt 0 ]; do

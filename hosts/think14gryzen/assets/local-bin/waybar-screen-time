@@ -287,12 +287,12 @@ main() {
   fi
   
   sep="<span alpha='30%'>──────────────────────────</span>"
-  tooltip="<b><span foreground='#58a6ff'>TIME</span></b>
+  tooltip="<b><span foreground='@themeAccent@'>TIME</span></b>
 $sep
 <tt>${current_date_tooltip}
 ${current_time}</tt>
 
-<b><span foreground='#58a6ff'>SCREEN TIME</span></b>
+<b><span foreground='@themeAccent@'>SCREEN TIME</span></b>
 $sep
 <tt>Total:       $(seconds_to_short "$total_seconds")
 Study:       $(seconds_to_short "$study_visible")
@@ -300,7 +300,7 @@ Sessions:    ${session_count}
 Switches:    ${switch_count}
 Updated:     ${updated_label}</tt>
 
-<b><span foreground='#58a6ff'>CURRENT</span></b>
+<b><span foreground='@themeAccent@'>CURRENT</span></b>
 $sep
 <tt>App:         $(escape_markup "$active_name") ($(seconds_to_short "$active_seconds"))"
   if [ -n "$active_title" ]; then
@@ -309,7 +309,7 @@ Title:       $(escape_markup "$active_title")"
   fi
   tooltip+="</tt>
 
-<b><span foreground='#58a6ff'>BEHAVIOR</span></b>
+<b><span foreground='@themeAccent@'>BEHAVIOR</span></b>
 $sep
 <tt>Focus block: $(seconds_to_short "$current_focus")
 Longest:     $(seconds_to_short "$longest_focus")
@@ -322,7 +322,7 @@ Switch rate: $(format_decimal_label "$switch_rate" "/h")</tt>"
   fi
   tooltip+="
 
-<b><span foreground='#58a6ff'>TOP APPS</span></b>
+<b><span foreground='@themeAccent@'>TOP APPS</span></b>
 $sep
 $(top_apps_tooltip "$day_json")
 
