@@ -136,6 +136,23 @@ in
             default = themeDefaults.fonts.ui;
           };
 
+          rofi = lib.mkOption {
+            type = lib.types.submodule {
+              options = {
+                size = lib.mkOption {
+                  type = lib.types.int;
+                  default = themeDefaults.fonts.rofi.size;
+                  description = ''
+                    Rofi font size in Pango points. Deliberately not shared with
+                    {option}`theme.fonts.ui.size`, which Waybar consumes as CSS
+                    pixels — the same number means a ~30% larger glyph here.
+                  '';
+                };
+              };
+            };
+            default = themeDefaults.fonts.rofi;
+          };
+
           mono = lib.mkOption {
             type = lib.types.submodule {
               options = {
