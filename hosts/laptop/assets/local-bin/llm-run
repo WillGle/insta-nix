@@ -5,34 +5,109 @@
 # spills to CPU. Universal good defaults baked in: -fa on, -ngl (fitted), mmap, 8 threads.
 #
 # Usage: llm-run [--dry-run] <model.gguf> [context=8192] [-- extra llama-server args]
-set -uo pipefail
+set -euo pipefail
 export PATH="/run/current-system/sw/bin:${PATH:-}"   # find llama-fit-params/llama-server from systemPackages
 FIT="${LLAMA_FIT_PARAMS:-llama-fit-params}"
 SERVER="${LLAMA_SERVER:-llama-server}"
 HOST="${LLM_HOST:-127.0.0.1}"; PORT="${LLM_PORT:-8080}"
 DRY=0; [ "${1:-}" = "--dry-run" ] && { DRY=1; shift; }
-MODEL="${1:?usage: llm-run [--dry-run] <model.gguf> [context] [-- extra args]}"; shift
+if [ "$#" -eq 0 ]; then
+  echo "usage: llm-run [--dry-run] <model.gguf> [context] [-- extra args]" >&2
+  exit 2
+fi
+MODEL="$1"; shift
 CTX=8192
-if [ "${1:-}" ] && [ -z "${1//[0-9]/}" ]; then CTX="$1"; shift; fi
-[ "${1:-}" = "--" ] && shift
+if [ "$#" -gt 0 ] && [ "$1" != "--" ]; then
+  if ! [[ "$1" =~ ^[1-9][0-9]*$ ]]; then
+    echo "llm-run: context must be a positive integer: $1" >&2
+    exit 2
+  fi
+  CTX="$1"
+  shift
+fi
+if [ "$#" -gt 0 ]; then
+  if [ "$1" != "--" ]; then
+    echo "llm-run: extra llama-server arguments must follow --" >&2
+    exit 2
+  fi
+  shift
+fi
 [ -f "$MODEL" ] || { echo "no such model: $MODEL" >&2; exit 2; }
 
-fit(){ "$FIT" -m "$MODEL" -c "$CTX" -fa on "$@" 2>/dev/null; }
-nglof(){ printf '%s' "$1" | grep -oE '\-ngl[[:space:]]+-?[0-9]+' | awk '{print $2}'; }
+fit_params() {
+  local output option value index
+  local -a fields
 
-KVNAME=f16; KVARGS=(); FITTED="$(fit)"
-if [ "$(nglof "$FITTED")" != "-1" ]; then
-  o="$(fit --cache-type-k q8_0 --cache-type-v q8_0)"
-  if [ "$(nglof "$o")" = "-1" ]; then
-    KVNAME=q8_0; KVARGS=(--cache-type-k q8_0 --cache-type-v q8_0); FITTED="$o"
+  if ! output="$("$FIT" -m "$MODEL" -c "$CTX" -fa on "$@")"; then
+    echo "llm-run: llama-fit-params failed" >&2
+    return 3
+  fi
+
+  output="${output//$'\n'/ }"
+  read -r -a fields <<< "$output" || true
+  FITTED_CTX=""
+  FITTED_NGL=""
+
+  if [ "${#fields[@]}" -ne 4 ]; then
+    echo "llm-run: invalid llama-fit-params output: expected '-c N -ngl M'" >&2
+    return 3
+  fi
+
+  for ((index = 0; index < ${#fields[@]}; index += 2)); do
+    option="${fields[index]}"
+    value="${fields[index + 1]}"
+    case "$option" in
+      -c)
+        if [ -n "$FITTED_CTX" ] || ! [[ "$value" =~ ^[1-9][0-9]*$ ]]; then
+          echo "llm-run: invalid llama-fit-params context value" >&2
+          return 3
+        fi
+        FITTED_CTX="$value"
+        ;;
+      -ngl)
+        if [ -n "$FITTED_NGL" ] || ! [[ "$value" =~ ^-?[0-9]+$ ]]; then
+          echo "llm-run: invalid llama-fit-params GPU layer value" >&2
+          return 3
+        fi
+        FITTED_NGL="$value"
+        ;;
+      *)
+        echo "llm-run: unexpected llama-fit-params option: $option" >&2
+        return 3
+        ;;
+    esac
+  done
+
+  if [ -z "$FITTED_CTX" ] || [ -z "$FITTED_NGL" ]; then
+    echo "llm-run: incomplete llama-fit-params output" >&2
+    return 3
+  fi
+}
+
+KVNAME=f16
+KVARGS=()
+FITTED_CTX=""
+FITTED_NGL=""
+full_offload_at_requested_context() {
+  [ "$FITTED_CTX" = "$CTX" ] && [ "$FITTED_NGL" = "-1" ]
+}
+
+fit_params
+if ! full_offload_at_requested_context; then
+  fit_params --cache-type-k q8_0 --cache-type-v q8_0
+  if full_offload_at_requested_context; then
+    KVNAME=q8_0
+    KVARGS=(--cache-type-k q8_0 --cache-type-v q8_0)
   else
-    o="$(fit --cache-type-k q4_0 --cache-type-v q4_0)"
-    KVNAME=q4_0; KVARGS=(--cache-type-k q4_0 --cache-type-v q4_0); FITTED="$o"
-    [ "$(nglof "$o")" = "-1" ] || echo "WARN: ctx=$CTX won't fully fit even with q4 KV; partial offload (slower). Raise GTT or lower ctx." >&2
+    fit_params --cache-type-k q4_0 --cache-type-v q4_0
+    KVNAME=q4_0
+    KVARGS=(--cache-type-k q4_0 --cache-type-v q4_0)
+    if ! full_offload_at_requested_context; then
+      echo "WARN: ctx=$CTX won't fully fit even with q4 KV; fitter selected ctx=$FITTED_CTX, ngl=$FITTED_NGL. Raise GTT or lower ctx." >&2
+    fi
   fi
 fi
-# shellcheck disable=SC2086  # FITTED ("-c N -ngl M") must word-split into args
-CMD=("$SERVER" -m "$MODEL" $FITTED -fa on "${KVARGS[@]}" -t 8 --host "$HOST" --port "$PORT" "$@")
-echo "llm-run: $(basename "$MODEL") ctx=$CTX KV=$KVNAME ngl=$(nglof "$FITTED") -> http://$HOST:$PORT" >&2
+CMD=("$SERVER" -m "$MODEL" -c "$FITTED_CTX" -ngl "$FITTED_NGL" -fa on "${KVARGS[@]}" -t 8 --host "$HOST" --port "$PORT" "$@")
+echo "llm-run: $(basename "$MODEL") ctx=$CTX KV=$KVNAME ngl=$FITTED_NGL -> http://$HOST:$PORT" >&2
 if [ "$DRY" = 1 ]; then printf '%q ' "${CMD[@]}"; echo; exit 0; fi
 exec "${CMD[@]}"
