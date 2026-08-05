@@ -20,6 +20,17 @@ local palette = {
   cyan = "__CYAN__",
 }
 
+-- Signal palette: from theme.signal, never wallpaper-derived. Diagnostics and
+-- anything else that encodes severity must read from here, not from `palette`.
+local signal = {
+  ok = "__SIGNAL_OK__",
+  notice = "__SIGNAL_NOTICE__",
+  warning = "__SIGNAL_WARNING__",
+  critical = "__SIGNAL_CRITICAL__",
+  eco = "__SIGNAL_ECO__",
+  muted = "__SIGNAL_MUTED__",
+}
+
 local set = vim.api.nvim_set_hl
 
 local groups = {
@@ -55,14 +66,14 @@ local groups = {
   PreProc = { fg = palette.warning },
   Type = { fg = palette.cyan },
   Special = { fg = palette.accent },
-  Todo = { fg = palette.base, bg = palette.warning, bold = true },
-  Error = { fg = palette.error, bg = palette.base, bold = true },
-  WarningMsg = { fg = palette.warning },
-  DiagnosticError = { fg = palette.error },
-  DiagnosticWarn = { fg = palette.warning },
-  DiagnosticInfo = { fg = palette.accent },
-  DiagnosticHint = { fg = palette.cyan },
-  DiagnosticOk = { fg = palette.success },
+  Todo = { fg = palette.base, bg = signal.warning, bold = true },
+  Error = { fg = signal.critical, bg = palette.base, bold = true },
+  WarningMsg = { fg = signal.warning },
+  DiagnosticError = { fg = signal.critical },
+  DiagnosticWarn = { fg = signal.warning },
+  DiagnosticInfo = { fg = signal.notice },
+  DiagnosticHint = { fg = signal.eco },
+  DiagnosticOk = { fg = signal.ok },
 }
 
 for name, spec in pairs(groups) do
