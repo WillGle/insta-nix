@@ -39,6 +39,29 @@ log() {
   printf '[theme-apply] %s\n' "$*" >&2
 }
 
+# --- protected signal palette ----------------------------------------------
+#
+# State, severity and indicator-line colors are pinned here, straight from
+# theme.signal, and marked readonly. Neither set_dynamic_palette nor
+# set_fallback_palette assigns them: an attempt to do so aborts the run under
+# `set -e` instead of silently repainting the warning ladder.
+for _signal_var in \
+  THEME_SIGNAL_OK THEME_SIGNAL_NOTICE THEME_SIGNAL_WARNING \
+  THEME_SIGNAL_CRITICAL THEME_SIGNAL_ECO THEME_SIGNAL_MUTED; do
+  if [ -z "${!_signal_var:-}" ]; then
+    log "missing $_signal_var in $STATIC_ENV; refusing to render an unsignalled theme"
+    exit 1
+  fi
+done
+unset _signal_var
+
+readonly SIGNAL_OK="$THEME_SIGNAL_OK"
+readonly SIGNAL_NOTICE="$THEME_SIGNAL_NOTICE"
+readonly SIGNAL_WARNING="$THEME_SIGNAL_WARNING"
+readonly SIGNAL_CRITICAL="$THEME_SIGNAL_CRITICAL"
+readonly SIGNAL_ECO="$THEME_SIGNAL_ECO"
+readonly SIGNAL_MUTED="$THEME_SIGNAL_MUTED"
+
 usage() {
   "$CAT_BIN" >&2 <<'EOF'
 usage: theme-apply [--wallpaper PATH] [--strict] [--force]
@@ -174,8 +197,13 @@ set_dynamic_palette() {
   success="$("$JQ_BIN" -r '.colors.secondary.default' "$palette_tmp")"
   warning="$("$JQ_BIN" -r '.colors.tertiary.default' "$palette_tmp")"
   error="$("$JQ_BIN" -r '.colors.error.default' "$palette_tmp")"
-  purple="$("$JQ_BIN" -r '.colors.tertiary.default' "$palette_tmp")"
-  cyan="$("$JQ_BIN" -r '.colors.secondary.default' "$palette_tmp")"
+  # Secondary accents come from tone 70 of the same tonal palettes their
+  # primary siblings use: `.colors.<role>.default` is tone 80 for every role in
+  # dark mode, so reusing it here made purple identical to warning and cyan
+  # identical to success. Tone 70 keeps the hue and buys ~16 points of
+  # luminance separation, still far above the AAA threshold against the base.
+  purple="$("$JQ_BIN" -r '.palettes.tertiary."70"' "$palette_tmp")"
+  cyan="$("$JQ_BIN" -r '.palettes.secondary."70"' "$palette_tmp")"
 
   for value in "$base" "$mantle" "$text" "$subtext" "$accent" "$success" "$warning" "$error" "$purple" "$cyan"; do
     if [ -z "$value" ] || [ "$value" = "null" ]; then
@@ -193,6 +221,29 @@ set_dynamic_palette() {
   ERROR="$error"
   PURPLE="$purple"
   CYAN="$cyan"
+
+  # Record the pinned signal palette alongside matugen's output so palette.json
+  # stays an honest dump of what was actually rendered.
+  annotate_palette_signal "$palette_tmp"
+}
+
+annotate_palette_signal() {
+  local file="$1"
+  local tmp="$file.signal"
+
+  if "$JQ_BIN" \
+    --arg ok "$SIGNAL_OK" \
+    --arg notice "$SIGNAL_NOTICE" \
+    --arg warning "$SIGNAL_WARNING" \
+    --arg critical "$SIGNAL_CRITICAL" \
+    --arg eco "$SIGNAL_ECO" \
+    --arg muted "$SIGNAL_MUTED" \
+    '. + {signal: {ok: $ok, notice: $notice, warning: $warning, critical: $critical, eco: $eco, muted: $muted}}' \
+    "$file" > "$tmp"; then
+    "$MV_BIN" "$tmp" "$file"
+  else
+    "$RM_BIN" -f "$tmp"
+  fi
 }
 
 write_fallback_palette_json() {
@@ -211,6 +262,14 @@ write_fallback_palette_json() {
     "error": "$THEME_STATIC_ERROR",
     "purple": "$THEME_STATIC_PURPLE",
     "cyan": "$THEME_STATIC_CYAN"
+  },
+  "signal": {
+    "ok": "$SIGNAL_OK",
+    "notice": "$SIGNAL_NOTICE",
+    "warning": "$SIGNAL_WARNING",
+    "critical": "$SIGNAL_CRITICAL",
+    "eco": "$SIGNAL_ECO",
+    "muted": "$SIGNAL_MUTED"
   }
 }
 EOF
@@ -241,6 +300,18 @@ render_template() {
     -e "s/__ERROR_STRIP__/$(escape_sed "$(strip_hex "$ERROR")")/g" \
     -e "s/__PURPLE_STRIP__/$(escape_sed "$(strip_hex "$PURPLE")")/g" \
     -e "s/__CYAN_STRIP__/$(escape_sed "$(strip_hex "$CYAN")")/g" \
+    -e "s/__SIGNAL_OK__/$(escape_sed "$SIGNAL_OK")/g" \
+    -e "s/__SIGNAL_NOTICE__/$(escape_sed "$SIGNAL_NOTICE")/g" \
+    -e "s/__SIGNAL_WARNING__/$(escape_sed "$SIGNAL_WARNING")/g" \
+    -e "s/__SIGNAL_CRITICAL__/$(escape_sed "$SIGNAL_CRITICAL")/g" \
+    -e "s/__SIGNAL_ECO__/$(escape_sed "$SIGNAL_ECO")/g" \
+    -e "s/__SIGNAL_MUTED__/$(escape_sed "$SIGNAL_MUTED")/g" \
+    -e "s/__SIGNAL_OK_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_OK")")/g" \
+    -e "s/__SIGNAL_NOTICE_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_NOTICE")")/g" \
+    -e "s/__SIGNAL_WARNING_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_WARNING")")/g" \
+    -e "s/__SIGNAL_CRITICAL_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_CRITICAL")")/g" \
+    -e "s/__SIGNAL_ECO_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_ECO")")/g" \
+    -e "s/__SIGNAL_MUTED_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_MUTED")")/g" \
     -e "s/__UI_FONT__/$(escape_sed "$THEME_UI_FONT")/g" \
     -e "s/__UI_FONT_SIZE__/$(escape_sed "$THEME_UI_FONT_SIZE")/g" \
     -e "s/__MONO_FONT__/$(escape_sed "$THEME_MONO_FONT")/g" \
@@ -251,6 +322,28 @@ render_template() {
     -e "s/__LOCK_TEXT_SIZE__/$(escape_sed "$THEME_LOCK_TEXT_SIZE")/g" \
     -e "s/__WALLPAPER_PATH__/$(escape_sed "$WALLPAPER")/g" \
     "$input" > "$output"
+}
+
+# Last line of defence: a rendered surface must carry the literal signal colors
+# and must not leak an unsubstituted signal placeholder. If either check fails
+# the staged generation is discarded, so a broken warning ladder can never be
+# committed over a working one.
+verify_signal_palette() {
+  local file="$1"
+  local color
+
+  if "$GREP_BIN" -q '__SIGNAL_[A-Z_]*__' "$file"; then
+    log "unsubstituted signal placeholder left in $(basename "$file")"
+    return 1
+  fi
+
+  for color in "$SIGNAL_OK" "$SIGNAL_NOTICE" "$SIGNAL_WARNING" \
+    "$SIGNAL_CRITICAL" "$SIGNAL_ECO" "$SIGNAL_MUTED"; do
+    if ! "$GREP_BIN" -qiF "$color" "$file"; then
+      log "signal color $color missing from $(basename "$file")"
+      return 1
+    fi
+  done
 }
 
 # The third argument names the variable to set when the output changed, or is
@@ -389,6 +482,8 @@ render_template "$THEME_TEMPLATE_DIR/hyprlock.conf.template" "$STAGE_DIR/hyprloc
 render_template "$THEME_TEMPLATE_DIR/hyprland-decoration.conf.template" "$STAGE_DIR/hyprland-decoration.conf"
 render_template "$THEME_TEMPLATE_DIR/nvim-colors.lua.template" "$STAGE_DIR/nvim-matugen.lua"
 render_template "$THEME_TEMPLATE_DIR/hyprpaper.conf.template" "$STAGE_DIR/hyprpaper.conf"
+
+verify_signal_palette "$STAGE_DIR/waybar.css"
 
 # --- phase 2: commit -------------------------------------------------------
 

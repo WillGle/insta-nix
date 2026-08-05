@@ -9,7 +9,16 @@
   error: __ERROR__;
   purple: __PURPLE__;
   cyan: __CYAN__;
-  
+
+  /* Signal palette: from theme.signal, never wallpaper-derived. Only these may
+     encode a state or a severity. */
+  signal-ok: __SIGNAL_OK__;
+  signal-notice: __SIGNAL_NOTICE__;
+  signal-warning: __SIGNAL_WARNING__;
+  signal-critical: __SIGNAL_CRITICAL__;
+  signal-eco: __SIGNAL_ECO__;
+  signal-muted: __SIGNAL_MUTED__;
+
   background-color: transparent;
   text-color: @text;
   font: "__UI_FONT__ __UI_FONT_SIZE__";
@@ -114,7 +123,7 @@ error-message {
   padding: 10px;
   border-radius: 8px;
   border: 1px;
-  border-color: @error;
+  border-color: @signal-critical;
   background-color: @mantle;
-  text-color: @error;
+  text-color: @signal-critical;
 }
