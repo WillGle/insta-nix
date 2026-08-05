@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Dynamic detection
-MONITOR=$(hyprctl monitors -j | jq -r '.[0].name')
-WIDTH=$(hyprctl monitors -j | jq -r '.[0].width')
-HEIGHT=$(hyprctl monitors -j | jq -r '.[0].height')
-SCALE=$(hyprctl monitors -j | jq -r '.[0].scale')
-hyprctl monitors | awk -v m="$MONITOR" '
-  $0 ~ ("^Monitor " m) {f=1; next}
-  f && /@/ {match($0,/@([0-9.]+)/,a); if(a[1]){printf("%dHz\n", a[1]+0); exit}}
-'
+
+if ! monitors_json="$(hyprctl monitors -j 2>/dev/null)"; then
+  printf '?Hz\n'
+  exit 0
+fi
+
+if ! label="$(jq -er '.[] | select(.name == "eDP-1") | (.refreshRate | round | tostring) + "Hz"' <<< "$monitors_json" 2>/dev/null)"; then
+  printf '?Hz\n'
+  exit 0
+fi
+
+printf '%s\n' "$label"
