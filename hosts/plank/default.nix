@@ -82,8 +82,4 @@ in
   ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
-
-  warnings = lib.optionals (!hasLocalPlankModule) [
-    "plank: optional local override module not found at ${localPlankModule}"
-  ];
 }
