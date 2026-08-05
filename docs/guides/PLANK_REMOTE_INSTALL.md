@@ -13,7 +13,8 @@ Use this guide for new remote installs that should boot into the bootstrap insta
 - You can build `plank` from this repo.
 - The target machine is booted into a NixOS installer environment.
 - You can reach the target over the network.
-- Local-private files live under `/etc/nixos/.local/remote-install/`.
+- The required Plank SSH public-key seed exists at
+  `/etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys`.
 
 ## Steps
 
@@ -52,12 +53,22 @@ Use this guide for new remote installs that should boot into the bootstrap insta
    swapon /dev/disk/by-label/NIXOS_SWAP
    ```
 
-3. Prepare optional local-private files if you use them.
+3. Prepare the required SSH public-key seed and any optional local-private files.
 
-   Common paths:
+   The seed is mandatory for the first install:
+
+   - `/etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys`
+
+   Validate it before copying:
+
+   ```bash
+   test -s /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
+   ssh-keygen -l -f /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
+   ```
+
+   Other optional paths:
 
    - `/etc/nixos/.local/remote-install/keys/plank-authorized_keys`
-   - `/etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys`
    - `/etc/nixos/.local/remote-install/seed/home/<user>/.ssh/authorized_keys`
    - `/etc/nixos/.local/remote-install/hardware/`
    - `/etc/nixos/.local/remote-install/runbooks/`
@@ -69,20 +80,28 @@ Use this guide for new remote installs that should boot into the bootstrap insta
 
    ```bash
    rsync -a --delete /etc/nixos/ root@<ip>:/mnt/etc/nixos/
+   ssh root@<ip> 'install -d -m 700 /mnt/etc/plank'
    scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
      root@<ip>:/mnt/etc/plank/authorized_keys
-   ssh root@<ip> 'nixos-install --root /mnt --flake path:/mnt/etc/nixos#plank'
+   ssh root@<ip> '
+     test -s /mnt/etc/plank/authorized_keys &&
+     ssh-keygen -l -f /mnt/etc/plank/authorized_keys &&
+     nixos-install --root /mnt --flake path:/mnt/etc/nixos#plank
+   '
    ```
 
    GitHub source:
 
    ```bash
+   ssh root@<ip> 'install -d -m 700 /mnt/etc/plank'
    scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
      root@<ip>:/mnt/etc/plank/authorized_keys
-   ssh root@<ip> 'nixos-install --root /mnt --flake github:<owner>/<repo>#plank'
+   ssh root@<ip> '
+     test -s /mnt/etc/plank/authorized_keys &&
+     ssh-keygen -l -f /mnt/etc/plank/authorized_keys &&
+     nixos-install --root /mnt --flake github:<owner>/<repo>#plank
+   '
    ```
-
-5. If key injection is not ready, add a temporary key in the installer environment and replace it after first login.
 
 ## Verification
 
