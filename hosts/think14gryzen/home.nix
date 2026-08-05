@@ -125,6 +125,17 @@ in
     "rofi/study-timer.rasi".source = ./assets/rofi/study-timer.rasi;
   };
 
+  # hyprland.conf sources this file, and toggle_touchpad.sh rewrites it. Seed it
+  # here so the source never dangles on a fresh machine; it must stay writable,
+  # hence an activation script rather than an xdg.configFile symlink.
+  home.activation.hyprTouchpadState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    state_file="${config.xdg.stateHome}/hypr/touchpad.conf"
+    if [ ! -e "$state_file" ]; then
+      run mkdir -p "$(dirname "$state_file")"
+      run install -m 0644 /dev/null "$state_file"
+    fi
+  '';
+
   systemd.user = {
     targets.hyprland-session = {
       Unit = {
