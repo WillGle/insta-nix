@@ -65,7 +65,54 @@ in
         };
       };
       default = themeDefaults.colors;
-      description = "Shared system color palette";
+      description = ''
+        Shared decorative color palette. Overwritten at runtime by the
+        wallpaper-driven generator, so it must never be used to encode a state,
+        a severity or an indicator line — use {option}`theme.signal` for that.
+      '';
+    };
+
+    signal = lib.mkOption {
+      type = lib.types.submodule {
+        options = {
+          ok = lib.mkOption {
+            type = hexColor;
+            default = themeDefaults.signal.ok;
+            description = "Signal: healthy / lowest severity step.";
+          };
+          notice = lib.mkOption {
+            type = hexColor;
+            default = themeDefaults.signal.notice;
+            description = "Signal: informational / moderate severity step.";
+          };
+          warning = lib.mkOption {
+            type = hexColor;
+            default = themeDefaults.signal.warning;
+            description = "Signal: warning severity step.";
+          };
+          critical = lib.mkOption {
+            type = hexColor;
+            default = themeDefaults.signal.critical;
+            description = "Signal: critical severity step and error states.";
+          };
+          eco = lib.mkOption {
+            type = hexColor;
+            default = themeDefaults.signal.eco;
+            description = "Signal: charging / actively-good state, brightest token.";
+          };
+          muted = lib.mkOption {
+            type = hexColor;
+            default = themeDefaults.signal.muted;
+            description = "Signal: idle / disconnected / disabled state.";
+          };
+        };
+      };
+      default = themeDefaults.signal;
+      description = ''
+        Protected signal palette: the only colors permitted to encode state,
+        severity or an indicator line. Never touched by the runtime
+        wallpaper-driven theme generator.
+      '';
     };
 
     fonts = lib.mkOption {
@@ -197,6 +244,30 @@ in
       description = "Runtime theme generation settings.";
     };
   };
+
+  # Two signal tokens sharing a value silently merges two distinct meanings on
+  # the same indicator line, which is exactly the failure the split is meant to
+  # prevent. Catch it at build time rather than on the bar.
+  config.assertions =
+    let
+      s = config.theme.signal;
+      names = [
+        "ok"
+        "notice"
+        "warning"
+        "critical"
+        "eco"
+        "muted"
+      ];
+      pairs = lib.concatMap (
+        a: map (b: { inherit a b; }) (lib.remove a names)
+      ) names;
+      unordered = lib.filter (p: p.a < p.b) pairs;
+    in
+    map (p: {
+      assertion = s.${p.a} != s.${p.b};
+      message = "theme.signal.${p.a} and theme.signal.${p.b} are both ${s.${p.a}}; every signal color must stay distinct.";
+    }) unordered;
 
   config.console =
     let

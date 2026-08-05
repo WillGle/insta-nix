@@ -1,6 +1,7 @@
 { config, pkgs, osConfig, lib, ... }:
 let
   inherit (osConfig) theme;
+  inherit (osConfig.theme) signal;
   themeRoot = "${config.xdg.configHome}/theme";
   themeAssetsDir = "${themeRoot}/assets";
   themeGeneratedDir = "${themeRoot}/generated";
@@ -48,6 +49,20 @@ let
     [ "__ERROR_STRIP__" (strip theme.colors.error) ]
     [ "__PURPLE_STRIP__" (strip theme.colors.purple) ]
     [ "__CYAN_STRIP__" (strip theme.colors.cyan) ]
+    # Signal palette: fed from theme.signal, never from theme.colors, so the
+    # runtime generator has no path to these values.
+    [ "__SIGNAL_OK__" signal.ok ]
+    [ "__SIGNAL_NOTICE__" signal.notice ]
+    [ "__SIGNAL_WARNING__" signal.warning ]
+    [ "__SIGNAL_CRITICAL__" signal.critical ]
+    [ "__SIGNAL_ECO__" signal.eco ]
+    [ "__SIGNAL_MUTED__" signal.muted ]
+    [ "__SIGNAL_OK_STRIP__" (strip signal.ok) ]
+    [ "__SIGNAL_NOTICE_STRIP__" (strip signal.notice) ]
+    [ "__SIGNAL_WARNING_STRIP__" (strip signal.warning) ]
+    [ "__SIGNAL_CRITICAL_STRIP__" (strip signal.critical) ]
+    [ "__SIGNAL_ECO_STRIP__" (strip signal.eco) ]
+    [ "__SIGNAL_MUTED_STRIP__" (strip signal.muted) ]
     [ "__UI_FONT__" theme.fonts.ui.family ]
     [ "__UI_FONT_SIZE__" (toString theme.fonts.ui.size) ]
     [ "__MONO_FONT__" theme.fonts.mono.family ]
@@ -74,6 +89,7 @@ let
     builtins.toJSON {
       source = "static-fallback";
       inherit (theme) colors;
+      inherit signal;
     }
   );
   themeBinReplacements = [
@@ -127,7 +143,7 @@ in
     "theme/templates".source = ../../theme/templates;
     "theme/assets/${theme.wallpaper.name}".source = theme.wallpaper.source;
     "theme/static.env".text = ''
-      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v4"}
+      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v6"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
       THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
       THEME_GENERATED_DIR=${lib.escapeShellArg themeGeneratedDir}
@@ -154,6 +170,12 @@ in
       THEME_STATIC_ERROR=${lib.escapeShellArg theme.colors.error}
       THEME_STATIC_PURPLE=${lib.escapeShellArg theme.colors.purple}
       THEME_STATIC_CYAN=${lib.escapeShellArg theme.colors.cyan}
+      THEME_SIGNAL_OK=${lib.escapeShellArg signal.ok}
+      THEME_SIGNAL_NOTICE=${lib.escapeShellArg signal.notice}
+      THEME_SIGNAL_WARNING=${lib.escapeShellArg signal.warning}
+      THEME_SIGNAL_CRITICAL=${lib.escapeShellArg signal.critical}
+      THEME_SIGNAL_ECO=${lib.escapeShellArg signal.eco}
+      THEME_SIGNAL_MUTED=${lib.escapeShellArg signal.muted}
     '';
     "theme/theme-apply" = {
       text = themeApplyScript;

@@ -13,22 +13,36 @@
 @define-color purple __PURPLE__;
 @define-color cyan __CYAN__;
 
-@define-color battery-eco __CYAN__;
+/* -------------------------------------------------------------------------
+   Signal palette — rendered from theme.signal, NOT from theme.colors, and
+   therefore never touched by the wallpaper-driven generator.
+
+   CONTRACT: every rule that encodes a state, a severity step, or an indicator
+   line (border-top / border-bottom) must reference a @signal-* color only.
+   The colors above are decorative and may change with the wallpaper; using one
+   of them for a warning silently repaints the warning.
+   ------------------------------------------------------------------------- */
+@define-color signal-ok __SIGNAL_OK__;
+@define-color signal-notice __SIGNAL_NOTICE__;
+@define-color signal-warning __SIGNAL_WARNING__;
+@define-color signal-critical __SIGNAL_CRITICAL__;
+@define-color signal-eco __SIGNAL_ECO__;
+@define-color signal-muted __SIGNAL_MUTED__;
 
 @keyframes blink {
   to {
-    background-color: @error;
+    background-color: @signal-critical;
     color: @base;
   }
 }
 
 @keyframes pulse-critical {
   from {
-    background-color: @error;
+    background-color: @signal-critical;
     color: @base;
   }
   to {
-    background-color: alpha(@error, 0.15);
+    background-color: alpha(@signal-critical, 0.15);
     color: @text;
   }
 }
@@ -195,11 +209,11 @@ menuitem:hover,
 }
 
 #custom-apu_info.warm {
-  color: @warning;
+  color: @signal-warning;
 }
 
 #custom-apu_info.hot {
-  color: @error;
+  color: @signal-critical;
   font-weight: bold;
 }
 
@@ -210,63 +224,65 @@ menuitem:hover,
   animation-iteration-count: infinite;
 }
 
+/* Upper line = power draw, lower line = battery state. Both fire at once on
+   this module, so the two tokens must stay visually distinct. */
 #custom-power_flow.charging {
-  color: @battery-eco;
-  border-bottom: 2px solid @battery-eco;
+  color: @signal-eco;
+  border-bottom: 2px solid @signal-eco;
 }
 
 #custom-power_flow.medium {
-  border-top: 2px solid @warning;
+  border-top: 2px solid @signal-warning;
 }
 
 #custom-power_flow.high {
-  color: @error;
-  border-top: 2px solid @error;
+  color: @signal-critical;
+  border-top: 2px solid @signal-critical;
 }
 
 #custom-power_flow.critical {
-  color: @error;
-  border-bottom: 2px solid @error;
+  color: @signal-critical;
+  border-bottom: 2px solid @signal-critical;
 }
 
 #custom-memory_info.warning {
-  color: @warning;
+  color: @signal-warning;
 }
 
 #custom-memory_info.critical {
-  color: @error;
+  color: @signal-critical;
   font-weight: bold;
 }
 
 #custom-network_info.disconnected,
 #custom-network_info.disabled {
-  color: @subtext;
+  color: @signal-muted;
 }
 
 #custom-network_info.ethernet {
-  color: @accent;
+  color: @signal-notice;
 }
 
 #pulseaudio.muted {
-  color: @subtext;
+  color: @signal-muted;
 }
 
 #custom-screen_time.studying {
-  color: @battery-eco;
-  border-bottom: 2px solid @battery-eco;
+  color: @signal-eco;
+  border-bottom: 2px solid @signal-eco;
 }
 
 #custom-screen_time.medium {
-  color: @warning;
+  color: @signal-warning;
 }
 
 #custom-screen_time.high {
-  color: @error;
-  border-bottom: 2px solid @error;
+  color: @signal-critical;
+  border-bottom: 2px solid @signal-critical;
 }
 
 #custom-screen_time.idle {
-  color: @subtext;
+  color: @signal-muted;
 }
 
 #clock.calendar {
@@ -289,34 +305,36 @@ menu,
   color: @accent;
 }
 
+/* Four-step ladder on one lower line: keep every step on its own signal token
+   so low/moderate never collapse into the same hue. */
 #custom-atomic_note.critical,
 #custom-atomic_note.urgent {
-  color: @error;
-  border-bottom: 2px solid @error;
+  color: @signal-critical;
+  border-bottom: 2px solid @signal-critical;
 }
 
 #custom-atomic_note.high,
 #custom-atomic_note.warning {
-  color: @warning;
-  border-bottom: 2px solid @warning;
+  color: @signal-warning;
+  border-bottom: 2px solid @signal-warning;
 }
 
 #custom-atomic_note.moderate {
-  color: @accent;
-  border-bottom: 2px solid @accent;
+  color: @signal-notice;
+  border-bottom: 2px solid @signal-notice;
 }
 
 #custom-atomic_note.low {
-  color: @success;
-  border-bottom: 2px solid @success;
+  color: @signal-ok;
+  border-bottom: 2px solid @signal-ok;
 }
 
 #custom-atomic_note.empty {
-  color: @subtext;
+  color: @signal-muted;
 }
 
 #custom-systemd_failed.failed {
-  color: @error;
+  color: @signal-critical;
   font-weight: bold;
   animation-name: blink;
   animation-duration: 0.8s;
