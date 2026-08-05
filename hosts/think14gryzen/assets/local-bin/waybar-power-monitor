@@ -5,11 +5,8 @@ export LC_ALL=C
 # Usage: waybar-power-monitor apu|sys|pwr|prof|toggle|bmode|bmode-toggle
 
 MODE="${1:-pwr}"
-THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
-if [ -r "$THEME_STATIC_ENV" ]; then
-    # shellcheck disable=SC1090
-    . "$THEME_STATIC_ENV"
-fi
+# Colors are substituted at build time from theme.signal / theme.colors, so
+# there is no palette to source and no fallback literal that could drift.
 WARN_DIR="${XDG_RUNTIME_DIR:-/tmp}/waybar-power-monitor"
 STATE_DIR="$WARN_DIR/state"
 CPU_STAT_FILE="$STATE_DIR/cpu.stat"
@@ -38,7 +35,7 @@ ICON_RESERVE_ON="$ICON_SAVER"
 ICON_RESERVE_OFF="$ICON_PERF"
 ICON_RESERVE_UNKNOWN="?"
 
-ACCENT="#58a6ff"
+ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>────────────────────────────────</span>"
 
 # --- Helper Functions ---
@@ -731,9 +728,9 @@ Power:      $cpu_w W</tt>
         esac
 
         # Load theme static colors or defaults for profile styling
-        color_perf="${THEME_STATIC_PURPLE:-#cba6f7}"
-        color_saver="${THEME_STATIC_CYAN:-#74c7ec}"
-        color_bal="${THEME_STATIC_ACCENT:-#58a6ff}"
+        color_perf="@signalWarning@"
+        color_saver="@signalEco@"
+        color_bal="@themeAccent@"
 
         # Power profile cheat-sheet
         case "$profile" in

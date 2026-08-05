@@ -15,18 +15,18 @@ fi
 ACTION_FG="${THEME_STATIC_BASE:-#11111b}"
 ACTION_ADD_BG="${THEME_STATIC_ACCENT:-#89b4fa}"
 ACTION_OPEN_BG="${THEME_STATIC_CYAN:-#74c7ec}"
-ACTION_CLEAR_BG="${THEME_STATIC_ERROR:-#f38ba8}"
+ACTION_CLEAR_BG="@signalCritical@"
 ACTION_EDIT_BG="${THEME_STATIC_PURPLE:-#cba6f7}"
 ACTION_MOVE_BG="${THEME_STATIC_WARNING:-#fab387}"
 ACTION_CANCEL_BG="${THEME_STATIC_SUBTEXT:-#6c7086}"
 SECTION_BG="${THEME_STATIC_MANTLE:-#161b22}"
 SECTION_FG="${THEME_STATIC_TEXT:-#f0f6fc}"
 INFO_FG="${THEME_STATIC_SUBTEXT:-#8b949e}"
-TASK_CRITICAL_BG="${THEME_STATIC_ERROR:-#f38ba8}"
-TASK_HIGH_BG="${THEME_STATIC_WARNING:-#fab387}"
-TASK_MODERATE_BG="${THEME_STATIC_ACCENT:-#89b4fa}"
-TASK_LOW_BG="${THEME_STATIC_SUCCESS:-#a6e3a1}"
-CHIP_ICON_FONT_DESC="${THEME_MONO_FONT:-JetBrainsMono Nerd Font} ${THEME_MONO_FONT_SIZE:-11}"
+TASK_CRITICAL_BG="@signalCritical@"
+TASK_HIGH_BG="@signalWarning@"
+TASK_MODERATE_BG="@signalNotice@"
+TASK_LOW_BG="@signalOk@"
+CHIP_ICON_FONT_DESC="@monoFont@ @rofiFontSize@"
 
 refresh_waybar() {
   pkill -RTMIN+5 waybar >/dev/null 2>&1 || true
@@ -629,7 +629,7 @@ textbox-status {
   markup: true;
   content: $(rasi_quote "$status_text");
   text-color: ${INFO_FG};
-  font: "JetBrainsMono Nerd Font 10";
+  font: "@monoFont@ @rofiFontSize@";
 }
 
 actionbar {
@@ -649,7 +649,7 @@ button-add, button-open, button-clear {
   border-radius: 8px;
   border: 1px;
   background-color: ${SECTION_BG};
-  font: "JetBrainsMono Nerd Font 10";
+  font: "@monoFont@ @rofiFontSize@";
   horizontal-align: 0.5;
 }
 
