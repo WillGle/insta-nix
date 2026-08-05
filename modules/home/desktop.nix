@@ -3,12 +3,28 @@ let
   inherit (osConfig) theme;
   inherit (osConfig.theme) signal;
   themeRoot = "${config.xdg.configHome}/theme";
-  themeAssetsDir = "${themeRoot}/assets";
+  # User-supplied wallpapers live here. It must exist and be obvious, otherwise
+  # the picker has nothing to offer but Home Manager's own directory and users
+  # are taught to drop files into a managed path — which then clobbers on the
+  # next activation.
+  wallpaperDropDir = "${config.home.homeDirectory}/Pictures/Wallpapers";
   themeGeneratedDir = "${themeRoot}/generated";
   themeTemplatesDir = "${themeRoot}/templates";
   themeStaticEnv = "${themeRoot}/static.env";
   themeApplyPath = "${themeRoot}/theme-apply";
-  themeWallpaperPath = "${themeAssetsDir}/${theme.wallpaper.name}";
+  wallpaperPath = "${config.home.homeDirectory}/.local/bin/wallpaper";
+  # Reference the Nix store path directly instead of copying the image into a
+  # Home Manager-managed file under ~/.config. That copy was the only reason a
+  # wallpaper change could collide with activation: replace the file in place and
+  # the next switch tries to back it up, and fails outright once a .backup from
+  # an earlier switch is already sitting there. With no managed file, there is
+  # nothing to collide with. Readers only ever open the path, so a store path
+  # serves them identically.
+  # String interpolation, not `toString`: the latter strips the path's string
+  # context, so nothing would record a dependency on the image and a garbage
+  # collection could delete the default wallpaper out from under the running
+  # system. Interpolating keeps the reference.
+  themeWallpaperPath = "${theme.wallpaper.source}";
 
   # Runtime state lives outside the Home Manager generation so a user-selected
   # wallpaper survives rebuilds and is never a read-only store path.
@@ -122,10 +138,13 @@ let
     [ "__HYPRCTL_BIN__" "${pkgs.hyprland}/bin/hyprctl" ]
     [ "__THEME_STATIC_ENV__" themeStaticEnv ]
     [ "__THEME_APPLY_BIN__" themeApplyPath ]
+    [ "__WALLPAPER_BIN__" wallpaperPath ]
+    [ "__NOTIFY_SEND_BIN__" "${pkgs.libnotify}/bin/notify-send" ]
   ];
 
   themeApplyScript = replaceMany themeBinReplacements ../../theme/scripts/theme-apply.sh.template;
   wallpaperScript = replaceMany themeBinReplacements ../../theme/scripts/wallpaper.sh.template;
+  setAsWallpaperScript = replaceMany themeBinReplacements ../../theme/scripts/set-as-wallpaper.sh.template;
 
   themeLockScript = replaceMany (
     commonReplacements
@@ -142,9 +161,8 @@ in
 
   xdg.configFile = {
     "theme/templates".source = ../../theme/templates;
-    "theme/assets/${theme.wallpaper.name}".source = theme.wallpaper.source;
     "theme/static.env".text = ''
-      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v6"}
+      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v7"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
       THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
       THEME_GENERATED_DIR=${lib.escapeShellArg themeGeneratedDir}
@@ -153,6 +171,7 @@ in
       THEME_WALLPAPER_POINTER=${lib.escapeShellArg themeWallpaperPointer}
       THEME_LOCK_FILE=${lib.escapeShellArg themeLockFile}
       THEME_WALLPAPER=${lib.escapeShellArg themeWallpaperPath}
+      THEME_WALLPAPER_DROP_DIR=${lib.escapeShellArg wallpaperDropDir}
       THEME_UI_FONT=${lib.escapeShellArg theme.fonts.ui.family}
       THEME_UI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.ui.size)}
       THEME_ROFI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.rofi.size)}
@@ -209,6 +228,14 @@ in
     "hypr/hyprpaper.conf".source = generatedLink "hyprpaper.conf";
   };
 
+  # Created rather than left to the user: an absent drop directory is what made
+  # the picker fall back to Home Manager's own asset directory in the first
+  # place. It must not be a managed file, so an activation script rather than
+  # home.file.
+  home.activation.wallpaperDropDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run mkdir -p ${lib.escapeShellArg wallpaperDropDir}
+  '';
+
   home = {
     file = {
       ".local/bin/theme-lock" = {
@@ -225,6 +252,13 @@ in
       };
       ".local/bin/wallpaper" = {
         text = wallpaperScript;
+        executable = true;
+      };
+      # Nautilus derives the menu label from the filename, hence the spaces.
+      # Declared here rather than left as a loose file in ~/.local/share so it is
+      # versioned with the tool it delegates to and cannot drift out of step.
+      ".local/share/nautilus/scripts/Set as Wallpaper" = {
+        text = setAsWallpaperScript;
         executable = true;
       };
     };
