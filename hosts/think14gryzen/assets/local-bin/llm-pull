@@ -6,52 +6,196 @@
 # Usage: llm-pull [--dry-run] <hf-repo> [quant-substring=UD-Q4_K_XL]
 #   llm-pull unsloth/gemma-3-12b-it-GGUF
 #   llm-pull bartowski/Qwen2.5-Coder-14B-Instruct-GGUF Q4_K_M
-set -uo pipefail
+set -euo pipefail
 export PATH="/run/current-system/sw/bin:${PATH:-}"
-DRY=0; [ "${1:-}" = "--dry-run" ] && { DRY=1; shift; }
-REPO="${1:?usage: llm-pull [--dry-run] <hf-repo> [quant-substring=UD-Q4_K_XL]}"
-QUANT="${2:-UD-Q4_K_XL}"
-DEST_ROOT="${LLM_MODELS_DIR:-$HOME/.lmstudio/models}"
-base_url="https://huggingface.co/$REPO/resolve/main"
 
-files="$(curl -fsSL "https://huggingface.co/api/models/$REPO" 2>/dev/null \
-  | grep -oE '"rfilename":"[^"]*\.gguf"' | sed 's/"rfilename":"//;s/"//')"
-[ -n "$files" ] || { echo "no .gguf in repo '$REPO' (check huggingface.co/$REPO)"; exit 1; }
+usage() {
+  echo "usage: llm-pull [--dry-run] <hf-repo> [quant-substring=UD-Q4_K_XL]" >&2
+}
 
-pick="$(printf '%s\n' "$files" | grep -iF "$QUANT" | grep -viE 'mmproj' | head -1)"
-if [ -z "$pick" ]; then
-  echo "quant '$QUANT' not found. Available quants in $REPO:"
-  printf '%s\n' "$files" | grep -viE 'mmproj' | sed -E 's/.*-(UD-)?(I?Q[0-9][^.]*|BF16|F16).*/   \1\2/' | sort -u
-  for q in UD-Q4_K_XL Q4_K_M UD-Q4_K_M Q4_0; do
-    pick="$(printf '%s\n' "$files" | grep -iF "$q" | grep -viE 'mmproj' | head -1)"
-    [ -n "$pick" ] && { echo "-> falling back to: $pick"; break; }
+safe_relative_path() {
+  local path="$1"
+  [[ -n "$path" && "$path" != /* && "$path" != ".." && "$path" != ../* && "$path" != */../* && "$path" != */.. ]]
+}
+
+select_first_match() {
+  local needle="${1,,}"
+  local file
+
+  SELECTED_FILE=""
+  for file in "${files[@]}"; do
+    if [[ "${file,,}" == *"$needle"* && "${file,,}" != *mmproj* ]]; then
+      SELECTED_FILE="$file"
+      return 0
+    fi
   done
-  [ -n "$pick" ] || { echo "pick one explicitly: llm-pull $REPO <quant>"; exit 1; }
+  return 1
+}
+
+urlencode_path() {
+  jq -rn --arg path "$1" '$path | split("/") | map(@uri) | join("/")'
+}
+
+DRY=0
+if [ "${1:-}" = "--dry-run" ]; then
+  DRY=1
+  shift
+fi
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  usage
+  exit 2
+fi
+
+REPO="$1"
+QUANT="${2:-UD-Q4_K_XL}"
+if ! [[ "$REPO" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+  echo "invalid HuggingFace repo: $REPO (expected owner/name)" >&2
+  exit 2
+fi
+if [ -z "$QUANT" ]; then
+  echo "quant substring must not be empty" >&2
+  exit 2
+fi
+if [[ "$QUANT" == -* ]]; then
+  echo "unknown option: $QUANT" >&2
+  exit 2
+fi
+
+DEST_ROOT="${LLM_MODELS_DIR:-$HOME/.lmstudio/models}"
+api_url="https://huggingface.co/api/models/$REPO"
+
+if ! metadata="$(curl -fsSL "$api_url")"; then
+  echo "failed to read HuggingFace metadata for '$REPO'" >&2
+  exit 1
+fi
+if ! jq -e '.siblings | type == "array"' >/dev/null <<< "$metadata"; then
+  echo "invalid HuggingFace metadata for '$REPO'" >&2
+  exit 1
+fi
+if ! revision="$(jq -er '.sha | select(type == "string" and test("^[A-Fa-f0-9]{40}$"))' <<< "$metadata")"; then
+  echo "invalid HuggingFace revision for '$REPO'" >&2
+  exit 1
+fi
+base_url="https://huggingface.co/$REPO/resolve/$revision"
+if ! gguf_list="$(jq -r '.siblings[]?.rfilename | select(type == "string" and endswith(".gguf"))' <<< "$metadata")"; then
+  echo "invalid HuggingFace metadata for '$REPO'" >&2
+  exit 1
+fi
+files=()
+if [ -n "$gguf_list" ]; then
+  mapfile -t files <<< "$gguf_list"
+fi
+if [ "${#files[@]}" -eq 0 ]; then
+  echo "no .gguf in repo '$REPO' (check huggingface.co/$REPO)" >&2
+  exit 1
+fi
+for file in "${files[@]}"; do
+  if ! safe_relative_path "$file"; then
+    echo "unsafe GGUF path in HuggingFace metadata: $file" >&2
+    exit 1
+  fi
+done
+
+pick=""
+if select_first_match "$QUANT"; then
+  pick="$SELECTED_FILE"
+else
+  echo "quant '$QUANT' not found. Available quants in $REPO:"
+  printf '%s\n' "${files[@]}" | awk 'tolower($0) !~ /mmproj/' | sed -E 's/.*-(UD-)?(I?Q[0-9][^.]*|BF16|F16).*/   \1\2/' | sort -u
+  for fallback_quant in UD-Q4_K_XL Q4_K_M UD-Q4_K_M Q4_0; do
+    if select_first_match "$fallback_quant"; then
+      pick="$SELECTED_FILE"
+      echo "-> falling back to: $pick"
+      break
+    fi
+  done
+  if [ -z "$pick" ]; then
+    echo "pick one explicitly: llm-pull $REPO <quant>" >&2
+    exit 1
+  fi
+fi
+
+todo=()
+if [[ "$pick" =~ ^(.*)-([0-9]{5})-of-([0-9]{5})\.gguf$ ]]; then
+  stem="${BASH_REMATCH[1]}"
+  total_text="${BASH_REMATCH[3]}"
+  total=$((10#$total_text))
+  declare -a shards=()
+
+  if [ "$total" -lt 1 ]; then
+    echo "invalid shard count in filename: $pick" >&2
+    exit 1
+  fi
+  for file in "${files[@]}"; do
+    if [[ "$file" =~ ^(.*)-([0-9]{5})-of-([0-9]{5})\.gguf$ ]] \
+      && [ "${BASH_REMATCH[1]}" = "$stem" ] \
+      && [ "${BASH_REMATCH[3]}" = "$total_text" ]; then
+      part=$((10#${BASH_REMATCH[2]}))
+      if [ "$part" -lt 1 ] || [ "$part" -gt "$total" ] || [ -n "${shards[part]:-}" ]; then
+        echo "invalid or duplicate shard in metadata: $file" >&2
+        exit 1
+      fi
+      shards[part]="$file"
+    fi
+  done
+  for ((part = 1; part <= total; part++)); do
+    if [ -z "${shards[part]:-}" ]; then
+      printf 'missing shard %05d-of-%05d for %s\n' "$part" "$total" "$stem" >&2
+      exit 1
+    fi
+    todo+=("${shards[part]}")
+  done
+  echo "sharded model: ${#todo[@]} parts"
+else
+  todo=("$pick")
 fi
 
 dest="$DEST_ROOT/$REPO"
-# collect shards if pick is part 1 of N, else just the single file
-if printf '%s' "$pick" | grep -qE '\-[0-9]{5}-of-[0-9]{5}\.gguf$'; then
-  stem="$(printf '%s' "$pick" | sed -E 's/-[0-9]{5}-of-[0-9]{5}\.gguf$//')"
-  todo="$(printf '%s\n' "$files" | grep -E "^${stem}-[0-9]{5}-of-[0-9]{5}\.gguf$" | sort)"
-  echo "sharded model: $(printf '%s\n' "$todo" | grep -c .) parts"
-else
-  todo="$pick"
-fi
-
+first="${todo[0]}"
+suffix=""
+[ "${#todo[@]}" -gt 1 ] && suffix=" (+shards)"
 echo "repo:  $REPO"
-echo "quant: $QUANT  ->  $(printf '%s\n' "$todo" | head -1)$([ "$(printf '%s\n' "$todo" | grep -c .)" -gt 1 ] && echo ' (+shards)')"
+echo "quant: $QUANT  ->  $first$suffix"
 echo "dest:  $dest/"
 if [ "$DRY" = 1 ]; then
-  echo "(dry-run) would download:"; printf '   %s/%s\n' "$base_url" "$todo"
+  echo "(dry-run) would download:"
+  for file in "${todo[@]}"; do
+    printf '   %s/%s\n' "$base_url" "$(urlencode_path "$file")"
+  done
   exit 0
 fi
+
 mkdir -p "$dest"
-for f in $todo; do
-  echo ":: $f"
-  curl -fL --retry 3 -C - -o "$dest/$f" "$base_url/$f" || { echo "download failed: $f"; exit 1; }
+publish=()
+for file in "${todo[@]}"; do
+  final="$dest/$file"
+  part_file="$final.$revision.part"
+  mkdir -p "$(dirname "$final")"
+  if [ -f "$final" ]; then
+    echo ":: $file (already present)"
+    continue
+  fi
+
+  echo ":: $file"
+  encoded_file="$(urlencode_path "$file")"
+  if ! curl -fL --retry 3 -C - -o "$part_file" "$base_url/$encoded_file"; then
+    echo "download failed: $file (partial data kept at $part_file)" >&2
+    exit 1
+  fi
+  publish+=("$file")
 done
-first="$(printf '%s\n' "$todo" | head -1)"
+
+for file in "${publish[@]}"; do
+  if [ ! -f "$dest/$file.$revision.part" ]; then
+    echo "missing completed download: $file" >&2
+    exit 1
+  fi
+done
+for ((index = ${#publish[@]} - 1; index >= 0; index--)); do
+  file="${publish[index]}"
+  mv -- "$dest/$file.$revision.part" "$dest/$file"
+done
+
 echo
 echo "done -> $dest/$first"
 echo "next:"

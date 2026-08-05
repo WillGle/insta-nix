@@ -6,41 +6,122 @@
 # or a GTT-raise / smaller-context / smaller-model suggestion if nothing fits.
 #
 # Usage: llm-fit <model.gguf> [context=8192]
-set -uo pipefail
+set -euo pipefail
 export PATH="/run/current-system/sw/bin:${PATH:-}"   # find llama-fit-params from systemPackages
 FIT="${LLAMA_FIT_PARAMS:-llama-fit-params}"
-MODEL="${1:?usage: llm-fit <model.gguf> [context]}"
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  echo "usage: llm-fit <model.gguf> [context]" >&2
+  exit 2
+fi
+MODEL="$1"
 CTX="${2:-8192}"
 [ -f "$MODEL" ] || { echo "no such model: $MODEL" >&2; exit 2; }
+if ! [[ "$CTX" =~ ^[1-9][0-9]*$ ]]; then
+  echo "llm-fit: context must be a positive integer: $CTX" >&2
+  exit 2
+fi
 
-GTT="$(awk '{printf "%.1f", $1/1073741824}' /sys/class/drm/card*/device/mem_info_gtt_total 2>/dev/null | head -1)"
-ngl_of(){ "$FIT" -m "$MODEL" -c "$CTX" "$@" 2>/dev/null | grep -oE '\-ngl[[:space:]]+-?[0-9]+' | awk '{print $2}'; }
+fit_params() {
+  local output option value index
+  local -a fields
 
+  if ! output="$("$FIT" -m "$MODEL" -c "$CTX" -fa on "$@")"; then
+    echo "llm-fit: llama-fit-params failed" >&2
+    return 3
+  fi
+
+  output="${output//$'\n'/ }"
+  read -r -a fields <<< "$output" || true
+  FITTED_CTX=""
+  FITTED_NGL=""
+
+  if [ "${#fields[@]}" -ne 4 ]; then
+    echo "llm-fit: invalid llama-fit-params output: expected '-c N -ngl M'" >&2
+    return 3
+  fi
+
+  for ((index = 0; index < ${#fields[@]}; index += 2)); do
+    option="${fields[index]}"
+    value="${fields[index + 1]}"
+    case "$option" in
+      -c)
+        if [ -n "$FITTED_CTX" ] || ! [[ "$value" =~ ^[1-9][0-9]*$ ]]; then
+          echo "llm-fit: invalid llama-fit-params context value" >&2
+          return 3
+        fi
+        FITTED_CTX="$value"
+        ;;
+      -ngl)
+        if [ -n "$FITTED_NGL" ] || ! [[ "$value" =~ ^-?[0-9]+$ ]]; then
+          echo "llm-fit: invalid llama-fit-params GPU layer value" >&2
+          return 3
+        fi
+        FITTED_NGL="$value"
+        ;;
+      *)
+        echo "llm-fit: unexpected llama-fit-params option: $option" >&2
+        return 3
+        ;;
+    esac
+  done
+
+  if [ -z "$FITTED_CTX" ] || [ -z "$FITTED_NGL" ]; then
+    echo "llm-fit: incomplete llama-fit-params output" >&2
+    return 3
+  fi
+}
+
+read_gtt() {
+  local path
+  for path in /sys/class/drm/card*/device/mem_info_gtt_total; do
+    if [ -r "$path" ]; then
+      awk '{printf "%.1f", $1/1073741824}' "$path"
+      return 0
+    fi
+  done
+  return 1
+}
+
+GTT="$(read_gtt || true)"
 printf 'Model: %s | context: %s | GTT ceiling: %s GiB\n' "$(basename "$MODEL")" "$CTX" "${GTT:-?}"
 
-base="$(ngl_of)"
-if [ "$base" = "-1" ]; then
+full_offload_at_requested_context() {
+  [ "$FITTED_CTX" = "$CTX" ] && [ "$FITTED_NGL" = "-1" ]
+}
+
+FITTED_CTX=""
+FITTED_NGL=""
+fit_params
+base="$FITTED_NGL"
+if full_offload_at_requested_context; then
   echo "✅ FITS fully on GPU with f16 KV (no overflow). Run: -ngl 999 -fa on   (default KV = best quality)"
   exit 0
 fi
-echo "⚠️  f16 KV OVERFLOWS: only ${base:-?} layers fit on GPU; the rest spill to CPU (slow)."
+if [ "$FITTED_CTX" != "$CTX" ]; then
+  echo "⚠️  f16 KV OVERFLOWS at context $CTX; fitter reduced context to $FITTED_CTX."
+else
+  echo "⚠️  f16 KV OVERFLOWS: only $base layers fit on GPU; the rest spill to CPU (slow)."
+fi
 
-q8="$(ngl_of -fa on --cache-type-k q8_0 --cache-type-v q8_0)"
-if [ "$q8" = "-1" ]; then
+fit_params --cache-type-k q8_0 --cache-type-v q8_0
+if full_offload_at_requested_context; then
   echo "✅ FIXED with Flash-Attn + KV q8_0 -> full GPU offload (≈no quality loss)."
   echo "   Run: -ngl 999 -fa on --cache-type-k q8_0 --cache-type-v q8_0"
   exit 0
 fi
 
-q4="$(ngl_of -fa on --cache-type-k q4_0 --cache-type-v q4_0)"
-if [ "$q4" = "-1" ]; then
+fit_params --cache-type-k q4_0 --cache-type-v q4_0
+if full_offload_at_requested_context; then
   echo "✅ FIXED with Flash-Attn + KV q4_0 (more aggressive; small quality/speed cost)."
   echo "   Run: -ngl 999 -fa on --cache-type-k q4_0 --cache-type-v q4_0"
   exit 0
 fi
 
+reduced_context=$((CTX / 2))
+[ "$reduced_context" -gt 0 ] || reduced_context=1
 echo "❌ Still overflows even with KV q4_0. Pick one:"
-echo "   • reduce context (e.g. llm-fit \"$(basename "$MODEL")\" $((CTX/2)))"
+echo "   • reduce context (e.g. llm-fit \"$(basename "$MODEL")\" $reduced_context)"
 echo "   • raise GTT: add ttm.pages_limit to boot.kernelParams (5767168 = 22 GiB) + reboot"
 echo "   • use a smaller / more-quantized model, or a small-active MoE (e.g. Qwen3-30B-A3B)"
 exit 1
