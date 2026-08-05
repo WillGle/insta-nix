@@ -34,9 +34,17 @@
   };
 
   fonts = {
+    # Waybar renders this as CSS `font-size: <n>px`.
     ui = {
       family = "FiraCode Nerd Font";
       size = 13;
+    };
+
+    # Rofi renders font sizes as Pango *points*, not pixels, so it cannot share
+    # `ui.size`: 13 there means roughly 17px and blows the menus up by a third.
+    # Separate knob, separate unit.
+    rofi = {
+      size = 10;
     };
 
     mono = {
