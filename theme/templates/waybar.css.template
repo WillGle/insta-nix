@@ -342,10 +342,15 @@ menu,
   animation-iteration-count: infinite;
 }
 
+/* The healthy state is deliberately visible. If it rendered as nothing, a
+   module that died or could not query systemd would be indistinguishable from
+   one reporting all-clear — absence must never read as good news. */
 #custom-systemd_failed.ok {
-  color: transparent;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  border: none;
+  color: @signal-ok;
+  opacity: 0.45;
+}
+
+#custom-systemd_failed.unknown {
+  color: @signal-warning;
+  border-bottom: 2px solid @signal-warning;
 }
