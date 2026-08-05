@@ -65,6 +65,7 @@ let
     [ "__SIGNAL_MUTED_STRIP__" (strip signal.muted) ]
     [ "__UI_FONT__" theme.fonts.ui.family ]
     [ "__UI_FONT_SIZE__" (toString theme.fonts.ui.size) ]
+    [ "__ROFI_FONT_SIZE__" (toString theme.fonts.rofi.size) ]
     [ "__MONO_FONT__" theme.fonts.mono.family ]
     [ "__MONO_FONT_SIZE__" (toString theme.fonts.mono.size) ]
     [ "__LOCK_FONT__" theme.fonts.lock.family ]
@@ -154,6 +155,7 @@ in
       THEME_WALLPAPER=${lib.escapeShellArg themeWallpaperPath}
       THEME_UI_FONT=${lib.escapeShellArg theme.fonts.ui.family}
       THEME_UI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.ui.size)}
+      THEME_ROFI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.rofi.size)}
       THEME_MONO_FONT=${lib.escapeShellArg theme.fonts.mono.family}
       THEME_MONO_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.mono.size)}
       THEME_LOCK_FONT=${lib.escapeShellArg theme.fonts.lock.family}

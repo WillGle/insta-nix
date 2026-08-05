@@ -314,6 +314,7 @@ render_template() {
     -e "s/__SIGNAL_MUTED_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_MUTED")")/g" \
     -e "s/__UI_FONT__/$(escape_sed "$THEME_UI_FONT")/g" \
     -e "s/__UI_FONT_SIZE__/$(escape_sed "$THEME_UI_FONT_SIZE")/g" \
+    -e "s/__ROFI_FONT_SIZE__/$(escape_sed "$THEME_ROFI_FONT_SIZE")/g" \
     -e "s/__MONO_FONT__/$(escape_sed "$THEME_MONO_FONT")/g" \
     -e "s/__MONO_FONT_SIZE__/$(escape_sed "$THEME_MONO_FONT_SIZE")/g" \
     -e "s/__LOCK_FONT__/$(escape_sed "$THEME_LOCK_FONT")/g" \
