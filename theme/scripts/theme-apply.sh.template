@@ -398,7 +398,20 @@ sync_hyprpaper() {
   ensure_hypr_signature
   [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || return 0
 
-  "$HYPRCTL_BIN" hyprpaper preload "$WALLPAPER" >/dev/null 2>&1 || return 0
+  # hyprpaper caches decoded images keyed by path, and `preload` on an
+  # already-loaded path is a no-op. When a wallpaper is replaced in place — same
+  # filename, new bytes — every consumer that reads the file at use time picks up
+  # the change while hyprpaper keeps showing the stale pixels. Dropping the entry
+  # first forces a genuine re-read.
+  #
+  # `wallpaper pick` stores images under their content digest, so it never lands
+  # here; this covers a file swapped underneath us by other means.
+  "$HYPRCTL_BIN" hyprpaper unload "$WALLPAPER" >/dev/null 2>&1 || true
+
+  if ! "$HYPRCTL_BIN" hyprpaper preload "$WALLPAPER" >/dev/null 2>&1; then
+    log "hyprpaper refused to preload $WALLPAPER; the desktop may now be blank"
+    return 1
+  fi
 
   # `grep -x -F` still matches the whole line literally, but without -q it drains
   # hyprctl's output instead of closing the pipe early: under `set -o pipefail` a
@@ -411,11 +424,15 @@ sync_hyprpaper() {
   done
 
   if ! "$HYPRCTL_BIN" hyprpaper listloaded 2>/dev/null | "$GREP_BIN" -xF "$WALLPAPER" >/dev/null; then
-    log "hyprpaper did not confirm preload, leaving the live wallpaper untouched"
-    return 0
+    log "hyprpaper did not confirm preload of $WALLPAPER"
+    return 1
   fi
 
-  "$HYPRCTL_BIN" hyprpaper wallpaper ",$WALLPAPER" >/dev/null 2>&1 || return 0
+  if ! "$HYPRCTL_BIN" hyprpaper wallpaper ",$WALLPAPER" >/dev/null 2>&1; then
+    log "hyprpaper accepted the preload but refused to display $WALLPAPER"
+    return 1
+  fi
+
   "$HYPRCTL_BIN" hyprpaper unload unused >/dev/null 2>&1 || true
 }
 
@@ -488,18 +505,19 @@ verify_signal_palette "$STAGE_DIR/waybar.css"
 
 # --- phase 2: commit -------------------------------------------------------
 
-# Only the three surfaces refreshed below need a flag; Rofi, hyprlock, Neovim
-# and the palette dump are read from disk on their next use.
+# Only the two surfaces refreshed below need a flag; Rofi, hyprlock, Neovim and
+# the palette dump are read from disk on their next use. hyprpaper deliberately
+# has no flag: its config text cannot express a same-path content change, so the
+# refresh is driven by the stamp instead.
 waybar_changed=0
 hyprland_changed=0
-hyprpaper_changed=0
 
 apply_if_changed "$STAGE_DIR/waybar.css" "$THEME_GENERATED_DIR/waybar.css" waybar_changed
 apply_if_changed "$STAGE_DIR/rofi.rasi" "$THEME_GENERATED_DIR/rofi.rasi" -
 apply_if_changed "$STAGE_DIR/hyprlock.conf" "$THEME_GENERATED_DIR/hyprlock.conf" -
 apply_if_changed "$STAGE_DIR/hyprland-decoration.conf" "$THEME_GENERATED_DIR/hyprland-decoration.conf" hyprland_changed
 apply_if_changed "$STAGE_DIR/nvim-matugen.lua" "$THEME_GENERATED_DIR/nvim-matugen.lua" -
-apply_if_changed "$STAGE_DIR/hyprpaper.conf" "$THEME_GENERATED_DIR/hyprpaper.conf" hyprpaper_changed
+apply_if_changed "$STAGE_DIR/hyprpaper.conf" "$THEME_GENERATED_DIR/hyprpaper.conf" -
 apply_if_changed "$PALETTE_TMP" "$THEME_GENERATED_DIR/palette.json" -
 
 store_selection
@@ -529,9 +547,13 @@ if [ "$hyprland_changed" -eq 1 ]; then
   "$HYPRCTL_BIN" reload config-only >/dev/null 2>&1 || true
 fi
 
-if [ "$hyprpaper_changed" -eq 1 ]; then
-  sync_hyprpaper
-fi
+# Deliberately unconditional. The generated hyprpaper.conf only differs when the
+# wallpaper *path* changes, so keying the refresh off that file misses the case
+# where the same path gets new bytes — which is exactly when the live desktop is
+# left stale while the palette, hyprlock and everything else already moved on.
+# compute_stamp hashes the image content, so reaching this line already means a
+# real change occurred; re-syncing is cheap and cannot be wrong.
+sync_hyprpaper || true
 
 if [ "$PALETTE_SOURCE" = "fallback" ]; then
   log "applied static fallback palette"
