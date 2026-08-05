@@ -1,0 +1,45 @@
+#!__BASH_BIN__
+set -euo pipefail
+
+# Nautilus "Scripts" entry: right-click an image, Scripts > Set as Wallpaper.
+#
+# This delegates to `wallpaper set` and does nothing else on purpose. The
+# previous hand-written version copied the chosen image over the Home
+# Manager-managed file under ~/.config/theme/assets, which:
+#   - clobbered a managed path and eventually broke `nixos-rebuild switch`
+#     outright, once a stale .backup was already sitting there
+#   - reused one path for different images, so hyprpaper's path-keyed cache kept
+#     showing the old picture while the palette and lockscreen moved on
+#   - called theme-apply without --wallpaper, so the selection was never
+#     persisted and did not survive a rebuild
+#   - sent every error to /dev/null in the background, so none of that surfaced
+#
+# `wallpaper set` stores the image under its content digest in the XDG state
+# directory, records the selection and regenerates every surface. None of the
+# failure modes above are reachable through it.
+
+WALLPAPER_BIN="__WALLPAPER_BIN__"
+NOTIFY_BIN="__NOTIFY_SEND_BIN__"
+HEAD_BIN="__HEAD_BIN__"
+
+notify() { "$NOTIFY_BIN" "Wallpaper" "$1" >/dev/null 2>&1 || true; }
+notify_error() { "$NOTIFY_BIN" -u critical "Wallpaper" "$1" >/dev/null 2>&1 || true; }
+
+# Nautilus passes the selection as arguments and also in this variable; fall
+# back to it so the script still works when invoked without arguments.
+file="${1:-}"
+if [ -z "$file" ] && [ -n "${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS:-}" ]; then
+  file="$(printf '%s' "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" | "$HEAD_BIN" -n1)"
+fi
+
+if [ -z "$file" ] || [ ! -f "$file" ]; then
+  notify_error "No file selected"
+  exit 1
+fi
+
+if ! error="$("$WALLPAPER_BIN" set "$file" 2>&1 >/dev/null)"; then
+  notify_error "${error:-Could not set ${file##*/}}"
+  exit 1
+fi
+
+notify "Now using ${file##*/}"
