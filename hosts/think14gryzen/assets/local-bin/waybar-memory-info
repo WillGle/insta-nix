@@ -28,7 +28,7 @@ swap_perc=$(free | awk '/Swap:/ {if ($2 > 0) printf "%.0f", $3/$2 * 100.0; else 
 
 # Get top 5 processes by memory %
 top_procs="$(
-  ps -eo comm=,pmem= --sort=-pmem | head -n 5 | while read -r proc pmem; do
+  ps -eo comm=,pmem= --sort=-pmem | sed -n '1,5p' | while read -r proc pmem; do
     [ -n "${proc:-}" ] || continue
     proc="$(escape_markup "$proc")"
     printf '%-18s %5.1f%%\n' "$proc" "${pmem:-0}"

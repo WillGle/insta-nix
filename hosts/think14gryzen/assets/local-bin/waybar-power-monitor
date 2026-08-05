@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-echo "called with $1" >> /tmp/waybar_click.log
 set -euo pipefail
 export LC_ALL=C
 # Waybar consolidated hardware monitor

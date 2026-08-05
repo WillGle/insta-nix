@@ -40,7 +40,7 @@ get_bluetooth_status() {
 }
 
 wifi_iface() {
-  nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" { print $1; exit }'
+  nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" && !found { print $1; found = 1 }'
 }
 
 wifi_enabled() {
@@ -95,9 +95,9 @@ active_wifi_connection() {
   local iface="$1"
   nmcli -t -f NAME,UUID,TYPE,DEVICE connection show --active \
     | sed 's/\\:/\x01/g' \
-    | awk -F: -v target="$iface" '$3 == "802-11-wireless" && $4 == target {
+    | awk -F: -v target="$iface" '$3 == "802-11-wireless" && $4 == target && !found {
         gsub(/\x01/, ":", $1); gsub(/\x01/, ":", $4);
-        print $1 "\t" $2 "\t" $4; exit
+        print $1 "\t" $2 "\t" $4; found = 1
       }'
 }
 
@@ -109,7 +109,7 @@ active_wifi_ap_line() {
 
   ap_line="$(nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID,RATE device wifi list ifname "$iface" --rescan no \
     | sed 's/\\:/\x01/g' \
-    | awk -F: '$1 == "*" { print; exit }')"
+    | awk -F: '$1 == "*" && !found { print; found = 1 }')"
 
   if [ -n "$ap_line" ]; then
     printf '%s\n' "$ap_line"
@@ -120,7 +120,7 @@ active_wifi_ap_line() {
 
   nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY,FREQ,BSSID,RATE device wifi list ifname "$iface" --rescan no \
     | sed 's/\\:/\x01/g' \
-    | awk -F: -v target="$masked_ssid" '$2 == target { print; exit }'
+    | awk -F: -v target="$masked_ssid" '$2 == target && !found { print; found = 1 }'
 }
 
 connection_ssid() {
@@ -158,10 +158,10 @@ current_dns() {
 active_ethernet() {
   nmcli -t -f TYPE,NAME,DEVICE connection show --active \
     | sed 's/\\:/\x01/g' \
-    | awk -F: '$1 == "802-3-ethernet" {
+    | awk -F: '$1 == "802-3-ethernet" && !found {
         name=$2; device=$3;
         gsub(/\x01/, ":", name); gsub(/\x01/, ":", device);
-        print name "\t" device; exit
+        print name "\t" device; found = 1
       }'
 }
 
