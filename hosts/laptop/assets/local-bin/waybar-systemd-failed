@@ -2,26 +2,42 @@
 set -euo pipefail
 export LC_ALL=C
 
+# Three states, never two. The old version emitted nothing when systemctl
+# failed, and "nothing" is also what a healthy system renders — so losing the
+# ability to check looked exactly like having checked and found nothing wrong.
+# "ok" therefore carries a visible mark of its own, and an unreadable systemd
+# reports "unknown" instead of vanishing.
+
 escape_markup() {
   printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
 
-failed=$(systemctl --failed --no-legend --plain | wc -l)
+emit() {
+  jq -cn --arg text "$1" --arg tooltip "$2" --arg class "$3" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+if ! raw="$(systemctl --failed --no-legend --plain 2>&1)"; then
+  emit "󰀦 ?" \
+    "$(printf "<b><span foreground='@signalWarning@'>SYSTEMD STATE UNKNOWN</span></b>\n<span alpha='30%%'>──────────────────────────</span>\n<tt>%s</tt>\n\n<span size='small' alpha='50%%'>Could not query systemd; this is not an all-clear</span>" \
+      "$(escape_markup "$raw")")" \
+    "unknown"
+  exit 0
+fi
+
+failed=0
+if [ -n "$raw" ]; then
+  failed="$(printf '%s\n' "$raw" | wc -l)"
+fi
 
 if [ "$failed" -gt 0 ]; then
-  # Get failed units names
-  units=$(systemctl --failed --no-legend --plain | awk '{print $1}')
-  escaped_units=$(escape_markup "$units")
-  tooltip=$(printf "<b><span foreground='#f85149'>FAILED SYSTEMD UNITS</span></b>\n<span alpha='30%%'>──────────────────────────</span>\n<tt>%s</tt>\n\n<span size='small' alpha='50%%'>Run 'systemctl --failed' to check details</span>" "$escaped_units")
-  jq -cn \
-    --arg text "  ${failed} failed" \
-    --arg tooltip "$tooltip" \
-    --arg class "failed" \
-    '{text: $text, tooltip: $tooltip, class: $class}'
+  units="$(printf '%s\n' "$raw" | awk '{print $1}')"
+  emit "  ${failed} failed" \
+    "$(printf "<b><span foreground='@signalCritical@'>FAILED SYSTEMD UNITS</span></b>\n<span alpha='30%%'>──────────────────────────</span>\n<tt>%s</tt>\n\n<span size='small' alpha='50%%'>Run 'systemctl --failed' to check details</span>" \
+      "$(escape_markup "$units")")" \
+    "failed"
 else
-  jq -cn \
-    --arg text "" \
-    --arg tooltip "" \
-    --arg class "ok" \
-    '{text: $text, tooltip: $tooltip, class: $class}'
+  emit "·" \
+    "$(printf "<b><span foreground='@signalOk@'>SYSTEMD OK</span></b>\n<span alpha='30%%'>──────────────────────────</span>\n<tt>No failed units</tt>" )" \
+    "ok"
 fi
