@@ -36,9 +36,10 @@ usage() {
   "$CAT_BIN" <<'EOF'
 usage: wallpaper [command]
 
-  pick          choose an image in Rofi from ~/Pictures/Wallpapers and the
-                wallpapers shipped with the Nix configuration, then apply it
+  pick          choose an image in Rofi from ~/Pictures/Wallpapers or the
+                wallpaper shipped with the Nix configuration, then apply it
                 (this is also what running `wallpaper` with no argument does)
+                Put your own images in ~/Pictures/Wallpapers.
   set <image>   use <image> (jpg, jpeg, png or webp) as the wallpaper and
                 regenerate the theme from it
   current       print the wallpaper currently in use
@@ -162,27 +163,31 @@ cmd_reset() {
   printf '%s\n' "$THEME_WALLPAPER"
 }
 
-# Collect candidate images from the user's wallpaper directory and from the
-# asset directory Home Manager populates, keeping full paths in an array so
-# spaces and duplicate basenames stay unambiguous.
+# Candidates are the user's own wallpaper directory plus the single image the
+# Nix configuration ships.
+#
+# Earlier this scanned the *directory* holding the shipped wallpaper too. That
+# directory was managed by Home Manager, so listing it advertised a managed path
+# as the place to keep wallpapers — and any file dropped there is clobbered on
+# the next activation, or fails it outright once a stale .backup exists. Only the
+# shipped file itself is offered now, so nothing invites a write into a directory
+# that is not the user's to write to.
 collect_candidates() {
-  local dir resolved entry seen=""
+  local resolved entry
 
   CANDIDATES=()
 
-  for dir in "$HOME/Pictures/Wallpapers" "${THEME_WALLPAPER%/*}"; do
-    resolved="$("$READLINK_BIN" -f -- "$dir" 2>/dev/null || true)"
-    [ -n "$resolved" ] && [ -d "$resolved" ] || continue
-    case "$seen" in
-      *"|$resolved|"*) continue ;;
-    esac
-    seen="$seen|$resolved|"
-
+  resolved="$("$READLINK_BIN" -f -- "${THEME_WALLPAPER_DROP_DIR:-$HOME/Pictures/Wallpapers}" 2>/dev/null || true)"
+  if [ -n "$resolved" ] && [ -d "$resolved" ]; then
     while IFS= read -r -d '' entry; do
       is_supported_image "$entry" || continue
       CANDIDATES+=("$entry")
     done < <("$FIND_BIN" "$resolved" -maxdepth 1 -type f -print0 2>/dev/null | "$SORT_BIN" -z)
-  done
+  fi
+
+  if is_supported_image "$THEME_WALLPAPER"; then
+    CANDIDATES+=("$THEME_WALLPAPER")
+  fi
 }
 
 cmd_pick() {
@@ -193,7 +198,7 @@ cmd_pick() {
   collect_candidates
 
   if [ "${#CANDIDATES[@]}" -eq 0 ]; then
-    log "no jpg/jpeg/png/webp images in $HOME/Pictures/Wallpapers or ${THEME_WALLPAPER%/*}"
+    log "no jpg/jpeg/png/webp images in ${THEME_WALLPAPER_DROP_DIR:-$HOME/Pictures/Wallpapers}"
     exit 1
   fi
 
