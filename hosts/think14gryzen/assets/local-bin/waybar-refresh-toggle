@@ -1,27 +1,66 @@
 #!/usr/bin/env bash
 # Toggle ONLY the refresh rate between 60 and 120 for eDP-1.
-# Resolution/position/scale are fixed here so they never drift.
 
 set -euo pipefail
 
-# Dynamic detection
-MON=$(hyprctl monitors -j | jq -r '.[0].name')
-WIDTH=$(hyprctl monitors -j | jq -r '.[0].width')
-HEIGHT=$(hyprctl monitors -j | jq -r '.[0].height')
-RES="${WIDTH}x${HEIGHT}"
-POS="0x0"
-SCALE=$(hyprctl monitors -j | jq -r '.[0].scale')
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send "Refresh Rate" "$1"
+  return 0
+}
 
-# Read current refresh
-CUR=$(hyprctl monitors | awk -v m="$MON" '
-  $0 ~ ("^Monitor " m) {f=1; next}
-  f && /@/ {match($0,/@([0-9.]+)/,a); if(a[1]){print a[1]; exit}}
-')
-CUR=${CUR%.*}
-[ -z "${CUR:-}" ] && CUR=60
+notify_error() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -u critical "Refresh Rate" "$1"
+  return 0
+}
 
-# Pick target
-if [ "$CUR" = "60" ]; then TARGET=120; else TARGET=60; fi
+if ! monitors_json="$(hyprctl monitors all -j)"; then
+  notify_error "Unable to read monitors from Hyprland"
+  exit 1
+fi
 
-# Apply
-hyprctl keyword monitor "$MON,${RES}@${TARGET},${POS},${SCALE}" >/dev/null 2>&1
+if ! monitor="$(jq -cer '.[] | select(.name == "eDP-1" and .disabled == false)' <<< "$monitors_json")"; then
+  notify_error "eDP-1 is not active"
+  exit 1
+fi
+
+IFS=$'\t' read -r name width height x y scale transform current_rate < <(
+  jq -r '[.name, .width, .height, .x, .y, .scale, .transform, (.refreshRate | round)] | @tsv' <<< "$monitor"
+)
+if [ "$current_rate" = "60" ]; then
+  target_rate=120
+else
+  target_rate=60
+fi
+
+if ! target_mode="$(
+  jq -er \
+    --argjson target "$target_rate" \
+    --argjson width "$width" \
+    --argjson height "$height" '
+    .transform as $transform
+    | first(
+      .availableModes[]
+      | capture("^(?<mode_width>[0-9]+)x(?<mode_height>[0-9]+)@(?<rate>[0-9.]+)Hz$")
+      | select(
+          ((.mode_width | tonumber) == $width and (.mode_height | tonumber) == $height)
+          or (
+            ($transform == 1 or $transform == 3)
+            and ((.mode_width | tonumber) == $height and (.mode_height | tonumber) == $width)
+          )
+        )
+      | select((.rate | tonumber | round) == $target)
+      | "\(.mode_width)x\(.mode_height)@\(.rate)"
+    )
+  ' <<< "$monitor"
+)"; then
+  notify_error "${width}x${height}@${target_rate}Hz is not available on eDP-1"
+  exit 1
+fi
+
+rule="$name,$target_mode,${x}x${y},$scale,transform,$transform"
+if hyprctl keyword monitor "$rule"; then
+  notify "eDP-1 switched to ${target_rate}Hz"
+else
+  notify_error "Failed to switch eDP-1 to ${target_rate}Hz"
+  exit 1
+fi

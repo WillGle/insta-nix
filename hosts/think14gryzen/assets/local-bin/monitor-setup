@@ -1,60 +1,108 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # monitor-setup: Dynamic Monitor Configuration using Rofi & Hyprland
 # Author: Antigravity (Assistant)
 
 export PATH="$PATH:/run/current-system/sw/bin"
 
-# Get all monitors (including disabled ones)
-MONITORS_JSON=$(hyprctl monitors all -j)
+choose_row() {
+  local prompt="$1"
+  rofi -dmenu -i -p "$prompt" -config ~/.config/rofi/config.rasi
+}
 
-# 1. Select Monitor
-SELECTABLE_MONITORS=$(echo "$MONITORS_JSON" | jq -r '.[] | "\(.name) (\(.width)x\(.height)) [\(if .disabled then "Disabled" else "Active" end)]"')
-CHOSEN_MON_DESC=$(echo "$SELECTABLE_MONITORS" | rofi -dmenu -i -p "Select Monitor:" -config ~/.config/rofi/config.rasi)
+notify_error() {
+  notify-send -u critical "Monitor Setup" "$1"
+}
 
-[ -z "$CHOSEN_MON_DESC" ] && exit 0
-CHOSEN_MON=$(echo "$CHOSEN_MON_DESC" | awk '{print $1}')
+apply_monitor_rule() {
+  local rule="$1"
+  local message="$2"
 
-# 2. Select Mode (Resolution@Hz)
-# Get modes for the chosen monitor
-MODES=$(echo "$MONITORS_JSON" | jq -r ".[] | select(.name == \"$CHOSEN_MON\") | .availableModes[]")
-CHOSEN_MODE=$(echo "$MODES" | rofi -dmenu -i -p "Select Mode for $CHOSEN_MON:" -config ~/.config/rofi/config.rasi)
+  if hyprctl keyword monitor "$rule"; then
+    notify-send "Monitor Setup" "$message"
+  else
+    notify_error "Failed to apply: $message"
+    return 1
+  fi
+}
 
-[ -z "$CHOSEN_MODE" ] && exit 0
-
-# 3. Select Action/Position
-declare -A ACTIONS
-ACTIONS=(
-    ["Extend - Right"]="auto-right"
-    ["Extend - Left"]="auto-left"
-    ["Extend - Up"]="auto-up"
-    ["Extend - Down"]="auto-down"
-    ["Mirror - Laptop"]="mirror,eDP-1"
-    ["Disable"]="disable"
-    ["Standalone (0,0)"]="0x0"
-)
-
-ACTION_NAMES=$(printf "%s\n" "${!ACTIONS[@]}")
-CHOSEN_ACTION_NAME=$(echo "$ACTION_NAMES" | rofi -dmenu -i -p "Action for $CHOSEN_MON:" -config ~/.config/rofi/config.rasi)
-
-[ -z "$CHOSEN_ACTION_NAME" ] && exit 0
-ACTION_VAL="${ACTIONS[$CHOSEN_ACTION_NAME]}"
-
-# 4. Apply Configuration
-# Note: Scale defaults to 1 for external, 1.5 for laptop if re-enabled.
-# You can customize this logic if you prefer different scales.
-SCALE=1
-[ "$CHOSEN_MON" == "eDP-1" ] && SCALE=1.5
-
-if [ "$ACTION_VAL" == "disable" ]; then
-    CMD="hyprctl keyword monitor $CHOSEN_MON,disable"
-elif [[ "$ACTION_VAL" == mirror* ]]; then
-    MIRROR_TARGET=$(echo "$ACTION_VAL" | cut -d',' -f2)
-    CMD="hyprctl keyword monitor $CHOSEN_MON,$CHOSEN_MODE,auto,$SCALE,mirror,$MIRROR_TARGET"
-else
-    # For auto-right, etc., we use 'auto' or the specific relative position
-    CMD="hyprctl keyword monitor $CHOSEN_MON,$CHOSEN_MODE,$ACTION_VAL,$SCALE"
+if ! MONITORS_JSON="$(hyprctl monitors all -j)"; then
+  notify_error "Unable to read monitors from Hyprland"
+  exit 1
+fi
+if ! jq -e 'type == "array"' >/dev/null <<< "$MONITORS_JSON"; then
+  notify_error "Hyprland returned invalid monitor data"
+  exit 1
 fi
 
-eval "$CMD"
-notify-send "Monitor Setup" "Applied: $CHOSEN_MON @ $CHOSEN_MODE ($CHOSEN_ACTION_NAME)"
+SELECTABLE_MONITORS="$(jq -r '.[] | "\(.name) (\(.width)x\(.height)) [\(if .disabled then "Disabled" else "Active" end)]"' <<< "$MONITORS_JSON")"
+if ! CHOSEN_MON_DESC="$(choose_row "Select Monitor:" <<< "$SELECTABLE_MONITORS")"; then
+  exit 0
+fi
+[ -n "$CHOSEN_MON_DESC" ] || exit 0
+if ! grep -Fxq -- "$CHOSEN_MON_DESC" <<< "$SELECTABLE_MONITORS"; then
+  notify_error "Invalid monitor selection"
+  exit 1
+fi
+CHOSEN_MON="${CHOSEN_MON_DESC%% *}"
+
+MODES="$(jq -r --arg monitor "$CHOSEN_MON" '.[] | select(.name == $monitor) | .availableModes[]?' <<< "$MONITORS_JSON")"
+if [ -z "$MODES" ]; then
+  notify_error "No modes available for $CHOSEN_MON"
+  exit 1
+fi
+if ! CHOSEN_MODE="$(choose_row "Select Mode for $CHOSEN_MON:" <<< "$MODES")"; then
+  exit 0
+fi
+[ -n "$CHOSEN_MODE" ] || exit 0
+if ! grep -Fxq -- "$CHOSEN_MODE" <<< "$MODES"; then
+  notify_error "Invalid mode selection for $CHOSEN_MON"
+  exit 1
+fi
+
+ACTIONS="$(printf '%s\n' \
+  "Extend - Right" \
+  "Extend - Left" \
+  "Extend - Up" \
+  "Extend - Down" \
+  "Mirror - Laptop" \
+  "Disable" \
+  "Standalone (0,0)")"
+if ! CHOSEN_ACTION="$(choose_row "Action for $CHOSEN_MON:" <<< "$ACTIONS")"; then
+  exit 0
+fi
+[ -n "$CHOSEN_ACTION" ] || exit 0
+
+SCALE=1
+[ "$CHOSEN_MON" = "eDP-1" ] && SCALE=1.5
+
+case "$CHOSEN_ACTION" in
+  "Extend - Right") POSITION="auto-right" ;;
+  "Extend - Left") POSITION="auto-left" ;;
+  "Extend - Up") POSITION="auto-up" ;;
+  "Extend - Down") POSITION="auto-down" ;;
+  "Standalone (0,0)") POSITION="0x0" ;;
+  "Disable")
+    apply_monitor_rule "$CHOSEN_MON,disable" "Applied: $CHOSEN_MON disabled"
+    exit
+    ;;
+  "Mirror - Laptop")
+    if [ "$CHOSEN_MON" = "eDP-1" ] || ! jq -e '.[] | select(.name == "eDP-1" and .disabled == false)' >/dev/null <<< "$MONITORS_JSON"; then
+      notify_error "Mirror requires an active eDP-1 and an external monitor"
+      exit 1
+    fi
+    apply_monitor_rule \
+      "$CHOSEN_MON,$CHOSEN_MODE,auto,$SCALE,mirror,eDP-1" \
+      "Applied: $CHOSEN_MON @ $CHOSEN_MODE (Mirror - Laptop)"
+    exit
+    ;;
+  *)
+    notify_error "Invalid action selection"
+    exit 1
+    ;;
+esac
+
+apply_monitor_rule \
+  "$CHOSEN_MON,$CHOSEN_MODE,$POSITION,$SCALE" \
+  "Applied: $CHOSEN_MON @ $CHOSEN_MODE ($CHOSEN_ACTION)"
