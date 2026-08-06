@@ -144,9 +144,17 @@ in
         RestartSec = 5;
         # openlogi-agent opens every pointer device via an evdev hook (including
         # the built-in CIRQ I²C touchpad) and does not always release its
-        # EVIOCGRAB cleanly on exit. Rebinding the i2c_hid_acpi driver after
-        # the agent stops resets the hardware grab state so the touchpad works.
+        # EVIOCGRAB cleanly on exit. Rebinding the i2c_hid_acpi driver resets
+        # the hardware grab state so the touchpad works.
         # sudo -n: non-interactive, relies on the NOPASSWD rule in system.nix.
+        #
+        # ExecStartPost: runs after agent starts at boot/restart — the agent
+        # grabs the touchpad during init; rebinding the driver immediately
+        # releases that grab so Hyprland/libinput regain control.
+        # The short sleep lets the agent finish its grab before we rebind.
+        ExecStartPost = "/bin/sh -c 'sleep 2 && /run/current-system/sw/bin/sudo -n /run/current-system/sw/bin/touchpad-rebind'";
+        # ExecStopPost: runs after agent stops — in case the grab was not
+        # released cleanly during shutdown or crash.
         ExecStopPost = "/run/current-system/sw/bin/sudo -n /run/current-system/sw/bin/touchpad-rebind";
       };
     };
