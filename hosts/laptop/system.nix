@@ -311,12 +311,6 @@ in
           command = "/run/current-system/sw/bin/toggle-battery-reserve";
           options = [ "NOPASSWD" ];
         }
-        {
-          # Allow rebinding the built-in I²C HID touchpad without a password.
-          # Needed to recover from openlogi-agent grabbing and freezing the device.
-          command = "/run/current-system/sw/bin/touchpad-rebind";
-          options = [ "NOPASSWD" ];
-        }
       ];
     }
   ];
@@ -624,24 +618,7 @@ in
   };
 
   environment.systemPackages =
-    [
-      # Rebind the built-in CIRQ I²C HID touchpad driver without a password.
-      # openlogi-agent grabs event17/event18 via EVIOCGRAB and does not always
-      # release them cleanly on exit, leaving the touchpad frozen. Running
-      # `sudo touchpad-rebind` resets the hardware state.
-      (pkgs.writeShellScriptBin "touchpad-rebind" ''
-        set -euo pipefail
-        DEV="i2c-CIRQ1080:00"
-        DRIVER="/sys/bus/i2c/drivers/i2c_hid_acpi"
-        printf 'touchpad-rebind: unbinding %s\n' "$DEV" >&2
-        echo -n "$DEV" > "$DRIVER/unbind"
-        sleep 0.5
-        printf 'touchpad-rebind: rebinding %s\n' "$DEV" >&2
-        echo -n "$DEV" > "$DRIVER/bind"
-        printf 'touchpad-rebind: done\n' >&2
-      '')
-    ]
-    ++ hostToolPackages
+    hostToolPackages
     ++ (with pkgs; [
       adwaita-icon-theme
       bibata-cursors
