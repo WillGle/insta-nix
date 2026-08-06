@@ -5,30 +5,18 @@ with lib;
 let
   cfg = config.services.openlogi;
 
-  gpui-component-src = pkgs.fetchFromGitHub {
-    owner = "longbridge";
-    repo = "gpui-component";
-    rev = "196b9259b562c26be97c92f88c798bbeefa9cb3d";
-    hash = "sha256-gCXOFwEpiaZrJfNhO3yO37qr6qX5rs+9/8ff2TqZXAQ=";
-  };
-
-  openlogi-pkg = pkgsUnstable.rustPlatform.buildRustPackage rec {
+  openlogi-pkg = pkgs.stdenv.mkDerivation rec {
     pname = "openlogi";
-    version = "0.6.19";
+    version = "0.6.23";
 
-    src = pkgs.fetchFromGitHub {
-      owner = "AprilNEA";
-      repo = "OpenLogi";
-      tag = "v${version}";
-      hash = "sha256-/iy+JvKmUfIAG90g+OxOdofoqGP8GN+eMEUAahRnFYE=";
+    src = pkgs.fetchurl {
+      url = "https://github.com/AprilNEA/OpenLogi/releases/download/v${version}/openlogi-v${version}-linux-amd64.deb";
+      sha256 = "0pld8cawzsyfrpndnk4xlzvpl9ndpbymkc0ahsn9mbm4322svhlf";
     };
 
-    cargoHash = "sha256-nO9XkCR2WtqfNzAxlS5kCNRAjDTAuZ4uFQAjRwSCf18=";
-
     nativeBuildInputs = [
-      pkgs.pkg-config
-      pkgs.cmake
-      pkgsUnstable.rustPlatform.bindgenHook
+      pkgs.dpkg
+      pkgs.autoPatchelfHook
     ];
 
     buildInputs = [
@@ -42,72 +30,21 @@ let
       pkgs.libx11
       pkgs.libxext
       pkgs.dbus
+      pkgs.vulkan-loader
+      pkgs.gcc.cc.lib # Needed for some standard c++ libraries sometimes
     ];
 
-    cargoBuildFlags = [
-      "--package=openlogi"
-      "--package=openlogi-agent"
-      "--package=openlogi-gui"
-    ];
-
-    postPatch = ''
-      # gpui-component generates its IconName enum from a sibling assets directory,
-      # but cargo vendoring stores gpui-component-assets as a separate package.
-      for component in "$cargoDepsCopy"/source-git-*/gpui-component-[0-9]*; do
-        component_parent=$(dirname "$component")
-        ln -s "$component_parent"/gpui-component-assets-* "$component_parent/assets"
-      done
-
-      # Patch gpui_linux to prevent re-entrant borrow panic when window appearance/button layout events fire
-      # (e.g. at startup under Wayland/Hyprland).
-      echo "Patching gpui_linux wayland client..."
-      gpui_linux_dir=$(find "$cargoDepsCopy" -type d -name "gpui_linux*" | while read -r d; do
-        if [ -f "$d/src/linux/wayland/client.rs" ]; then
-          echo "$d"
-          break
-        fi
-      done)
-      if [ -n "$gpui_linux_dir" ]; then
-        patch -p1 -d "$gpui_linux_dir" < ${../../patches/gpui-wayland-borrow.patch}
-      else
-        echo "WARNING: gpui_linux directory not found!"
-      fi
-    '';
-
-    preBuild = ''
-      export OPENLOGI_THEMES_DIR="${gpui-component-src}/themes"
-    '';
+    unpackPhase = "dpkg-deb -x $src .";
 
     installPhase = ''
       runHook preInstall
-
-      if [ -d "target/${pkgs.stdenv.hostPlatform.rust.cargoShortTarget}/release" ]; then
-        release_target="target/${pkgs.stdenv.hostPlatform.rust.cargoShortTarget}/release"
-      else
-        release_target="target/release"
-      fi
-
-      install -Dm755 "$release_target/openlogi" -t "$out/bin"
-      install -Dm755 "$release_target/openlogi-agent" -t "$out/bin"
-      install -Dm755 "$release_target/openlogi-gui" -t "$out/bin"
-
-      install -Dm644 packaging/linux/desktop/openlogi.desktop -t "$out/share/applications"
-      install -Dm644 design/icon/openlogi.png -t "$out/share/icons/hicolor/512x512/apps"
-
+      
+      mkdir -p $out
+      cp -r usr/bin $out/
+      cp -r usr/share $out/
+      
       runHook postInstall
     '';
-
-    postFixup = ''
-      patchelf $out/bin/openlogi-gui --add-rpath ${
-        lib.makeLibraryPath [
-          pkgs.libGL
-          pkgs.vulkan-loader
-          pkgs.wayland
-        ]
-      }
-    '';
-
-    doCheck = false;
   };
 in
 {
@@ -142,20 +79,6 @@ in
         ExecStart = "${cfg.package}/bin/openlogi-agent";
         Restart = "on-failure";
         RestartSec = 5;
-        # openlogi-agent opens every pointer device via an evdev hook (including
-        # the built-in CIRQ I²C touchpad) and does not always release its
-        # EVIOCGRAB cleanly on exit. Rebinding the i2c_hid_acpi driver resets
-        # the hardware grab state so the touchpad works.
-        # sudo -n: non-interactive, relies on the NOPASSWD rule in system.nix.
-        #
-        # ExecStartPost: runs after agent starts at boot/restart — the agent
-        # grabs the touchpad during init; rebinding the driver immediately
-        # releases that grab so Hyprland/libinput regain control.
-        # The short sleep lets the agent finish its grab before we rebind.
-        ExecStartPost = "/bin/sh -c 'sleep 2 && /run/current-system/sw/bin/sudo -n /run/current-system/sw/bin/touchpad-rebind'";
-        # ExecStopPost: runs after agent stops — in case the grab was not
-        # released cleanly during shutdown or crash.
-        ExecStopPost = "/run/current-system/sw/bin/sudo -n /run/current-system/sw/bin/touchpad-rebind";
       };
     };
   };
