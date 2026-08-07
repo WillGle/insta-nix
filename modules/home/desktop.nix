@@ -1,4 +1,10 @@
-{ config, pkgs, osConfig, lib, ... }:
+{
+  config,
+  pkgs,
+  osConfig,
+  lib,
+  ...
+}:
 let
   inherit (osConfig) theme;
   inherit (osConfig.theme) signal;
@@ -45,63 +51,207 @@ let
     builtins.replaceStrings keys values (builtins.readFile file);
 
   commonReplacements = [
-    [ "__BASE__" theme.colors.base ]
-    [ "__MANTLE__" theme.colors.mantle ]
-    [ "__TEXT__" theme.colors.text ]
-    [ "__SUBTEXT__" theme.colors.subtext ]
-    [ "__ACCENT__" theme.colors.accent ]
-    [ "__SUCCESS__" theme.colors.success ]
-    [ "__WARNING__" theme.colors.warning ]
-    [ "__ERROR__" theme.colors.error ]
-    [ "__PURPLE__" theme.colors.purple ]
-    [ "__CYAN__" theme.colors.cyan ]
-    [ "__BASE_STRIP__" (strip theme.colors.base) ]
-    [ "__MANTLE_STRIP__" (strip theme.colors.mantle) ]
-    [ "__TEXT_STRIP__" (strip theme.colors.text) ]
-    [ "__SUBTEXT_STRIP__" (strip theme.colors.subtext) ]
-    [ "__ACCENT_STRIP__" (strip theme.colors.accent) ]
-    [ "__SUCCESS_STRIP__" (strip theme.colors.success) ]
-    [ "__WARNING_STRIP__" (strip theme.colors.warning) ]
-    [ "__ERROR_STRIP__" (strip theme.colors.error) ]
-    [ "__PURPLE_STRIP__" (strip theme.colors.purple) ]
-    [ "__CYAN_STRIP__" (strip theme.colors.cyan) ]
+    [
+      "__BASE__"
+      theme.colors.base
+    ]
+    [
+      "__MANTLE__"
+      theme.colors.mantle
+    ]
+    [
+      "__TEXT__"
+      theme.colors.text
+    ]
+    [
+      "__SUBTEXT__"
+      theme.colors.subtext
+    ]
+    [
+      "__ACCENT__"
+      theme.colors.accent
+    ]
+    [
+      "__SUCCESS__"
+      theme.colors.success
+    ]
+    [
+      "__WARNING__"
+      theme.colors.warning
+    ]
+    [
+      "__ERROR__"
+      theme.colors.error
+    ]
+    [
+      "__PURPLE__"
+      theme.colors.purple
+    ]
+    [
+      "__CYAN__"
+      theme.colors.cyan
+    ]
+    [
+      "__BASE_STRIP__"
+      (strip theme.colors.base)
+    ]
+    [
+      "__MANTLE_STRIP__"
+      (strip theme.colors.mantle)
+    ]
+    [
+      "__TEXT_STRIP__"
+      (strip theme.colors.text)
+    ]
+    [
+      "__SUBTEXT_STRIP__"
+      (strip theme.colors.subtext)
+    ]
+    [
+      "__ACCENT_STRIP__"
+      (strip theme.colors.accent)
+    ]
+    [
+      "__SUCCESS_STRIP__"
+      (strip theme.colors.success)
+    ]
+    [
+      "__WARNING_STRIP__"
+      (strip theme.colors.warning)
+    ]
+    [
+      "__ERROR_STRIP__"
+      (strip theme.colors.error)
+    ]
+    [
+      "__PURPLE_STRIP__"
+      (strip theme.colors.purple)
+    ]
+    [
+      "__CYAN_STRIP__"
+      (strip theme.colors.cyan)
+    ]
     # Signal palette: fed from theme.signal, never from theme.colors, so the
     # runtime generator has no path to these values.
-    [ "__SIGNAL_OK__" signal.ok ]
-    [ "__SIGNAL_NOTICE__" signal.notice ]
-    [ "__SIGNAL_WARNING__" signal.warning ]
-    [ "__SIGNAL_CRITICAL__" signal.critical ]
-    [ "__SIGNAL_ECO__" signal.eco ]
-    [ "__SIGNAL_MUTED__" signal.muted ]
-    [ "__SIGNAL_OK_STRIP__" (strip signal.ok) ]
-    [ "__SIGNAL_NOTICE_STRIP__" (strip signal.notice) ]
-    [ "__SIGNAL_WARNING_STRIP__" (strip signal.warning) ]
-    [ "__SIGNAL_CRITICAL_STRIP__" (strip signal.critical) ]
-    [ "__SIGNAL_ECO_STRIP__" (strip signal.eco) ]
-    [ "__SIGNAL_MUTED_STRIP__" (strip signal.muted) ]
-    [ "__UI_FONT__" theme.fonts.ui.family ]
-    [ "__UI_FONT_SIZE__" (toString theme.fonts.ui.size) ]
-    [ "__ROFI_FONT_SIZE__" (toString theme.fonts.rofi.size) ]
-    [ "__MONO_FONT__" theme.fonts.mono.family ]
-    [ "__MONO_FONT_SIZE__" (toString theme.fonts.mono.size) ]
-    [ "__LOCK_FONT__" theme.fonts.lock.family ]
-    [ "__LOCK_FONT_BOLD__" theme.fonts.lock.boldFamily ]
-    [ "__LOCK_CLOCK_SIZE__" (toString theme.fonts.lock.clockSize) ]
-    [ "__LOCK_TEXT_SIZE__" (toString theme.fonts.lock.textSize) ]
-    [ "__CURSOR_NAME__" theme.cursor.name ]
-    [ "__CURSOR_SIZE__" (toString theme.cursor.size) ]
-    [ "__WALLPAPER_PATH__" themeWallpaperPath ]
-    [ "__THEME_GENERATED_DIR__" themeGeneratedDir ]
+    [
+      "__SIGNAL_OK__"
+      signal.ok
+    ]
+    [
+      "__SIGNAL_NOTICE__"
+      signal.notice
+    ]
+    [
+      "__SIGNAL_WARNING__"
+      signal.warning
+    ]
+    [
+      "__SIGNAL_CRITICAL__"
+      signal.critical
+    ]
+    [
+      "__SIGNAL_ECO__"
+      signal.eco
+    ]
+    [
+      "__SIGNAL_MUTED__"
+      signal.muted
+    ]
+    [
+      "__SIGNAL_OK_STRIP__"
+      (strip signal.ok)
+    ]
+    [
+      "__SIGNAL_NOTICE_STRIP__"
+      (strip signal.notice)
+    ]
+    [
+      "__SIGNAL_WARNING_STRIP__"
+      (strip signal.warning)
+    ]
+    [
+      "__SIGNAL_CRITICAL_STRIP__"
+      (strip signal.critical)
+    ]
+    [
+      "__SIGNAL_ECO_STRIP__"
+      (strip signal.eco)
+    ]
+    [
+      "__SIGNAL_MUTED_STRIP__"
+      (strip signal.muted)
+    ]
+    [
+      "__UI_FONT__"
+      theme.fonts.ui.family
+    ]
+    [
+      "__UI_FONT_SIZE__"
+      (toString theme.fonts.ui.size)
+    ]
+    [
+      "__ROFI_FONT_SIZE__"
+      (toString theme.fonts.rofi.size)
+    ]
+    [
+      "__MONO_FONT__"
+      theme.fonts.mono.family
+    ]
+    [
+      "__MONO_FONT_SIZE__"
+      (toString theme.fonts.mono.size)
+    ]
+    [
+      "__LOCK_FONT__"
+      theme.fonts.lock.family
+    ]
+    [
+      "__LOCK_FONT_BOLD__"
+      theme.fonts.lock.boldFamily
+    ]
+    [
+      "__LOCK_CLOCK_SIZE__"
+      (toString theme.fonts.lock.clockSize)
+    ]
+    [
+      "__LOCK_TEXT_SIZE__"
+      (toString theme.fonts.lock.textSize)
+    ]
+    [
+      "__CURSOR_NAME__"
+      theme.cursor.name
+    ]
+    [
+      "__CURSOR_SIZE__"
+      (toString theme.cursor.size)
+    ]
+    [
+      "__WALLPAPER_PATH__"
+      themeWallpaperPath
+    ]
+    [
+      "__THEME_GENERATED_DIR__"
+      themeGeneratedDir
+    ]
   ];
 
   renderTheme = file: replaceMany commonReplacements file;
-  waybarSeed = pkgs.writeText "theme-waybar.css" (renderTheme ../../theme/templates/waybar.css.template);
+  waybarSeed = pkgs.writeText "theme-waybar.css" (
+    renderTheme ../../theme/templates/waybar.css.template
+  );
   rofiSeed = pkgs.writeText "theme-rofi.rasi" (renderTheme ../../theme/templates/rofi.rasi.template);
-  hyprlockSeed = pkgs.writeText "theme-hyprlock.conf" (renderTheme ../../theme/templates/hyprlock.conf.template);
-  hyprlandSeed =
-    pkgs.writeText "theme-hyprland-decoration.conf" (renderTheme ../../theme/templates/hyprland-decoration.conf.template);
-  nvimSeed = pkgs.writeText "theme-nvim-matugen.lua" (renderTheme ../../theme/templates/nvim-colors.lua.template);
-  hyprpaperSeed = pkgs.writeText "theme-hyprpaper.conf" (renderTheme ../../theme/templates/hyprpaper.conf.template);
+  hyprlockSeed = pkgs.writeText "theme-hyprlock.conf" (
+    renderTheme ../../theme/templates/hyprlock.conf.template
+  );
+  hyprlandSeed = pkgs.writeText "theme-hyprland-decoration.conf" (
+    renderTheme ../../theme/templates/hyprland-decoration.conf.template
+  );
+  nvimSeed = pkgs.writeText "theme-nvim-matugen.lua" (
+    renderTheme ../../theme/templates/nvim-colors.lua.template
+  );
+  hyprpaperSeed = pkgs.writeText "theme-hyprpaper.conf" (
+    renderTheme ../../theme/templates/hyprpaper.conf.template
+  );
   paletteSeed = pkgs.writeText "theme-palette.json" (
     builtins.toJSON {
       source = "static-fallback";
@@ -110,36 +260,126 @@ let
     }
   );
   themeBinReplacements = [
-    [ "__BASH_BIN__" "${pkgs.bash}/bin/bash" ]
-    [ "__MATUGEN_BIN__" "${pkgs.matugen}/bin/matugen" ]
-    [ "__JQ_BIN__" "${pkgs.jq}/bin/jq" ]
-    [ "__SED_BIN__" "${pkgs.gnused}/bin/sed" ]
-    [ "__GREP_BIN__" "${pkgs.gnugrep}/bin/grep" ]
-    [ "__FIND_BIN__" "${pkgs.findutils}/bin/find" ]
-    [ "__SORT_BIN__" "${pkgs.coreutils}/bin/sort" ]
-    [ "__ROFI_BIN__" "${pkgs.rofi}/bin/rofi" ]
-    [ "__MKTEMP_BIN__" "${pkgs.coreutils}/bin/mktemp" ]
-    [ "__MKDIR_BIN__" "${pkgs.coreutils}/bin/mkdir" ]
-    [ "__MV_BIN__" "${pkgs.coreutils}/bin/mv" ]
-    [ "__CP_BIN__" "${pkgs.coreutils}/bin/cp" ]
-    [ "__RM_BIN__" "${pkgs.coreutils}/bin/rm" ]
-    [ "__CAT_BIN__" "${pkgs.coreutils}/bin/cat" ]
-    [ "__OD_BIN__" "${pkgs.coreutils}/bin/od" ]
-    [ "__TR_BIN__" "${pkgs.coreutils}/bin/tr" ]
-    [ "__SHA256_BIN__" "${pkgs.coreutils}/bin/sha256sum" ]
-    [ "__READLINK_BIN__" "${pkgs.coreutils}/bin/readlink" ]
-    [ "__TIMEOUT_BIN__" "${pkgs.coreutils}/bin/timeout" ]
-    [ "__SLEEP_BIN__" "${pkgs.coreutils}/bin/sleep" ]
-    [ "__CMP_BIN__" "${pkgs.diffutils}/bin/cmp" ]
-    [ "__FLOCK_BIN__" "${pkgs.util-linux}/bin/flock" ]
-    [ "__SYSTEMCTL_BIN__" "${pkgs.systemd}/bin/systemctl" ]
-    [ "__LS_BIN__" "${pkgs.coreutils}/bin/ls" ]
-    [ "__HEAD_BIN__" "${pkgs.coreutils}/bin/head" ]
-    [ "__HYPRCTL_BIN__" "${pkgs.hyprland}/bin/hyprctl" ]
-    [ "__THEME_STATIC_ENV__" themeStaticEnv ]
-    [ "__THEME_APPLY_BIN__" themeApplyPath ]
-    [ "__WALLPAPER_BIN__" wallpaperPath ]
-    [ "__NOTIFY_SEND_BIN__" "${pkgs.libnotify}/bin/notify-send" ]
+    [
+      "__BASH_BIN__"
+      "${pkgs.bash}/bin/bash"
+    ]
+    [
+      "__MATUGEN_BIN__"
+      "${pkgs.matugen}/bin/matugen"
+    ]
+    [
+      "__JQ_BIN__"
+      "${pkgs.jq}/bin/jq"
+    ]
+    [
+      "__SED_BIN__"
+      "${pkgs.gnused}/bin/sed"
+    ]
+    [
+      "__GREP_BIN__"
+      "${pkgs.gnugrep}/bin/grep"
+    ]
+    [
+      "__FIND_BIN__"
+      "${pkgs.findutils}/bin/find"
+    ]
+    [
+      "__SORT_BIN__"
+      "${pkgs.coreutils}/bin/sort"
+    ]
+    [
+      "__ROFI_BIN__"
+      "${pkgs.rofi}/bin/rofi"
+    ]
+    [
+      "__MKTEMP_BIN__"
+      "${pkgs.coreutils}/bin/mktemp"
+    ]
+    [
+      "__MKDIR_BIN__"
+      "${pkgs.coreutils}/bin/mkdir"
+    ]
+    [
+      "__MV_BIN__"
+      "${pkgs.coreutils}/bin/mv"
+    ]
+    [
+      "__CP_BIN__"
+      "${pkgs.coreutils}/bin/cp"
+    ]
+    [
+      "__RM_BIN__"
+      "${pkgs.coreutils}/bin/rm"
+    ]
+    [
+      "__CAT_BIN__"
+      "${pkgs.coreutils}/bin/cat"
+    ]
+    [
+      "__OD_BIN__"
+      "${pkgs.coreutils}/bin/od"
+    ]
+    [
+      "__TR_BIN__"
+      "${pkgs.coreutils}/bin/tr"
+    ]
+    [
+      "__SHA256_BIN__"
+      "${pkgs.coreutils}/bin/sha256sum"
+    ]
+    [
+      "__READLINK_BIN__"
+      "${pkgs.coreutils}/bin/readlink"
+    ]
+    [
+      "__TIMEOUT_BIN__"
+      "${pkgs.coreutils}/bin/timeout"
+    ]
+    [
+      "__SLEEP_BIN__"
+      "${pkgs.coreutils}/bin/sleep"
+    ]
+    [
+      "__CMP_BIN__"
+      "${pkgs.diffutils}/bin/cmp"
+    ]
+    [
+      "__FLOCK_BIN__"
+      "${pkgs.util-linux}/bin/flock"
+    ]
+    [
+      "__SYSTEMCTL_BIN__"
+      "${pkgs.systemd}/bin/systemctl"
+    ]
+    [
+      "__LS_BIN__"
+      "${pkgs.coreutils}/bin/ls"
+    ]
+    [
+      "__HEAD_BIN__"
+      "${pkgs.coreutils}/bin/head"
+    ]
+    [
+      "__HYPRCTL_BIN__"
+      "${pkgs.hyprland}/bin/hyprctl"
+    ]
+    [
+      "__THEME_STATIC_ENV__"
+      themeStaticEnv
+    ]
+    [
+      "__THEME_APPLY_BIN__"
+      themeApplyPath
+    ]
+    [
+      "__WALLPAPER_BIN__"
+      wallpaperPath
+    ]
+    [
+      "__NOTIFY_SEND_BIN__"
+      "${pkgs.libnotify}/bin/notify-send"
+    ]
   ];
 
   themeApplyScript = replaceMany themeBinReplacements ../../theme/scripts/theme-apply.sh.template;
@@ -149,7 +389,10 @@ let
   themeLockScript = replaceMany (
     commonReplacements
     ++ [
-      [ "__HYPRLOCK_BIN__" "${pkgs.hyprlock}/bin/hyprlock" ]
+      [
+        "__HYPRLOCK_BIN__"
+        "${pkgs.hyprlock}/bin/hyprlock"
+      ]
     ]
   ) ../../theme/scripts/theme-lock.sh.template;
 
@@ -157,7 +400,6 @@ in
 {
   programs.waybar.systemd.enable = lib.mkForce true;
   wayland.systemd.target = "hyprland-session.target";
-
 
   xdg.configFile = {
     "theme/templates".source = ../../theme/templates;
@@ -217,7 +459,6 @@ in
 
     "rofi/config.rasi".source = ../../assets/common/rofi/config.rasi;
     "rofi/theme.rasi".source = generatedLink "rofi.rasi";
-
 
     "nvim/colors/matugen.lua".source = generatedLink "nvim-matugen.lua";
     "nvim/plugin/matugen.lua".text = ''

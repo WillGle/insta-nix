@@ -14,24 +14,24 @@ let
     paths = [
       pkgs.lightworks
       (pkgs.runCommand "lightworks-desktop" { lw = pkgs.lightworks; } ''
-        mkdir -p $out/share/applications $out/share/icons/hicolor/512x512/apps
-        rootfs=$(grep -o '/nix/store/[^" ]*-fhsenv-rootfs' $lw/bin/lightworks | head -n1)
-        if [ -n "$rootfs" ] && [ -f "$rootfs/usr/share/lightworks/Icons/App.png" ]; then
-          cp "$rootfs/usr/share/lightworks/Icons/App.png" $out/share/icons/hicolor/512x512/apps/lightworks.png
-        fi
-        cat > $out/share/applications/lightworks.desktop <<EOF
-[Desktop Entry]
-Version=1.0
-Name=Lightworks
-GenericName=Video Editor
-Comment=Cross-platform film & video editor
-Exec=lightworks
-Icon=lightworks
-Terminal=false
-Type=Application
-Categories=AudioVideo;AudioVideoEditing;
-StartupWMClass=Ntcardvt
-EOF
+                mkdir -p $out/share/applications $out/share/icons/hicolor/512x512/apps
+                rootfs=$(grep -o '/nix/store/[^" ]*-fhsenv-rootfs' $lw/bin/lightworks | head -n1)
+                if [ -n "$rootfs" ] && [ -f "$rootfs/usr/share/lightworks/Icons/App.png" ]; then
+                  cp "$rootfs/usr/share/lightworks/Icons/App.png" $out/share/icons/hicolor/512x512/apps/lightworks.png
+                fi
+                cat > $out/share/applications/lightworks.desktop <<EOF
+        [Desktop Entry]
+        Version=1.0
+        Name=Lightworks
+        GenericName=Video Editor
+        Comment=Cross-platform film & video editor
+        Exec=lightworks
+        Icon=lightworks
+        Terminal=false
+        Type=Application
+        Categories=AudioVideo;AudioVideoEditing;
+        StartupWMClass=Ntcardvt
+        EOF
       '')
     ];
   };

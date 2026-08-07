@@ -5,12 +5,11 @@ let
   hasLocalPlankModule = builtins.pathExists localPlankModule;
 in
 {
-  imports =
-    [
-      ../../modules/nixos/base.nix
-      ../../users/will.nix
-    ]
-    ++ lib.optional hasLocalPlankModule localPlankModule;
+  imports = [
+    ../../modules/nixos/base.nix
+    ../../users/will.nix
+  ]
+  ++ lib.optional hasLocalPlankModule localPlankModule;
 
   users.users.will = {
     shell = pkgs.bashInteractive;
