@@ -177,25 +177,30 @@ format_time() {
 
 active_plan_summary() {
   local json="$1"
-  local duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
-  local planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
-  local current_session="$(printf '%s' "$json" | jq -r '.current_session // empty')"
-  local elapsed_seconds="$(printf '%s' "$json" | jq -r '.elapsed_seconds // 0')"
-  local remaining_total_seconds="$(printf '%s' "$json" | jq -r '.remaining_total_seconds // empty')"
-  local current_session_elapsed_seconds="$(printf '%s' "$json" | jq -r '.current_session_elapsed_seconds // 0')"
-  local per_session_seconds="$(printf '%s' "$json" | jq -r '.per_session_seconds // 0')"
-  local target_reached="$(printf '%s' "$json" | jq -r '.target_reached // false')"
-  local mode="$(printf '%s' "$json" | jq -r '.mode // empty')"
-  local estimated_finish_at="$(printf '%s' "$json" | jq -r '.estimated_finish_at // empty')"
-  local daily_total_seconds="$(printf '%s' "$json" | jq -r '.daily_total_seconds // 0')"
+  local duration_minutes planned_sessions current_session elapsed_seconds
+  local remaining_total_seconds current_session_elapsed_seconds per_session_seconds
+  local target_reached mode estimated_finish_at daily_total_seconds
+  local daily_label escaped_mode escaped_daily_label
 
-  local daily_label=""
+  duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
+  planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
+  current_session="$(printf '%s' "$json" | jq -r '.current_session // empty')"
+  elapsed_seconds="$(printf '%s' "$json" | jq -r '.elapsed_seconds // 0')"
+  remaining_total_seconds="$(printf '%s' "$json" | jq -r '.remaining_total_seconds // empty')"
+  current_session_elapsed_seconds="$(printf '%s' "$json" | jq -r '.current_session_elapsed_seconds // 0')"
+  per_session_seconds="$(printf '%s' "$json" | jq -r '.per_session_seconds // 0')"
+  target_reached="$(printf '%s' "$json" | jq -r '.target_reached // false')"
+  mode="$(printf '%s' "$json" | jq -r '.mode // empty')"
+  estimated_finish_at="$(printf '%s' "$json" | jq -r '.estimated_finish_at // empty')"
+  daily_total_seconds="$(printf '%s' "$json" | jq -r '.daily_total_seconds // 0')"
+
+  daily_label=""
   if [ "$daily_total_seconds" -gt 0 ]; then
     daily_label=" • Today: $(seconds_to_short "$daily_total_seconds")"
   fi
 
-  local escaped_mode="$(escape_markup "${mode:-Planned session}")"
-  local escaped_daily_label="$(escape_markup "$daily_label")"
+  escaped_mode="$(escape_markup "${mode:-Planned session}")"
+  escaped_daily_label="$(escape_markup "$daily_label")"
 
   if [ -z "$duration_minutes" ] || [ "$duration_minutes" = "null" ]; then
     printf '<span weight="600">%s</span>%s&#10;%s elapsed\n' \
@@ -252,10 +257,12 @@ active_plan_summary() {
 
 show_plan_breakdown() {
   local json="$1"
-  local duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
-  local planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
-  local current_session="$(printf '%s' "$json" | jq -r '.current_session // 0')"
-  
+  local duration_minutes planned_sessions current_session
+
+  duration_minutes="$(printf '%s' "$json" | jq -r '.duration_minutes // empty')"
+  planned_sessions="$(printf '%s' "$json" | jq -r '.planned_sessions // empty')"
+  current_session="$(printf '%s' "$json" | jq -r '.current_session // 0')"
+
   if [ -z "$duration_minutes" ] || [ -z "$planned_sessions" ] || [ "$planned_sessions" = "null" ]; then
     return 0
   fi
@@ -287,7 +294,10 @@ show_plan_breakdown() {
   }
 
   while :; do
-    local selection="$(generate_breakdown_rows | run_rofi_menu "Session Breakdown")" || return 0
+    local selection
+    # Split so the `||` tests the command substitution, not `local` itself,
+    # which always succeeds and would swallow a cancelled menu.
+    selection="$(generate_breakdown_rows | run_rofi_menu "Session Breakdown")" || return 0
     case "$selection" in
       back|"") return 0 ;;
       *) continue ;;
@@ -388,7 +398,8 @@ while :; do
     if [ "$active" = "true" ]; then
       emit_row "stop" "$(row_markup "Stop study session" "$elapsed_label")" "media-playback-stop-symbolic"
       
-      local planned_sessions="$(printf '%s' "$status_json" | jq -r '.planned_sessions // empty')"
+      local planned_sessions
+      planned_sessions="$(printf '%s' "$status_json" | jq -r '.planned_sessions // empty')"
       if [ -n "$planned_sessions" ] && [ "$planned_sessions" != "null" ]; then
         emit_row "breakdown" "$(row_markup "View plan breakdown" "See per-session progress")" "view-list-symbolic"
       fi

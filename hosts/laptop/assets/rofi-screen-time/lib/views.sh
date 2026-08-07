@@ -715,11 +715,13 @@ render_study_summary() {
   focus_window="$(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')"
 
   if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
-    local mode="$(printf '%s' "$context_json" | jq -r '.study_active.mode // empty')"
-    local current="$(printf '%s' "$context_json" | jq -r '.study_active.current_session // empty')"
-    local planned="$(printf '%s' "$context_json" | jq -r '.study_active.planned_sessions // empty')"
-    local left="$(printf '%s' "$context_json" | jq -r '.study_active.remaining_total_seconds // empty')"
-    local elapsed="$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds // 0')"
+    local mode current planned left elapsed
+
+    mode="$(printf '%s' "$context_json" | jq -r '.study_active.mode // empty')"
+    current="$(printf '%s' "$context_json" | jq -r '.study_active.current_session // empty')"
+    planned="$(printf '%s' "$context_json" | jq -r '.study_active.planned_sessions // empty')"
+    left="$(printf '%s' "$context_json" | jq -r '.study_active.remaining_total_seconds // empty')"
+    elapsed="$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds // 0')"
 
     if [ -n "$mode" ]; then
       active_label="$mode"
