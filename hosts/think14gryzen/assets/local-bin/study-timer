@@ -194,7 +194,8 @@ study_status_json() {
   file="$(active_file)"
   if [ ! -f "$file" ]; then
     local daily_total=0
-    local today_file="$(day_file "$(date +%F)")"
+    local today_file
+    today_file="$(day_file "$(date +%F)")"
     if [ -f "$today_file" ]; then
       daily_total="$(jq -r '.study.total_seconds // 0' "$today_file")"
     fi
@@ -220,7 +221,8 @@ study_status_json() {
   fi
   if ! jq -e '.active == true and (.started_at // "" | length > 0)' "$file" >/dev/null 2>&1; then
     local daily_total=0
-    local today_file="$(day_file "$(date +%F)")"
+    local today_file
+    today_file="$(day_file "$(date +%F)")"
     if [ -f "$today_file" ]; then
       daily_total="$(jq -r '.study.total_seconds // 0' "$today_file")"
     fi
@@ -313,7 +315,8 @@ study_status_json() {
     fi
 
   local daily_total=0
-  local today_file="$(day_file "$(date +%F)")"
+  local today_file
+  today_file="$(day_file "$(date +%F)")"
   if [ -f "$today_file" ]; then
     daily_total="$(jq -r '.study.total_seconds // 0' "$today_file")"
   fi
