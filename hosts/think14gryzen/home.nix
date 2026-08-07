@@ -44,8 +44,14 @@ let
   # the plain `source =` install cannot give:
   #   - shellcheck runs at build time and a real defect fails the build
   #   - `set -euo pipefail` is applied by the builder, not by remembering to type it
-  #   - PATH is closed over runtimeInputs, so a script can no longer degrade
-  #     silently when a tool is absent from the session environment
+  #   - runtimeInputs are *prepended* to PATH, so the listed tools resolve to the
+  #     pinned build rather than whatever the session happens to expose
+  # Note the third is narrower than it looks: writeShellApplication emits
+  # `export PATH="<runtimeInputs>:$PATH"`, so the ambient PATH is still reachable
+  # and an unlisted tool does not fail the build. That is deliberate here --
+  # `rofi` and `code` are left off every runtimeInputs list, because the session
+  # copies are the configured ones (rofi carries plugins from its override) and
+  # pinning a bare build would shadow them.
   mkScript =
     {
       name,
@@ -105,14 +111,23 @@ in
         monoFont = osConfig.theme.fonts.mono.family;
         rofiFontSize = toString osConfig.theme.fonts.rofi.size;
       };
-      ".local/bin/rofi-code" = {
-        source = ./assets/local-bin/rofi-code;
-        executable = true;
-      };
-      ".local/bin/monitor-setup" = {
-        source = ./assets/local-bin/monitor-setup;
-        executable = true;
-      };
+      ".local/bin/rofi-code" = scriptFile (mkScript {
+        name = "rofi-code";
+        runtimeInputs = with pkgs; [
+          coreutils
+          findutils
+          procps
+        ];
+      });
+      ".local/bin/monitor-setup" = scriptFile (mkScript {
+        name = "monitor-setup";
+        runtimeInputs = with pkgs; [
+          gnugrep
+          hyprland
+          jq
+          libnotify
+        ];
+      });
       ".local/bin/rofi-network" = {
         source = ./assets/local-bin/rofi-network;
         executable = true;
@@ -122,10 +137,10 @@ in
         executable = true;
       };
       ".local/lib/rofi-screen-time".source = rofiScreenTimeLib;
-      ".local/bin/rofi-screen-time-cache" = {
-        source = ./assets/local-bin/rofi-screen-time-cache;
-        executable = true;
-      };
+      ".local/bin/rofi-screen-time-cache" = scriptFile (mkScript {
+        name = "rofi-screen-time-cache";
+        runtimeInputs = with pkgs; [ coreutils ];
+      });
       ".local/bin/rofi-screen-time-stats" = {
         source = ./assets/local-bin/rofi-screen-time-stats;
         executable = true;
