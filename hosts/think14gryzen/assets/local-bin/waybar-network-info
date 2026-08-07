@@ -238,37 +238,37 @@ main() {
 
     tooltip="<b><span foreground='$ACCENT'>$title (ETHERNET)</span></b>
 $SEP
-<tt>SSID/Name:   $escaped_ethernet_name
-Device:      $escaped_ethernet_device
-Status:      Connected</tt>
+<tt>SSID/Name:    $escaped_ethernet_name
+Device:       $escaped_ethernet_device
+Status:       Connected</tt>
 
 <b><span foreground='$ACCENT'>CONNECTIVITY</span></b>
 $SEP
-<tt>IP:          ${ip:-Unavailable}
-Gateway:     ${gateway:-Unavailable}
-DNS:         ${dns:-None}
-VPN Active:  $vpn_interfaces</tt>
+<tt>IP:           ${ip:-Unavailable}
+Gateway:      ${gateway:-Unavailable}
+DNS:          ${dns:-None}
+VPN Active:   $vpn_interfaces</tt>
 
 <b><span foreground='$ACCENT'>BLUETOOTH</span></b>
 $SEP
-<tt>Devices:     $escaped_bt_status</tt>"
+<tt>Devices:      $escaped_bt_status</tt>"
 
     if [ -n "$wifi_conn" ]; then
       escaped_ssid="$(escape_markup "${ssid:-<hidden>}")"
       tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>WI-FI (STANDBY)</span></b>
 $SEP
-<tt>SSID:        $escaped_ssid"
+<tt>SSID:         $escaped_ssid"
       if [ -n "$wifi_ap" ]; then
-        tooltip+=$'\n'"Signal:      ${signal:-0}% ($(signal_icon "$signal"))
-Band:        $(band_label "$freq")</tt>"
+        tooltip+=$'\n'"Signal:       ${signal:-0}% ($(signal_icon "$signal"))
+Band:         $(band_label "$freq")</tt>"
       else
-        tooltip+=$'\n'"Status:      Connected
-Signal:      Unavailable
-Band:        ?
-Security:    Unavailable</tt>"
+        tooltip+=$'\n'"Status:       Connected
+Signal:       Unavailable
+Band:         ?
+Security:     Unavailable</tt>"
       fi
     fi
-    tooltip+=$'\n\n<span size="small" alpha="50%">Click: Network menu</span>'
+    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: Network menu</span>"
     emit_json "󰈀" "$tooltip" "ethernet"
     exit 0
   fi
@@ -284,33 +284,33 @@ Security:    Unavailable</tt>"
 
     tooltip="<b><span foreground='$ACCENT'>$title (WI-FI)</span></b>
 $SEP
-<tt>SSID:        $escaped_ssid
-Interface:   $iface
-BSSID:       $escaped_bssid
-Link Speed:  $escaped_rate"
+<tt>SSID:         $escaped_ssid
+Interface:    $iface
+BSSID:        $escaped_bssid
+Link Speed:   $escaped_rate"
     if [ -n "$wifi_ap" ]; then
-      tooltip+=$'\n'"Signal:      ${signal:-0}% ($(signal_icon "$signal"))
-Band:        $(band_label "$freq")
-Security:    $escaped_security</tt>"
+      tooltip+=$'\n'"Signal:       ${signal:-0}% ($(signal_icon "$signal"))
+Band:         $(band_label "$freq")
+Security:     $escaped_security</tt>"
     else
-      tooltip+=$'\n'"Status:      Connected
-Signal:      Unavailable
-Band:        ?
-Security:    Unavailable</tt>"
+      tooltip+=$'\n'"Status:       Connected
+Signal:       Unavailable
+Band:         ?
+Security:     Unavailable</tt>"
     fi
 
     tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>CONNECTIVITY</span></b>
 $SEP
-<tt>IP:          ${ip:-Unavailable}
-Gateway:     ${gateway:-Unavailable}
-DNS:         ${dns:-None}
-VPN Active:  $vpn_interfaces</tt>
+<tt>IP:           ${ip:-Unavailable}
+Gateway:      ${gateway:-Unavailable}
+DNS:          ${dns:-None}
+VPN Active:   $vpn_interfaces</tt>
 
 <b><span foreground='$ACCENT'>BLUETOOTH</span></b>
 $SEP
-<tt>Devices:     $escaped_bt_status</tt>"
+<tt>Devices:      $escaped_bt_status</tt>"
 
-    tooltip+=$'\n\n<span size="small" alpha="50%">Click: Network menu</span>'
+    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: Network menu</span>"
     if [ -n "$wifi_ap" ]; then
       emit_json "$(signal_icon "$signal")" "$tooltip" "connected"
     else
@@ -320,12 +320,28 @@ $SEP
   fi
 
   if [ -n "$iface" ] && [ -z "$wifi_conn" ] && ! wifi_enabled; then
-    tooltip="<b>Network</b>\nWi-Fi disabled\n\n<b>Bluetooth</b>\nDevices: $escaped_bt_status\n\nClick: open network menu"
+    tooltip="<b><span foreground='$ACCENT'>$title (WI-FI)</span></b>
+$SEP
+<tt>Status:       Wi-Fi disabled</tt>
+
+<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
+$SEP
+<tt>Devices:      $escaped_bt_status</tt>
+
+<span size='small' alpha='50%'>Click: Network menu</span>"
     emit_json "󰖪" "$tooltip" "disabled"
     exit 0
   fi
 
-  tooltip="<b>Network</b>\nDisconnected\n\n<b>Bluetooth</b>\nDevices: $escaped_bt_status\n\nClick: open network menu"
+  tooltip="<b><span foreground='$ACCENT'>$title</span></b>
+$SEP
+<tt>Status:       Disconnected</tt>
+
+<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
+$SEP
+<tt>Devices:      $escaped_bt_status</tt>
+
+<span size='small' alpha='50%'>Click: Network menu</span>"
   emit_json "󰤮" "$tooltip" "disconnected"
 }
 
