@@ -328,7 +328,10 @@ in
     # SSD trim.
     fstrim.enable = true;
 
-    hypridle.enable = true;
+    # Idle management is off by design: the hypridle config was removed, and
+    # the daemon exits without one, which would surface as a failed unit in
+    # the waybar systemd module rather than as silent inaction.
+    hypridle.enable = false;
     cpupower-gui.enable = true;
     openlogi.enable = true;
 

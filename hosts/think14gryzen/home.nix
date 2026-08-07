@@ -235,7 +235,6 @@ in
 
   xdg.configFile = {
     "hypr/hyprland.conf".text = renderHostConfig ./assets/hypr/hyprland.conf;
-    "hypr/hypridle.conf".source = ./assets/hypr/hypridle.conf;
     "hypr/autostart.conf" = {
       source = ./assets/hypr/autostart.conf;
       executable = true;
