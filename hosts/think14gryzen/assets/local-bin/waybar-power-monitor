@@ -10,6 +10,7 @@ MODE="${1:-pwr}"
 WARN_DIR="${XDG_RUNTIME_DIR:-/tmp}/waybar-power-monitor"
 STATE_DIR="$WARN_DIR/state"
 CPU_STAT_FILE="$STATE_DIR/cpu.stat"
+BOARD_W_FILE="$STATE_DIR/board_w"
 BAT_DIR=""
 AMDGPU_HWMON=""
 GPU_BUSY_PATH=""
@@ -36,7 +37,7 @@ ICON_RESERVE_OFF="$ICON_PERF"
 ICON_RESERVE_UNKNOWN="?"
 
 ACCENT="@themeAccent@"
-SEP="<span alpha='30%'>────────────────────────────────</span>"
+SEP="<span alpha='30%'>──────────────────────────</span>"
 
 # --- Helper Functions ---
 
@@ -561,13 +562,50 @@ ppt_now_w=$(awk -v uw="${ppt_input_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
 ppt_avg_w=$(awk -v uw="${ppt_avg_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
 
 cpu_temp_raw=$(get_temp "k10temp")
-cpu_w=$(awk -v sw="${sys_w:-0}" -v pw="${ppt_avg_w:-0}" -v stat="$stat" 'BEGIN{
-    if(stat == "Charging" || stat == "Full") {
-        print "5.0";
-    } else {
-        v=sw-pw; if(v<0) v=0; printf "%.1f", v;
-    }
-}')
+
+# Board/peripheral power is only measurable while discharging, where it is
+# whatever is left of the battery draw after the APU. On AC nothing measures
+# it, so the last figure taken on battery is reused — a number from this
+# machine rather than the constant that used to stand in here. Only the
+# Discharging branch may write: on "Not charging" the battery draw is ~0, so
+# the same subtraction would clamp to 0 and poison the stored value.
+if [ "$stat" = "Discharging" ]; then
+    cpu_w=$(awk -v sw="${sys_w:-0}" -v pw="${ppt_avg_w:-0}" 'BEGIN{ v=sw-pw; if(v<0) v=0; printf "%.1f", v }')
+    board_w_state="measured"
+    mkdir -p "$STATE_DIR" 2>/dev/null || true
+    printf '%s\n' "$cpu_w" > "$BOARD_W_FILE" 2>/dev/null || true
+else
+    cpu_w="$(cat "$BOARD_W_FILE" 2>/dev/null || true)"
+    case "$cpu_w" in
+        '' | *[!0-9.]*)
+            cpu_w="5.0"
+            board_w_state="default"
+            ;;
+        *)
+            board_w_state="cached"
+            ;;
+    esac
+fi
+
+# No node on this board reports charger input: UCSI reports 0.00 A even while
+# charging and ACAD exposes only "online". So input is assembled from the
+# parts that are measurable. Charging-circuit loss is not one of them, so this
+# reads low — the "~" and the "est." are load-bearing, not decoration.
+estimate_input_line() {
+    local apu="$1" board="$2" batt="$3"
+    local total parts
+
+    total="$(awk -v a="${apu:-0}" -v b="${board:-0}" -v c="${batt:-0}" 'BEGIN{ printf "%.0f", a+b+c }')"
+    parts="APU ${apu} + board ${board}"
+    if [ "$(awk -v c="${batt:-0}" 'BEGIN{ print (c > 0.1) ? 1 : 0 }')" = "1" ]; then
+        parts="${parts} + batt ${batt}"
+    fi
+    if [ "${board_w_state:-default}" = "default" ]; then
+        parts="${parts}, board unmeasured"
+    fi
+
+    printf 'In (est.):    ~%s W  (%s)' "$total" "$parts"
+}
 
 # Battery Icon & Style Class
 icon="$ICON_BAT_100"
@@ -641,8 +679,8 @@ Temp Limit:   65°C"
         # Format: [GPU Temp] [CPU Temp] [Avg CPU GHz] [CPU Usage] [PPT avg W]
         tooltip="<b><span foreground='$ACCENT'>APU (RYZEN 7 8845H)</span></b>
 $SEP
-<tt>CPU:  $(printf "%3d" "$cpu_util")% $(progress_bar "$cpu_util") @ $cpu_freq GHz avg
-GPU:  $(printf "%3d" "$gpu_util")% $(progress_bar "$gpu_util") @ $gpu_freq MHz</tt>
+<tt>CPU:          $(printf "%3d" "$cpu_util")% $(progress_bar "$cpu_util") @ $cpu_freq GHz avg
+GPU:          $(printf "%3d" "$gpu_util")% $(progress_bar "$gpu_util") @ $gpu_freq MHz</tt>
 
 <b><span foreground='$ACCENT'>GOVERNOR &amp; HARDWARE LIMITS</span></b>
 $SEP
@@ -651,12 +689,12 @@ $limits_text</tt>
 
 <b><span foreground='$ACCENT'>CLOCK</span></b>
 $SEP
-<tt>Peak CPU:   $cpu_peak_core @ $cpu_peak_freq GHz</tt>
+<tt>Peak CPU:     $cpu_peak_core @ $cpu_peak_freq GHz</tt>
 
 <b><span foreground='$ACCENT'>THERMALS</span></b>
 $SEP
-<tt>CPU Core:   $t_cpu°C
-iGPU:       $t_gpu°C</tt>
+<tt>CPU Core:     $t_cpu°C
+iGPU:         $t_gpu°C</tt>
 
 <span size='small' alpha='50%'>$health_msg</span>"
 
@@ -675,7 +713,7 @@ iGPU:       $t_gpu°C</tt>
         tooltip="<b><span foreground='$ACCENT'>BOARD / PERIPHERALS</span></b>
 $SEP
 <tt>Display, WiFi, SSD, Mobo
-Power:      $cpu_w W</tt>
+Power:        $cpu_w W</tt>
 
 <span size='small' alpha='50%'>$health_msg</span>"
 
@@ -687,31 +725,39 @@ Power:      $cpu_w W</tt>
         profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
         battery_w_abs=$(awk -v uw="${sys_uw:-0}" 'BEGIN{v=uw/1000000; if(v<0) v=-v; printf "%.1f", v}')
 
+        # On battery the battery draw IS the whole machine, measured exactly, so
+        # it is labelled as such. On AC only the charge rate is measurable and
+        # total input is not exposed by any node on this board, so the input
+        # figure is assembled and flagged as an estimate rather than implied.
         if [ "$stat" = "Discharging" ]; then
             source_label="Battery"
             state_label="Discharging"
-            battery_flow="-${battery_w_abs} W"
+            flow_line="Draw:         ${battery_w_abs} W  (whole machine)"
+            in_line=""
             time_line="Time left:    ${time_str:-N/A}"
             primary_w="$battery_w_abs"
             text_label="BAT -${battery_w_abs}W"
         elif [ "$stat" = "Charging" ]; then
             source_label="AC"
             state_label="Charging"
-            battery_flow="+${battery_w_abs} W"
+            flow_line="To battery:   +${battery_w_abs} W"
+            in_line="$(estimate_input_line "$ppt_avg_w" "$cpu_w" "$battery_w_abs")"
             time_line="Time to full: ${time_str:-N/A}"
             primary_w="$battery_w_abs"
             text_label="BAT +${battery_w_abs}W"
         elif [ "${ac_is_online:-0}" = "1" ]; then
             source_label="AC"
             state_label="$stat"
-            battery_flow="Idle (~0 W)"
+            flow_line="To battery:   Idle (~0 W)"
+            in_line="$(estimate_input_line "$ppt_avg_w" "$cpu_w" "0")"
             time_line="Time:         N/A"
             primary_w="$ppt_avg_w"
             text_label="AC ${ppt_avg_w}W"
         else
             source_label="Battery"
             state_label="$stat"
-            battery_flow="-${battery_w_abs} W"
+            flow_line="Draw:         ${battery_w_abs} W  (whole machine)"
+            in_line=""
             time_line="Time:         N/A"
             primary_w="$battery_w_abs"
             text_label="BAT -${battery_w_abs}W"
@@ -740,16 +786,37 @@ Power:      $cpu_w W</tt>
             *)           active_marker_perf="" ;   active_marker_bal="" ;   active_marker_sav="" ; prof_cls="prof-normal" ; p_icon="?" ;;
         esac
 
+        # PPT ceiling for the active profile, from the same table apu_info
+        # uses. The rolling average is what the sustained budget applies to,
+        # so that is the number headroom should be measured against.
+        case "$profile" in
+            performance) ppt_cap=48 ;;
+            balanced)    ppt_cap=28 ;;
+            power-saver) ppt_cap=10 ;;
+            *)           ppt_cap=0 ;;
+        esac
+
+        # The PPT label comes from sysfs, so its width is only known at runtime;
+        # pad it here to keep the value column aligned with every other block.
+        ppt_field="$(printf '%-14s' "APU (${ppt_label}):")"
+        if [ "$ppt_cap" -gt 0 ]; then
+            ppt_pct=$(awk -v w="${ppt_avg_w:-0}" -v c="$ppt_cap" 'BEGIN{p=w/c*100; if(p>100)p=100; if(p<0)p=0; printf "%.0f", p}')
+            ppt_line="${ppt_field}${ppt_avg_w} W / ${ppt_cap} W $(progress_bar "$ppt_pct")  now ${ppt_now_w} W"
+        else
+            ppt_line="${ppt_field}${ppt_avg_w} W  now ${ppt_now_w} W"
+        fi
+
+        energy_lines="Source:       $source_label
+State:        $state_label
+$flow_line"
+        [ -z "$in_line" ] || energy_lines="$energy_lines
+$in_line"
+        energy_lines="$energy_lines
+$ppt_line"
+
         tooltip="<b><span foreground='$ACCENT'>SYSTEM ENERGY</span></b>
 $SEP
-<tt>Source:        $source_label
-Battery state: $state_label
-Battery flow: $battery_flow</tt>
-
-<b><span foreground='$ACCENT'>PPT</span></b>
-$SEP
-<tt>${ppt_label} avg:    ${ppt_avg_w} W
-${ppt_label} now:    ${ppt_now_w} W</tt>
+<tt>$energy_lines</tt>
 
 <b><span foreground='$ACCENT'>BATTERY</span></b>
 $SEP
@@ -822,13 +889,13 @@ $SEP
         esac
         tooltip="<b><span foreground='$ACCENT'>POWER PROFILE CHEAT-SHEET</span></b>
 $SEP
-<tt>Performance: 48W / 64W / 98°C
-Balanced:    28W / 28W / 85°C
-Power Saver: 10W / 10W / 65°C</tt>
+<tt>Performance:  48W / 64W / 98°C
+Balanced:     28W / 28W / 85°C
+Power Saver:  10W / 10W / 65°C</tt>
 
 <b><span foreground='$ACCENT'>CURRENT ACTIVE</span></b>
 $SEP
-<tt>Profile:     $profile</tt>
+<tt>Profile:      $profile</tt>
 
 <span size='small' alpha='50%'>Click to cycle profiles</span>"
         printf '{"text":" %s ", "tooltip":"%s", "class":"%s"}\n' "$p_icon" "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" "$p_cls"
