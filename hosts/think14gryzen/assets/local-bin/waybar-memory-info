@@ -31,15 +31,48 @@ top_procs="$(
   ps -eo comm=,pmem= --sort=-pmem | sed -n '1,5p' | while read -r proc pmem; do
     [ -n "${proc:-}" ] || continue
     proc="$(escape_markup "$proc")"
-    printf '%-18s %5.1f%%\n' "$proc" "${pmem:-0}"
+    printf '%-16s %5.1f%%\n' "$proc" "${pmem:-0}"
   done
 )"
 [ -n "$top_procs" ] || top_procs="Unavailable"
 
+# Composite temperature per NVMe namespace, keyed by the name df reports
+# (nvme1n1). An hwmon node owns the namespace directory it belongs to, so the
+# mapping is a plain path test — no readlink needed. Every read here uses the
+# shell builtin rather than cat: this module refreshes once a second, so a
+# fork per sysfs file is not free.
+nvme_temp_map() {
+  local h name lbl label base raw nsdir
+
+  for h in /sys/class/hwmon/hwmon*; do
+    [ -r "$h/name" ] || continue
+    read -r name < "$h/name" || continue
+    [ "$name" = "nvme" ] || continue
+
+    # "Composite" is the drive-level sensor; the numbered ones are per-die and
+    # read lower, so reporting them would understate how hot the drive is.
+    for lbl in "$h"/temp*_label; do
+      [ -r "$lbl" ] || continue
+      read -r label < "$lbl" || continue
+      [ "$label" = "Composite" ] || continue
+
+      base="${lbl%_label}"
+      [ -r "${base}_input" ] || continue
+      read -r raw < "${base}_input" || continue
+
+      for nsdir in "$h"/device/nvme*n[0-9]; do
+        [ -d "$nsdir" ] || continue
+        printf '%s %s\n' "${nsdir##*/}" "$raw"
+      done
+      break
+    done
+  done
+}
+
 # Progress bar helper
 progress_bar() {
   local p=$1
-  local width=15
+  local width=10
   local filled=$((p * width / 100))
   local empty=$((width - filled))
   local bar=""
@@ -54,11 +87,69 @@ class=$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) 
 ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
-# Get disk usage for /
-disk_used=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$3); print $3}')
-disk_total=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$2); print $2}')
-disk_perc=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
-disk_free=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
+# One row per physical drive, not per mount. Partitions of the same disk are
+# summed, so /boot folds into its drive's totals instead of taking a row of
+# its own. Pseudo filesystems (tmpfs, devtmpfs, efivarfs) are dropped by
+# requiring a /dev source, and a device mounted twice — /nix/store alongside
+# / — is only counted once.
+#
+# Sizes are read in bytes rather than via -BG, which rounds a 1 G partition to
+# "1G / 1G". All formatting happens in this one awk pass; doing it per field
+# cost ~120 ms per refresh on a module that runs every second.
+disk_table="$(
+  df -P -B1 2>/dev/null | awk -v temps="$(nvme_temp_map)" '
+    BEGIN {
+      n = split(temps, lines, "\n")
+      for (i = 1; i <= n; i++) {
+        if (split(lines[i], kv, " ") == 2) tmap[kv[1]] = kv[2]
+      }
+    }
+    function human(b,   g) {
+      g = b / 1073741824
+      return g >= 100 ? sprintf("%.0f G", g) : sprintf("%.1f G", g)
+    }
+    function bar(p,   i, s) {
+      s = "["
+      for (i = 1; i <= 10; i++) s = s (i <= int(p / 10) ? "■" : "□")
+      return s "]"
+    }
+    # Strip the partition suffix to reach the physical device. A whole-disk
+    # mount (nvme0n1, sda) carries no suffix and must survive untouched, which
+    # is why the nvme/mmc form is matched explicitly rather than by trailing
+    # digits.
+    function diskof(dev,   d) {
+      d = dev
+      sub(/^\/dev\//, "", d)
+      if (d ~ /^(nvme[0-9]+n[0-9]+|mmcblk[0-9]+)p[0-9]+$/) sub(/p[0-9]+$/, "", d)
+      else if (d ~ /^[a-z]+[0-9]+$/) sub(/[0-9]+$/, "", d)
+      return d
+    }
+    NR > 1 && $1 ~ /^\/dev\// && !seen[$1]++ {
+      m = $6
+      for (i = 7; i <= NF; i++) m = m " " $i
+      gsub(/&/, "\\&amp;", m); gsub(/</, "\\&lt;", m); gsub(/>/, "\\&gt;", m)
+
+      d = diskof($1)
+      tot[d] += $2; usd[d] += $3; avl[d] += $4
+      # Label the drive by its shallowest mount: "/" reads better than
+      # "/boot" for the disk that happens to carry both.
+      if (!(d in lbl) || length(m) < length(lbl[d])) lbl[d] = m
+    }
+    END {
+      for (d in tot) {
+        cap = usd[d] + avl[d]
+        # df rounds capacity up, so match it: a table that disagrees by a
+        # percent with what df itself prints reads as a bug.
+        raw = cap > 0 ? usd[d] * 100 / cap : 0
+        pct = (raw == int(raw)) ? raw : int(raw) + 1
+        t = (d in tmap) ? sprintf("%.0f°C", tmap[d] / 1000) : "--"
+        printf "%-9s%-13s%7s / %-8s%3d%% %s %7s free  %s\n", \
+          d, lbl[d], human(usd[d]), human(tot[d]), pct, bar(pct), human(avl[d]), t
+      }
+    }
+  ' | sort -k2,2
+)"
+[ -n "$disk_table" ] || disk_table="Unavailable"
 
 tooltip="<b><span foreground='$ACCENT'>MEMORY USAGE</span></b>
 $SEP
@@ -71,11 +162,9 @@ $SEP
 <tt>Swap/ZRAM:    $swap_used G / $swap_total G
 Status:       $swap_perc% $(progress_bar "$swap_perc")</tt>
 
-<b><span foreground='$ACCENT'>DISK (/)</span></b>
+<b><span foreground='$ACCENT'>DISKS</span></b>
 $SEP
-<tt>Used:         ${disk_used} G / ${disk_total} G
-Free:         ${disk_free} G
-Status:       ${disk_perc}% $(progress_bar "${disk_perc}")</tt>
+<tt>${disk_table}</tt>
 
 <b><span foreground='$ACCENT'>TOP CONSUMERS</span></b>
 $SEP
