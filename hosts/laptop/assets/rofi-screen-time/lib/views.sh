@@ -401,37 +401,6 @@ score_subtext() {
   printf '%s\n' "$(printf '%s' "$score_json" | jq -r '.label')"
 }
 
-render_insight_console() {
-  local context_json="$1"
-  local output=""
-  local line=""
-  local count=0
-
-  if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
-    local elapsed
-    elapsed="$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')"
-    output+="<span foreground=\"$ACCENT_COLOR\" weight=\"bold\">TIMER: Active study session ($(seconds_to_short "$elapsed"))</span>"$'\n'
-  fi
-
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    output+="• $line"$'\n'
-  done < <(
-    printf '%s' "$context_json" \
-      | jq -r '
-        (.insights.all // [])
-        | if length == 0 then
-            ["No major insight available yet."]
-          else
-            map("\(.text)")
-          end
-        | .[]
-      '
-  )
-
-  printf '%s' "${output%$'\n'}"
-}
-
 render_category_bars() {
   local context_json="$1"
   local limit="${2:-0}"
@@ -479,35 +448,6 @@ render_category_bars() {
 
   if [ -z "$output" ]; then
     printf '%s\n' "$(kv_markup "Categories" "No category data yet")"
-  else
-    printf '%s' "${output%$'\n'}"
-  fi
-}
-
-render_top_apps_by_category() {
-  local context_json="$1"
-  local output=""
-  local category=""
-  local name=""
-  local seconds=""
-
-  while IFS=$'\t' read -r category name seconds; do
-    [ -n "$category" ] || continue
-    output+="$(kv_markup "$category" "$name • $(seconds_to_short "$seconds")")"$'\n'
-  done < <(
-    printf '%s' "$context_json" \
-      | jq -r '
-        .today.categories.breakdown[]
-        | select(.seconds > 0)
-        | .name as $category
-        | (.apps[0] // empty)
-        | select(. != null)
-        | "\($category)\t\(.name)\t\(.seconds)"
-      '
-  )
-
-  if [ -z "$output" ]; then
-    printf '%s\n' "$(kv_markup "Top apps" "No category data yet")"
   else
     printf '%s' "${output%$'\n'}"
   fi
@@ -766,24 +706,6 @@ render_focus_vs_baseline() {
   printf '%s' "${output%$'\n'}"
 }
 
-render_windows_top_slots() {
-  local context_json="$1"
-  local output=""
-  local label=""
-  local seconds=""
-
-  while IFS=$'\t' read -r label seconds; do
-    [ -n "$label" ] || continue
-    output+="$(kv_markup "$label" "$(seconds_to_short "$seconds")")"$'\n'
-  done < <(printf '%s' "$context_json" | jq -r '.today.metrics.top_slots[]? | "\(.label)\t\(.seconds)"')
-
-  if [ -z "$output" ]; then
-    printf '%s\n' "$(kv_markup "Peak windows" "No tracked time yet")"
-  else
-    printf '%s' "${output%$'\n'}"
-  fi
-}
-
 render_study_summary() {
   local context_json="$1"
   local study_seconds study_ratio active_label focus_window
@@ -822,80 +744,6 @@ render_study_summary() {
     "$(kv_markup "Study today" "$(seconds_to_short "$study_seconds") • $(format_ratio_percent "$study_ratio")")" \
     "$(kv_markup "Timer" "$active_label")" \
     "$(kv_markup "Peak density window" "$focus_window")"
-}
-
-render_trend_table() {
-  local context_json="$1"
-  local output=""
-
-  while IFS=$'\t' read -r date total focus frag; do
-    [ -n "$date" ] || continue
-    output+="$(kv_markup "$date" "$(seconds_to_short "$total") • focus ${focus:-n/a} • frag ${frag:-n/a}")"$'\n'
-  done < <(
-    printf '%s' "$context_json" \
-      | jq -r '
-        .trailing[]
-        | [
-            .date,
-            .total_seconds,
-            (if .scores.focus_score.value == null then "n/a" else (.scores.focus_score.value | tostring) end),
-            (if .scores.fragmentation_score.value == null then "n/a" else (.scores.fragmentation_score.value | tostring) end)
-          ]
-        | @tsv
-      '
-  )
-
-  printf '%s' "${output%$'\n'}"
-}
-
-render_metric_sparklines() {
-  local context_json="$1"
-  local active_json focus_json frag_json study_json productive_json browser_json
-
-  active_json="$(printf '%s' "$context_json" | jq -c '[.trailing[].total_seconds]')"
-  focus_json="$(printf '%s' "$context_json" | jq -c '[.trailing[] | (.scores.focus_score.value // 0)]')"
-  frag_json="$(printf '%s' "$context_json" | jq -c '[.trailing[] | (.scores.fragmentation_score.value // 0)]')"
-  study_json="$(printf '%s' "$context_json" | jq -c '[.trailing[] | ((.metrics.study_ratio // 0) * 100 | round)]')"
-  productive_json="$(printf '%s' "$context_json" | jq -c '[.trailing[] | ((.metrics.productive_ratio_v1 // 0) * 100 | round)]')"
-  browser_json="$(printf '%s' "$context_json" | jq -c '[.trailing[] | ((.metrics.browser_ambiguity_ratio // 0) * 100 | round)]')"
-
-	  printf '%s\n%s\n%s' \
-	    "$(kv_markup_raw_value "Active" "$(sparkline_from_json "$active_json")")" \
-	    "$(kv_markup_raw_value "Focus / Frag" "$(sparkline_from_json "$focus_json")  $(sparkline_from_json "$frag_json")")" \
-	    "$(kv_markup_raw_value "Study / Productive / Browser" "$(sparkline_from_json "$study_json")  $(sparkline_from_json "$productive_json")  $(sparkline_from_json "$browser_json")")"
-}
-
-render_recommendations() {
-  local context_json="$1"
-  local output=""
-
-  while IFS=$'\t' read -r metric text; do
-    [ -n "$text" ] || continue
-    output+="$(printf '• <span foreground="%s">%s:</span> %s' "$SUBTEXT_COLOR" "$(humanize_metric "$metric")" "$(escape_markup "$text")")"$'\n'
-  done < <(
-    printf '%s' "$context_json" \
-      | jq -r '
-        (.insights.recommendation_candidates // [])
-        | if length == 0 then
-            [["status", "No urgent recommendation triggered."]]
-          else
-            map([.metric, .text])
-          end
-        | .[]
-        | @tsv
-      '
-  )
-
-  printf '%s' "${output%$'\n'}"
-}
-
-render_triggered_thresholds() {
-  local context_json="$1"
-  printf '%s\n%s\n%s\n%s' \
-    "$(kv_markup "Browser ambiguity" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.browser_ambiguity_ratio')")")" \
-    "$(kv_markup "Unknown share" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.categories.unknown_share')")")" \
-    "$(kv_markup "Switch rate" "$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h")")" \
-    "$(kv_markup "Study ratio" "$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_ratio')")")"
 }
 
 render_confidence_breakdown() {

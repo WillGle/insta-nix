@@ -16,7 +16,6 @@ if [ -r "$THEME_STATIC_ENV" ]; then
 fi
 
 BASE_COLOR="${THEME_STATIC_BASE:-#11140f}"
-MANTLE_COLOR="${THEME_STATIC_MANTLE:-#1d211b}"
 TEXT_COLOR="${THEME_STATIC_TEXT:-#e1e4da}"
 SUBTEXT_COLOR="${THEME_STATIC_SUBTEXT:-#c3c8bc}"
 ACCENT_COLOR="${THEME_STATIC_ACCENT:-#a7d293}"
@@ -71,18 +70,6 @@ humanize_class() {
     out+="${word^} "
   done
   printf '%s\n' "${out%" "}"
-}
-
-humanize_metric() {
-  local key="$1"
-  case "$key" in
-    browser_ambiguity_ratio) printf "Browser Time Unclear\n" ;;
-    unknown_share)          printf "Unsorted Apps\n" ;;
-    switch_rate)            printf "App Switching\n" ;;
-    focus_score)            printf "Focus\n" ;;
-    fragmentation_score)    printf "Interruptions\n" ;;
-    *) humanize_class "$key" ;;
-  esac
 }
 
 escape_markup() {
@@ -261,27 +248,6 @@ delta_label_seconds() {
   printf '%s %s\n' "$arrow" "$(seconds_to_short "$abs_delta")"
 }
 
-count_label() {
-  local count="${1:-0}"
-  local singular="$2"
-  local plural="${3:-${2}s}"
-  if [ "$count" -eq 1 ]; then
-    printf '%d %s\n' "$count" "$singular"
-    return 0
-  fi
-  printf '%d %s\n' "$count" "$plural"
-}
-
-percent_label() {
-  local numerator="${1:-0}"
-  local denominator="${2:-0}"
-  if [ "$denominator" -le 0 ]; then
-    printf '0%%\n'
-    return 0
-  fi
-  printf '%d%%\n' $(( (numerator * 100) / denominator ))
-}
-
 day_file() {
   printf '%s/days/%s.json\n' "$SCREEN_TIME_HOME" "$1"
 }
@@ -293,43 +259,6 @@ study_active_file() {
 epoch_from_iso() {
   date -d "$1" +%s 2>/dev/null || printf '0\n'
 }
-
-time_from_minutes() {
-  local minutes="${1:-0}"
-  printf '%02d:%02d\n' $((minutes / 60)) $((minutes % 60))
-}
-
-slot_start_label() {
-  local slot="${1:-0}"
-  time_from_minutes $((slot * 30))
-}
-
-slot_end_label() {
-  local slot="${1:-0}"
-  time_from_minutes $((((slot + 1) * 30) % 1440))
-}
-
-slot_range_label() {
-  local slot="${1:-0}"
-  printf '%s-%s\n' "$(slot_start_label "$slot")" "$(slot_end_label "$slot")"
-}
-
-date_title() {
-  local target="$1"
-  local today
-  local yesterday
-  today="$(date +%F)"
-  yesterday="$(date -d "$today -1 day" +%F)"
-
-  if [ "$target" = "$today" ]; then
-    printf 'Today\n'
-  elif [ "$target" = "$yesterday" ]; then
-    printf 'Yesterday\n'
-  else
-    date -d "$target" '+%a %d %b'
-  fi
-}
-
 updated_time_label() {
   local timestamp="$1"
   if [ -z "$timestamp" ]; then
@@ -675,23 +604,6 @@ build_desktop_cache() {
   } | awk -F '\t' '!seen[$1]++' >"$tmp"
 
   mv "$tmp" "$CACHE_FILE"
-}
-
-resolve_app_meta() {
-  local app_key="$1"
-  local name=""
-  local icon=""
-
-  build_desktop_cache
-  if [ -s "$CACHE_FILE" ]; then
-    name="$(awk -F '\t' -v key="$app_key" '$1 == key { print $2; exit }' "$CACHE_FILE")"
-    icon="$(awk -F '\t' -v key="$app_key" '$1 == key { print $3; exit }' "$CACHE_FILE")"
-  fi
-
-  if [ -z "$name" ]; then
-    name="$(humanize_class "$app_key")"
-  fi
-  printf '%s\t%s\n' "$name" "$icon"
 }
 
 build_data_bundle_json() {

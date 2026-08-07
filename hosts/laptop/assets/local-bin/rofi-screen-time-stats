@@ -39,13 +39,12 @@ SCREEN_TIME_LIB_DIR="$(resolve_screen_time_lib_dir)"
 VIEW="summary"
 FORMAT="json"
 TARGET_DATE="$(date +%F)"
-APP_FILTER=""
 THEME_FILE=""
 ROWS_FILE=""
 
 usage() {
   cat <<'EOF'
-Usage: rofi-screen-time-stats [--date YYYY-MM-DD] [--view summary|activity|health|timer] [--app APP_CLASS] [--format json|theme|rows|files] [--theme-file PATH --rows-file PATH]
+Usage: rofi-screen-time-stats [--date YYYY-MM-DD] [--view summary|activity|health|timer] [--format json|theme|rows|files] [--theme-file PATH --rows-file PATH]
 EOF
 }
 

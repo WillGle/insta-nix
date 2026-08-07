@@ -15,7 +15,6 @@ BAT_DIR=""
 AMDGPU_HWMON=""
 GPU_BUSY_PATH=""
 CPU_FREQ_AVG="0.00"
-CPU_FREQ_CORES="Unavailable"
 CPU_FREQ_PEAK_CORE="C0"
 CPU_FREQ_PEAK_GHZ="0.00"
 
@@ -28,7 +27,6 @@ ICON_BAT_60=$(printf "\uf242")
 ICON_BAT_40=$(printf "\uf243")
 ICON_BAT_20=$(printf "\uf244")
 ICON_PLUG=$(printf "\uf1e6")
-ICON_WATT=$(printf "\uf0e7")
 ICON_PERF=$(printf "\uf0e7")     # Bolt
 ICON_BALANCED=$(printf "\uf24e") # Scales
 ICON_SAVER=$(printf "\uf06c")   # Leaf
@@ -416,17 +414,15 @@ get_cpu_usage() {
 }
 
 get_cpu_freq_data() {
-    local cpu_path cpu_name cpu_idx khz avg_sum avg_count peak_khz peak_idx core_line
+    local cpu_path cpu_name cpu_idx khz avg_sum avg_count peak_khz peak_idx
 
     CPU_FREQ_AVG="0.00"
-    CPU_FREQ_CORES="Unavailable"
     CPU_FREQ_PEAK_CORE="C0"
     CPU_FREQ_PEAK_GHZ="0.00"
     avg_sum=0
     avg_count=0
     peak_khz=0
     peak_idx=0
-    core_line=""
 
     while IFS= read -r cpu_path; do
         [ -r "$cpu_path" ] || continue
@@ -439,7 +435,6 @@ get_cpu_freq_data() {
         cpu_name="${cpu_path%/cpufreq/scaling_cur_freq}"
         cpu_name="${cpu_name##*/}"
         cpu_idx="${cpu_name#cpu}"
-        core_line+="C${cpu_idx} $(awk -v khz="$khz" 'BEGIN{printf "%.2f", khz/1000000}') "
         avg_sum=$((avg_sum + khz))
         avg_count=$((avg_count + 1))
 
@@ -451,7 +446,6 @@ get_cpu_freq_data() {
 
     if [ "$avg_count" -gt 0 ]; then
         CPU_FREQ_AVG="$(awk -v sum="$avg_sum" -v count="$avg_count" 'BEGIN{printf "%.2f", sum/count/1000000}')"
-        CPU_FREQ_CORES="${core_line% }"
         CPU_FREQ_PEAK_CORE="C${peak_idx}"
         CPU_FREQ_PEAK_GHZ="$(awk -v khz="$peak_khz" 'BEGIN{printf "%.2f", khz/1000000}')"
     fi
@@ -553,15 +547,14 @@ else
     health_text="N/A"
 fi
 
-# PPT Power & GPU Temp
-gpu_temp_raw=$(get_temp "amdgpu")
+# PPT power. Temperatures are read where they are consumed (the apu branch), not
+# here: this preamble runs for every mode, and a reading nothing prints is a
+# hwmon directory walk charged to every waybar poll.
 ppt_label=$(get_ppt_label)
 ppt_input_uw=$(get_ppt_input_uw)
 ppt_avg_uw=$(get_ppt_average_uw)
 ppt_now_w=$(awk -v uw="${ppt_input_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
 ppt_avg_w=$(awk -v uw="${ppt_avg_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
-
-cpu_temp_raw=$(get_temp "k10temp")
 
 # Board/peripheral power is only measurable while discharging, where it is
 # whatever is left of the battery draw after the APU. On AC nothing measures
