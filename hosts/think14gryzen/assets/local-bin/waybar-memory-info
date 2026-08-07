@@ -135,19 +135,37 @@ disk_table="$(
       # "/boot" for the disk that happens to carry both.
       if (!(d in lbl) || length(m) < length(lbl[d])) lbl[d] = m
     }
+    # Two lines per drive rather than one wide row: a single row carrying all
+    # of this ran 76 columns while every other line in this tooltip is under
+    # 30, which stretched the tooltip until it wrapped. Splitting keeps every
+    # field and holds the 14-column label grid, with the mount on the first
+    # line and the device on the second.
     END {
-      for (d in tot) {
+      n = 0
+      for (d in tot) ord[++n] = d
+      # Insertion sort by mount path — a handful of drives, and sorting here
+      # keeps each pair of lines together, which piping to sort would not.
+      for (i = 2; i <= n; i++) {
+        k = ord[i]
+        for (j = i - 1; j >= 1 && lbl[ord[j]] > lbl[k]; j--) ord[j + 1] = ord[j]
+        ord[j + 1] = k
+      }
+
+      for (i = 1; i <= n; i++) {
+        d = ord[i]
         cap = usd[d] + avl[d]
         # df rounds capacity up, so match it: a table that disagrees by a
         # percent with what df itself prints reads as a bug.
         raw = cap > 0 ? usd[d] * 100 / cap : 0
         pct = (raw == int(raw)) ? raw : int(raw) + 1
         t = (d in tmap) ? sprintf("%.0f°C", tmap[d] / 1000) : "--"
-        printf "%-9s%-13s%7s / %-8s%3d%% %s %7s free  %s\n", \
-          d, lbl[d], human(usd[d]), human(tot[d]), pct, bar(pct), human(avl[d]), t
+
+        if (i > 1) printf "\n"
+        printf "%-14s%7s / %-6s %3d%% %s\n", lbl[d], human(usd[d]), human(tot[d]), pct, bar(pct)
+        printf "%-14s%7s free · %s\n", d, human(avl[d]), t
       }
     }
-  ' | sort -k2,2
+  '
 )"
 [ -n "$disk_table" ] || disk_table="Unavailable"
 
