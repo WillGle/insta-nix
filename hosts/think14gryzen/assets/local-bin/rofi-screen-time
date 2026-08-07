@@ -34,7 +34,6 @@ CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
 
 VIEW="summary"
 TARGET_DATE="$(date +%F)"
-APP_FILTER=""
 
 usage() {
   cat <<'EOF'
