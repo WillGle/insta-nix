@@ -276,9 +276,7 @@ in
         "eco"
         "muted"
       ];
-      pairs = lib.concatMap (
-        a: map (b: { inherit a b; }) (lib.remove a names)
-      ) names;
+      pairs = lib.concatMap (a: map (b: { inherit a b; }) (lib.remove a names)) names;
       unordered = lib.filter (p: p.a < p.b) pairs;
     in
     map (p: {

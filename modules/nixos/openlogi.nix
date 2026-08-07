@@ -1,4 +1,9 @@
-{ config, lib, pkgs, pkgsUnstable, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -38,11 +43,11 @@ let
 
     installPhase = ''
       runHook preInstall
-      
+
       mkdir -p $out
       cp -r usr/bin $out/
       cp -r usr/share $out/
-      
+
       runHook postInstall
     '';
   };

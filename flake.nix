@@ -57,15 +57,14 @@
             inherit inputs;
             inherit pkgsUnstable;
           };
-          modules =
-            [
-              hostModule
-              sshModule
-            ]
-            ++ lib.optionals enableHome [
-              home-manager.nixosModules.home-manager
-              (mkHomeModule homeModule)
-            ];
+          modules = [
+            hostModule
+            sshModule
+          ]
+          ++ lib.optionals enableHome [
+            home-manager.nixosModules.home-manager
+            (mkHomeModule homeModule)
+          ];
         };
     in
     {
