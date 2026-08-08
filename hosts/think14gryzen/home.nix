@@ -128,39 +128,88 @@ in
           libnotify
         ];
       });
-      ".local/bin/rofi-network" = {
-        source = ./assets/local-bin/rofi-network;
-        executable = true;
-      };
-      ".local/bin/rofi-screen-time" = {
-        source = ./assets/local-bin/rofi-screen-time;
-        executable = true;
-      };
+      ".local/bin/rofi-network" = scriptFile (mkScript {
+        name = "rofi-network";
+        runtimeInputs = with pkgs; [
+          coreutils
+          gawk
+          gnused
+          iproute2
+          networkmanager
+          procps
+        ];
+      });
+      # The four screen-time front-ends call no jq of their own; every query runs
+      # inside the libraries they source at runtime from ~/.local/lib. jq is
+      # listed on all of them anyway, so the dependency is declared where the
+      # process that needs it actually starts.
+      ".local/bin/rofi-screen-time" = scriptFile (mkScript {
+        name = "rofi-screen-time";
+        runtimeInputs = with pkgs; [
+          coreutils
+          jq
+          util-linux
+        ];
+      });
       ".local/lib/rofi-screen-time".source = rofiScreenTimeLib;
       ".local/bin/rofi-screen-time-cache" = scriptFile (mkScript {
         name = "rofi-screen-time-cache";
         runtimeInputs = with pkgs; [ coreutils ];
       });
-      ".local/bin/rofi-screen-time-stats" = {
-        source = ./assets/local-bin/rofi-screen-time-stats;
-        executable = true;
-      };
-      ".local/bin/rofi-screen-time-track" = {
-        source = ./assets/local-bin/rofi-screen-time-track;
-        executable = true;
-      };
-      ".local/bin/screen-time-behavior-export" = {
-        source = ./assets/local-bin/screen-time-behavior-export;
-        executable = true;
-      };
-      ".local/bin/rofi-study-timer" = {
-        source = ./assets/local-bin/rofi-study-timer;
-        executable = true;
-      };
-      ".local/bin/study-timer" = {
-        source = ./assets/local-bin/study-timer;
-        executable = true;
-      };
+      ".local/bin/rofi-screen-time-stats" = scriptFile (mkScript {
+        name = "rofi-screen-time-stats";
+        runtimeInputs = with pkgs; [
+          coreutils
+          jq
+        ];
+      });
+      ".local/bin/rofi-screen-time-track" = scriptFile (mkScript {
+        name = "rofi-screen-time-track";
+        runtimeInputs = with pkgs; [
+          coreutils
+          findutils
+          gawk
+          gnugrep
+          hyprland
+          jq
+          procps
+          util-linux # flock, for the tracker's mutual exclusion
+        ];
+      });
+      ".local/bin/screen-time-behavior-export" = scriptFile (mkScript {
+        name = "screen-time-behavior-export";
+        runtimeInputs = with pkgs; [
+          coreutils
+          jq
+        ];
+      });
+      ".local/bin/rofi-study-timer" = scriptFile (mkScript {
+        name = "rofi-study-timer";
+        runtimeInputs = with pkgs; [
+          coreutils
+          gnused
+          jq
+          util-linux # setsid, to detach the screen-time popup
+        ];
+      });
+      ".local/bin/study-timer" = scriptFile (mkScript {
+        name = "study-timer";
+        runtimeInputs = with pkgs; [
+          coreutils
+          jq
+          libnotify
+          procps
+          systemd # systemctl --user, to kick the screen-time cache service
+        ];
+        # STUDY_MODE is written by --mode and never read. Excluded rather than
+        # renamed away, because the unused variable is the only thing pointing at
+        # a real defect: start_session leaves duration_json, session_json and
+        # mode_json at their "null" initialisers, so --mode, --duration-minutes
+        # and --session-count never reach the state file and the whole plan UI in
+        # rofi-study-timer is dead. Fixing that is a behaviour change and wants
+        # its own commit; silencing the warning here would bury the signal.
+        excludeShellChecks = [ "SC2034" ];
+      });
       ".local/bin/waybar-memory-info" = scriptFile (mkScript {
         name = "waybar-memory-info";
         runtimeInputs = with pkgs; [

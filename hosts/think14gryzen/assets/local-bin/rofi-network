@@ -495,7 +495,7 @@ append_network_info() {
 build_message() {
   local iface="$1"
   local lines=()
-  local ethernet wifi_conn wifi_name wifi_uuid wifi_device wifi_ssid wifi_ap
+  local ethernet wifi_conn wifi_name wifi_uuid wifi_ssid wifi_ap
   local ssid signal security freq
   local ethernet_device=""
 
@@ -503,7 +503,6 @@ build_message() {
   wifi_conn=""
   wifi_name=""
   wifi_uuid=""
-  wifi_device=""
   wifi_ssid=""
   wifi_ap=""
   ssid=""

@@ -390,7 +390,6 @@ start_guided_plan() {
 while :; do
   status_json="$("$TIMER_BIN" status --format json)"
   active="$(printf '%s' "$status_json" | jq -r '.active')"
-  started_at="$(printf '%s' "$status_json" | jq -r '.started_at // empty')"
   elapsed_seconds="$(printf '%s' "$status_json" | jq -r '.elapsed_seconds // 0')"
   elapsed_label="$("$TIMER_BIN" status | sed 's/^active //; s/^inactive$/No active study session/')"
 
