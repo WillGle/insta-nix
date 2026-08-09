@@ -1016,10 +1016,10 @@ build_navigation_json() {
       next_date: $next_date,
       today: $today,
       views: [
-        {id:"summary", label:"Today"},
-        {id:"activity", label:"App timeline"},
-        {id:"health", label:"Focus & strain"},
-        {id:"timer", label:"Study timer"}
+        {id:"summary", key:"T", label:"Today"},
+        {id:"activity", key:"A", label:"App timeline"},
+        {id:"health", key:"F", label:"Focus & strain"},
+        {id:"timer", key:"S", label:"Study timer"}
       ]
     }'
 }
@@ -1028,8 +1028,8 @@ build_view_payload() {
   local view="$1"
   local context_json="$2"
   local target_date subtitle meta title note_text navigation_json
-	  local updated_time total_seconds study_ratio focus_json frag_json focus_value frag_value
-	  local longest_focus_seconds switch_rate_label
+    local updated_time total_seconds study_ratio focus_json frag_json focus_value frag_value
+    local longest_focus_seconds switch_rate_label
   local top_category peak_window main_insight summary_active summary_study_ratio
   local card1_label card1_value card1_sub
   local card2_label card2_value card2_sub
@@ -1043,11 +1043,11 @@ build_view_payload() {
   study_ratio="$(printf '%s' "$context_json" | jq -r '.today.metrics.study_ratio')"
   focus_json="$(printf '%s' "$context_json" | jq -c '.today.scores.focus_score')"
   frag_json="$(printf '%s' "$context_json" | jq -c '.today.scores.fragmentation_score')"
-	  focus_value="$(score_value_text "$focus_json")"
-	  frag_value="$(score_value_text "$frag_json")"
-	  longest_focus_seconds="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
-	  switch_rate_label="$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h" "n/a")"
-	  top_category="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
+    focus_value="$(score_value_text "$focus_json")"
+    frag_value="$(score_value_text "$frag_json")"
+    longest_focus_seconds="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
+    switch_rate_label="$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h" "n/a")"
+    top_category="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
   peak_window="$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
   main_insight="$(printf '%s' "$context_json" | jq -r '.insights.main.text // "No major insight available yet."')"
   summary_active="$(seconds_to_compact "$total_seconds")"
@@ -1353,15 +1353,24 @@ render_theme() {
 
 render_rows() {
   local json="$1"
-  local view target_date today next_date previous_date current_view label hint
+  local view target_date next_date previous_date current_view key label hint
 
-  view="$(printf '%s' "$json" | jq -r '.view')"
-  target_date="$(printf '%s' "$json" | jq -r '.target_date')"
-  today="$(date +%F)"
-  previous_date="$(date -d "$target_date -1 day" +%F)"
-  next_date=""
-  if [ "$target_date" != "$today" ]; then
-    next_date="$(date -d "$target_date +1 day" +%F)"
+  # Read from the payload's navigation block instead of deriving the same three
+  # dates a second time: build_navigation_json already computed them from the
+  # same target_date, and nothing else read the block it produced. "none"
+  # stands in for an absent next day because tab is IFS whitespace, so an empty
+  # field would collapse and shift every column after it.
+  IFS=$'\t' read -r view target_date previous_date next_date < <(
+    printf '%s' "$json" | jq -r '
+      [
+        .view,
+        .target_date,
+        .navigation.previous_date,
+        (if (.navigation.next_date // "") == "" then "none" else .navigation.next_date end)
+      ] | @tsv'
+  )
+  if [ "$next_date" = "none" ]; then
+    next_date=""
   fi
 
   emit_row "nav:prev-day:$previous_date:$view" "$(action_row_markup "[P] Previous day" "$(date -d "$previous_date" '+%a %d %b')")" "go-previous-symbolic"
@@ -1371,18 +1380,15 @@ render_rows() {
     emit_row "refresh:$view:$target_date" "$(action_row_markup "[R] Refresh")" "view-refresh-symbolic"
   fi
 
-  while IFS=$'\t' read -r current_view label; do
+  # The view list comes from the same navigation block, so there is one table of
+  # view ids and labels rather than one here and one in build_navigation_json.
+  while IFS=$'\t' read -r current_view key label; do
     hint=""
     if [ "$current_view" = "$view" ]; then
       hint="Current"
     fi
-    emit_row "view:$current_view:$target_date" "$(action_row_markup "$label" "$hint")" "go-home-symbolic"
-  done <<'EOF'
-summary	[T] Today
-activity	[A] App timeline
-health	[F] Focus & strain
-timer	[S] Study timer
-EOF
+    emit_row "view:$current_view:$target_date" "$(action_row_markup "[$key] $label" "$hint")" "go-home-symbolic"
+  done < <(printf '%s' "$json" | jq -r '.navigation.views[] | [.id, .key, .label] | @tsv')
 
   if [ -n "$next_date" ]; then
     emit_row "refresh:$view:$target_date" "$(action_row_markup "[R] Refresh")" "view-refresh-symbolic"
