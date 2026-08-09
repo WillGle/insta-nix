@@ -54,7 +54,9 @@ atomic-note list
 atomic-note clear
 ```
 
-`atomic-note rofi` and `atomic-note edit` currently do the same thing: open the Rofi menu.
+`atomic-note rofi`, `atomic-note edit`, and a bare `atomic-note` all open the Rofi menu.
+
+The priority argument to `add` is optional and accepts `critical`/`high`/`moderate`/`low`, their `p0`–`p3` and `a`–`d` spellings, or the `[critical] …` prefix written inline in the task text.
 
 `atomic-note file` opens the raw task file in a terminal editor launched through `foot`. It uses `$EDITOR` if set, otherwise falls back to `nano`, then `vi`.
 
