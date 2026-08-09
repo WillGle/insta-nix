@@ -1,4 +1,9 @@
-{ pkgs, pkgsUnstable, ... }:
+{
+  pkgs,
+  pkgsUnstable,
+  lib,
+  ...
+}:
 let
   # llama.cpp with the Vulkan backend, from nixpkgs-unstable (current build incl. the
   # RDNA3 Wave32 flash-attention path). Pinned via flake.lock -> reproducible &
@@ -36,244 +41,82 @@ let
     ];
   };
 
+  # Package a script asset the same way home.nix does: shellcheck runs at build
+  # time, `set -euo pipefail` comes from the builder, and runtimeInputs are
+  # pinned. The two privileged tools below are reached through a NOPASSWD sudo
+  # rule, so they are exactly the ones that should not be the unlinted inline
+  # heredocs they used to be.
+  mkSystemScript =
+    {
+      name,
+      dir ? ./assets/system-bin,
+      runtimeInputs ? [ ],
+      vars ? { },
+      excludeShellChecks ? [ ],
+    }:
+    let
+      source = dir + "/${name}";
+      rendered = if vars == { } then source else pkgs.replaceVars source vars;
+      body = lib.concatStringsSep "\n" (lib.drop 1 (lib.splitString "\n" (builtins.readFile rendered)));
+    in
+    pkgs.writeShellApplication {
+      inherit name runtimeInputs excludeShellChecks;
+      text = body;
+    };
+
+  # Shared by llm-fit and llm-run; referenced by store path, like the network
+  # and screen-time libs.
+  llmLib = ./assets/llm/lib/common.sh;
+
   hostToolPackages = [
-    (pkgs.writeShellScriptBin "ryzenadj-profile" ''
-      set -euo pipefail
+    (mkSystemScript {
+      name = "ryzenadj-profile";
+      runtimeInputs = with pkgs; [ coreutils ];
+    })
 
-      PROFILE="''${1:-}"
-
-      usage() {
-        echo "Usage: ryzenadj-profile [performance|balanced|power-saver]" >&2
-      }
-
-      case "$PROFILE" in
-        performance)
-          # Disable scheduler autogroup for better throughput (desktop interactivity tradeoff accepted)
-          echo 0 > /proc/sys/kernel/sched_autogroup_enabled || true
-          exec /run/current-system/sw/bin/ryzenadj \
-            --stapm-limit=48000 \
-            --fast-limit=64000 \
-            --slow-limit=60000 \
-            --tctl-temp=98 \
-            --apu-skin-temp=45 \
-            --vrm-current=90000 \
-            --vrmmax-current=110000 \
-            --max-performance
-          ;;
-
-        balanced)
-          echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
-          exec /run/current-system/sw/bin/ryzenadj \
-            --stapm-limit=28000 \
-            --fast-limit=28000 \
-            --slow-limit=28000 \
-            --tctl-temp=85
-          ;;
-
-        power-saver)
-          echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
-          exec /run/current-system/sw/bin/ryzenadj \
-            --stapm-limit=10000 \
-            --fast-limit=10000 \
-            --slow-limit=10000 \
-            --tctl-temp=65 \
-            --power-saving
-          ;;
-
-        *)
-          usage
-          exit 2
-          ;;
-      esac
-    '')
-
-    (pkgs.writeShellScriptBin "toggle-battery-reserve" ''
-      set -euo pipefail
-
-      CMD="''${1:-toggle}"
-      WAIT_SECONDS=0
-      NODE_GLOB="/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode"
-      NODE=""
-
-      if [ "$#" -gt 0 ]; then
-        shift
-      fi
-
-      usage() {
-        echo "Usage: toggle-battery-reserve [status|on|off|toggle] [--wait SECONDS]" >&2
-      }
-
-      log() {
-        echo "[toggle-battery-reserve] $*" >&2
-      }
-
-      while [ "$#" -gt 0 ]; do
-        case "$1" in
-          --wait)
-            if [ "$#" -lt 2 ]; then
-              usage
-              exit 2
-            fi
-            WAIT_SECONDS="$2"
-            shift 2
-            ;;
-          -h|--help)
-            usage
-            exit 0
-            ;;
-          *)
-            usage
-            exit 2
-            ;;
-        esac
-      done
-
-      if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
-        log "invalid --wait value: $WAIT_SECONDS"
-        exit 2
-      fi
-
-      find_node_once() {
-        local candidate
-        for candidate in $NODE_GLOB; do
-          if [ -f "$candidate" ]; then
-            printf "%s\n" "$candidate"
-            return 0
-          fi
-        done
-        return 1
-      }
-
-      resolve_node() {
-        if [ -n "$NODE" ] && [ -f "$NODE" ]; then
-          printf "%s\n" "$NODE"
-          return 0
-        fi
-
-        local deadline now candidate
-        deadline=$(( $(date +%s) + WAIT_SECONDS ))
-
-        while :; do
-          if candidate="$(find_node_once)"; then
-            NODE="$candidate"
-            printf "%s\n" "$NODE"
-            return 0
-          fi
-
-          now=$(date +%s)
-          if [ "$now" -ge "$deadline" ]; then
-            log "conservation_mode node not found (searched $NODE_GLOB)"
-            return 1
-          fi
-          sleep 1
-        done
-      }
-
-      read_state_raw() {
-        local node state
-
-        if ! node="$(resolve_node)"; then
-          return 1
-        elif ! state="$(cat "$node" 2>/dev/null)"; then
-          log "failed to read $node"
-          return 1
-        fi
-
-        case "$state" in
-          0|1) printf "%s\n" "$state" ;;
-          *)
-            log "unexpected value '$state' in $node"
-            return 1
-            ;;
-        esac
-      }
-
-      write_state_raw() {
-        local target="$1"
-        local node
-
-        if ! node="$(resolve_node)"; then
-          return 1
-        fi
-
-        if ! printf "%s" "$target" > "$node" 2>/dev/null; then
-          log "failed to write $target to $node"
-          return 1
-        fi
-      }
-
-      print_state_word() {
-        local raw="$1"
-        case "$raw" in
-          1) echo "on" ;;
-          0) echo "off" ;;
-          *) echo "unknown" ;;
-        esac
-      }
-
-      case "$CMD" in
-        status)
-          if RAW_STATE="$(read_state_raw)"; then
-            print_state_word "$RAW_STATE"
-            exit 0
-          fi
-          echo "unknown"
-          exit 1
-          ;;
-
-        on)
-          if ! RAW_STATE="$(read_state_raw)"; then
-            exit 1
-          fi
-          if [ "$RAW_STATE" != "1" ]; then
-            write_state_raw "1" || exit 1
-          fi
-          echo "on"
-          ;;
-
-        off)
-          if ! RAW_STATE="$(read_state_raw)"; then
-            exit 1
-          fi
-          if [ "$RAW_STATE" != "0" ]; then
-            write_state_raw "0" || exit 1
-          fi
-          echo "off"
-          ;;
-
-        toggle)
-          if ! RAW_STATE="$(read_state_raw)"; then
-            exit 1
-          fi
-
-          if [ "$RAW_STATE" = "1" ]; then
-            write_state_raw "0" || exit 1
-            echo "off"
-          else
-            write_state_raw "1" || exit 1
-            echo "on"
-          fi
-          ;;
-
-        *)
-          usage
-          exit 2
-          ;;
-      esac
-    '')
+    (mkSystemScript {
+      name = "toggle-battery-reserve";
+      runtimeInputs = with pkgs; [ coreutils ];
+    })
 
     # --- Optimal local-LLM stack: llama.cpp Vulkan (measured fastest on the 780M) ---
     # Provides llama-server (OpenAI-compatible API), llama-bench, llama-fit-params, llama-cli.
     llamaCppVulkan
     # llm-pull: ollama-like one-command fetch of a GGUF from HuggingFace into the local
     # model dir (prefers Unsloth UD quants, handles shards). `llm-pull <hf-repo> [quant]`.
-    (pkgs.writeShellScriptBin "llm-pull" (builtins.readFile ./assets/local-bin/llm-pull))
+    (mkSystemScript {
+      name = "llm-pull";
+      dir = ./assets/local-bin;
+      runtimeInputs = with pkgs; [
+        coreutils
+        curl
+        gnugrep
+        gnused
+        jq
+      ];
+    })
     # llm-fit: model-agnostic GTT-overflow check. `llm-fit <model.gguf> [ctx]` -> does it
     # fit the GPU? if not, the lightest KV-cache type that fixes it, or a GTT-raise hint.
-    (pkgs.writeShellScriptBin "llm-fit" (builtins.readFile ./assets/local-bin/llm-fit))
+    (mkSystemScript {
+      name = "llm-fit";
+      dir = ./assets/local-bin;
+      vars = { llmLib = "${llmLib}"; };
+      # PROG/FIT are read by the sourced lib; shellcheck cannot see across that.
+      excludeShellChecks = [ "SC2034" ];
+      runtimeInputs = with pkgs; [
+        coreutils
+        gawk
+      ];
+    })
     # llm-run: auto-sized, overflow-safe llama-server launcher. `llm-run <model.gguf> [ctx]`
     # picks the lightest KV that keeps FULL GPU offload (f16->q8_0->q4_0), -fa on, mmap.
-    (pkgs.writeShellScriptBin "llm-run" (builtins.readFile ./assets/local-bin/llm-run))
+    (mkSystemScript {
+      name = "llm-run";
+      dir = ./assets/local-bin;
+      vars = { llmLib = "${llmLib}"; };
+      excludeShellChecks = [ "SC2034" ];
+      runtimeInputs = with pkgs; [ coreutils ];
+    })
   ];
 in
 {

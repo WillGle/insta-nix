@@ -8,7 +8,10 @@
 # Usage: llm-fit <model.gguf> [context=8192]
 set -euo pipefail
 export PATH="/run/current-system/sw/bin:${PATH:-}"   # find llama-fit-params from systemPackages
+PROG="llm-fit"
 FIT="${LLAMA_FIT_PARAMS:-llama-fit-params}"
+FITTED_CTX=""
+FITTED_NGL=""
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
   echo "usage: llm-fit <model.gguf> [context]" >&2
@@ -22,55 +25,8 @@ if ! [[ "$CTX" =~ ^[1-9][0-9]*$ ]]; then
   exit 2
 fi
 
-fit_params() {
-  local output option value index
-  local -a fields
-
-  if ! output="$("$FIT" -m "$MODEL" -c "$CTX" -fa on "$@")"; then
-    echo "llm-fit: llama-fit-params failed" >&2
-    return 3
-  fi
-
-  output="${output//$'\n'/ }"
-  read -r -a fields <<< "$output" || true
-  FITTED_CTX=""
-  FITTED_NGL=""
-
-  if [ "${#fields[@]}" -ne 4 ]; then
-    echo "llm-fit: invalid llama-fit-params output: expected '-c N -ngl M'" >&2
-    return 3
-  fi
-
-  for ((index = 0; index < ${#fields[@]}; index += 2)); do
-    option="${fields[index]}"
-    value="${fields[index + 1]}"
-    case "$option" in
-      -c)
-        if [ -n "$FITTED_CTX" ] || ! [[ "$value" =~ ^[1-9][0-9]*$ ]]; then
-          echo "llm-fit: invalid llama-fit-params context value" >&2
-          return 3
-        fi
-        FITTED_CTX="$value"
-        ;;
-      -ngl)
-        if [ -n "$FITTED_NGL" ] || ! [[ "$value" =~ ^-?[0-9]+$ ]]; then
-          echo "llm-fit: invalid llama-fit-params GPU layer value" >&2
-          return 3
-        fi
-        FITTED_NGL="$value"
-        ;;
-      *)
-        echo "llm-fit: unexpected llama-fit-params option: $option" >&2
-        return 3
-        ;;
-    esac
-  done
-
-  if [ -z "$FITTED_CTX" ] || [ -z "$FITTED_NGL" ]; then
-    echo "llm-fit: incomplete llama-fit-params output" >&2
-    return 3
-  fi
-}
+# shellcheck source=/dev/null
+. "@llmLib@"
 
 read_gtt() {
   local path
@@ -86,12 +42,6 @@ read_gtt() {
 GTT="$(read_gtt || true)"
 printf 'Model: %s | context: %s | GTT ceiling: %s GiB\n' "$(basename "$MODEL")" "$CTX" "${GTT:-?}"
 
-full_offload_at_requested_context() {
-  [ "$FITTED_CTX" = "$CTX" ] && [ "$FITTED_NGL" = "-1" ]
-}
-
-FITTED_CTX=""
-FITTED_NGL=""
 fit_params
 base="$FITTED_NGL"
 if full_offload_at_requested_context; then
