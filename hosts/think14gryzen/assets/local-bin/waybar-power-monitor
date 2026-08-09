@@ -520,6 +520,43 @@ get_reserve_state() {
     return 1
 }
 
+# --- Action modes ---
+#
+# These change state and print no tile, so they run before the gathering below:
+# that preamble spends roughly twenty-five subprocesses walking sysfs for
+# figures only the display modes render, and a click paid all of it.
+
+case "$MODE" in
+    toggle)
+        p=$(/run/current-system/sw/bin/powerprofilesctl get)
+        case "$p" in
+            performance)
+                /run/current-system/sw/bin/powerprofilesctl set balanced
+                apply_ryzen_settings "balanced"
+                ;;
+            balanced)
+                /run/current-system/sw/bin/powerprofilesctl set power-saver
+                apply_ryzen_settings "power-saver"
+                ;;
+            power-saver)
+                /run/current-system/sw/bin/powerprofilesctl set performance
+                apply_ryzen_settings "performance"
+                ;;
+        esac
+        pkill -RTMIN+2 -x waybar || pkill -RTMIN+2 -x .waybar-wrapped || true
+        exit 0
+        ;;
+    bmode-toggle)
+        if sudo -n /run/current-system/sw/bin/toggle-battery-reserve toggle >/dev/null 2>&1; then
+            clear_warn "reserve_toggle"
+            pkill -RTMIN+2 -x waybar || pkill -RTMIN+2 -x .waybar-wrapped || true
+        else
+            warn_once "reserve_toggle" "failed to toggle battery reserve mode via sudo"
+        fi
+        exit 0
+        ;;
+esac
+
 # --- Main Data Gathering ---
 
 # System Total Power & Voltage
@@ -830,31 +867,5 @@ $SEP
             "$text_label" "$icon" "$cap" "$p_icon" \
             "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
             "$w_cls" "$b_cls" "$health_cls" "$prof_cls"
-        ;;
-    bmode-toggle)
-        if sudo -n /run/current-system/sw/bin/toggle-battery-reserve toggle >/dev/null 2>&1; then
-            clear_warn "reserve_toggle"
-            pkill -RTMIN+2 -x waybar || pkill -RTMIN+2 -x .waybar-wrapped || true
-        else
-            warn_once "reserve_toggle" "failed to toggle battery reserve mode via sudo"
-        fi
-        ;;
-    toggle)
-        p=$(/run/current-system/sw/bin/powerprofilesctl get)
-        case "$p" in
-            performance) 
-                /run/current-system/sw/bin/powerprofilesctl set balanced 
-                apply_ryzen_settings "balanced"
-                ;;
-            balanced)    
-                /run/current-system/sw/bin/powerprofilesctl set power-saver
-                apply_ryzen_settings "power-saver"
-                ;;
-            power-saver) 
-                /run/current-system/sw/bin/powerprofilesctl set performance 
-                apply_ryzen_settings "performance"
-                ;;
-        esac
-        pkill -RTMIN+2 -x waybar || pkill -RTMIN+2 -x .waybar-wrapped || true
         ;;
 esac
