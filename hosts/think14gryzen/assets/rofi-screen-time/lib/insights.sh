@@ -45,7 +45,7 @@ build_insighted_context() {
           high_fragmentation: "You have been switching between apps a lot today.",
           strong_focus: "You had some great focus sessions today.",
           conflicted_focus: "Good focus, but with a lot of app switching in between.",
-          switch_above_baseline: "Youre switching apps much more than you usually do.",
+          switch_above_baseline: "You\u2019re switching apps much more than you usually do.",
           short_sessions: "You are spending very little time in each app."
         },
         temporal: {
@@ -55,7 +55,7 @@ build_insighted_context() {
         },
         recommendation: {
           legacy: "Keep tracking to see more detailed trends later.",
-          browser_ambiguity: "Try tracking browser tabs to see exactly what you’re doing.",
+          browser_ambiguity: "Try tracking browser tabs to see exactly what you\u2019re doing.",
           unknown_high: "Help the tracker by mapping your untracked apps.",
           communication_switch_pressure: "Try batching your messages so you can focus longer.",
           study_ratio_low: "Turn on study mode during work to track better."

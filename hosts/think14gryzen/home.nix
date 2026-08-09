@@ -77,15 +77,6 @@ let
     executable = true;
   };
 
-  # Build-time substitution without full packaging, for scripts whose runtime
-  # dependency set has not been audited yet. Weaker than mkScript — no
-  # shellcheck, no closed PATH — but it still removes the color literal, which
-  # is what makes a severity ladder drift.
-  substScript = name: vars: {
-    source = pkgs.replaceVars (./assets/local-bin + "/${name}") vars;
-    executable = true;
-  };
-
   # The nmcli helpers shared by rofi-network and waybar-network-info. Referenced
   # by store path rather than installed under ~/.local/lib: both callers are
   # packaged, so the path can be substituted at build time, which needs no
@@ -109,14 +100,22 @@ in
 {
   home = {
     file = {
-      ".local/bin/atomic-note" = substScript "atomic-note" {
-        signalOk = signal.ok;
-        signalNotice = signal.notice;
-        signalWarning = signal.warning;
-        signalCritical = signal.critical;
-        monoFont = osConfig.theme.fonts.mono.family;
-        rofiFontSize = toString osConfig.theme.fonts.rofi.size;
-      };
+      ".local/bin/atomic-note" = scriptFile (mkScript {
+        name = "atomic-note";
+        runtimeInputs = with pkgs; [
+          coreutils
+          jq
+          procps
+        ];
+        vars = {
+          signalOk = signal.ok;
+          signalNotice = signal.notice;
+          signalWarning = signal.warning;
+          signalCritical = signal.critical;
+          monoFont = osConfig.theme.fonts.mono.family;
+          rofiFontSize = toString osConfig.theme.fonts.rofi.size;
+        };
+      });
       ".local/bin/rofi-code" = scriptFile (mkScript {
         name = "rofi-code";
         runtimeInputs = with pkgs; [
