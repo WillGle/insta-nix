@@ -2,7 +2,11 @@
 set -euo pipefail
 export LC_ALL=C
 # Waybar consolidated hardware monitor
-# Usage: waybar-power-monitor apu|sys|pwr|prof|toggle|bmode|bmode-toggle
+# Usage: waybar-power-monitor apu|pwr|toggle|bmode-toggle
+#
+# These four are what waybar's config.jsonc calls. Three further display modes
+# (sys, prof, bmode) used to live here with no caller anywhere in the config;
+# the pwr tooltip already shows everything they rendered.
 
 MODE="${1:-pwr}"
 # Colors are substituted at build time from theme.signal / theme.colors, so
@@ -30,9 +34,6 @@ ICON_PLUG=$(printf "\uf1e6")
 ICON_PERF=$(printf "\uf0e7")     # Bolt
 ICON_BALANCED=$(printf "\uf24e") # Scales
 ICON_SAVER=$(printf "\uf06c")   # Leaf
-ICON_RESERVE_ON="$ICON_SAVER"
-ICON_RESERVE_OFF="$ICON_PERF"
-ICON_RESERVE_UNKNOWN="?"
 
 ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
@@ -315,6 +316,34 @@ warning_count() {
     else
         echo 0
     fi
+}
+
+# The one copy of what ryzenadj-profile actually sets, for the Ryzen 7 8845H.
+# The numbers used to be typed out in four places, one of which admitted in a
+# comment that it was a copy of another.
+#   profile -> STAPM W | slow W | fast W | tctl °C
+profile_limits() {
+    case "$1" in
+        performance) printf '48\t60\t64\t98\n' ;;
+        balanced)    printf '28\t28\t28\t85\n' ;;
+        power-saver) printf '10\t10\t10\t65\n' ;;
+        *)           return 1 ;;
+    esac
+}
+
+# One cheat-sheet row: "Performance:  48W / 64W / 98°C ◀"
+cheat_sheet_line() {
+    local label="$1" prof="$2" marker="$3" fields stapm fast temp
+    fields="$(profile_limits "$prof")" || return 0
+    IFS=$'\t' read -r stapm _ fast temp <<< "$fields"
+    printf '%-14s%sW / %sW / %s°C%s' "$label:" "$stapm" "$fast" "$temp" "$marker"
+}
+
+# STAPM, the figure the power tile draws its cap bar against.
+profile_ppt_cap() {
+    local fields
+    fields="$(profile_limits "$1")" || { printf '0\n'; return 0; }
+    printf '%s\n' "${fields%%$'\t'*}"
 }
 
 apply_ryzen_settings() {
@@ -643,23 +672,13 @@ case "$MODE" in
         epp=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo "unknown")
         profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
 
-        case "$profile" in
-          performance)
-            limits_text="TDP Limits:   STAPM 48W / Slow 60W / Fast 64W
-Temp Limit:   98°C"
-            ;;
-          balanced)
-            limits_text="TDP Limits:   STAPM 28W / Slow 28W / Fast 28W
-Temp Limit:   85°C"
-            ;;
-          power-saver)
-            limits_text="TDP Limits:   STAPM 10W / Slow 10W / Fast 10W
-Temp Limit:   65°C"
-            ;;
-          *)
-            limits_text="TDP Limits:   Unknown"
-            ;;
-        esac
+        if limits_fields="$(profile_limits "$profile")"; then
+          IFS=$'\t' read -r lim_stapm lim_slow lim_fast lim_temp <<< "$limits_fields"
+          limits_text="TDP Limits:   STAPM ${lim_stapm}W / Slow ${lim_slow}W / Fast ${lim_fast}W
+Temp Limit:   ${lim_temp}°C"
+        else
+          limits_text="TDP Limits:   Unknown"
+        fi
 
         # Classes
         t_cls="normal"
@@ -694,23 +713,6 @@ iGPU:         $t_gpu°C</tt>
             "$ICON_GPU" "$t_gpu" "$ICON_CPU" "$t_cpu" "$cpu_freq" "$cpu_util" \
             "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
             "$t_cls" "$health_cls"
-        ;;
-    sys) # Formerly CPU
-        # System Metrics: Screen/Board Power
-        # Calculated as: Total - APU
-        
-        p_cls="normal"
-        if [ "$(awk -v w="${cpu_w:-0}" 'BEGIN{if(w>15) print 1; else print 0}')" -eq 1 ]; then p_cls="high"; fi
-
-        tooltip="<b><span foreground='$ACCENT'>BOARD / PERIPHERALS</span></b>
-$SEP
-<tt>Display, WiFi, SSD, Mobo
-Power:        $cpu_w W</tt>
-
-<span size='small' alpha='50%'>$health_msg</span>"
-
-        printf '{"text":" ⚡%sW", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
-            "$cpu_w" "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" "$p_cls" "$health_cls"
         ;;
     pwr)
         # Power Profile info (for tooltip only)
@@ -778,15 +780,9 @@ Power:        $cpu_w W</tt>
             *)           active_marker_perf="" ;   active_marker_bal="" ;   active_marker_sav="" ; prof_cls="prof-normal" ; p_icon="?" ;;
         esac
 
-        # PPT ceiling for the active profile, from the same table apu_info
-        # uses. The rolling average is what the sustained budget applies to,
-        # so that is the number headroom should be measured against.
-        case "$profile" in
-            performance) ppt_cap=48 ;;
-            balanced)    ppt_cap=28 ;;
-            power-saver) ppt_cap=10 ;;
-            *)           ppt_cap=0 ;;
-        esac
+        # The rolling average is what the sustained budget applies to, so that
+        # is the number headroom is measured against.
+        ppt_cap="$(profile_ppt_cap "$profile")"
 
         # The PPT label comes from sysfs, so its width is only known at runtime;
         # pad it here to keep the value column aligned with every other block.
@@ -820,9 +816,9 @@ Voltage:      ${volt_v}V  |  Cycles: $cycles</tt>
 
 <b><span foreground='$ACCENT'>POWER PROFILE</span></b>
 $SEP
-<tt>Performance:  48W / 64W / 98°C${active_marker_perf}
-Balanced:     28W / 28W / 85°C${active_marker_bal}
-Power Saver:  10W / 10W / 65°C${active_marker_sav}</tt>
+<tt>$(cheat_sheet_line "Performance" performance "$active_marker_perf")
+$(cheat_sheet_line "Balanced" balanced "$active_marker_bal")
+$(cheat_sheet_line "Power Saver" power-saver "$active_marker_sav")</tt>
 
 <b><span foreground='$ACCENT'>BATTERY RESERVE</span></b>
 $SEP
@@ -835,34 +831,6 @@ $SEP
             "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" \
             "$w_cls" "$b_cls" "$health_cls" "$prof_cls"
         ;;
-    bmode)
-        reserve_state="$(get_reserve_state || true)"
-        case "$reserve_state" in
-            on)
-                reserve_icon="$ICON_RESERVE_ON"
-                reserve_label="ON"
-                reserve_cls="reserve-on"
-                ;;
-            off)
-                reserve_icon="$ICON_RESERVE_OFF"
-                reserve_label="OFF"
-                reserve_cls="reserve-off"
-                ;;
-            *)
-                reserve_icon="$ICON_RESERVE_UNKNOWN"
-                reserve_label="UNKNOWN"
-                reserve_cls="reserve-unknown"
-                ;;
-        esac
-
-        tooltip="<b><span foreground='$ACCENT'>BATTERY RESERVE MODE</span></b>
-$SEP
-<tt>Status:       $reserve_label</tt>
-
-<span size='small' alpha='50%'>Right-click to toggle reserve mode\nReboot default: Reserve ON</span>"
-        printf '{"text":" %s ", "tooltip":"%s", "class":["%s", "battery-mode"]}\n' \
-            "$reserve_icon" "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" "$reserve_cls"
-        ;;
     bmode-toggle)
         if sudo -n /run/current-system/sw/bin/toggle-battery-reserve toggle >/dev/null 2>&1; then
             clear_warn "reserve_toggle"
@@ -870,27 +838,6 @@ $SEP
         else
             warn_once "reserve_toggle" "failed to toggle battery reserve mode via sudo"
         fi
-        ;;
-    prof)
-        profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
-        case "$profile" in
-            performance)  p_icon="$ICON_PERF"; p_cls="perf" ;;
-            balanced)     p_icon="$ICON_BALANCED"; p_cls="normal" ;;
-            power-saver)  p_icon="$ICON_SAVER"; p_cls="saver" ;;
-            *)            p_icon="?"; p_cls="normal" ;;
-        esac
-        tooltip="<b><span foreground='$ACCENT'>POWER PROFILE CHEAT-SHEET</span></b>
-$SEP
-<tt>Performance:  48W / 64W / 98°C
-Balanced:     28W / 28W / 85°C
-Power Saver:  10W / 10W / 65°C</tt>
-
-<b><span foreground='$ACCENT'>CURRENT ACTIVE</span></b>
-$SEP
-<tt>Profile:      $profile</tt>
-
-<span size='small' alpha='50%'>Click to cycle profiles</span>"
-        printf '{"text":" %s ", "tooltip":"%s", "class":"%s"}\n' "$p_icon" "$(printf '%s' "$tooltip" | sed ':a;N;$!ba;s/\n/\\n/g')" "$p_cls"
         ;;
     toggle)
         p=$(/run/current-system/sw/bin/powerprofilesctl get)
