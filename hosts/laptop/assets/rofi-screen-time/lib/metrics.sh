@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Global Productivity Baselines
 export STUDY_GOAL_BASELINE_SECONDS=${STUDY_GOAL_BASELINE_SECONDS:-14400} # Default: 4 hours
 
