@@ -124,14 +124,6 @@ in
           rofiFontSize = toString osConfig.theme.fonts.rofi.size;
         };
       });
-      ".local/bin/rofi-code" = scriptFile (mkScript {
-        name = "rofi-code";
-        runtimeInputs = with pkgs; [
-          coreutils
-          findutils
-          procps
-        ];
-      });
       ".local/bin/monitor-setup" = scriptFile (mkScript {
         name = "monitor-setup";
         runtimeInputs = with pkgs; [
