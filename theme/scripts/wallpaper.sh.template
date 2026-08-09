@@ -1,4 +1,5 @@
 #!__BASH_BIN__
+# shellcheck shell=bash
 set -euo pipefail
 
 THEME_APPLY_BIN="__THEME_APPLY_BIN__"
