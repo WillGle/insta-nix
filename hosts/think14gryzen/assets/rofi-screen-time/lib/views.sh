@@ -29,6 +29,41 @@ bar_markup() {
   printf '%s\n' "$out"
 }
 
+# Small counts read faster as countable marks than as a digit the eye has to
+# parse. Used for values whose interesting range is a handful, where a
+# proportional bar would be almost entirely empty and say nothing.
+pips_markup() {
+  local filled="${1:-0}"
+  local total="${2:-5}"
+  local color="${3:-$ACCENT_COLOR}"
+  local i=0
+  local on=""
+  local off=""
+
+  [ "$filled" -gt "$total" ] && filled="$total"
+  while [ "$i" -lt "$total" ]; do
+    if [ "$i" -lt "$filled" ]; then on+="●"; else off+="○"; fi
+    i=$((i + 1))
+  done
+  printf '<span foreground="%s">%s</span><span foreground="%s">%s</span>' \
+    "$color" "$on" "$BASE_COLOR" "$off"
+}
+
+# One threshold ladder for every bounded metric, so the same number cannot read
+# as "fine" in one block and "warning" in another.
+severity_color() {
+  local value="${1:-0}"
+  local warn_at="${2:-50}"
+  local crit_at="${3:-70}"
+  if [ "$value" -ge "$crit_at" ]; then
+    printf '%s' "$ERROR_COLOR"
+  elif [ "$value" -ge "$warn_at" ]; then
+    printf '%s' "$WARNING_COLOR"
+  else
+    printf '%s' "$SUCCESS_COLOR"
+  fi
+}
+
 sparkline_from_json() {
   local values_json="$1"
   local highlight_index="${2:-}"
@@ -298,11 +333,46 @@ render_digital_health() {
   [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 50 then "y" else "n" end')" = "y" ] && cog_color="$WARNING_COLOR"
   [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end')" = "y" ] && cog_color="$ERROR_COLOR"
 
-  printf '<span foreground="%s">%-18s</span> <span weight="600">%s</span> <span foreground="%s" size="small">(Conf: %s • %s%% untracked)</span>\n' "$SUBTEXT_COLOR" "Overall Score" "$wellbeing_val" "$SUBTEXT_COLOR" "$confidence" "$untracked"
-  printf '<span foreground="%s" size="small">%s</span>\n\n' "$SUBTEXT_COLOR" "$(escape_markup "$drivers_text")"
-  printf '<span foreground="%s">%-18s</span> <span foreground="%s" weight="600">%-10s</span>   <span foreground="%s">%-18s</span> <span foreground="%s" weight="600">%s</span>\n' "$SUBTEXT_COLOR" "Eye-strain risk" "$eye_color" "$eye_risk" "$SUBTEXT_COLOR" "Cognitive strain" "$cog_color" "$cog_load"
-  printf '<span foreground="%s">%-18s</span> <span weight="600">%-10s</span>   <span foreground="%s">%-18s</span> <span weight="600">%s</span>\n' "$SUBTEXT_COLOR" "Time of day" "$circ_phase" "$SUBTEXT_COLOR" "Recovery gaps" "$rec_gaps"
-  printf '<span foreground="%s">Focus cycles</span> <span weight="600">%s</span>   <span foreground="%s">Fragmentation</span> <span weight="600">%s</span>' "$SUBTEXT_COLOR" "$ultr_score" "$SUBTEXT_COLOR" "$afi"
+  # One encoding per kind of value: bounded ratios get a bar the eye reads by
+  # length, small counts get pips it reads by counting, rank labels carry the
+  # severity in their colour. The number stays beside the bar for anyone who
+  # wants it, but nothing depends on reading it.
+  local bar_w=26
+  local wb_bar_value="$wellbeing_val"
+  [ "$wb_bar_value" = "—" ] && wb_bar_value=0
+  local cog_bar_value="$cog_load"
+  [ "$cog_bar_value" = "—" ] && cog_bar_value=0
+
+  local eye_level=1
+  [ "$eye_risk" = "Moderate" ] && eye_level=2
+  [ "$eye_risk" = "High" ] && eye_level=3
+
+  # Wellbeing is a "higher is better" score, so the ladder runs the other way.
+  local wb_color="$ERROR_COLOR"
+  [ "$wb_bar_value" -ge 34 ] && wb_color="$WARNING_COLOR"
+  [ "$wb_bar_value" -ge 67 ] && wb_color="$SUCCESS_COLOR"
+
+  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%3s</span>  <span foreground="%s" size="small">%s</span>\n' \
+    "$SUBTEXT_COLOR" "Wellbeing" \
+    "$(bar_markup "$wb_bar_value" 100 "$bar_w" "$wb_color" "$BASE_COLOR")" \
+    "$wellbeing_val" "$SUBTEXT_COLOR" "$(escape_markup "$(clip_text "$drivers_text" 30)")"
+  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%3s</span>\n' \
+    "$SUBTEXT_COLOR" "Cognitive" \
+    "$(bar_markup "$cog_bar_value" 100 "$bar_w" "$cog_color" "$BASE_COLOR")" \
+    "$cog_load"
+  printf '<span foreground="%s">%-11s</span>%s  <span foreground="%s" weight="600">%s</span>\n' \
+    "$SUBTEXT_COLOR" "Eye strain" \
+    "$(bar_markup "$eye_level" 3 "$bar_w" "$eye_color" "$BASE_COLOR")" \
+    "$eye_color" "$eye_risk"
+  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%2s%%</span>  <span foreground="%s" size="small">conf %s</span>\n' \
+    "$SUBTEXT_COLOR" "Untracked" \
+    "$(bar_markup "$untracked" 100 "$bar_w" "$(severity_color "$untracked" 15 30)" "$BASE_COLOR")" \
+    "$untracked" "$SUBTEXT_COLOR" "$confidence"
+  printf '<span foreground="%s">%-11s</span><span weight="600">%s</span>  <span foreground="%s">·</span>  <span foreground="%s">cycles</span> %s  <span foreground="%s">·</span>  <span foreground="%s">gaps</span> %s  <span foreground="%s">·</span>  <span foreground="%s">frag</span> <span weight="600">%s</span>' \
+    "$SUBTEXT_COLOR" "Rhythm" "$circ_phase" \
+    "$SUBTEXT_COLOR" "$SUBTEXT_COLOR" "$(pips_markup "$ultr_score" 5 "$CYAN_COLOR")" \
+    "$SUBTEXT_COLOR" "$SUBTEXT_COLOR" "$(pips_markup "$rec_gaps" 3 "$WARNING_COLOR")" \
+    "$SUBTEXT_COLOR" "$SUBTEXT_COLOR" "$afi"
 }
 
 wellbeing_card_signal() {
@@ -641,7 +711,7 @@ render_focus_breakdown() {
 
 render_behavior_summary() {
   local context_json="$1"
-  local longest current deep short top_label top_count switch_rate session_density classified_text
+  local longest current deep short top_label top_count switch_rate session_density
 
   longest="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
   current="$(printf '%s' "$context_json" | jq -r '.today.metrics.current_focus_block_seconds // 0')"
@@ -652,25 +722,52 @@ render_behavior_summary() {
   switch_rate="$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')"
   session_density="$(printf '%s' "$context_json" | jq -r '.today.metrics.session_density // empty')"
 
+  # An arrow glyph instead of "->" so the direction is a mark, not two
+  # characters the reader parses as text.
   if [ "$top_label" != "None yet" ]; then
-    top_label="$(printf '%s' "$top_label" | sed 's/ -> /\t/' | awk -F '\t' '{printf "%s -> %s", $1, $2}')"
+    top_label="${top_label// -> / → }"
   fi
 
-  classified_text="$(printf '%s' "$context_json" | jq -r '
-    .today.behavior.classified_transitions as $ct |
-    if $ct != null then
-      "\($ct.within_task // 0) task • \($ct.cross_context // 0) cross • \($ct.interruption // 0) interrupt"
-    else
-      "Unclassified"
-    end
-  ')"
+  local bar_w=26
+  local day_seconds blocks_total cross_count
+  day_seconds="$(printf '%s' "$context_json" | jq -r '.today.metrics.safe_total_seconds // .today.total_seconds // 0')"
+  cross_count="$(printf '%s' "$context_json" | jq -r '.today.behavior.classified_transitions.cross_context // 0')"
+  blocks_total=$((deep + short))
 
-  printf '%s\n%s\n%s\n%s\n%s' \
-    "$(kv_markup "Best focus block" "$(seconds_to_short "$longest")")" \
-    "$(kv_markup "Current focus" "$(seconds_to_short "$current")")" \
-    "$(kv_markup "Deep / short blocks" "$deep deep • $short short")" \
-    "$(kv_markup "Most common switch" "$(if [ "$top_count" -gt 0 ]; then printf '%s (%sx)' "$top_label" "$top_count"; else printf 'None yet'; fi)")" \
-    "$(kv_markup "App transitions" "$(format_decimal_label "$switch_rate" "/h") ($classified_text)")"
+  # Two block lengths against the same day-long scale, so "best" and "right now"
+  # are comparable by eye instead of by subtracting two durations. The deep
+  # ratio is the line that matters and it was the one the reader had to compute:
+  # "2 deep • 28 short" is a fraction written as two numbers.
+  local deep_color="$SUCCESS_COLOR"
+  [ "$blocks_total" -gt 0 ] && [ $((deep * 100 / blocks_total)) -lt 25 ] && deep_color="$WARNING_COLOR"
+  [ "$blocks_total" -gt 0 ] && [ $((deep * 100 / blocks_total)) -lt 10 ] && deep_color="$ERROR_COLOR"
+
+  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s</span>\n' \
+    "$SUBTEXT_COLOR" "Best block" \
+    "$(bar_markup "$longest" "$day_seconds" "$bar_w" "$CYAN_COLOR" "$BASE_COLOR")" \
+    "$(seconds_to_short "$longest")"
+  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s</span>\n' \
+    "$SUBTEXT_COLOR" "Right now" \
+    "$(bar_markup "$current" "$day_seconds" "$bar_w" "$CYAN_COLOR" "$BASE_COLOR")" \
+    "$(seconds_to_short "$current")"
+  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s deep</span> <span foreground="%s" size="small">· %s short</span>\n' \
+    "$SUBTEXT_COLOR" "Deep ratio" \
+    "$(bar_markup "$deep" "$blocks_total" "$bar_w" "$deep_color" "$BASE_COLOR")" \
+    "$deep" "$SUBTEXT_COLOR" "$short"
+  if [ "$top_count" -gt 0 ]; then
+    printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s×</span>\n' \
+      "$SUBTEXT_COLOR" "Top switch" \
+      "$(escape_markup "$(clip_text "$top_label" 30)")" "$top_count"
+  else
+    printf '<span foreground="%s">%-11s</span><span foreground="%s">None yet</span>\n' \
+      "$SUBTEXT_COLOR" "Top switch" "$SUBTEXT_COLOR"
+  fi
+  # No "vs 7-day" here on purpose: render_baseline_summary already carries the
+  # switch-rate delta, and repeating it is the duplication this pass removes.
+  printf '<span foreground="%s">%-11s</span><span weight="600">%s</span>  %s  <span foreground="%s" size="small">%s cross-context</span>' \
+    "$SUBTEXT_COLOR" "Switching" "$(format_decimal_label "$switch_rate" "/h")" \
+    "$(pips_markup "${switch_rate%%.*}" 10 "$WARNING_COLOR")" \
+    "$SUBTEXT_COLOR" "$cross_count"
 }
 
 render_focus_vs_baseline() {
@@ -954,7 +1051,11 @@ build_view_payload() {
       else
         study_status="Tracking Mode: Normal (Study inactive)."
       fi
-      note_text="$study_status  Busiest at $peak_window.  Best focus block: $(seconds_to_short "$longest_focus_seconds").  Wellbeing: $_wb_label."
+      # Only the tracking mode survives here. The three facts that used to
+      # follow it -- busiest window, best focus block, wellbeing label -- are all
+      # already on screen above, two of them inside the stat cards, so the line
+      # restated them without condensing anything.
+      note_text="$study_status"
       ;;
 
     activity)
