@@ -324,7 +324,7 @@ clip_text() {
 
 render_digital_health() {
   local context_json="$1"
-  local eye_risk cog_load circ_phase ultr_score rec_gaps wellbeing_json wellbeing_val wellbeing_label afi confidence untracked
+  local eye_risk cog_load circ_phase ultr_score rec_gaps wellbeing_json wellbeing_val afi confidence untracked
 
   eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
   cog_load="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // "—"')"
@@ -334,7 +334,6 @@ render_digital_health() {
   afi="$(printf '%s' "$context_json" | jq -r '.today.metrics.attention_fragmentation_index | if . == null then "—" else (. * 10 | round / 10 | tostring) end')"
   wellbeing_json="$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')"
   wellbeing_val="$(score_value_text "$wellbeing_json")"
-  wellbeing_label="$(score_subtext "$wellbeing_json")"
   confidence="$(printf '%s' "$wellbeing_json" | jq -r '.confidence // "Medium"')"
   untracked="$(printf '%s' "$wellbeing_json" | jq -r '.untracked_percent // 0')"
 
@@ -727,7 +726,7 @@ render_focus_breakdown() {
 
 render_behavior_summary() {
   local context_json="$1"
-  local longest current deep short top_label top_count switch_rate session_density
+  local longest current deep short top_label top_count switch_rate
 
   longest="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
   current="$(printf '%s' "$context_json" | jq -r '.today.metrics.current_focus_block_seconds // 0')"
@@ -736,7 +735,6 @@ render_behavior_summary() {
   top_label="$(printf '%s' "$context_json" | jq -r '.today.metrics.top_transition_label // "None yet"')"
   top_count="$(printf '%s' "$context_json" | jq -r '.today.metrics.top_transition_count // 0')"
   switch_rate="$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')"
-  session_density="$(printf '%s' "$context_json" | jq -r '.today.metrics.session_density // empty')"
 
   # An arrow glyph instead of "->" so the direction is a mark, not two
   # characters the reader parses as text.
@@ -881,7 +879,7 @@ render_study_summary() {
 
 render_confidence_breakdown() {
   local context_json="$1"
-  local conf mapped_pct unknown_time unknown_pct browser_pct total_seconds
+  local conf mapped_pct unknown_time browser_pct total_seconds
   local mapped_raw unknown_raw browser_raw
 
   conf="$(printf '%s' "$context_json" | jq -r '.data_quality.model_confidence // "Unknown"')"
@@ -928,7 +926,7 @@ render_confidence_breakdown() {
 
 render_unknown_apps() {
   local context_json="$1"
-  local output="" header="" mapping_note=""
+  local output="" mapping_note=""
 
   # Compute projected coverage if we map the top unknown app
   local top_name top_seconds top_projected

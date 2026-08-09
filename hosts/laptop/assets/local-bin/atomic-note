@@ -392,7 +392,12 @@ add_task() {
 open_file_in_terminal() {
   local editor_cmd
   editor_cmd="$(resolve_editor)"
-  foot -e sh -lc 'exec "$@"' sh $editor_cmd "$TASK_FILE" >/dev/null 2>&1 &
+  # resolve_editor can return a command with arguments ("nvim -p"), so the split
+  # here is deliberate. Read into an array to say that explicitly, instead of
+  # relying on an unquoted expansion that reads like an oversight.
+  local -a editor_argv
+  read -r -a editor_argv <<< "$editor_cmd"
+  foot -e sh -lc 'exec "$@"' sh "${editor_argv[@]}" "$TASK_FILE" >/dev/null 2>&1 &
 }
 
 list_tasks() {
@@ -451,7 +456,7 @@ edit_task_by_index() {
     return 0
   fi
 
-  TASKS[$index]="$(format_task "$updated" "$current_priority")"
+  TASKS[index]="$(format_task "$updated" "$current_priority")"
   write_tasks "${TASKS[@]}"
   refresh_waybar
 }
@@ -470,7 +475,7 @@ change_priority_by_index() {
   current_body="$(task_body "$current")"
   current_priority="$(task_priority "$current")"
   updated_priority="$(select_priority "Priority:" "$current_priority")"
-  TASKS[$index]="$(format_task "$current_body" "$updated_priority")"
+  TASKS[index]="$(format_task "$current_body" "$updated_priority")"
   write_tasks "${TASKS[@]}"
   refresh_waybar
 }
