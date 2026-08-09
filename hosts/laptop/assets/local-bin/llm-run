@@ -7,6 +7,7 @@
 # Usage: llm-run [--dry-run] <model.gguf> [context=8192] [-- extra llama-server args]
 set -euo pipefail
 export PATH="/run/current-system/sw/bin:${PATH:-}"   # find llama-fit-params/llama-server from systemPackages
+PROG="llm-run"
 FIT="${LLAMA_FIT_PARAMS:-llama-fit-params}"
 SERVER="${LLAMA_SERVER:-llama-server}"
 HOST="${LLM_HOST:-127.0.0.1}"; PORT="${LLM_PORT:-8080}"
@@ -34,63 +35,13 @@ if [ "$#" -gt 0 ]; then
 fi
 [ -f "$MODEL" ] || { echo "no such model: $MODEL" >&2; exit 2; }
 
-fit_params() {
-  local output option value index
-  local -a fields
-
-  if ! output="$("$FIT" -m "$MODEL" -c "$CTX" -fa on "$@")"; then
-    echo "llm-run: llama-fit-params failed" >&2
-    return 3
-  fi
-
-  output="${output//$'\n'/ }"
-  read -r -a fields <<< "$output" || true
-  FITTED_CTX=""
-  FITTED_NGL=""
-
-  if [ "${#fields[@]}" -ne 4 ]; then
-    echo "llm-run: invalid llama-fit-params output: expected '-c N -ngl M'" >&2
-    return 3
-  fi
-
-  for ((index = 0; index < ${#fields[@]}; index += 2)); do
-    option="${fields[index]}"
-    value="${fields[index + 1]}"
-    case "$option" in
-      -c)
-        if [ -n "$FITTED_CTX" ] || ! [[ "$value" =~ ^[1-9][0-9]*$ ]]; then
-          echo "llm-run: invalid llama-fit-params context value" >&2
-          return 3
-        fi
-        FITTED_CTX="$value"
-        ;;
-      -ngl)
-        if [ -n "$FITTED_NGL" ] || ! [[ "$value" =~ ^-?[0-9]+$ ]]; then
-          echo "llm-run: invalid llama-fit-params GPU layer value" >&2
-          return 3
-        fi
-        FITTED_NGL="$value"
-        ;;
-      *)
-        echo "llm-run: unexpected llama-fit-params option: $option" >&2
-        return 3
-        ;;
-    esac
-  done
-
-  if [ -z "$FITTED_CTX" ] || [ -z "$FITTED_NGL" ]; then
-    echo "llm-run: incomplete llama-fit-params output" >&2
-    return 3
-  fi
-}
+# shellcheck source=/dev/null
+. "@llmLib@"
 
 KVNAME=f16
 KVARGS=()
 FITTED_CTX=""
 FITTED_NGL=""
-full_offload_at_requested_context() {
-  [ "$FITTED_CTX" = "$CTX" ] && [ "$FITTED_NGL" = "-1" ]
-}
 
 fit_params
 if ! full_offload_at_requested_context; then

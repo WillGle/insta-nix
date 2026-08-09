@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROFILE="${1:-}"
+
+usage() {
+  echo "Usage: ryzenadj-profile [performance|balanced|power-saver]" >&2
+}
+
+case "$PROFILE" in
+  performance)
+    # Disable scheduler autogroup for better throughput (desktop interactivity tradeoff accepted)
+    echo 0 > /proc/sys/kernel/sched_autogroup_enabled || true
+    exec /run/current-system/sw/bin/ryzenadj \
+      --stapm-limit=48000 \
+      --fast-limit=64000 \
+      --slow-limit=60000 \
+      --tctl-temp=98 \
+      --apu-skin-temp=45 \
+      --vrm-current=90000 \
+      --vrmmax-current=110000 \
+      --max-performance
+    ;;
+
+  balanced)
+    echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
+    exec /run/current-system/sw/bin/ryzenadj \
+      --stapm-limit=28000 \
+      --fast-limit=28000 \
+      --slow-limit=28000 \
+      --tctl-temp=85
+    ;;
+
+  power-saver)
+    echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
+    exec /run/current-system/sw/bin/ryzenadj \
+      --stapm-limit=10000 \
+      --fast-limit=10000 \
+      --slow-limit=10000 \
+      --tctl-temp=65 \
+      --power-saving
+    ;;
+
+  *)
+    usage
+    exit 2
+    ;;
+esac
