@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# --- PATH & ENV for NixOS/Hyprland when running from keybind ---
-export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/$USER/bin:$HOME/.nix-profile/bin:${PATH:-}"
-: "${XDG_RUNTIME_DIR:=/run/user/$(id -u)}"
-
 notify() {
   command -v notify-send >/dev/null 2>&1 && notify-send "Rotate" "$1" || true
 }
@@ -44,10 +40,6 @@ if [ -n "$SET_MODE" ] && ! [[ "$SET_MODE" =~ ^[0-3]$ ]]; then
   notify "Invalid transform: $SET_MODE"
   exit 2
 fi
-
-# --- Check required binaries ---
-command -v hyprctl >/dev/null 2>&1 || { echo "hyprctl not found" >&2; exit 1; }
-command -v jq >/dev/null 2>&1 || { notify "Missing jq"; echo "jq is required" >&2; exit 1; }
 
 if ! json_monitors="$(hyprctl monitors -j)"; then
   notify "Unable to read monitors"
@@ -99,9 +91,7 @@ refresh_wallpaper() {
   local monitor="$1"
   local active wallpaper
 
-  if pgrep -x swww-daemon >/dev/null 2>&1 && command -v swww >/dev/null 2>&1; then
-    swww redraw || true
-  elif pgrep -x hyprpaper >/dev/null 2>&1 \
+  if pgrep -x hyprpaper >/dev/null 2>&1 \
     && active="$(hyprctl hyprpaper listactive 2>/dev/null)" \
     && wallpaper="$(awk -v prefix="$monitor = " '
       index($0, prefix) == 1 { print substr($0, length(prefix) + 1); found = 1 }
