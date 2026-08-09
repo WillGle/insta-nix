@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Scan directories in ~/dev up to 2 levels deep
+# No keybind or waybar action calls this; it is a terminal command.
 DEV_DIR="$HOME/dev"
 
 if [ ! -d "$DEV_DIR" ]; then
@@ -14,7 +14,6 @@ if pgrep -x rofi >/dev/null 2>&1; then
   exit 0
 fi
 
-# Find directories, filter out common hidden/ignored folders
 selected=$(find "$DEV_DIR" -mindepth 1 -maxdepth 2 -type d \
   -not -path '*/.*' \
   -not -path '*/node_modules*' \

@@ -104,32 +104,12 @@ let
       (strip theme.colors.text)
     ]
     [
-      "__SUBTEXT_STRIP__"
-      (strip theme.colors.subtext)
-    ]
-    [
       "__ACCENT_STRIP__"
       (strip theme.colors.accent)
     ]
     [
-      "__SUCCESS_STRIP__"
-      (strip theme.colors.success)
-    ]
-    [
-      "__WARNING_STRIP__"
-      (strip theme.colors.warning)
-    ]
-    [
-      "__ERROR_STRIP__"
-      (strip theme.colors.error)
-    ]
-    [
       "__PURPLE_STRIP__"
       (strip theme.colors.purple)
-    ]
-    [
-      "__CYAN_STRIP__"
-      (strip theme.colors.cyan)
     ]
     # Signal palette: fed from theme.signal, never from theme.colors, so the
     # runtime generator has no path to these values.
@@ -158,30 +138,6 @@ let
       signal.muted
     ]
     [
-      "__SIGNAL_OK_STRIP__"
-      (strip signal.ok)
-    ]
-    [
-      "__SIGNAL_NOTICE_STRIP__"
-      (strip signal.notice)
-    ]
-    [
-      "__SIGNAL_WARNING_STRIP__"
-      (strip signal.warning)
-    ]
-    [
-      "__SIGNAL_CRITICAL_STRIP__"
-      (strip signal.critical)
-    ]
-    [
-      "__SIGNAL_ECO_STRIP__"
-      (strip signal.eco)
-    ]
-    [
-      "__SIGNAL_MUTED_STRIP__"
-      (strip signal.muted)
-    ]
-    [
       "__UI_FONT__"
       theme.fonts.ui.family
     ]
@@ -196,10 +152,6 @@ let
     [
       "__MONO_FONT__"
       theme.fonts.mono.family
-    ]
-    [
-      "__MONO_FONT_SIZE__"
-      (toString theme.fonts.mono.size)
     ]
     [
       "__LOCK_FONT__"
@@ -288,9 +240,13 @@ let
       "__SORT_BIN__"
       "${pkgs.coreutils}/bin/sort"
     ]
+    # Deliberately the session's rofi rather than a pinned bare build: the
+    # configured copy carries plugins from system.nix's rofi.override, and every
+    # other rofi caller in this config relies on that. Pinning pkgs.rofi here
+    # made the wallpaper picker the one script running a different rofi.
     [
       "__ROFI_BIN__"
-      "${pkgs.rofi}/bin/rofi"
+      "rofi"
     ]
     [
       "__MKTEMP_BIN__"
@@ -380,7 +336,19 @@ let
       "__NOTIFY_SEND_BIN__"
       "${pkgs.libnotify}/bin/notify-send"
     ]
+    # Spliced into both theme-apply and wallpaper, which each carried an
+    # identical copy of the magic-byte table -- a format added to one would
+    # have had to be added to the other.
+    [
+      "__IS_SUPPORTED_IMAGE__"
+      (builtins.readFile ../../theme/scripts/lib/is-supported-image.sh)
+    ]
   ];
+
+  # writeShellApplication supplies its own shebang and `set -euo pipefail`;
+  # drop the asset's first line so the output has exactly one of each.
+  rofiScriptBody =
+    path: lib.concatStringsSep "\n" (lib.drop 1 (lib.splitString "\n" (builtins.readFile path)));
 
   themeApplyScript = replaceMany themeBinReplacements ../../theme/scripts/theme-apply.sh.template;
   wallpaperScript = replaceMany themeBinReplacements ../../theme/scripts/wallpaper.sh.template;
@@ -418,7 +386,6 @@ in
       THEME_UI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.ui.size)}
       THEME_ROFI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.rofi.size)}
       THEME_MONO_FONT=${lib.escapeShellArg theme.fonts.mono.family}
-      THEME_MONO_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.mono.size)}
       THEME_LOCK_FONT=${lib.escapeShellArg theme.fonts.lock.family}
       THEME_LOCK_FONT_BOLD=${lib.escapeShellArg theme.fonts.lock.boldFamily}
       THEME_LOCK_CLOCK_SIZE=${lib.escapeShellArg (toString theme.fonts.lock.clockSize)}
@@ -483,12 +450,31 @@ in
         text = themeLockScript;
         executable = true;
       };
+      # Packaged rather than copied, so these two get the same build-time
+      # shellcheck as every other script in this config. rofi itself is left off
+      # runtimeInputs on purpose -- see the note on __ROFI_BIN__ above.
       ".local/bin/rofi-show" = {
-        source = ../../assets/common/rofi/rofi-show;
+        source = lib.getExe (
+          pkgs.writeShellApplication {
+            name = "rofi-show";
+            runtimeInputs = with pkgs; [ procps ];
+            text = rofiScriptBody ../../assets/common/rofi/rofi-show;
+          }
+        );
         executable = true;
       };
       ".local/bin/rofi-clipboard" = {
-        source = ../../assets/common/rofi/rofi-clipboard;
+        source = lib.getExe (
+          pkgs.writeShellApplication {
+            name = "rofi-clipboard";
+            runtimeInputs = with pkgs; [
+              cliphist
+              procps
+              wl-clipboard
+            ];
+            text = rofiScriptBody ../../assets/common/rofi/rofi-clipboard;
+          }
+        );
         executable = true;
       };
       ".local/bin/wallpaper" = {

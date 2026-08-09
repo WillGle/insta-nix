@@ -134,22 +134,7 @@ strip_hex() {
 
 # Cheap, dependency-free sanity check: supported extension plus matching magic
 # bytes. Truly corrupt payloads are still caught by Matugen failing below.
-is_supported_image() {
-  local file="$1" ext magic
-
-  [ -f "$file" ] && [ -r "$file" ] || return 1
-
-  ext="${file##*.}"
-  ext="${ext,,}"
-  magic="$("$OD_BIN" -An -v -tx1 -N16 "$file" 2>/dev/null | "$TR_BIN" -d ' \n')" || return 1
-
-  case "$ext" in
-    png) [ "${magic:0:16}" = "89504e470d0a1a0a" ] ;;
-    jpg | jpeg) [ "${magic:0:6}" = "ffd8ff" ] ;;
-    webp) [ "${magic:0:8}" = "52494646" ] && [ "${magic:16:8}" = "57454250" ] ;;
-    *) return 1 ;;
-  esac
-}
+__IS_SUPPORTED_IMAGE__
 
 have_previous_theme() {
   local name
@@ -297,30 +282,18 @@ render_template() {
     -e "s/__BASE_STRIP__/$(escape_sed "$(strip_hex "$BASE")")/g" \
     -e "s/__MANTLE_STRIP__/$(escape_sed "$(strip_hex "$MANTLE")")/g" \
     -e "s/__TEXT_STRIP__/$(escape_sed "$(strip_hex "$TEXT")")/g" \
-    -e "s/__SUBTEXT_STRIP__/$(escape_sed "$(strip_hex "$SUBTEXT")")/g" \
     -e "s/__ACCENT_STRIP__/$(escape_sed "$(strip_hex "$ACCENT")")/g" \
-    -e "s/__SUCCESS_STRIP__/$(escape_sed "$(strip_hex "$SUCCESS")")/g" \
-    -e "s/__WARNING_STRIP__/$(escape_sed "$(strip_hex "$WARNING")")/g" \
-    -e "s/__ERROR_STRIP__/$(escape_sed "$(strip_hex "$ERROR")")/g" \
     -e "s/__PURPLE_STRIP__/$(escape_sed "$(strip_hex "$PURPLE")")/g" \
-    -e "s/__CYAN_STRIP__/$(escape_sed "$(strip_hex "$CYAN")")/g" \
     -e "s/__SIGNAL_OK__/$(escape_sed "$SIGNAL_OK")/g" \
     -e "s/__SIGNAL_NOTICE__/$(escape_sed "$SIGNAL_NOTICE")/g" \
     -e "s/__SIGNAL_WARNING__/$(escape_sed "$SIGNAL_WARNING")/g" \
     -e "s/__SIGNAL_CRITICAL__/$(escape_sed "$SIGNAL_CRITICAL")/g" \
     -e "s/__SIGNAL_ECO__/$(escape_sed "$SIGNAL_ECO")/g" \
     -e "s/__SIGNAL_MUTED__/$(escape_sed "$SIGNAL_MUTED")/g" \
-    -e "s/__SIGNAL_OK_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_OK")")/g" \
-    -e "s/__SIGNAL_NOTICE_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_NOTICE")")/g" \
-    -e "s/__SIGNAL_WARNING_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_WARNING")")/g" \
-    -e "s/__SIGNAL_CRITICAL_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_CRITICAL")")/g" \
-    -e "s/__SIGNAL_ECO_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_ECO")")/g" \
-    -e "s/__SIGNAL_MUTED_STRIP__/$(escape_sed "$(strip_hex "$SIGNAL_MUTED")")/g" \
     -e "s/__UI_FONT__/$(escape_sed "$THEME_UI_FONT")/g" \
     -e "s/__UI_FONT_SIZE__/$(escape_sed "$THEME_UI_FONT_SIZE")/g" \
     -e "s/__ROFI_FONT_SIZE__/$(escape_sed "$THEME_ROFI_FONT_SIZE")/g" \
     -e "s/__MONO_FONT__/$(escape_sed "$THEME_MONO_FONT")/g" \
-    -e "s/__MONO_FONT_SIZE__/$(escape_sed "$THEME_MONO_FONT_SIZE")/g" \
     -e "s/__LOCK_FONT__/$(escape_sed "$THEME_LOCK_FONT")/g" \
     -e "s/__LOCK_FONT_BOLD__/$(escape_sed "$THEME_LOCK_FONT_BOLD")/g" \
     -e "s/__LOCK_CLOCK_SIZE__/$(escape_sed "$THEME_LOCK_CLOCK_SIZE")/g" \
