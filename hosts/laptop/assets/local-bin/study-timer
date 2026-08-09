@@ -538,7 +538,6 @@ start_session() {
   local result_json=""
   local duration_json="null"
   local session_json="null"
-  local mode_json="null"
 
   ensure_dirs
   status_json="$(study_status_json)"
@@ -550,19 +549,27 @@ start_session() {
 
   current_now="$(now_iso)"
   target_date="$(date -d "$current_now" +%F)"
+  # The three plan fields are written together or not at all: a session with a
+  # duration but no session count is one session, and a session with neither is
+  # open-ended and must leave all of them null. Guarding them on one condition
+  # keeps the state file from describing half a plan.
   local planned_total_seconds_json="null"
   if is_positive_integer "$DURATION_MINUTES" && is_positive_integer "${SESSION_COUNT:-1}"; then
+    duration_json="$DURATION_MINUTES"
+    session_json="${SESSION_COUNT:-1}"
     planned_total_seconds_json=$((DURATION_MINUTES * 60 * ${SESSION_COUNT:-1}))
   fi
 
   mark_session_started "$target_date" "$current_now"
+  # mode arrives as --arg rather than --argjson so jq does the quoting and
+  # escaping; an empty --mode stays null instead of becoming the string "".
   jq -n \
     --arg started_at "$current_now" \
     --arg started_date "$target_date" \
+    --arg mode "$STUDY_MODE" \
     --argjson duration_minutes "$duration_json" \
     --argjson planned_sessions "$session_json" \
     --argjson planned_total_seconds "$planned_total_seconds_json" \
-    --argjson mode "$mode_json" \
     '{
       version:2,
       active:true,
@@ -571,7 +578,7 @@ start_session() {
       duration_minutes:$duration_minutes,
       planned_sessions:$planned_sessions,
       planned_total_seconds:$planned_total_seconds,
-      mode:$mode
+      mode:(if $mode == "" then null else $mode end)
     }' >"$(active_file)"
 
   result_json="$(study_status_json)"
