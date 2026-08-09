@@ -234,12 +234,20 @@ render_transition_bars() {
       --argjson limit "$limit" '
         (.today.behavior.transitions // [])
         | if ($limit > 0) then .[:$limit] else . end
+        | (([.[].count] | max) // 0) as $top
         | .[]
         | [
             (if .from != "" then .from else "Unknown" end),
             (if .to != "" then .to else "Unknown" end),
             (.count | tostring),
-            (if .from == .to then "within task" elif (.count > 10) then "work loop" else "cross-context" end)
+            # Relative to the busiest pair, not an absolute count. A fixed
+            # ">10 is a work loop" makes every row in a top-five list say the
+            # same thing, which is a column that costs space and tells you
+            # nothing. Against the leader it separates the dominant loops from
+            # the occasional hops.
+            (if .from == .to then "within task"
+             elif ($top > 0 and .count * 2 >= $top) then "work loop"
+             else "cross-context" end)
           ]
         | @tsv
       '
@@ -895,7 +903,17 @@ render_confidence_breakdown() {
   local mapped_pct_num unknown_pct_num browser_pct_num
   mapped_pct_num="$(printf '%s' "$mapped_raw" | jq -r '(. * 100 | round)')"
   browser_pct_num="$(printf '%s' "$browser_raw" | jq -r '(. * 100 | round)')"
-  unknown_pct_num="$(printf '%s' "$unknown_raw" | jq -r 'if . > 7200 then 100 else ((. * 100 / 7200) | round) end')"
+  # Share of the tracked day, not seconds against a two-hour ceiling. The old
+  # cap saturated: 3h27m and 5h29m are two hours apart and both drew a full bar,
+  # so the row could not distinguish a bad day from a much worse one. This also
+  # puts all three drivers on one scale -- percent of the day -- so their bar
+  # lengths are comparable with each other.
+  unknown_pct_num="$(printf '%s' "$context_json" | jq -r \
+    --argjson unknown "$unknown_raw" '
+      (.today.metrics.safe_total_seconds // .today.total_seconds // 0) as $t
+      | if $t > 0 then (($unknown * 100 / $t) | round) else 0 end
+      | if . > 100 then 100 else . end
+    ')"
 
   printf '%s\n%s\n%s\n%s\n%s' \
     "$(kv_markup_aligned 18 "Model confidence" "$conf")" \
