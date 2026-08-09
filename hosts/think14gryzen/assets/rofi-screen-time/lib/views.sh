@@ -388,18 +388,6 @@ render_digital_health() {
     "$SUBTEXT_COLOR" "$SUBTEXT_COLOR" "$afi"
 }
 
-wellbeing_card_signal() {
-  local context_json="$1"
-  local wb_json score
-  wb_json="$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')"
-  score="$(printf '%s' "$wb_json" | jq -r '.value // null')"
-  if [ "$score" = "null" ] || [ -z "$score" ]; then
-    printf '—'
-    return 0
-  fi
-  printf '%s' "$score"
-}
-
 note_health_alert_color() {
   local context_json="$1"
   local eye_risk cog_score
@@ -1077,12 +1065,8 @@ build_view_payload() {
       card3_value="$switch_rate_label"
       card3_sub="$(printf '%s' "$context_json" | jq -r '.today.switch_count // 0') switches today"
       card4_label="Wellbeing"
-      local _circ _eye_risk _cog _wb_label _wb_score
-      _circ="$(printf '%s' "$context_json" | jq -r '.today.metrics.circadian_phase // "Unknown"')"
-      _eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
-      _cog="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // "—"')"
+      local _wb_label
       _wb_label="$(score_subtext "$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')")"
-      _wb_score="$(wellbeing_card_signal "$context_json")"
       card4_value="$_wb_label"
       # Not the two scores: the How-you-are-doing bars carry both, and a bar
       # says "how far along the range" in a way "34/100" cannot. What no bar can
@@ -1199,7 +1183,7 @@ build_view_payload() {
 
       local unknown_pct_note
       unknown_pct_note="$(printf '%s' "$context_json" | jq -r '(.data_quality.unknown_share * 100 | round | tostring) + "%"')"
-      note_text="${unknown_pct_note} of today\'s activity is unclassified — scores reflect mapped apps only."
+      note_text="${unknown_pct_note} of today's activity is unclassified — scores reflect mapped apps only."
       ;;
     timer)
       title="Study timer"

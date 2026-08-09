@@ -65,17 +65,11 @@ build_scored_context() {
         | ($day.metrics.communication_load) as $communication_load
         | ($day.metrics.leisure_load) as $leisure_load
         | ($day.metrics.browser_ambiguity_ratio) as $browser_ratio
-        | ($day.categories.seconds["Work"] // 0) as $work_seconds
-        | ($day.categories.seconds["Study"] // 0) as $study_category_seconds
-        | (clamp01((($day.study_seconds + (0.6 * $work_seconds)) / ($day.metrics.safe_total_seconds // 1)))) as $intentional_extended
         | if ($day.schema_ready | not) then
             . + {
               scores: {
-                intentional_usage_ratio_strict: unavailable_score("Requires version 2 tracking data."; false),
                 fragmentation_score: unavailable_score("Requires version 2 tracking data."; false),
                 focus_score: unavailable_score("Requires version 2 tracking data."; true),
-                intentional_usage_ratio: unavailable_score("Requires version 2 tracking data."; false),
-                intentional_usage_ratio_extended: unavailable_score("Requires version 2 tracking data."; true),
                 distraction_load: unavailable_score("Requires version 2 tracking data."; true),
                 daily_consistency_score: unavailable_score("Requires at least 3 version 2 days."; false)
               }
@@ -90,7 +84,7 @@ build_scored_context() {
             | (($fragmentation_norm * 100) | round) as $fragmentation_score
             | (clamp01($study_ratio)) as $study_ratio_norm
             | (clamp01($work_study_share)) as $work_study_norm
-            | (norm_range($switch_rate; 4; 30)) as $switch_penalty_norm
+            | $switch_rate_norm as $switch_penalty_norm
             | ($fragmentation_score / 100) as $fragmentation_penalty_norm
             | ((0.35 * $study_ratio_norm) + (0.30 * $work_study_norm) + (0.20 * (1 - $switch_penalty_norm)) + (0.15 * (1 - $fragmentation_penalty_norm))) as $focus_norm
             | (($focus_norm * 100) | round) as $focus_score
@@ -101,16 +95,6 @@ build_scored_context() {
             | (($distraction_norm * 100) | round) as $distraction_score
             | . + {
               scores: {
-                intentional_usage_ratio_strict: {
-                  available: true,
-                  value: $study_ratio,
-                  partial: false,
-                  label: "Intentional Usage Ratio",
-                  reason: "",
-                  components: {
-                    study_ratio: $study_ratio
-                  }
-                },
                 fragmentation_score: {
                   available: true,
                   value: $fragmentation_score,
@@ -136,27 +120,6 @@ build_scored_context() {
                     work_study_norm: $work_study_norm,
                     switch_penalty_norm: $switch_penalty_norm,
                     fragmentation_penalty_norm: $fragmentation_penalty_norm
-                  }
-                },
-                intentional_usage_ratio: {
-                  available: true,
-                  value: $study_ratio,
-                  partial: false,
-                  label: "Intentional Usage Ratio",
-                  reason: "",
-                  components: {
-                    study_ratio: $study_ratio
-                  }
-                },
-                intentional_usage_ratio_extended: {
-                  available: true,
-                  value: $intentional_extended,
-                  partial: true,
-                  label: "Intentional Usage Ratio Extended",
-                  reason: "Uses study mode plus weighted Work time to avoid overlapping Study double-count.",
-                  components: {
-                    study_seconds: $day.study_seconds,
-                    work_seconds: $work_seconds
                   }
                 },
                 distraction_load: {

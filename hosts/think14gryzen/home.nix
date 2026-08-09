@@ -84,8 +84,11 @@ let
   # runtime resolver and cannot dangle if home-manager has not linked yet.
   networkLib = ./assets/network/lib/common.sh;
 
-  # The tracker library is installed as a whole directory, so the one file that
-  # carries semantic colors is re-rendered over the copy.
+  # The tracker library, with the one file that carries semantic colors
+  # re-rendered over the copy. Referenced by store path for the same reason as
+  # networkLib: no runtime resolver, no dangling path before home-manager has
+  # linked, and the libraries always match the build of the script that was
+  # shellchecked against them.
   rofiScreenTimeLib = pkgs.runCommand "rofi-screen-time-lib" { } ''
     cp -r ${./assets/rofi-screen-time} "$out"
     chmod -R u+w "$out"
@@ -97,6 +100,9 @@ let
       }
     } "$out/lib/common.sh"
   '';
+  screenTimeLibVar = {
+    screenTimeLib = "${rofiScreenTimeLib}";
+  };
 in
 {
   home = {
@@ -149,25 +155,26 @@ in
           procps
         ];
       });
-      # The four screen-time front-ends call no jq of their own; every query runs
-      # inside the libraries they source at runtime from ~/.local/lib. jq is
-      # listed on all of them anyway, so the dependency is declared where the
-      # process that needs it actually starts.
+      # The screen-time front-ends call no jq of their own; every query runs
+      # inside the libraries they source. jq is listed on all of them anyway, so
+      # the dependency is declared where the process that needs it actually
+      # starts.
       ".local/bin/rofi-screen-time" = scriptFile (mkScript {
         name = "rofi-screen-time";
+        vars = screenTimeLibVar;
         runtimeInputs = with pkgs; [
           coreutils
           jq
           util-linux
         ];
       });
-      ".local/lib/rofi-screen-time".source = rofiScreenTimeLib;
       ".local/bin/rofi-screen-time-cache" = scriptFile (mkScript {
         name = "rofi-screen-time-cache";
         runtimeInputs = with pkgs; [ coreutils ];
       });
       ".local/bin/rofi-screen-time-stats" = scriptFile (mkScript {
         name = "rofi-screen-time-stats";
+        vars = screenTimeLibVar;
         runtimeInputs = with pkgs; [
           coreutils
           jq
@@ -175,6 +182,7 @@ in
       });
       ".local/bin/rofi-screen-time-track" = scriptFile (mkScript {
         name = "rofi-screen-time-track";
+        vars = screenTimeLibVar;
         runtimeInputs = with pkgs; [
           coreutils
           findutils
@@ -183,7 +191,7 @@ in
           hyprland
           jq
           procps
-          util-linux # flock, for the tracker's mutual exclusion
+          util-linux # flock, for the singleton guard and the day-file lock
         ];
       });
       ".local/bin/screen-time-behavior-export" = scriptFile (mkScript {
@@ -204,12 +212,14 @@ in
       });
       ".local/bin/study-timer" = scriptFile (mkScript {
         name = "study-timer";
+        vars = screenTimeLibVar;
         runtimeInputs = with pkgs; [
           coreutils
           jq
           libnotify
           procps
           systemd # systemctl --user, to kick the screen-time cache service
+          util-linux # flock, for the day-file lock it shares with the tracker
         ];
       });
       ".local/bin/waybar-memory-info" = scriptFile (mkScript {
@@ -253,7 +263,7 @@ in
           jq
           procps
         ];
-        vars = { inherit themeAccent; };
+        vars = screenTimeLibVar // { inherit themeAccent; };
       });
       ".local/bin/waybar-power-monitor" = scriptFile (mkScript {
         name = "waybar-power-monitor";
@@ -321,11 +331,11 @@ in
         ${pkgs.coreutils}/bin/mkdir -p "${config.xdg.configHome}/rofi-screen-time"
         if [ ! -e "${config.xdg.configHome}/rofi-screen-time/category-map.json" ]; then
           ${pkgs.coreutils}/bin/cp \
-            "${homeDir}/.local/lib/rofi-screen-time/category-map.default.json" \
+            "${rofiScreenTimeLib}/category-map.default.json" \
             "${config.xdg.configHome}/rofi-screen-time/category-map.json"
         else
           ${pkgs.jq}/bin/jq -s '.[0] as $defaults | .[1] as $current | $defaults + {categories: ($defaults.categories + $current.categories)}' \
-            "${homeDir}/.local/lib/rofi-screen-time/category-map.default.json" \
+            "${rofiScreenTimeLib}/category-map.default.json" \
             "${config.xdg.configHome}/rofi-screen-time/category-map.json" \
             > "${config.xdg.configHome}/rofi-screen-time/category-map.json.tmp" && \
           ${pkgs.coreutils}/bin/mv "${config.xdg.configHome}/rofi-screen-time/category-map.json.tmp" "${config.xdg.configHome}/rofi-screen-time/category-map.json"

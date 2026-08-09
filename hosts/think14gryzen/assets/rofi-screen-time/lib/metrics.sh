@@ -82,12 +82,14 @@ build_metrics_context() {
 	          | sort_by(-.count, .key));
 	      def app_name($apps; $key):
 	        (($apps | map(select(.key == $key)) | .[0].name) // $key);
-	      def annotate_day($map):
+	      # $planned_total arrives as a parameter because the plan lives on the
+	      # bundle, not on a day: reading $day.study_active here always yielded
+	      # null, so the goal silently fell back to the baseline every time.
+	      def annotate_day($map; $planned_total):
 	        . as $day
 	        | ($day.total_seconds // 0) as $total
 	        | ($day.study.total_seconds // 0) as $study_seconds
         | (env.STUDY_GOAL_BASELINE_SECONDS // "14400" | tonumber) as $baseline_goal_seconds
-        | ($day.study_active.planned_total_seconds // 0) as $planned_total
         | (if $planned_total > $baseline_goal_seconds then $planned_total else $baseline_goal_seconds end) as $study_goal_seconds
         | (($day.slots_30m // zero_slots) | if length == 48 then . else zero_slots end) as $slots
         | (app_entries($day.apps; $map)) as $apps
@@ -282,9 +284,11 @@ build_metrics_context() {
           category_map_size: ($bundle.category_map | length),
           study_active: $bundle.study_active,
           title_tracking: false,
-          today: ($bundle.today | annotate_day($bundle.category_map)),
-          yesterday: ($bundle.yesterday | annotate_day($bundle.category_map)),
-          trailing: ($bundle.trailing | map(annotate_day($bundle.category_map)))
+          # Only today is measured against the running plan; past days are
+          # judged against the plain baseline.
+          today: ($bundle.today | annotate_day($bundle.category_map; ($bundle.study_active.planned_total_seconds // 0))),
+          yesterday: ($bundle.yesterday | annotate_day($bundle.category_map; 0)),
+          trailing: ($bundle.trailing | map(annotate_day($bundle.category_map; 0)))
         }
     '
 }
