@@ -7,7 +7,6 @@
     "clock#calendar",
     "custom/refresh_rate",
     "backlight",
-    "idle_inhibitor",
     "pulseaudio",
     "hyprland/workspaces"
   ],
@@ -140,15 +139,6 @@
     "format": "{icon} {percent}%",
     "format-icons": ["󰃞", "󰃟", "󰃠"],
     "tooltip": false
-  },
-  "idle_inhibitor": {
-    "format": "{icon}",
-    "format-icons": {
-      "activated": "󰈈",
-      "deactivated": "󰈉"
-    },
-    "tooltip-format-activated": "Idle Inhibitor: Active",
-    "tooltip-format-deactivated": "Idle Inhibitor: Inactive"
   },
   "custom/systemd_failed": {
     "exec": "$HOME/.local/bin/waybar-systemd-failed",
