@@ -53,15 +53,22 @@ pips_markup() {
 # 24-hour strip and the category breakdown agree on what colour a category is.
 # This is identity colour, not severity: it answers "which category" and must
 # never be read as "how bad", which is what severity_color below is for.
-category_color() {
+# Assigns rather than prints, so per-slot loops can ask 48 times without paying
+# a subshell each time. category_color below is the printing form.
+set_category_color() {
   case "${1:-}" in
-    Study) printf '%s' "$SUCCESS_COLOR" ;;
-    Work) printf '%s' "$CYAN_COLOR" ;;
-    Communication) printf '%s' "$WARNING_COLOR" ;;
-    Entertainment | Media) printf '%s' "$ERROR_COLOR" ;;
-    Browser) printf '%s' "$PURPLE_COLOR" ;;
-    *) printf '%s' "$SUBTEXT_COLOR" ;;
+    Study) CATEGORY_COLOR="$SUCCESS_COLOR" ;;
+    Work) CATEGORY_COLOR="$CYAN_COLOR" ;;
+    Communication) CATEGORY_COLOR="$WARNING_COLOR" ;;
+    Entertainment | Media) CATEGORY_COLOR="$ERROR_COLOR" ;;
+    Browser) CATEGORY_COLOR="$PURPLE_COLOR" ;;
+    *) CATEGORY_COLOR="$SUBTEXT_COLOR" ;;
   esac
+}
+
+category_color() {
+  set_category_color "${1:-}"
+  printf '%s' "$CATEGORY_COLOR"
 }
 
 # One threshold ladder for every bounded metric, so the same number cannot read
@@ -134,47 +141,52 @@ render_momentum_chart() {
 
 momentum_sparkline_from_json() {
   local slots_bundle_json="$1"
-  local index=0
   local out=""
   local glyph_index=0
   local chars=("▁" "▂" "▃" "▄" "▅" "▆" "▇" "█")
-  local category=""
-  local color=""
-  local value=0
-  local max_value=0
   local dominant_cat=""
-  local max_cat_seconds=0
-  
-  max_value="$(printf '%s' "$slots_bundle_json" | jq '[.[] | .[]] | max // 0')"
-  
-  while [ "$index" -lt 48 ]; do
-    dominant_cat="Unknown"
-    max_cat_seconds=0
-    value=0
-    
-    while IFS=$'\t' read -r category cat_seconds; do
-      if [ "$cat_seconds" -gt "$max_cat_seconds" ]; then
-        max_cat_seconds="$cat_seconds"
-        dominant_cat="$category"
-      fi
-      value=$((value + cat_seconds))
-    done < <(printf '%s' "$slots_bundle_json" | jq -r "to_entries[] | \"\(.key)\t\(.value[$index] // 0)\"")
-    
-    color="$(category_color "$dominant_cat")"
+  local active=0
 
-    if [ "$value" -le 0 ]; then
-      color="$BASE_COLOR"
-      glyph_index=0
+  # One jq pass emits "<dominant category>\t<glyph index>" per slot, the same
+  # shape sparkline_from_json above uses. This function used to re-run jq over
+  # the whole bundle once per slot plus a second jq per non-empty slot -- about
+  # a hundred processes for one chart, on both the summary and timer views,
+  # which is exactly the antipattern the comment on sparkline_from_json
+  # describes having removed there.
+  #
+  # The active flag is a field of its own rather than an empty category field:
+  # tab is IFS whitespace, so an empty leading field would be swallowed and
+  # every column would read back shifted. Ties go to the first category in key
+  # order, as before.
+  while IFS=$'\t' read -r active dominant_cat glyph_index; do
+    if [ "$active" = "0" ]; then
+      CATEGORY_COLOR="$BASE_COLOR"
     else
-      glyph_index="$(jq -nr --argjson value "$value" --argjson max "$max_value" '
-        if $max <= 0 then 1 else (($value * 6 / $max) | floor + 1) end
-      ')"
+      set_category_color "$dominant_cat"
     fi
-    
-    out+="<span foreground=\"$color\">${chars[$glyph_index]}</span>"
-    index=$((index + 1))
-  done
-  
+    out+="<span foreground=\"$CATEGORY_COLOR\">${chars[$glyph_index]}</span>"
+  done < <(
+    printf '%s' "$slots_bundle_json" | jq -r '
+      . as $bundle
+      | ([.[] | .[]] | max // 0) as $max
+      | ($bundle | to_entries) as $cats
+      | range(0; 48)
+      | . as $i
+      | ($cats | map({cat: .key, sec: (.value[$i] // 0)})) as $slot
+      | ($slot | map(.sec) | add // 0) as $value
+      | (
+          reduce $slot[] as $c ({cat: "Unknown", sec: 0};
+            if $c.sec > .sec then {cat: $c.cat, sec: $c.sec} else . end
+          ) | .cat
+        ) as $dominant
+      | if $value <= 0 then
+          "0\tUnknown\t0"
+        else
+          "1\t\($dominant)\t\(if $max <= 0 then 1 else (($value * 6 / $max) | floor + 1) end)"
+        end
+    '
+  )
+
   printf '%s\n' "$out"
 }
 
@@ -1304,33 +1316,39 @@ render_theme() {
   local json="$1"
   local note_border_color
   note_border_color="$(note_health_alert_color "$json")"
-  cat <<EOF
-textbox-title { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.title')"); }
-textbox-subtitle { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.subtitle')"); }
-textbox-meta { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.meta')"); }
-textbox-card-1-label { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[0].label')"); }
-textbox-card-1-value { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[0].value')"); }
-textbox-card-1-sub { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[0].sub')"); }
-textbox-card-2-label { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[1].label')"); }
-textbox-card-2-value { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[1].value')"); }
-textbox-card-2-sub { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[1].sub')"); }
-textbox-card-3-label { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[2].label')"); }
-textbox-card-3-value { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[2].value')"); }
-textbox-card-3-sub { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[2].sub')"); }
-textbox-card-4-label { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[3].label')"); }
-textbox-card-4-value { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[3].value')"); }
-textbox-card-4-sub { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.cards[3].sub')"); }
-textbox-primary-title { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.primary.title')"); }
-textbox-primary-body { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.primary.body')"); }
-textbox-chart-b-title { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.chart_b.title')"); }
-textbox-chart-b-body { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.chart_b.body')"); }
-textbox-chart-c-title { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.chart_c.title')"); }
-textbox-chart-c-body { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.chart_c.body')"); }
-textbox-insight-title { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.insight.title')"); }
-textbox-insight-body { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.insight.body')"); }
-textbox-note { content: $(rasi_quote "$(printf '%s' "$json" | jq -r '.note')"); }
-note-box { border-color: $(rasi_quote "$note_border_color"); }
-EOF
+  # One jq pass emits every row. Each row used to cost two processes -- one to
+  # pull the field out, one inside rasi_quote to JSON-quote it -- so a single
+  # theme render forked about fifty times. `tostring` before @json keeps a
+  # missing field rendering as the literal "null", which is what `jq -r` piped
+  # into rasi_quote produced.
+  printf '%s' "$json" | jq -r '
+    def cell(f): (f | tostring | @json);
+    "textbox-title { content: \(cell(.title)); }",
+    "textbox-subtitle { content: \(cell(.subtitle)); }",
+    "textbox-meta { content: \(cell(.meta)); }",
+    "textbox-card-1-label { content: \(cell(.cards[0].label)); }",
+    "textbox-card-1-value { content: \(cell(.cards[0].value)); }",
+    "textbox-card-1-sub { content: \(cell(.cards[0].sub)); }",
+    "textbox-card-2-label { content: \(cell(.cards[1].label)); }",
+    "textbox-card-2-value { content: \(cell(.cards[1].value)); }",
+    "textbox-card-2-sub { content: \(cell(.cards[1].sub)); }",
+    "textbox-card-3-label { content: \(cell(.cards[2].label)); }",
+    "textbox-card-3-value { content: \(cell(.cards[2].value)); }",
+    "textbox-card-3-sub { content: \(cell(.cards[2].sub)); }",
+    "textbox-card-4-label { content: \(cell(.cards[3].label)); }",
+    "textbox-card-4-value { content: \(cell(.cards[3].value)); }",
+    "textbox-card-4-sub { content: \(cell(.cards[3].sub)); }",
+    "textbox-primary-title { content: \(cell(.primary.title)); }",
+    "textbox-primary-body { content: \(cell(.primary.body)); }",
+    "textbox-chart-b-title { content: \(cell(.chart_b.title)); }",
+    "textbox-chart-b-body { content: \(cell(.chart_b.body)); }",
+    "textbox-chart-c-title { content: \(cell(.chart_c.title)); }",
+    "textbox-chart-c-body { content: \(cell(.chart_c.body)); }",
+    "textbox-insight-title { content: \(cell(.insight.title)); }",
+    "textbox-insight-body { content: \(cell(.insight.body)); }",
+    "textbox-note { content: \(cell(.note)); }"
+  '
+  printf 'note-box { border-color: %s; }\n' "$(rasi_quote "$note_border_color")"
 }
 
 render_rows() {

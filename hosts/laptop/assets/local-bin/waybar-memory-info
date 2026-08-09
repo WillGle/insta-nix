@@ -15,16 +15,22 @@ escape_markup() {
     -e 's/>/\&gt;/g'
 }
 
-# Get used/total RAM in GiB with 1 decimal place
-used=$(free -m | awk '/Mem:/ {printf "%.1f", $3/1024}')
-total=$(free -m | awk '/Mem:/ {printf "%.1f", $2/1024}')
-available=$(free -m | awk '/Mem:/ {printf "%.1f", $7/1024}')
-perc=$(free | awk '/Mem:/ {printf "%.0f", $3/$2 * 100.0}')
-
-# Get used/total Swap (ZRAM) in GiB
-swap_used=$(free -m | awk '/Swap:/ {printf "%.1f", $3/1024}')
-swap_total=$(free -m | awk '/Swap:/ {printf "%.1f", $2/1024}')
-swap_perc=$(free | awk '/Swap:/ {if ($2 > 0) printf "%.0f", $3/$2 * 100.0; else print "0"}')
+# RAM and swap, in GiB and percent, from one `free` pass. This module refreshes
+# once a second and the same seven numbers used to cost seven free+awk pairs;
+# the percentages come out of the same MiB figures rather than a second
+# unscaled call, which changes nothing since both sides of the ratio scale.
+IFS=$'\t' read -r used total available perc swap_used swap_total swap_perc < <(
+  free -m | awk '
+    /^Mem:/  { m_used = $3; m_total = $2; m_avail = $7 }
+    /^Swap:/ { s_used = $3; s_total = $2 }
+    END {
+      printf "%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.0f\n",
+        m_used/1024, m_total/1024, m_avail/1024,
+        (m_total > 0 ? m_used/m_total * 100.0 : 0),
+        s_used/1024, s_total/1024,
+        (s_total > 0 ? s_used/s_total * 100.0 : 0)
+    }'
+)
 
 # Get top 5 processes by memory %
 top_procs="$(
