@@ -586,18 +586,17 @@ fi
 # reads low — the "~" and the "est." are load-bearing, not decoration.
 estimate_input_line() {
     local apu="$1" board="$2" batt="$3"
-    local total parts
+    local total board_disp parts
 
     total="$(awk -v a="${apu:-0}" -v b="${board:-0}" -v c="${batt:-0}" 'BEGIN{ printf "%.0f", a+b+c }')"
-    parts="APU ${apu} + board ${board}"
+    board_disp="$board"
+    [ "${board_w_state:-default}" = "default" ] && board_disp="~${board}"
+    parts="APU ${apu} + board ${board_disp}"
     if [ "$(awk -v c="${batt:-0}" 'BEGIN{ print (c > 0.1) ? 1 : 0 }')" = "1" ]; then
         parts="${parts} + batt ${batt}"
     fi
-    if [ "${board_w_state:-default}" = "default" ]; then
-        parts="${parts}, board unmeasured"
-    fi
 
-    printf 'In (est.):    ~%s W  (%s)' "$total" "$parts"
+    printf 'In (est.):    ~%s W\nBreakdown:    %s' "$total" "$parts"
 }
 
 # Battery Icon & Style Class

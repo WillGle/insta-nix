@@ -32,31 +32,21 @@ bar_markup() {
 sparkline_from_json() {
   local values_json="$1"
   local highlight_index="${2:-}"
-  local length
-  local max
   local index=0
-  local value=""
-  local glyph=""
   local out=""
-  local glyph_index=0
   local chars=(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
   local color=""
+  local glyph_index=0
+  local positive=""
 
-  length="$(printf '%s' "$values_json" | jq 'length')"
-  max="$(printf '%s' "$values_json" | jq 'max // 0')"
-  if [ "$length" -le 0 ]; then
-    printf '\n'
-    return 0
-  fi
-
-  while [ "$index" -lt "$length" ]; do
-    value="$(printf '%s' "$values_json" | jq -r ".[$index] // 0")"
-    glyph_index="$(jq -nr --argjson value "$value" --argjson max "$max" '
-      if $max <= 0 then 0 else (($value * 7 / $max) | floor) end
-    ')"
-    glyph="${chars[$glyph_index]}"
-
-    if [ "$(jq -nr --argjson value "$value" '$value > 0')" = "true" ]; then
+  # One jq pass emits "<glyph index>\t<is positive>" per value so the loop below
+  # forks nothing. It used to spend two processes on length and max plus three
+  # per data point, and render_app_usage_timeline calls this once per app: a
+  # 48-slot sparkline across six apps was over eight hundred jq processes.
+  # An empty array emits no rows, leaving out="" and the bare newline the
+  # length<=0 early return used to print.
+  while IFS=$'\t' read -r glyph_index positive; do
+    if [ "$positive" = "true" ]; then
       color="$CYAN_COLOR"
     else
       color="$BASE_COLOR"
@@ -64,9 +54,16 @@ sparkline_from_json() {
     if [ -n "$highlight_index" ] && [ "$index" -eq "$highlight_index" ]; then
       color="$ACCENT_COLOR"
     fi
-    out+="<span foreground=\"$color\">$glyph</span>"
+    out+="<span foreground=\"$color\">${chars[$glyph_index]}</span>"
     index=$((index + 1))
-  done
+  done < <(
+    printf '%s' "$values_json" | jq -r '
+      (map(select(type == "number")) | max // 0) as $max
+      | .[]
+      | (. // 0) as $value
+      | "\(if $max <= 0 then 0 else (($value * 7 / $max) | floor) end)\t\($value > 0)"
+    '
+  )
 
   printf '%s\n' "$out"
 }
@@ -406,7 +403,6 @@ render_category_bars() {
   local limit="${2:-0}"
   local hide_zero="${3:-false}"
   local output=""
-  local item=""
   local max_seconds=0
   local name=""
   local seconds=0
@@ -425,24 +421,24 @@ render_category_bars() {
       | if $limit > 0 then .[:$limit] else . end
       | ([.[].seconds] | max) // 0
     ')"
-  while IFS= read -r item; do
-    [ -n "$item" ] || continue
-    name="$(printf '%s' "$item" | jq -r '.name')"
-    seconds="$(printf '%s' "$item" | jq -r '.seconds')"
-    share="$(printf '%s' "$item" | jq -r '.share')"
+
+  while IFS=$'\t' read -r name seconds share; do
+    [ -n "$name" ] || continue
     output+="$(printf '%-13s  %s  %6s  %s' \
       "$name" \
       "$(bar_markup "$seconds" "$max_seconds" 20 "$ACCENT_COLOR" "$BASE_COLOR")" \
       "$(seconds_to_short "$seconds")" \
       "$(format_ratio_percent "$share")")"$'\n'
   done < <(
-    printf '%s' "$context_json" | jq -c \
+    printf '%s' "$context_json" | jq -r \
       --argjson limit "$limit" \
       --argjson hide_zero "$hide_zero_json" '
         .today.categories.breakdown
         | if $hide_zero then map(select(.seconds > 0)) else . end
         | if $limit > 0 then .[:$limit] else . end
         | .[]
+        | [ .name, (.seconds | tostring), (.share | tostring) ]
+        | @tsv
       '
   )
 
@@ -528,7 +524,6 @@ render_top_app_bars() {
   local context_json="$1"
   local limit="${2:-5}"
   local output=""
-  local item=""
   local name=""
   local category=""
   local seconds=0
@@ -543,12 +538,12 @@ render_top_app_bars() {
       | ([.[].seconds] | max) // 0
     ')"
 
-  while IFS= read -r item; do
-    [ -n "$item" ] || continue
-    name="$(printf '%s' "$item" | jq -r '.name // .key')"
-    category="$(printf '%s' "$item" | jq -r '.category // "Unknown"')"
-    seconds="$(printf '%s' "$item" | jq -r '.seconds // 0')"
-    share="$(printf '%s' "$item" | jq -r --argjson total "$(printf '%s' "$context_json" | jq -r '.today.total_seconds // 0')" 'if $total > 0 then ((.seconds // 0) / $total) else 0 end')"
+  # Same shape as render_app_usage_timeline below: one jq pass emits the row as
+  # TSV, the loop forks nothing. This previously spent four jq processes per app
+  # and re-read the constant .today.total_seconds inside the loop, nesting a
+  # fifth process inside the fourth.
+  while IFS=$'\t' read -r name category seconds share; do
+    [ -n "$name" ] || continue
     output+="$(printf '<span foreground="%s">%-18s</span> %s  <span weight="600">%6s</span> <span foreground="%s">%4s</span> <span foreground="%s" size="small">%s</span>' \
       "$TEXT_COLOR" \
       "$(escape_markup "$(clip_text "$name" 18)")" \
@@ -559,11 +554,19 @@ render_top_app_bars() {
       "$SUBTEXT_COLOR" \
       "$(escape_markup "$category")")"$'\n'
   done < <(
-    printf '%s' "$context_json" | jq -c \
+    printf '%s' "$context_json" | jq -r \
       --argjson limit "$limit" '
-        .today.app_entries
+        (.today.total_seconds // 0) as $total
+        | .today.app_entries
         | map(select((.seconds // 0) > 0))
         | .[:$limit][]
+        | [
+            (.name // .key),
+            (.category // "Unknown"),
+            ((.seconds // 0) | tostring),
+            (if $total > 0 then ((.seconds // 0) / $total) else 0 end | tostring)
+          ]
+        | @tsv
       '
   )
 
