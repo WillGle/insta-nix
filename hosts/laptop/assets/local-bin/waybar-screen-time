@@ -3,82 +3,18 @@ set -euo pipefail
 
 export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
 
-SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
+# shellcheck source=/dev/null
+. "@screenTimeLib@/lib/common.sh"
+
 TIMER_BIN="${TIMER_BIN:-${HOME}/.local/bin/study-timer}"
 TARGET_DATE="$(date +%F)"
 DAY_FILE="${SCREEN_TIME_HOME}/days/${TARGET_DATE}.json"
-
-seconds_to_short() {
-  local total="${1:-0}"
-  local hours=$((total / 3600))
-  local minutes=$(((total % 3600) / 60))
-
-  if [ "$total" -gt 0 ] && [ "$hours" -eq 0 ] && [ "$minutes" -eq 0 ]; then
-    printf '~1m\n'
-    return 0
-  fi
-  if [ "$hours" -gt 0 ] && [ "$minutes" -gt 0 ]; then
-    printf '%dh %dm\n' "$hours" "$minutes"
-    return 0
-  fi
-  if [ "$hours" -gt 0 ]; then
-    printf '%dh\n' "$hours"
-    return 0
-  fi
-  printf '%dm\n' "$minutes"
-}
-
-escape_markup() {
-  printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
-}
-
-humanize_class() {
-  local value="${1//[_-]/ }"
-  local out=""
-  local word=""
-
-  for word in $value; do
-    out+="${word^} "
-  done
-  printf '%s\n' "${out%" "}"
-}
-
-normalize_class() {
-  local value="${1,,}"
-  value="${value%.exe}"
-  value="${value%-updater}"
-  value="${value%_updater}"
-  value="${value% updater}"
-  printf '%s\n' "$value"
-}
-
-default_day_json() {
-  jq -n \
-    --arg date "$TARGET_DATE" \
-    --arg now "$(date --iso-8601=seconds)" \
-    '{
-      version: 2,
-      date: $date,
-      updated_at: $now,
-      sample_seconds: 5,
-      sample_count: 0,
-      session_count: 0,
-      switch_count: 0,
-      total_seconds: 0,
-      apps: {},
-      study: {
-        total_seconds: 0,
-        session_count: 0,
-        active_overlap_seconds: 0
-      }
-    }'
-}
 
 load_day_json() {
   if [ -r "$DAY_FILE" ] && jq -e . "$DAY_FILE" >/dev/null 2>&1; then
     jq -c . "$DAY_FILE"
   else
-    default_day_json
+    default_day_json "$TARGET_DATE"
   fi
 }
 

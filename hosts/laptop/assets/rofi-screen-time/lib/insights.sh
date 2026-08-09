@@ -65,8 +65,13 @@ build_insighted_context() {
         ($items | sort_by(-.priority, .kind));
       def first_ranked($items):
         (ranked($items) | .[0] // null);
-      def maybe($condition; $item):
-        if $condition then [$item] else [] end;
+      # Filter parameters, not $-bound ones: jq binds $params eagerly, so every
+      # candidate body was evaluated even when its guard was false. The
+      # switch-rate message divides by the 7-day average, which is null until
+      # three days exist -- so the whole popup died with "0 and null cannot be
+      # divided" on any machine without a baseline yet.
+      def maybe(condition; item):
+        if condition then [item] else [] end;
 
       . as $root
       | .today as $today

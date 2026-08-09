@@ -34,6 +34,18 @@ date_epoch() {
   date -d "$1" +%s 2>/dev/null || printf '0\n'
 }
 
+# The same map the popup classifies with. Day files store no category of their
+# own, so without this the Communication term of cognitive_load_score summed
+# over an app field that never exists and was always zero.
+load_category_map() {
+  local file="${CATEGORY_MAP_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/rofi-screen-time/category-map.json}"
+  if [ -r "$file" ]; then
+    jq -c '.categories // {}' "$file" 2>/dev/null || printf '{}\n'
+  else
+    printf '{}\n'
+  fi
+}
+
 resolve_dates() {
   TO_DATE="$(date -d "$TO_DATE" +%F 2>/dev/null || date +%F)"
   if [ -n "$FROM_DATE" ]; then
@@ -64,7 +76,10 @@ collect_files() {
   done
 }
 
-json_filter() {
+# The defs both output formats share. The CSV used to read circadian_phase,
+# cognitive_load_score and the other derived fields straight off the raw day
+# files, where none of them exist -- so those columns were always blank.
+jq_prelude() {
   cat <<'JQ'
 def slot_time($minutes):
   (($minutes / 60) | floor | tostring | if length < 2 then "0" + . else . end)
@@ -97,7 +112,6 @@ def day_summary:
   . as $day
   | ($day.total_seconds // 0) as $total
   | ($day.behavior.focus_blocks // {}) as $blocks
-  | ($day.behavior.transitions // {}) as $transitions_raw
   | (top_apps($day)) as $apps
   | (top_transitions($day)) as $transitions
   | ($day.sample_seconds // 5) as $sample_sec
@@ -115,13 +129,21 @@ def day_summary:
       else {run: 0, max_run: .max_run}
       end
     ) | (.max_run / 3 | floor)) as $ult_score
-  | ([ to_entries[] | select(.value > 0) ] | if length == 0 then {key: -1} else max_by(.value) end | .key) as $pk
   | ($slots | to_entries | map(select(.value > 0)) | if length == 0 then {key: -1} else max_by(.value) end | .key) as $peak_key
-  | (if $peak_key < 0 then "Unknown"
-     elif $peak_key < 12 then "Night"
-     elif $peak_key < 24 then "Morning"
-     elif $peak_key < 36 then "Afternoon"
-     elif $peak_key < 44 then "Evening"
+  # Same definition as the popup's metrics.sh: the hour the day was last
+  # updated, not the busiest slot. Two different meanings under one field name
+  # made the exported series incomparable with what the dashboard showed.
+  | (
+      if ($day.updated_at != null and ($day.updated_at | contains(":"))) then
+        ($day.updated_at | split("T") | last | split(":") | .[0] | tonumber? // (now | (. / 3600 % 24 | floor)))
+      else
+        (now | (. / 3600 % 24 | floor))
+      end
+    ) as $current_hour
+  | (if $current_hour < 6 then "Night"
+     elif $current_hour < 12 then "Morning"
+     elif $current_hour < 18 then "Afternoon"
+     elif $current_hour < 22 then "Evening"
      else "Night"
      end) as $circ_phase
   | (if ($total / 3600) < 4 then "Low"
@@ -130,11 +152,21 @@ def day_summary:
      elif ($rcv_gaps >= 3) then "Moderate"
      else "High"
      end) as $eye_risk
+  | (
+      if $total > 0 then
+        ((($day.apps // {})
+          | to_entries
+          | map(select(($category_map[.key] // "Unknown") == "Communication"))
+          | map(.value.seconds // 0)
+          | add // 0) / $total)
+      else 0
+      end
+    ) as $raw_comm_load
   | (if ($day.version // 0) >= 2 then
        (
          ([($raw_switch_rate // 0) / 30, 1] | min) * 0.40
          + ([($raw_session_density // 0) / 20, 1] | min) * 0.30
-         + (if $total > 0 then ((($day.apps // {}) | to_entries | map(select(.value.category == "Communication")) | map(.value.seconds // 0) | add // 0) / $total) else 0 end) * 0.30
+         + ([$raw_comm_load, 1] | min) * 0.30
        ) * 100 | round
      else null
      end) as $cog_load
@@ -173,6 +205,12 @@ def day_summary:
       eye_strain_risk: $eye_risk,
       cognitive_load_score: $cog_load
     };
+JQ
+}
+
+json_filter() {
+  jq_prelude
+  cat <<'JQ'
 . as $raw_days
 | ($raw_days | map(day_summary)) as $days
 | {
@@ -244,34 +282,32 @@ JQ
 }
 
 csv_filter() {
+  jq_prelude
   cat <<'JQ'
 def day_row:
   . as $day
-  | ($day.total_seconds // 0) as $total
-  | ($day.behavior.focus_blocks // {}) as $blocks
-  | (($day.apps // {}) | to_entries | sort_by(-(.value.seconds // 0), (.value.name // .key)) | .[0]) as $top
   | [
       ($day.date // ""),
-      $total,
-      ($day.study.total_seconds // 0),
-      ($day.session_count // 0),
-      ($day.switch_count // 0),
-      (if $total > 0 then (($day.switch_count // 0) / ($total / 3600)) else 0 end),
-      ([($blocks.longest_seconds // 0), ($blocks.current_seconds // 0)] | max),
-      ($blocks.deep_count // 0),
-      ($blocks.short_count // 0),
-      ($top.key // ""),
-      ($top.value.name // ""),
-      ($top.value.seconds // 0),
+      $day.active_seconds,
+      $day.study_seconds,
+      $day.session_count,
+      $day.switch_count,
+      $day.switch_rate_per_hour,
+      $day.focus_blocks.longest_seconds,
+      $day.focus_blocks.deep_count,
+      $day.focus_blocks.short_count,
+      ($day.top_app.key // ""),
+      ($day.top_app.name // ""),
+      ($day.top_app.seconds // 0),
       ($day.attention_fragmentation_index // ""),
-      ($day.recovery_gap_count // 0),
-      ($day.circadian_phase // ""),
-      ($day.ultradian_score // 0),
-      ($day.eye_strain_risk // ""),
+      $day.recovery_gap_count,
+      $day.circadian_phase,
+      $day.ultradian_score,
+      $day.eye_strain_risk,
       ($day.cognitive_load_score // "")
     ];
 (["date","active_seconds","study_seconds","session_count","switch_count","switch_rate_per_hour","longest_focus_seconds","deep_focus_blocks","short_focus_blocks","top_app_key","top_app_name","top_app_seconds","attention_fragmentation_index","recovery_gap_count","circadian_phase","ultradian_score","eye_strain_risk","cognitive_load_score"] | @csv),
-(.[] | day_row | @csv)
+(.[] | day_summary | day_row | @csv)
 JQ
 }
 
@@ -336,28 +372,27 @@ mapfile -t FILES < <(collect_files)
 
 case "$FORMAT" in
   json)
+    # The no-files case differs only in where the empty array comes from, so
+    # the argument list is built once.
+    json_args=(
+      --arg generated_at "$(date --iso-8601=seconds)"
+      --arg from_date "$FROM_DATE"
+      --arg to_date "$TO_DATE"
+      --argjson requested_days "$DAYS"
+      --argjson category_map "$(load_category_map)"
+    )
     if [ "${#FILES[@]}" -gt 0 ]; then
-      jq -s \
-        --arg generated_at "$(date --iso-8601=seconds)" \
-        --arg from_date "$FROM_DATE" \
-        --arg to_date "$TO_DATE" \
-        --argjson requested_days "$DAYS" \
-        "$(json_filter)" \
-        "${FILES[@]}" | write_output
+      jq -s "${json_args[@]}" "$(json_filter)" "${FILES[@]}" | write_output
     else
-      jq -n \
-        --arg generated_at "$(date --iso-8601=seconds)" \
-        --arg from_date "$FROM_DATE" \
-        --arg to_date "$TO_DATE" \
-        --argjson requested_days "$DAYS" \
-        '[] | '"$(json_filter)" | write_output
+      jq -n "${json_args[@]}" '[] | '"$(json_filter)" | write_output
     fi
     ;;
   csv)
+    csv_args=(--argjson category_map "$(load_category_map)")
     if [ "${#FILES[@]}" -gt 0 ]; then
-      jq -s -r "$(csv_filter)" "${FILES[@]}" | write_output
+      jq -s -r "${csv_args[@]}" "$(csv_filter)" "${FILES[@]}" | write_output
     else
-      jq -n -r '[] | '"$(csv_filter)" | write_output
+      jq -n -r "${csv_args[@]}" '[] | '"$(csv_filter)" | write_output
     fi
     ;;
 esac

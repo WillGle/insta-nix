@@ -3,8 +3,9 @@ set -euo pipefail
 
 export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
 
-SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
-SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"
+# shellcheck source=/dev/null
+. "@screenTimeLib@/lib/common.sh"
+
 STATE_DIR="$SCREEN_TIME_HOME"
 COMMAND="toggle"
 FORMAT="text"
@@ -30,26 +31,6 @@ active_file() {
 
 now_iso() {
   date --iso-8601=seconds
-}
-
-seconds_to_short() {
-  local total="${1:-0}"
-  local hours=$((total / 3600))
-  local minutes=$(((total % 3600) / 60))
-
-  if [ "$total" -gt 0 ] && [ "$hours" -eq 0 ] && [ "$minutes" -eq 0 ]; then
-    printf '~1m\n'
-    return 0
-  fi
-  if [ "$hours" -gt 0 ] && [ "$minutes" -gt 0 ]; then
-    printf '%dh %dm\n' "$hours" "$minutes"
-    return 0
-  fi
-  if [ "$hours" -gt 0 ]; then
-    printf '%dh\n' "$hours"
-    return 0
-  fi
-  printf '%dm\n' "$minutes"
 }
 
 is_positive_integer() {
@@ -101,40 +82,6 @@ epoch_from_iso() {
   date -d "$1" +%s 2>/dev/null || printf '0\n'
 }
 
-default_day_json() {
-  local target_date="$1"
-  local current_now="$2"
-  local sample="$3"
-
-  jq -n \
-    --arg date "$target_date" \
-    --arg now "$current_now" \
-    --argjson sample "$sample" \
-    '{
-      version: 2,
-      date: $date,
-      updated_at: $now,
-      sample_seconds: $sample,
-      sample_count: 0,
-      first_seen: "",
-      last_seen: "",
-      session_count: 0,
-      switch_count: 0,
-      last_app: "",
-      last_sample_at: "",
-      total_seconds: 0,
-      slots_30m: ([range(0; 48)] | map(0)),
-      apps: {},
-      study: {
-        total_seconds: 0,
-        session_count: 0,
-        last_started_at: "",
-        last_stopped_at: "",
-        active_overlap_seconds: 0
-      }
-    }'
-}
-
 ensure_dirs() {
   mkdir -p "$STATE_DIR/days"
 }
@@ -167,6 +114,40 @@ ensure_day_file() {
   mv "$tmp" "$file"
 }
 
+daily_study_seconds() {
+  local today_file
+  today_file="$(day_file "$(date +%F)")"
+  if [ -f "$today_file" ]; then
+    jq -r '.study.total_seconds // 0' "$today_file"
+  else
+    printf '0\n'
+  fi
+}
+
+# The shape every "no session running" answer takes. It used to be written out
+# three times in study_status_json, and the third copy had already lost
+# estimated_finish_at and daily_total_seconds.
+inactive_status_json() {
+  jq -n --argjson daily_total "$(daily_study_seconds)" '{
+    active:false,
+    started_at:"",
+    started_date:"",
+    elapsed_seconds:0,
+    duration_minutes:null,
+    planned_sessions:null,
+    per_session_seconds:null,
+    planned_total_seconds:null,
+    remaining_total_seconds:null,
+    current_session:null,
+    current_session_elapsed_seconds:null,
+    current_session_remaining_seconds:null,
+    target_reached:false,
+    mode:null,
+    estimated_finish_at:null,
+    daily_total_seconds:$daily_total
+  }'
+}
+
 study_status_json() {
   local file
   local started_at=""
@@ -190,82 +171,22 @@ study_status_json() {
   local current_session_elapsed=0
   local current_session_remaining=0
   local mode_json="null"
+  local estimated_finish_at=""
 
   file="$(active_file)"
   if [ ! -f "$file" ]; then
-    local daily_total=0
-    local today_file
-    today_file="$(day_file "$(date +%F)")"
-    if [ -f "$today_file" ]; then
-      daily_total="$(jq -r '.study.total_seconds // 0' "$today_file")"
-    fi
-    jq -n --argjson daily_total "$daily_total" '{
-      active:false,
-      started_at:"",
-      started_date:"",
-      elapsed_seconds:0,
-      duration_minutes:null,
-      planned_sessions:null,
-      per_session_seconds:null,
-      planned_total_seconds:null,
-      remaining_total_seconds:null,
-      current_session:null,
-      current_session_elapsed_seconds:null,
-      current_session_remaining_seconds:null,
-      target_reached:false,
-      mode:null,
-      estimated_finish_at:null,
-      daily_total_seconds:$daily_total
-    }'
+    inactive_status_json
     return 0
   fi
   if ! jq -e '.active == true and (.started_at // "" | length > 0)' "$file" >/dev/null 2>&1; then
-    local daily_total=0
-    local today_file
-    today_file="$(day_file "$(date +%F)")"
-    if [ -f "$today_file" ]; then
-      daily_total="$(jq -r '.study.total_seconds // 0' "$today_file")"
-    fi
-    jq -n --argjson daily_total "$daily_total" '{
-      active:false,
-      started_at:"",
-      started_date:"",
-      elapsed_seconds:0,
-      duration_minutes:null,
-      planned_sessions:null,
-      per_session_seconds:null,
-      planned_total_seconds:null,
-      remaining_total_seconds:null,
-      current_session:null,
-      current_session_elapsed_seconds:null,
-      current_session_remaining_seconds:null,
-      target_reached:false,
-      mode:null,
-      estimated_finish_at:null,
-      daily_total_seconds:$daily_total
-    }'
+    inactive_status_json
     return 0
   fi
 
   started_at="$(jq -r '.started_at // empty' "$file")"
   start_epoch="$(epoch_from_iso "$started_at")"
   if [ "$start_epoch" -le 0 ]; then
-    jq -n '{
-      active:false,
-      started_at:"",
-      started_date:"",
-      elapsed_seconds:0,
-      duration_minutes:null,
-      planned_sessions:null,
-      per_session_seconds:null,
-      planned_total_seconds:null,
-      remaining_total_seconds:null,
-      current_session:null,
-      current_session_elapsed_seconds:null,
-      current_session_remaining_seconds:null,
-      target_reached:false,
-      mode:null
-    }'
+    inactive_status_json
     return 0
   fi
 
@@ -310,16 +231,15 @@ study_status_json() {
       remaining_total_seconds_json="$remaining_total_seconds"
     fi
   fi
-    if [ -n "$remaining_total_seconds" ] && [ "$remaining_total_seconds" -gt 0 ]; then
-      estimated_finish_at="$(date -d "@$((current_epoch + remaining_total_seconds))" --iso-8601=seconds)"
-    fi
 
-  local daily_total=0
-  local today_file
-  today_file="$(day_file "$(date +%F)")"
-  if [ -f "$today_file" ]; then
-    daily_total="$(jq -r '.study.total_seconds // 0' "$today_file")"
+  # Deliberately outside the duration branch above: a finish time exists only
+  # once a planned total has set remaining_total_seconds.
+  if [ "$remaining_total_seconds" -gt 0 ]; then
+    estimated_finish_at="$(date -d "@$((current_epoch + remaining_total_seconds))" --iso-8601=seconds)"
   fi
+
+  local daily_total
+  daily_total="$(daily_study_seconds)"
 
   jq -n \
     --arg started_at "$started_at" \
@@ -424,7 +344,15 @@ print_result() {
   esac
 }
 
+# The tracker rewrites these same day files every 5 seconds, so both of the
+# amend-a-day helpers below run under the shared day-file lock: two interleaved
+# read-modify-write cycles would otherwise drop one side's update -- a lost
+# screen-time sample, or lost study seconds.
 mark_session_started() {
+  with_day_lock "$STATE_DIR" mark_session_started_locked "$@"
+}
+
+mark_session_started_locked() {
   local target_date="$1"
   local started_at="$2"
   local file
@@ -453,6 +381,10 @@ mark_session_started() {
 }
 
 add_study_seconds() {
+  with_day_lock "$STATE_DIR" add_study_seconds_locked "$@"
+}
+
+add_study_seconds_locked() {
   local target_date="$1"
   local elapsed_seconds="$2"
   local stopped_at="$3"
@@ -561,6 +493,8 @@ start_session() {
   fi
 
   mark_session_started "$target_date" "$current_now"
+  local active_tmp
+  active_tmp="$(mktemp "$(active_file).XXXXXX")"
   # mode arrives as --arg rather than --argjson so jq does the quoting and
   # escaping; an empty --mode stays null instead of becoming the string "".
   jq -n \
@@ -579,7 +513,10 @@ start_session() {
       planned_sessions:$planned_sessions,
       planned_total_seconds:$planned_total_seconds,
       mode:(if $mode == "" then null else $mode end)
-    }' >"$(active_file)"
+    }' >"$active_tmp"
+  # Published by rename, like the day files: waybar reads this on every poll
+  # and a truncating redirect lets it catch a half-written object.
+  mv "$active_tmp" "$(active_file)"
 
   result_json="$(study_status_json)"
   if [ -n "$DURATION_MINUTES" ]; then

@@ -1,28 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-resolve_screen_time_lib_dir() {
-  local script_dir
-  local candidate=""
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-
-  for candidate in \
-    "${SCREEN_TIME_LIB_DIR:-}" \
-    "${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}/lib" \
-    "$script_dir/../rofi-screen-time/lib"
-  do
-    [ -n "$candidate" ] || continue
-    if [ -r "$candidate/common.sh" ]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-
-  printf 'rofi-screen-time-stats: unable to locate rofi-screen-time libs\n' >&2
-  return 1
-}
-
-SCREEN_TIME_LIB_DIR="$(resolve_screen_time_lib_dir)"
+SCREEN_TIME_LIB_DIR="@screenTimeLib@/lib"
 # shellcheck source=/dev/null
 . "$SCREEN_TIME_LIB_DIR/common.sh"
 # shellcheck source=/dev/null

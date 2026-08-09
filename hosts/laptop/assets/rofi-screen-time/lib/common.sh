@@ -5,7 +5,6 @@ export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)
 SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
 SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME}/.cache}/rofi-screen-time}"
 SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"
-SCREEN_TIME_LIB_HOME="${SCREEN_TIME_LIB_HOME:-${HOME}/.local/lib/rofi-screen-time}"
 CATEGORY_MAP_FILE="${CATEGORY_MAP_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/rofi-screen-time/category-map.json}"
 THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
 CACHE_FILE="${SCREEN_TIME_CACHE_HOME}/desktop-cache.tsv"
@@ -268,19 +267,21 @@ updated_time_label() {
   date -d "$timestamp" '+%H:%M'
 }
 
+# The one day-file schema. The tracker writes it, study-timer amends it, and
+# the popup and waybar module read it, so it is defined once here rather than
+# copied into each of them -- the copies had already drifted into three
+# different shapes.
 default_day_json() {
   local target_date="$1"
   local now_iso="${2:-$(date --iso-8601=seconds)}"
   local sample="${3:-$SCREEN_TIME_SAMPLE_SECONDS}"
-  local version="${4:-2}"
 
   jq -n \
     --arg date "$target_date" \
     --arg now "$now_iso" \
     --argjson sample "$sample" \
-    --argjson version "$version" \
     '{
-      version: $version,
+      version: 2,
       date: $date,
       updated_at: $now,
       sample_seconds: $sample,
@@ -300,8 +301,37 @@ default_day_json() {
         last_started_at: "",
         last_stopped_at: "",
         active_overlap_seconds: 0
+      },
+      behavior: {
+        transitions: {},
+        focus_blocks: {
+          current_app: "",
+          current_started_at: "",
+          current_seconds: 0,
+          completed_count: 0,
+          deep_count: 0,
+          short_count: 0,
+          longest_seconds: 0
+        }
       }
     }'
+}
+
+# Serialise a read-modify-write on a day file. The 5-second tracker and
+# study-timer both rewrite $STATE_DIR/days/<date>.json, and the tracker's own
+# lock is a singleton guard that only excludes other trackers -- without this,
+# two interleaved jq-read/mv-write cycles drop one side's update entirely.
+with_day_lock() {
+  local state_dir="$1"
+  shift
+  local status=0
+
+  mkdir -p "$state_dir/days"
+  exec 7>>"$state_dir/days/.lock"
+  flock 7
+  "$@" || status=$?
+  exec 7>&-
+  return "$status"
 }
 
 normalize_day_json() {
@@ -404,7 +434,29 @@ normalize_day_json() {
     '
 }
 
+STUDY_TIMER_BIN="${STUDY_TIMER_BIN:-${HOME}/.local/bin/study-timer}"
+STUDY_STATUS_CACHE=""
+
+# study-timer owns the plan: mode, planned_sessions, current_session and the
+# remaining totals only exist in its status output. Deriving a status from the
+# active file here instead left every one of those fields null, so the popup's
+# study cards could only ever say "No plan active" while a plan was running.
+# Cached because one popup render asks for the status several times.
 study_status_json() {
+  if [ -z "$STUDY_STATUS_CACHE" ]; then
+    if [ -x "$STUDY_TIMER_BIN" ]; then
+      STUDY_STATUS_CACHE="$("$STUDY_TIMER_BIN" status --format json 2>/dev/null || true)"
+    fi
+    if ! printf '%s' "$STUDY_STATUS_CACHE" | jq -e 'type == "object" and has("active")' >/dev/null 2>&1; then
+      STUDY_STATUS_CACHE="$(study_status_from_active_file)"
+    fi
+  fi
+  printf '%s\n' "$STUDY_STATUS_CACHE"
+}
+
+# Fallback for when study-timer is not installed: enough of the shape for the
+# "is a session running" questions, with the plan fields left null.
+study_status_from_active_file() {
   local file
   local started_at=""
   local started_date=""
@@ -520,7 +572,10 @@ day_json_for_date() {
   if [ -f "$file" ]; then
     day_json="$(normalize_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS" <"$file")"
   else
-    day_json="$(default_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS" 0 | jq '.missing = true | .schema_ready = false')"
+    # A day with no file on disk is version 0, not a real v2 record: the
+    # baseline maths distinguishes the two.
+    day_json="$(default_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS" \
+      | jq '.version = 0 | .missing = true | .schema_ready = false')"
   fi
 
   merge_active_study_into_day_json "$target_date" "$day_json"
