@@ -209,24 +209,30 @@ render_transition_bars() {
 
   max_count="$(printf '%s' "$context_json" | jq -r \
     --argjson limit "$limit" '
-      (.today.metrics.transitions // [])
+      (.today.behavior.transitions // [])
       | if ($limit > 0) then .[:$limit] else . end
       | ([.[].count] | max) // 0
     ')"
 
   while IFS=$'\t' read -r from_app to_app count label; do
     [ -n "$from_app" ] || continue
-    local pair_name="${from_app} → ${to_app}"
-    output+="$(printf '%-22s  %s  %4sx  <span foreground="%s" size="small">%s</span>\n' \
-      "$(escape_markup "$(clip_text "$pair_name" 22)")" \
+    # Window classes, humanised the same way every other view shows them, so
+    # this panel does not say "brave-browser" where the cards say "Brave Browser".
+    local pair_name
+    pair_name="$(humanize_class "$from_app") → $(humanize_class "$to_app")"
+    # The newline is appended outside the substitution: $( ) strips trailing
+    # newlines, so a \n inside the format string is silently swallowed and every
+    # row runs into the next one.
+    output+="$(printf '%-24s  %s  %4s×  <span foreground="%s" size="small">%s</span>' \
+      "$(escape_markup "$(clip_text "$pair_name" 24)")" \
       "$(bar_markup "$count" "$max_count" 14 "$ACCENT_COLOR" "$BASE_COLOR")" \
       "$count" \
       "$SUBTEXT_COLOR" \
-      "$(escape_markup "$label")")"
+      "$(escape_markup "$label")")"$'\n'
   done < <(
     printf '%s' "$context_json" | jq -r \
       --argjson limit "$limit" '
-        (.today.metrics.transitions // [])
+        (.today.behavior.transitions // [])
         | if ($limit > 0) then .[:$limit] else . end
         | .[]
         | [
@@ -762,11 +768,26 @@ render_behavior_summary() {
     printf '<span foreground="%s">%-11s</span><span foreground="%s">None yet</span>\n' \
       "$SUBTEXT_COLOR" "Top switch" "$SUBTEXT_COLOR"
   fi
-  # No "vs 7-day" here on purpose: render_baseline_summary already carries the
-  # switch-rate delta, and repeating it is the duplication this pass removes.
-  printf '<span foreground="%s">%-11s</span><span weight="600">%s</span>  %s  <span foreground="%s" size="small">%s cross-context</span>' \
-    "$SUBTEXT_COLOR" "Switching" "$(format_decimal_label "$switch_rate" "/h")" \
-    "$(pips_markup "${switch_rate%%.*}" 10 "$WARNING_COLOR")" \
+  # Pips are scaled against this user's own 7-day average, not a fixed ceiling.
+  # A constant cap saturates: a 10/h ceiling shows ten filled pips every day for
+  # someone who averages 35/h, which encodes nothing. Against the baseline the
+  # same marks answer "busier or calmer than usual".
+  local switch_avg switch_pips switch_note
+  switch_avg="$(printf '%s' "$context_json" | jq -r '.baseline.deltas.switch_rate.avg7 // empty')"
+  if [ -n "$switch_avg" ]; then
+    switch_pips="$(jq -nr --argjson r "${switch_rate:-0}" --argjson a "$switch_avg" \
+      'if $a <= 0 then 0 else (($r * 10 / $a) | floor) end')"
+    switch_note="vs usual $(format_decimal_label "$switch_avg" "/h")"
+  else
+    switch_pips=0
+    switch_note="$(format_decimal_label "$switch_rate" "/h")"
+  fi
+  # The rate itself is on the App switching card; showing it again here is the
+  # duplication this pass removes, so the row carries the comparison instead.
+  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s</span>  <span foreground="%s" size="small">%s cross-context</span>' \
+    "$SUBTEXT_COLOR" "Switching" \
+    "$(pips_markup "$switch_pips" 10 "$WARNING_COLOR")" \
+    "$switch_note" \
     "$SUBTEXT_COLOR" "$cross_count"
 }
 
@@ -866,11 +887,21 @@ render_confidence_breakdown() {
   browser_status="$(printf '%s' "$browser_raw" | jq -r 'if . < 0.30 then "OK" else "\u2193 high ambiguity" end')"
   unknown_status="$(printf '%s' "$unknown_raw" | jq -r 'if . < 1800 then "OK" else "\u2193 significant" end')"
 
+  # These three bars used to be blue, amber and purple -- one hue per metric, so
+  # colour said "which row is this" while all three rows carried the same "this
+  # is dragging the score down" arrow. They run through severity_color now, the
+  # same ladder the summary view uses, so a hue means the same thing everywhere.
+  # App mapping is "higher is better", so its ladder is inverted.
+  local mapped_pct_num unknown_pct_num browser_pct_num
+  mapped_pct_num="$(printf '%s' "$mapped_raw" | jq -r '(. * 100 | round)')"
+  browser_pct_num="$(printf '%s' "$browser_raw" | jq -r '(. * 100 | round)')"
+  unknown_pct_num="$(printf '%s' "$unknown_raw" | jq -r 'if . > 7200 then 100 else ((. * 100 / 7200) | round) end')"
+
   printf '%s\n%s\n%s\n%s\n%s' \
     "$(kv_markup_aligned 18 "Model confidence" "$conf")" \
-    "$(kv_markup_raw_value_aligned 18 "App mapping" "$(printf '%s  %6s  %s' "$(bar_markup "$(printf '%s' "$mapped_raw" | jq -r '(. * 100 | round)')" 100 14 "$ACCENT_COLOR" "$BASE_COLOR")" "${mapped_pct}" "${mapped_status}")")" \
-    "$(kv_markup_raw_value_aligned 18 "Unknown activity" "$(printf '%s  %6s  %s' "$(bar_markup "$(printf '%s' "$unknown_raw" | jq -r 'if . > 7200 then 7200 else . end')" 7200 14 "$WARNING_COLOR" "$BASE_COLOR")" "${unknown_time}" "${unknown_status}")")" \
-    "$(kv_markup_raw_value_aligned 18 "Browser ambiguity" "$(printf '%s  %6s  %s' "$(bar_markup "$(printf '%s' "$browser_raw" | jq -r '(. * 100 | round)')" 100 14 "$PURPLE_COLOR" "$BASE_COLOR")" "${browser_pct}" "${browser_status}")")" \
+    "$(kv_markup_raw_value_aligned 18 "App mapping" "$(printf '%s  %6s  %s' "$(bar_markup "$mapped_pct_num" 100 14 "$(severity_color "$((100 - mapped_pct_num))" 15 40)" "$BASE_COLOR")" "${mapped_pct}" "${mapped_status}")")" \
+    "$(kv_markup_raw_value_aligned 18 "Unknown activity" "$(printf '%s  %6s  %s' "$(bar_markup "$unknown_pct_num" 100 14 "$(severity_color "$unknown_pct_num" 25 50)" "$BASE_COLOR")" "${unknown_time}" "${unknown_status}")")" \
+    "$(kv_markup_raw_value_aligned 18 "Browser ambiguity" "$(printf '%s  %6s  %s' "$(bar_markup "$browser_pct_num" 100 14 "$(severity_color "$browser_pct_num" 30 60)" "$BASE_COLOR")" "${browser_pct}" "${browser_status}")")" \
     "$(kv_markup_aligned 18 "Tip" "Map top unknown app to raise score reliability.")"
 }
 
@@ -975,7 +1006,7 @@ build_view_payload() {
   local context_json="$2"
   local target_date subtitle meta title note_text navigation_json
 	  local updated_time total_seconds study_ratio focus_json frag_json focus_value frag_value
-	  local longest_focus_seconds deep_focus_blocks switch_rate_label
+	  local longest_focus_seconds switch_rate_label
   local top_category peak_window main_insight summary_active summary_study_ratio
   local card1_label card1_value card1_sub
   local card2_label card2_value card2_sub
@@ -992,7 +1023,6 @@ build_view_payload() {
 	  focus_value="$(score_value_text "$focus_json")"
 	  frag_value="$(score_value_text "$frag_json")"
 	  longest_focus_seconds="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
-	  deep_focus_blocks="$(printf '%s' "$context_json" | jq -r '.today.metrics.deep_focus_block_count // 0')"
 	  switch_rate_label="$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h" "n/a")"
 	  top_category="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
   peak_window="$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
@@ -1011,7 +1041,15 @@ build_view_payload() {
       card1_sub="Busiest at $peak_window"
       card2_label="Best focus block"
       card2_value="$(seconds_to_short "$longest_focus_seconds")"
-      card2_sub="$deep_focus_blocks deep blocks"
+      # Not the deep-block count: the Deep ratio row already carries it, as a bar
+      # that shows the ratio this number cannot. What no other element says is
+      # how much of the tracked day that single best block accounts for.
+      card2_sub="$(printf '%s' "$context_json" | jq -r \
+        --argjson block "$longest_focus_seconds" '
+          (.today.metrics.safe_total_seconds // .today.total_seconds // 0) as $t
+          | if $t > 0 then (($block * 100 / $t) | round | tostring) + "% of tracked day"
+            else "no tracked time yet" end
+        ')"
       card3_label="App switching"
       card3_value="$switch_rate_label"
       card3_sub="$(printf '%s' "$context_json" | jq -r '.today.switch_count // 0') switches today"
