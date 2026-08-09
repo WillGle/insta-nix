@@ -49,6 +49,21 @@ pips_markup() {
     "$color" "$on" "$BASE_COLOR" "$off"
 }
 
+# The category palette, hoisted out of momentum_sparkline_from_json so the
+# 24-hour strip and the category breakdown agree on what colour a category is.
+# This is identity colour, not severity: it answers "which category" and must
+# never be read as "how bad", which is what severity_color below is for.
+category_color() {
+  case "${1:-}" in
+    Study) printf '%s' "$SUCCESS_COLOR" ;;
+    Work) printf '%s' "$CYAN_COLOR" ;;
+    Communication) printf '%s' "$WARNING_COLOR" ;;
+    Entertainment | Media) printf '%s' "$ERROR_COLOR" ;;
+    Browser) printf '%s' "$PURPLE_COLOR" ;;
+    *) printf '%s' "$SUBTEXT_COLOR" ;;
+  esac
+}
+
 # One threshold ladder for every bounded metric, so the same number cannot read
 # as "fine" in one block and "warning" in another.
 severity_color() {
@@ -145,16 +160,8 @@ momentum_sparkline_from_json() {
       value=$((value + cat_seconds))
     done < <(printf '%s' "$slots_bundle_json" | jq -r "to_entries[] | \"\(.key)\t\(.value[$index] // 0)\"")
     
-    case "$dominant_cat" in
-      Study) color="$SUCCESS_COLOR" ;;
-      Work) color="$CYAN_COLOR" ;;
-      Communication) color="$WARNING_COLOR" ;;
-      Entertainment|Media) color="$ERROR_COLOR" ;;
-      Browser) color="$PURPLE_COLOR" ;;
-      System) color="$SUBTEXT_COLOR" ;;
-      *) color="$SUBTEXT_COLOR" ;;
-    esac
-    
+    color="$(category_color "$dominant_cat")"
+
     if [ "$value" -le 0 ]; then
       color="$BASE_COLOR"
       glyph_index=0
@@ -317,7 +324,7 @@ clip_text() {
 
 render_digital_health() {
   local context_json="$1"
-  local eye_risk cog_load circ_phase ultr_score rec_gaps wellbeing_json wellbeing_val wellbeing_label afi drivers_text confidence untracked
+  local eye_risk cog_load circ_phase ultr_score rec_gaps wellbeing_json wellbeing_val wellbeing_label afi confidence untracked
 
   eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
   cog_load="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // "—"')"
@@ -330,14 +337,6 @@ render_digital_health() {
   wellbeing_label="$(score_subtext "$wellbeing_json")"
   confidence="$(printf '%s' "$wellbeing_json" | jq -r '.confidence // "Medium"')"
   untracked="$(printf '%s' "$wellbeing_json" | jq -r '.untracked_percent // 0')"
-
-  drivers_text="$(printf '%s' "$wellbeing_json" | jq -r '
-    if (.drivers // []) | length > 0 then
-      [.drivers[] | "\(if .type == "positive" then "+" else "−" end) \(.name) (\(.impact))"] | join(" • ")
-    else
-      "Balanced baseline"
-    end
-  ')"
 
   local eye_color="$SUCCESS_COLOR"
   [ "$eye_risk" = "Moderate" ] && eye_color="$WARNING_COLOR"
@@ -366,10 +365,11 @@ render_digital_health() {
   [ "$wb_bar_value" -ge 34 ] && wb_color="$WARNING_COLOR"
   [ "$wb_bar_value" -ge 67 ] && wb_color="$SUCCESS_COLOR"
 
-  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%3s</span>  <span foreground="%s" size="small">%s</span>\n' \
+  # The driver moved to the Wellbeing card, which has room for it unclipped.
+  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%3s</span>\n' \
     "$SUBTEXT_COLOR" "Wellbeing" \
     "$(bar_markup "$wb_bar_value" 100 "$bar_w" "$wb_color" "$BASE_COLOR")" \
-    "$wellbeing_val" "$SUBTEXT_COLOR" "$(escape_markup "$(clip_text "$drivers_text" 30)")"
+    "$wellbeing_val"
   printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%3s</span>\n' \
     "$SUBTEXT_COLOR" "Cognitive" \
     "$(bar_markup "$cog_bar_value" 100 "$bar_w" "$cog_color" "$BASE_COLOR")" \
@@ -508,9 +508,11 @@ render_category_bars() {
 
   while IFS=$'\t' read -r name seconds share; do
     [ -n "$name" ] || continue
+    # Same hue the 24-hour strip gives this category, so a colour means one
+    # category across the whole dashboard instead of "this is a bar".
     output+="$(printf '%-13s  %s  %6s  %s' \
       "$name" \
-      "$(bar_markup "$seconds" "$max_seconds" 20 "$ACCENT_COLOR" "$BASE_COLOR")" \
+      "$(bar_markup "$seconds" "$max_seconds" 20 "$(category_color "$name")" "$BASE_COLOR")" \
       "$(seconds_to_short "$seconds")" \
       "$(format_ratio_percent "$share")")"$'\n'
   done < <(
@@ -959,8 +961,13 @@ render_unknown_apps() {
   max_val=100
 
   if [ -n "$top_name" ] && [ "$top_name" != "null" ] && [ "$(printf '%s' "$top_seconds" | jq -r '. > 600')" = "true" ]; then
-    mapping_note="$(kv_markup_raw_value_aligned 22 "Current coverage" "$(printf '%s  %6s' "$(bar_markup "$cur_val" "$max_val" 14 "$ACCENT_COLOR" "$BASE_COLOR")" "${current_pct}%")")"$'\n'
-    mapping_note+="$(kv_markup_raw_value_aligned 22 "+ Map \"$(clip_text "$top_name" 14)\"" "$(printf '%s  %6s' "$(bar_markup "$top_val" "$max_val" 14 "$SUCCESS_COLOR" "$BASE_COLOR")" "~${top_projected}")")"$'\n'
+    # Current coverage takes the severity ladder, inverted because more mapped
+    # is better. The projection stays on the decorative accent: it used to be
+    # green, which in every other block means "inside the safe threshold", so
+    # the same hue was carrying two unrelated meanings. The projected bar is not
+    # a state at all -- it is what would happen if you acted.
+    mapping_note="$(kv_markup_raw_value_aligned 22 "Current coverage" "$(printf '%s  %6s' "$(bar_markup "$cur_val" "$max_val" 14 "$(severity_color "$((100 - cur_val))" 15 40)" "$BASE_COLOR")" "${current_pct}%")")"$'\n'
+    mapping_note+="$(kv_markup_raw_value_aligned 22 "+ Map \"$(clip_text "$top_name" 14)\"" "$(printf '%s  %6s' "$(bar_markup "$top_val" "$max_val" 14 "$ACCENT_COLOR" "$BASE_COLOR")" "~${top_projected}")")"$'\n'
   fi
 
   while IFS=$'\t' read -r name seconds impact; do
@@ -1079,7 +1086,16 @@ build_view_payload() {
       _wb_label="$(score_subtext "$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')")"
       _wb_score="$(wellbeing_card_signal "$context_json")"
       card4_value="$_wb_label"
-      card4_sub="Score $_wb_score/100 • Strain $_cog"
+      # Not the two scores: the How-you-are-doing bars carry both, and a bar
+      # says "how far along the range" in a way "34/100" cannot. What no bar can
+      # say is *why*, so the card takes the driver -- with room for it, instead
+      # of the 30-character stub the panel row was clipping it to.
+      card4_sub="$(printf '%s' "$context_json" | jq -r '
+        (.today.scores.digital_wellbeing_score.drivers // [])
+        | if length > 0 then
+            (.[0] | "\(if .type == "positive" then "+" else "−" end) \(.name) (\(.impact))")
+          else "Balanced baseline" end
+      ')"
       
       primary_title="Today at a glance"
       primary_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">24-Hour Activity Strip</span>\n%s\n\n<span foreground=\"%s\" weight=\"600\">Top Apps Today</span>\n%s' \
