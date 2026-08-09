@@ -201,14 +201,6 @@ in
           procps
           systemd # systemctl --user, to kick the screen-time cache service
         ];
-        # STUDY_MODE is written by --mode and never read. Excluded rather than
-        # renamed away, because the unused variable is the only thing pointing at
-        # a real defect: start_session leaves duration_json, session_json and
-        # mode_json at their "null" initialisers, so --mode, --duration-minutes
-        # and --session-count never reach the state file and the whole plan UI in
-        # rofi-study-timer is dead. Fixing that is a behaviour change and wants
-        # its own commit; silencing the warning here would bury the signal.
-        excludeShellChecks = [ "SC2034" ];
       });
       ".local/bin/waybar-memory-info" = scriptFile (mkScript {
         name = "waybar-memory-info";
