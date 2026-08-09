@@ -345,25 +345,25 @@ normalize_day_json() {
     --argjson sample "$sample" \
     '
     def zero_slots: ([range(0; 48)] | map(0));
-	    def default_study: {
-	      total_seconds: 0,
-	      session_count: 0,
-	      last_started_at: "",
-	      last_stopped_at: "",
-	      active_overlap_seconds: 0
-	    };
-	    def default_behavior: {
-	      transitions: {},
-	      focus_blocks: {
-	        current_app: "",
-	        current_started_at: "",
-	        current_seconds: 0,
-	        completed_count: 0,
-	        deep_count: 0,
-	        short_count: 0,
-	        longest_seconds: 0
-	      }
-	    };
+      def default_study: {
+        total_seconds: 0,
+        session_count: 0,
+        last_started_at: "",
+        last_stopped_at: "",
+        active_overlap_seconds: 0
+      };
+      def default_behavior: {
+        transitions: {},
+        focus_blocks: {
+          current_app: "",
+          current_started_at: "",
+          current_seconds: 0,
+          completed_count: 0,
+          deep_count: 0,
+          short_count: 0,
+          longest_seconds: 0
+        }
+      };
     def normalize_app($key):
       (. // {})
       | {
@@ -401,35 +401,35 @@ normalize_day_json() {
           | map(.key as $key | {key: $key, value: (.value | normalize_app($key))})
           | from_entries
         ),
-	        study: (
-	          ($day.study // default_study)
-	          | {
-	              total_seconds: (.total_seconds // 0),
-	              session_count: (.session_count // 0),
-	              last_started_at: (.last_started_at // ""),
-	              last_stopped_at: (.last_stopped_at // ""),
-	              active_overlap_seconds: (.active_overlap_seconds // 0)
-	            }
-	        ),
-	        behavior: (
-	          ($day.behavior // default_behavior)
-	          | {
-	              transitions: (.transitions // {}),
-	              focus_blocks: (
-	                (.focus_blocks // default_behavior.focus_blocks)
-	                | {
-	                    current_app: (.current_app // ""),
-	                    current_started_at: (.current_started_at // ""),
-	                    current_seconds: (.current_seconds // 0),
-	                    completed_count: (.completed_count // 0),
-	                    deep_count: (.deep_count // 0),
-	                    short_count: (.short_count // 0),
-	                    longest_seconds: (.longest_seconds // 0)
-	                  }
-	              )
-	            }
-	        )
-	      }
+          study: (
+            ($day.study // default_study)
+            | {
+                total_seconds: (.total_seconds // 0),
+                session_count: (.session_count // 0),
+                last_started_at: (.last_started_at // ""),
+                last_stopped_at: (.last_stopped_at // ""),
+                active_overlap_seconds: (.active_overlap_seconds // 0)
+              }
+          ),
+          behavior: (
+            ($day.behavior // default_behavior)
+            | {
+                transitions: (.transitions // {}),
+                focus_blocks: (
+                  (.focus_blocks // default_behavior.focus_blocks)
+                  | {
+                      current_app: (.current_app // ""),
+                      current_started_at: (.current_started_at // ""),
+                      current_seconds: (.current_seconds // 0),
+                      completed_count: (.completed_count // 0),
+                      deep_count: (.deep_count // 0),
+                      short_count: (.short_count // 0),
+                      longest_seconds: (.longest_seconds // 0)
+                    }
+                )
+              }
+          )
+        }
     | .schema_ready = (.version >= 2)
     '
 }
