@@ -42,21 +42,22 @@ EOF
 }
 
 default_theme_cache_file() {
-  printf '%s/default-summary-theme.rasi\n' "$CACHE_DIR"
+  printf "%s/default-%s-theme.rasi\n" "$CACHE_DIR" "$VIEW"
 }
 
 default_rows_cache_file() {
-  printf '%s/default-summary-rows.txt\n' "$CACHE_DIR"
+  printf "%s/default-%s-rows.txt\n" "$CACHE_DIR" "$VIEW"
 }
 
 default_date_cache_file() {
-  printf '%s/default-summary-date.txt\n' "$CACHE_DIR"
+  printf "%s/default-%s-date.txt\n" "$CACHE_DIR" "$VIEW"
 }
 
 can_use_default_cache() {
   local today
   today="$(date +%F)"
-  [ "$VIEW" = "summary" ] || return 1
+  # Every view caches now, keyed by name; the popup used to recompute all
+  # three non-summary views from scratch on each switch.
   [ "$TARGET_DATE" = "$today" ] || return 1
   [ -r "$(default_theme_cache_file)" ] || return 1
   [ -r "$(default_rows_cache_file)" ] || return 1
@@ -96,7 +97,7 @@ write_default_cache() {
 is_default_today_view() {
   local today
   today="$(date +%F)"
-  [ "$VIEW" = "summary" ] && [ "$TARGET_DATE" = "$today" ]
+  [ "$TARGET_DATE" = "$today" ]
 }
 
 while [ "$#" -gt 0 ]; do
