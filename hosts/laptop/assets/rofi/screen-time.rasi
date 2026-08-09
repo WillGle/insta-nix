@@ -15,18 +15,18 @@
 }
 
 window {
-  width:            80%;
-  height:           88%;
+  width:            64%;
+  height:           72%;
   border:           1px;
   border-radius:    10px;
   border-color:     @window-border;
   background-color: @base;
-  padding:          12px;
+  padding:          20px;
 }
 
 mainbox {
   orientation:      vertical;
-  spacing:          10px;
+  spacing:          16px;
   children:         [ header-box, overview-box, analytics-box, note-box, listview ];
   background-color: transparent;
 }
@@ -52,7 +52,7 @@ title-group {
 meta-group {
   orientation:      vertical;
   expand:           false;
-  padding:          8px 10px;
+  padding:          12px 16px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -77,7 +77,7 @@ textbox-meta {
   text-color:      @subtext;
   font:            "JetBrainsMono Nerd Font 10";
   horizontal-align: 1.0;
-  line-height:     1.4;
+  line-height: 1.6;
 }
 
 /* ── Overview cards ──────────────────────────────────────── */
@@ -92,8 +92,8 @@ overview-box {
 card-1, card-2, card-3 {
   orientation:      vertical;
   expand:           true;
-  padding:          9px 10px;
-  spacing:          5px;
+  padding:          14px 16px;
+  spacing:          7px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -108,8 +108,8 @@ card-3 { children: [ textbox-card-3-label, textbox-card-3-value, textbox-card-3-
 card-4 {
   orientation:      vertical;
   expand:           true;
-  padding:          9px 10px;
-  spacing:          5px;
+  padding:          14px 16px;
+  spacing:          7px;
   border:           1px;
   border-radius:    8px;
   border-color:     @accent;
@@ -163,15 +163,15 @@ textbox-card-4-sub {
 analytics-box {
   expand:      true;
   orientation: horizontal;
-  spacing:     8px;
+  spacing:     14px;
   children:    [ primary-panel, side-panel ];
 }
 
 primary-panel {
   orientation:      vertical;
   width:            62%;
-  padding:          12px 14px;
-  spacing:          8px;
+  padding:          18px 20px;
+  spacing:          12px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -184,21 +184,21 @@ textbox-primary-body {
   expand:      true;
   text-color:  @text;
   font:        "JetBrainsMono Nerd Font 11";
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
 side-panel {
   orientation: vertical;
   expand:      true;
-  spacing:     8px;
+  spacing:     14px;
   children:    [ chart-b, chart-c, insight-box ];
 }
 
 chart-b, chart-c, insight-box {
   orientation:      vertical;
   expand:           false;
-  padding:          10px 12px;
-  spacing:          7px;
+  padding:          15px 18px;
+  spacing:          10px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -216,7 +216,7 @@ textbox-chart-c-body {
   expand:      false;
   text-color:  @text;
   font:        "JetBrainsMono Nerd Font 10";
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
 textbox-insight-body {
@@ -224,14 +224,14 @@ textbox-insight-body {
   expand:      true;
   text-color:  @text;
   font:        "JetBrainsMono Nerd Font 10";
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
 /* ── Note bar ────────────────────────────────────────────── */
 
 note-box {
   expand:           false;
-  padding:          8px 10px;
+  padding:          12px 16px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -243,7 +243,7 @@ textbox-note {
   markup:     true;
   text-color: @subtext;
   font:       "JetBrainsMono Nerd Font 10";
-  line-height: 1.4;
+  line-height: 1.6;
 }
 
 /* ── App list ────────────────────────────────────────────── */
@@ -262,7 +262,7 @@ element {
   orientation:      horizontal;
   children:         [ element-icon, element-text ];
   spacing:          6px;
-  padding:          3px 8px;
+  padding:          7px 12px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
