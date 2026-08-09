@@ -43,6 +43,7 @@
         gs = "git status";
         ".." = "cd ..";
         k = "kubectl";
+        zed = "zeditor";
       };
     };
 

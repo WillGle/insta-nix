@@ -649,6 +649,8 @@ in
       hyprlock
       hyprpaper
       neovim
+      recoll
+      zed-editor
       playerctl
       (rofi.override {
         plugins = [
