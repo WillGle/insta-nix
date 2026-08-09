@@ -2,6 +2,7 @@
 set -euo pipefail
 
 TASK_FILE="${HOME}/.atomic_tasks"
+TASK_LOCK_FILE="${TASK_FILE}.lock"
 ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
 THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
 
@@ -155,8 +156,11 @@ task_priority() {
 
 task_body() {
   local task="$1"
-  if [[ "$task" =~ ^\[(Critical|High|Moderate|Medium|Low|A|B|C|D)\][[:space:]]*(.*)$ ]]; then
-    printf '%s\n' "${BASH_REMATCH[2]}"
+  # Matched case-insensitively, and against the same tag set task_priority
+  # accepts: a hand-edited "[critical] ..." must lose its prefix here too, or
+  # the next edit re-wraps it into "[Critical] [critical] ...".
+  if [[ "${task,,}" =~ ^\[(critical|high|moderate|medium|low|a|b|c|d)\][[:space:]]* ]]; then
+    printf '%s\n' "${task:${#BASH_REMATCH[0]}}"
     return 0
   fi
   printf '%s\n' "$task"
@@ -273,13 +277,6 @@ select_priority() {
     "$low_option")
       printf '%s\n' "low"
       ;;
-    "")
-      if [ "$empty_mode" = "empty" ]; then
-        printf '%s\n' ""
-      else
-        printf '%s\n' "$default_priority"
-      fi
-      ;;
     *)
       if [ "$empty_mode" = "empty" ]; then
         printf '%s\n' ""
@@ -294,8 +291,56 @@ read_tasks() {
   mapfile -t TASKS < "$TASK_FILE"
 }
 
+# Replace the file in one step. waybar polls this list while the menu edits it,
+# and a truncating redirect would let a render observe a half-written file.
 write_tasks() {
-  printf '%s\n' "$@" > "$TASK_FILE"
+  local tmp
+  tmp="$(mktemp "${TASK_FILE}.XXXXXX")"
+  if [ "$#" -gt 0 ]; then
+    printf '%s\n' "$@" > "$tmp"
+  fi
+  mv "$tmp" "$TASK_FILE"
+}
+
+# Every mutation is a read-modify-write against a file three processes touch
+# (the waybar poller, the rofi menu, and the right-click add), so they all run
+# through here: the mutator sees TASKS under an exclusive lock and rewrites it
+# in place. Interactive prompts stay outside, so an open menu never blocks a
+# render.
+update_tasks() {
+  local mutator="$1"
+  shift
+  local status=0
+
+  exec 8>>"$TASK_LOCK_FILE"
+  flock 8
+  read_tasks
+  if "$mutator" "$@"; then
+    write_tasks ${TASKS[@]+"${TASKS[@]}"}
+  else
+    status=1
+  fi
+  exec 8>&-
+
+  if [ "$status" -eq 0 ]; then
+    refresh_waybar
+  fi
+  return "$status"
+}
+
+# Tasks are addressed by their text rather than by a menu row index: the list
+# can have shifted under a concurrent edit between drawing the menu and acting
+# on it, and acting on the wrong row is worse than doing nothing.
+task_index_of() {
+  local target="$1"
+  local i
+  for i in "${!TASKS[@]}"; do
+    if [ "${TASKS[$i]}" = "$target" ]; then
+      printf '%s\n' "$i"
+      return 0
+    fi
+  done
+  return 1
 }
 
 render_waybar() {
@@ -375,7 +420,10 @@ add_task() {
     if [ -z "$note" ]; then
       return 0
     fi
-    if priority="$(normalize_priority "$priority_input" 2>/dev/null)"; then
+    # normalize_priority defaults an empty argument to "moderate" and succeeds,
+    # so it has to be skipped outright when no priority was passed -- otherwise
+    # the "[critical] note" spelling below is never reached.
+    if [ -n "$priority_input" ] && priority="$(normalize_priority "$priority_input" 2>/dev/null)"; then
       :
     else
       priority="$(task_priority "$note")"
@@ -385,8 +433,33 @@ add_task() {
 
   local formatted
   formatted="$(format_task "$note" "$priority")" || return 0
-  printf '%s\n' "$formatted" >> "$TASK_FILE"
-  refresh_waybar
+  update_tasks task_append "$formatted"
+}
+
+task_append() {
+  TASKS+=("$1")
+}
+
+task_drop() {
+  local index
+  index="$(task_index_of "$1")" || return 1
+  TASKS=("${TASKS[@]:0:index}" "${TASKS[@]:index+1}")
+}
+
+task_promote() {
+  local index
+  index="$(task_index_of "$1")" || return 1
+  TASKS=("$1" "${TASKS[@]:0:index}" "${TASKS[@]:index+1}")
+}
+
+task_replace() {
+  local index
+  index="$(task_index_of "$1")" || return 1
+  TASKS[index]="$2"
+}
+
+task_truncate() {
+  TASKS=()
 }
 
 open_file_in_terminal() {
@@ -405,79 +478,33 @@ list_tasks() {
 }
 
 clear_tasks() {
-  : > "$TASK_FILE"
-  refresh_waybar
+  update_tasks task_truncate
 }
 
-delete_task_by_index() {
-  local index="$1"
-  read_tasks
-  if [ "$index" -lt 0 ] || [ "$index" -ge "${#TASKS[@]}" ]; then
-    return 1
-  fi
-
-  unset 'TASKS[index]'
-  if [ "${#TASKS[@]}" -eq 0 ]; then
-    : > "$TASK_FILE"
-  else
-    write_tasks "${TASKS[@]}"
-  fi
-  refresh_waybar
-}
-
-move_task_to_top() {
-  local index="$1"
-  read_tasks
-  if [ "$index" -lt 0 ] || [ "$index" -ge "${#TASKS[@]}" ]; then
-    return 1
-  fi
-
-  local selected="${TASKS[$index]}"
-  unset 'TASKS[index]'
-  write_tasks "$selected" "${TASKS[@]}"
-  refresh_waybar
-}
-
-edit_task_by_index() {
-  local index="$1"
-  read_tasks
-  if [ "$index" -lt 0 ] || [ "$index" -ge "${#TASKS[@]}" ]; then
-    return 1
-  fi
-
-  local current="${TASKS[$index]}"
+edit_task() {
+  local current="$1"
   local current_body
   local current_priority
+  local updated
   current_body="$(task_body "$current")"
   current_priority="$(task_priority "$current")"
-  local updated
   updated="$(printf '%s' "$current_body" | rofi -dmenu -p "Edit Task:" -config "$ROFI_CONFIG")"
   if [ -z "$updated" ]; then
     return 0
   fi
 
-  TASKS[index]="$(format_task "$updated" "$current_priority")"
-  write_tasks "${TASKS[@]}"
-  refresh_waybar
+  update_tasks task_replace "$current" "$(format_task "$updated" "$current_priority")"
 }
 
-change_priority_by_index() {
-  local index="$1"
-  read_tasks
-  if [ "$index" -lt 0 ] || [ "$index" -ge "${#TASKS[@]}" ]; then
-    return 1
-  fi
-
-  local current="${TASKS[$index]}"
+change_priority() {
+  local current="$1"
   local current_body
   local current_priority
   local updated_priority
   current_body="$(task_body "$current")"
   current_priority="$(task_priority "$current")"
   updated_priority="$(select_priority "Priority:" "$current_priority")"
-  TASKS[index]="$(format_task "$current_body" "$updated_priority")"
-  write_tasks "${TASKS[@]}"
-  refresh_waybar
+  update_tasks task_replace "$current" "$(format_task "$current_body" "$updated_priority")"
 }
 
 confirm_clear() {
@@ -495,8 +522,7 @@ confirm_clear() {
 }
 
 task_menu() {
-  local index="$1"
-  local task="$2"
+  local task="$1"
   local choice
   local done_option
   local edit_option
@@ -522,16 +548,16 @@ task_menu() {
 
   case "$choice" in
     "$done_option")
-      delete_task_by_index "$index"
+      update_tasks task_drop "$task"
       ;;
     "$edit_option")
-      edit_task_by_index "$index"
+      edit_task "$task"
       ;;
     "$priority_option")
-      change_priority_by_index "$index"
+      change_priority "$task"
       ;;
     "$move_option")
-      move_task_to_top "$index"
+      update_tasks task_promote "$task"
       ;;
     *)
       ;;
@@ -604,6 +630,9 @@ rofi_menu() {
     menu_lines=$((row_count + 1))
 
     action_theme="$(mktemp)"
+    # rofi reads the theme by path, so it must outlive the menu call; clean it
+    # up on the way out too, or a killed menu leaves it in /tmp.
+    trap 'rm -f "$action_theme"' EXIT
     cat > "$action_theme" <<EOF
 @theme "~/.config/rofi/theme.rasi"
 
@@ -795,7 +824,7 @@ EOF
         local found=0
         for display_task in "${task_labels[@]}"; do
           if [ "$display_task" = "$selection" ]; then
-            task_menu "$idx" "${TASKS[$idx]}"
+            task_menu "${TASKS[$idx]}"
             found=1
             break
           fi
@@ -814,10 +843,7 @@ case "${1:-}" in
     render_waybar
     ;;
   add)
-    add_task "${2:-}"
-    ;;
-  edit)
-    rofi_menu
+    add_task "${2:-}" "${3:-}"
     ;;
   file)
     open_file_in_terminal
@@ -828,9 +854,7 @@ case "${1:-}" in
   clear)
     clear_tasks
     ;;
-  rofi|menu)
-    rofi_menu
-    ;;
+  # edit|rofi|menu and the bare invocation all open the same menu.
   *)
     rofi_menu
     ;;

@@ -107,6 +107,7 @@ in
           coreutils
           jq
           procps
+          util-linux # flock, to serialise the read-modify-write on the task file
         ];
         vars = {
           signalOk = signal.ok;
