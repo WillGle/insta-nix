@@ -15,8 +15,8 @@
 }
 
 window {
-  width:            60%;
-  height:           94%;
+  width:            78%;
+  height:           82%;
   border:           1px;
   border-radius:    10px;
   border-color:     @window-border;
@@ -169,7 +169,7 @@ analytics-box {
 
 primary-panel {
   orientation:      vertical;
-  width:            54%;
+  width:            56%;
   padding:          18px 20px;
   spacing:          12px;
   border:           1px;
