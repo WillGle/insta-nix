@@ -55,12 +55,13 @@ let
   mkScript =
     {
       name,
+      dir ? ./assets/local-bin,
       runtimeInputs ? [ ],
       vars ? { },
       excludeShellChecks ? [ ],
     }:
     let
-      source = ./assets/local-bin + "/${name}";
+      source = dir + "/${name}";
       rendered = if vars == { } then source else pkgs.replaceVars source vars;
       # writeShellApplication supplies its own shebang; keep the asset runnable
       # standalone but drop its line here so the output has exactly one.
@@ -338,18 +339,38 @@ in
       source = ./assets/hypr/autostart.conf;
       executable = true;
     };
-    "hypr/toggle_waybar.sh" = {
-      source = ./assets/hypr/toggle_waybar.sh;
-      executable = true;
-    };
-    "hypr/rotate_select.sh" = {
-      source = ./assets/hypr/rotate_select.sh;
-      executable = true;
-    };
-    "hypr/toggle_touchpad.sh" = {
-      source = ./assets/hypr/toggle_touchpad.sh;
-      executable = true;
-    };
+    # Bound from hyprland.conf by path, so they keep living under ~/.config/hypr
+    # rather than ~/.local/bin -- but they are packaged like every other script,
+    # for the shellcheck pass and the pinned runtimeInputs.
+    "hypr/toggle_waybar.sh" = scriptFile (mkScript {
+      name = "toggle_waybar.sh";
+      dir = ./assets/hypr;
+      runtimeInputs = with pkgs; [ systemd ];
+    });
+    "hypr/rotate_select.sh" = scriptFile (mkScript {
+      name = "rotate_select.sh";
+      dir = ./assets/hypr;
+      runtimeInputs = with pkgs; [
+        gawk
+        hyprland
+        jq
+        libnotify
+        procps
+      ];
+    });
+    "hypr/toggle_touchpad.sh" = scriptFile (mkScript {
+      name = "toggle_touchpad.sh";
+      dir = ./assets/hypr;
+      vars = { touchpadStateConf = touchpadStateConf; };
+      runtimeInputs = with pkgs; [
+        coreutils
+        gnugrep
+        hyprland
+        jq
+        libnotify
+        util-linux # flock, so a toggle racing a reset cannot interleave
+      ];
+    });
     "rofi/screen-time.rasi".source = ./assets/rofi/screen-time.rasi;
     "rofi/study-timer.rasi".source = ./assets/rofi/study-timer.rasi;
   };
