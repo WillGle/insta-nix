@@ -86,6 +86,12 @@ let
     executable = true;
   };
 
+  # The nmcli helpers shared by rofi-network and waybar-network-info. Referenced
+  # by store path rather than installed under ~/.local/lib: both callers are
+  # packaged, so the path can be substituted at build time, which needs no
+  # runtime resolver and cannot dangle if home-manager has not linked yet.
+  networkLib = ./assets/network/lib/common.sh;
+
   # The tracker library is installed as a whole directory, so the one file that
   # carries semantic colors is re-rendered over the copy.
   rofiScreenTimeLib = pkgs.runCommand "rofi-screen-time-lib" { } ''
@@ -130,6 +136,9 @@ in
       });
       ".local/bin/rofi-network" = scriptFile (mkScript {
         name = "rofi-network";
+        vars = {
+          networkLib = "${networkLib}";
+        };
         runtimeInputs = with pkgs; [
           coreutils
           gawk
@@ -215,6 +224,10 @@ in
       });
       ".local/bin/waybar-network-info" = scriptFile (mkScript {
         name = "waybar-network-info";
+        vars = {
+          inherit themeAccent;
+          networkLib = "${networkLib}";
+        };
         runtimeInputs = with pkgs; [
           bluez
           coreutils
@@ -226,7 +239,6 @@ in
           networkmanager
           wireguard-tools
         ];
-        vars = { inherit themeAccent; };
         # A helper reads a variable the caller sets; shellcheck cannot see across
         # that boundary.
         excludeShellChecks = [ "SC2034" ];

@@ -3,6 +3,12 @@ set -euo pipefail
 export LC_ALL=C
 export PATH="$PATH:/run/current-system/sw/bin"
 
+# Shared nmcli query helpers, substituted to a store path at build time so the
+# two callers cannot drift apart again. See the header of that file for the two
+# same-named helpers that deliberately stay private to each caller.
+# shellcheck source=/dev/null
+. "@networkLib@"
+
 escape_markup() {
   printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
@@ -39,68 +45,6 @@ get_bluetooth_status() {
   echo "${output%, }"
 }
 
-wifi_iface() {
-  nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" && !found { print $1; found = 1 }'
-}
-
-wifi_enabled() {
-  [ "$(nmcli radio wifi)" = "enabled" ]
-}
-
-signal_icon() {
-  local signal="${1:-0}"
-  if ! [[ "$signal" =~ ^[0-9]+$ ]]; then
-    signal=0
-  fi
-
-  if [ "$signal" -ge 80 ]; then
-    printf '󰤨'
-  elif [ "$signal" -ge 60 ]; then
-    printf '󰤥'
-  elif [ "$signal" -ge 40 ]; then
-    printf '󰤢'
-  elif [ "$signal" -ge 20 ]; then
-    printf '󰤟'
-  else
-    printf '󰤯'
-  fi
-}
-
-band_label() {
-  local freq="${1%% *}"
-  if ! [[ "$freq" =~ ^[0-9]+$ ]]; then
-    printf '?'
-    return
-  fi
-
-  if [ "$freq" -ge 5925 ]; then
-    printf '6 GHz'
-  elif [ "$freq" -ge 5000 ]; then
-    printf '5 GHz'
-  else
-    printf '2.4 GHz'
-  fi
-}
-
-security_label() {
-  local security="${1:-}"
-  if [ -z "$security" ] || [ "$security" = "--" ]; then
-    printf 'Open'
-  else
-    printf '%s' "$security"
-  fi
-}
-
-active_wifi_connection() {
-  local iface="$1"
-  nmcli -t -f NAME,UUID,TYPE,DEVICE connection show --active \
-    | sed 's/\\:/\x01/g' \
-    | awk -F: -v target="$iface" '$3 == "802-11-wireless" && $4 == target && !found {
-        gsub(/\x01/, ":", $1); gsub(/\x01/, ":", $4);
-        print $1 "\t" $2 "\t" $4; found = 1
-      }'
-}
-
 active_wifi_ap_line() {
   local iface="$1"
   local target_ssid="${2:-}"
@@ -123,36 +67,9 @@ active_wifi_ap_line() {
     | awk -F: -v target="$masked_ssid" '$2 == target && !found { print; found = 1 }'
 }
 
-connection_ssid() {
-  local uuid="$1"
-  local name="${2:-}"
-  local ssid=""
-
-  if [ -n "$uuid" ]; then
-    ssid="$(nmcli -g 802-11-wireless.ssid connection show "$uuid" 2>/dev/null | sed -n '1p' || true)"
-  fi
-
-  if [ -n "$ssid" ]; then
-    printf '%s' "$ssid"
-  elif [ -n "$name" ]; then
-    printf '%s' "$name"
-  fi
-}
-
 current_ip() {
   local iface="$1"
   nmcli -g IP4.ADDRESS device show "$iface" 2>/dev/null | sed -n '1s#/.*##p'
-}
-
-current_gateway() {
-  local iface="$1"
-  nmcli -g IP4.GATEWAY device show "$iface" 2>/dev/null | sed -n '1p'
-}
-
-current_dns() {
-  local iface="$1"
-  nmcli -g IP4.DNS device show "$iface" 2>/dev/null \
-    | awk 'NF { printf "%s%s", sep, $0; sep = ", " } END { printf "\n" }'
 }
 
 active_ethernet() {
