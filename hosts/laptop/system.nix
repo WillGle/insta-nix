@@ -176,13 +176,9 @@ in
     # the waybar systemd module rather than as silent inaction.
     hypridle.enable = false;
 
-    # Closing the lid must not put the machine to sleep. The firmware has no
-    # lid attribute to flip — think_lmi exposes 35 settings and none of them
-    # touch the lid — so the policy lives here instead of in the BIOS.
-    # systemd suspends on lid close by default; all three cases are pinned so
-    # behaviour does not change when a dock or the charger is attached.
+    # Suspend on lid close when running on battery; keep awake on AC or when docked.
     logind.settings.Login = {
-      HandleLidSwitch = "ignore";
+      HandleLidSwitch = "suspend";
       HandleLidSwitchExternalPower = "ignore";
       HandleLidSwitchDocked = "ignore";
     };
