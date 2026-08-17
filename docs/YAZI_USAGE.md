@@ -61,6 +61,7 @@ Configured via Home Manager in `modules/home/base.nix`:
 - **Images**: Uses **Sixel** protocol (native to Foot). Yazi auto-detects this from `TERM=foot` — there is no config key for it.
 - **Dimensions**: Previews are rendered at up to 1000x1000px for crisp detail.
 - **Large photos**: `tasks.image_bound` is raised to 40000x40000 (default is 5000x5000). Without this, any 40MP photo fails to preview with `Image size exceeds limit`. The real safety net is `tasks.image_alloc` (2 GiB), which caps decode memory — note that the limit is driven by pixel count, not file size on disk.
+- **RAW**: `.CR2/.CR3/.NEF/.ARW/.DNG/.RAF/.ORF/.RW2/...` are routed to the `magick` previewer, since the builtin one cannot decode RAW. Matched by filename because RAW mime detection is unreliable. First preview of a file costs ~0.5-3s; yazi then caches it under `~/.cache/yazi`.
 
 ### 🎨 Visual Theme
 
