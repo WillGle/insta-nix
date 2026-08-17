@@ -156,6 +156,16 @@
           max_width = 1000;
           max_height = 1000;
         };
+        # Defaults are image_bound = [ 5000 5000 ] / image_alloc = 512MiB, which
+        # rejects any 40MP photo with "Image size exceeds limit". Both limits
+        # apply to the magick previewer too (passed through as -limit).
+        tasks = {
+          image_alloc = 2147483648;
+          image_bound = [
+            40000
+            40000
+          ];
+        };
       };
       theme = {
         flavor = {
