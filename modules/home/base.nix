@@ -166,6 +166,28 @@
             40000
           ];
         };
+        # The builtin image previewer is the Rust image crate, which has no RAW
+        # decoder; route RAW to magick instead (built here with libraw). Matched
+        # by name because RAW mime detection is unreliable - CR3 has no magic
+        # entry, and NEF/ARW/DNG report as plain image/tiff.
+        plugin =
+          let
+            raw = "*.{cr2,CR2,cr3,CR3,crw,CRW,nef,NEF,arw,ARW,dng,DNG,raf,RAF,orf,ORF,rw2,RW2,pef,PEF,srw,SRW,x3f,X3F}";
+          in
+          {
+            prepend_preloaders = [
+              {
+                name = raw;
+                run = "magick";
+              }
+            ];
+            prepend_previewers = [
+              {
+                name = raw;
+                run = "magick";
+              }
+            ];
+          };
       };
       theme = {
         flavor = {
