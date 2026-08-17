@@ -156,6 +156,18 @@
           max_width = 1000;
           max_height = 1000;
         };
+        # The default media rule calls `mpv` directly, which isn't installed, so
+        # Enter did nothing on a video. Route through xdg-open instead to honour
+        # the defaultApplications table below (video -> VLC, audio -> Tauon).
+        open.prepend_rules = [
+          {
+            mime = "{audio,video}/*";
+            use = [
+              "open"
+              "reveal"
+            ];
+          }
+        ];
         # Defaults are image_bound = [ 5000 5000 ] / image_alloc = 512MiB, which
         # rejects any 40MP photo with "Image size exceeds limit". Both limits
         # apply to the magick previewer too (passed through as -limit).
