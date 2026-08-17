@@ -58,9 +58,8 @@ Configured via Home Manager in `modules/home/base.nix`:
 
 ### 🖼️ High-Fidelity Previews
 
-- **Images**: Uses **Sixel** protocol (native to Foot). Images are rendered directly in the terminal via `ImageMagick`.
-- **Fallbacks**: Uses `Chafa` if a high-res render is unavailable.
-- **Dimensions**: Optimized for 1000x1000px previews for crisp detail.
+- **Images**: Uses **Sixel** protocol (native to Foot). Yazi auto-detects this from `TERM=foot` — there is no config key for it.
+- **Dimensions**: Previews are rendered at up to 1000x1000px for crisp detail.
 
 ### 🎨 Visual Theme
 

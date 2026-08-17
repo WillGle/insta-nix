@@ -155,7 +155,6 @@
         preview = {
           max_width = 1000;
           max_height = 1000;
-          preview_method = "sixel";
         };
       };
       theme = {
