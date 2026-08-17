@@ -63,6 +63,12 @@ Configured via Home Manager in `modules/home/base.nix`:
 - **Large photos**: `tasks.image_bound` is raised to 40000x40000 (default is 5000x5000). Without this, any 40MP photo fails to preview with `Image size exceeds limit`. The real safety net is `tasks.image_alloc` (2 GiB), which caps decode memory — note that the limit is driven by pixel count, not file size on disk.
 - **RAW**: `.CR2/.CR3/.NEF/.ARW/.DNG/.RAF/.ORF/.RW2/...` are routed to the `magick` previewer, since the builtin one cannot decode RAW. Matched by filename because RAW mime detection is unreliable. First preview of a file costs ~0.5-3s; yazi then caches it under `~/.cache/yazi`.
 
+### 🪟 Opening Files (`Enter`)
+
+Every media type is routed through `xdg-open`, so the handler comes from the `xdg.mimeApps.defaultApplications` table in `modules/home/base.nix` — images open in **Loupe**, video in **VLC**, audio in **Tauon**. Change the app there and Yazi follows automatically.
+
+Note that Yazi's own default sends `{audio,video}/*` straight to `mpv` instead, bypassing xdg entirely; since `mpv` isn't installed here, `Enter` on a video used to do nothing. The `open.prepend_rules` entry in `base.nix` is what overrides that.
+
 ### 🎨 Visual Theme
 
 - **Theme**: Synced with your **GitHub Dark Dimmed** system theme.
