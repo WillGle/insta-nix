@@ -4,7 +4,7 @@ A modular, multi-host NixOS & Home Manager Flake configuration featuring a perso
 
 ---
 
-## 🖥️ Flake Outputs
+## Flake Outputs
 
 * **`think14gryzen`**: Primary personal laptop profile (Ryzen 780M, Hyprland, Home Manager, local LLMs, Waybar, Rofi suite).
 * **`plank`**: Lightweight remote-install & bootstrap target for server or headless deployments.
@@ -16,7 +16,7 @@ nix flake show --no-write-lock-file path:/etc/nixos
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 /etc/nixos/
@@ -43,7 +43,7 @@ nix flake show --no-write-lock-file path:/etc/nixos
 
 ---
 
-## 🛠️ App Scripts (`local-bin`)
+## App Scripts (`local-bin`)
 
 User-facing desktop tools are packaged using `writeShellApplication` with pinned runtime dependencies and deployed via Home Manager:
 
@@ -61,7 +61,7 @@ User-facing desktop tools are packaged using `writeShellApplication` with pinned
 
 ---
 
-## 🚀 Usage & Deployment
+## Usage & Deployment
 
 ### Build & Apply Configuration
 ```bash
