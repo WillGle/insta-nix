@@ -63,6 +63,9 @@ in
       videoDrivers = [ "amdgpu" ];
     };
 
+    # iOS USB multiplexing daemon
+    usbmuxd.enable = true;
+
     # Power daemon (pick one).
     power-profiles-daemon.enable = true;
 
