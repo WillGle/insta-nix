@@ -179,6 +179,7 @@ in
   };
 
   environment.systemPackages = with pkgs; [
+    nixfmt-rfc-style
     lightworksWithDesktop
     adwaita-icon-theme
     bibata-cursors
