@@ -237,6 +237,30 @@
       enable = true;
       systemd.enable = false;
     };
+
+    tmux = {
+      enable = true;
+      shortcut = "a"; # Changes prefix key from Ctrl-b to Ctrl-a (popular choice)
+      baseIndex = 1; # Start window and pane numbering at 1 (instead of 0)
+      mouse = true; # Enable mouse scrolling and pane selection
+      keyMode = "vi"; # Use Vi keybindings in copy mode
+      escapeTime = 0; # Removes ESC key delay in Vim/Neovim
+
+      # Popular Tmux plugins from nixpkgs
+      plugins = with pkgs.tmuxPlugins; [
+        catppuccin # Match your setup's color palette
+        vim-tmux-navigator # Seamless Ctrl+h/j/k/l navigation between Vim & Tmux
+        resurrect # Save/restore sessions across reboots (`Prefix + Ctrl-s` / `Prefix + Ctrl-r`)
+      ];
+
+      # Custom configuration extra lines
+      extraConfig = ''
+        # Open new splits in the current working directory
+        bind | split-window -h -c "#{pane_current_path}"
+        bind - split-window -v -c "#{pane_current_path}"
+      '';
+    };
+
   };
 
   dconf.settings."org/gnome/desktop/default-applications/terminal" = {
