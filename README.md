@@ -10,6 +10,7 @@ A modular, multi-host NixOS & Home Manager Flake configuration featuring a perso
 * **`plank`**: Lightweight remote-install & bootstrap target for server or headless deployments.
 
 List exported outputs locally:
+
 ```bash
 nix flake show --no-write-lock-file path:/etc/nixos
 ```
@@ -64,6 +65,7 @@ User-facing desktop tools are packaged using `writeShellApplication` with pinned
 ## Usage & Deployment
 
 ### Build & Apply Configuration
+
 ```bash
 # Validate flake structure
 nix flake check --no-build --no-write-lock-file path:/etc/nixos
@@ -76,8 +78,11 @@ sudo nixos-rebuild switch --flake /etc/nixos#think14gryzen
 ```
 
 ### Remote Bootstrap Target (`plank`)
+
 To build or deploy the remote bootstrap target:
+
 ```bash
 nixos-rebuild build --flake path:/etc/nixos#plank
 ```
+
 Follow the detailed guide in [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md) for target disk partition scripts and remote bootstrap workflows.
