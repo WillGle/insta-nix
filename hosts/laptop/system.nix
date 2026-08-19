@@ -181,125 +181,291 @@ in
     gamemode.enable = true;
   };
 
-  environment.systemPackages = with pkgs; [
-    nixfmt-rfc-style
-    lightworksWithDesktop
-    adwaita-icon-theme
-    bibata-cursors
-    sddm-astronaut
+  environment.systemPackages =
+    (with pkgs; [
+      adwaita-icon-theme
+      bibata-cursors
+      sddm-astronaut
 
-    # Wayland & Qt helpers
-    qt5.qtwayland
-    qt6.qtwayland
-    xorg.xcbutilcursor
-    brightnessctl
-    cliphist
-    dunst
-    grim
-    hyprlock
-    hyprpaper
-    neovim
-    recoll
-    zed-editor
-    playerctl
-    (rofi.override {
-      plugins = [
-        rofi-calc
-        rofi-emoji
+      # Wayland & Qt helpers
+      qt5.qtwayland
+      qt6.qtwayland
+      xorg.xcbutilcursor
+      brightnessctl
+      cliphist
+      dunst
+      grim
+      hyprlock
+      hyprpaper
+      neovim
+      recoll
+      zed-editor
+      playerctl
+      (rofi.override {
+        plugins = [
+          rofi-calc
+          rofi-emoji
+        ];
+      })
+      rofi-power-menu
+      slurp
+      sxhkd
+      wl-clipboard
+      wlr-randr
+      xdg-utils
+
+      # CLI utilities
+      btop
+      chafa
+      cpupower-gui
+      curl
+      eza
+      fastfetch
+      fd
+      gawk
+      gdu
+      glmark2
+      htop
+      imagemagick
+      jq
+      matugen
+      lm_sensors
+      phoronix-test-suite
+      linuxPackages.cpupower
+      nvtopPackages.amd
+      p7zip
+      poppler-utils
+      ripgrep
+      ryzen-monitor-ng
+      s-tui
+      pkgsUnstable.lmstudio
+      stressapptest
+      sysbench
+      vulkan-tools
+      vulkan-caps-viewer
+      vkmark
+      clinfo
+      amdgpu_top
+      radeontop
+      rocmPackages.rocminfo
+      rocmPackages.rocm-smi
+      rocmPackages.rocm-runtime
+      rocmPackages.amdsmi
+      rocmPackages.rocblas
+      rocmPackages.hipblas
+      rocmPackages.hipblaslt
+      rocmPackages.rocsolver
+      rocmPackages.rocsparse
+      rocmPackages.hipsparse
+      rocmPackages.rocfft
+      rocmPackages.hipfft
+      rocmPackages.rocrand
+      rocmPackages.hiprand
+      rocmPackages.rocprim
+      rocmPackages.rocthrust
+      rocmPackages.hipcub
+      rocmPackages.miopen
+      rocmPackages.rocm-bandwidth-test
+      stress-ng
+      tree
+      unzip
+      wget
+      xz
+      zip
+      zstd
+
+      # Filesystem
+      dosfstools
+      exfatprogs
+      ntfs3g
+      pciutils
+      udiskie
+      usbutils
+      bluez-tools
+
+      # Shell & version control
+      bash
+      git
+
+      # Networking — packet capture & protocol analysis
+      tcpdump
+      wireshark
+      termshark
+      ngrep
+      tcpflow
+
+      # Networking — scanning & recon
+      nmap
+      arp-scan
+      whois
+      hping
+      macchanger
+
+      # Networking — diagnostics & troubleshooting
+      bind
+      mtr
+      traceroute
+      netcat-gnu
+      socat
+      iperf
+      ethtool
+      ipcalc
+
+      # Networking — bandwidth & traffic monitoring
+      bmon
+      iftop
+      nload
+      vnstat
+
+      # Networking — core stack (routing, bridges, namespaces, firewall)
+      iproute2
+      nettools
+      bridge-utils
+      openvswitch
+      conntrack-tools
+      nftables
+
+      # Networking — VPN / overlay / virtual networking
+      wireguard-tools
+      openvpn
+      dnsmasq
+
+      # Deep Linux tracing & observability
+      strace
+      ltrace
+      lsof
+      sysstat
+      numactl
+      perf
+
+      impala
+
+      # Auth agents
+      lxqt.lxqt-policykit
+
+      # Nix audit tools
+      deadnix
+      nixfmt-rfc-style
+      statix
+
+      # Browsers
+      brave
+      firefox
+
+      # Office & productivity
+      gsimplecal
+      pkgsUnstable.libreoffice-fresh
+      wpsoffice
+      pkgsUnstable.xournalpp
+      pkgsUnstable.zotero
+      pkgsUnstable.vscode
+      pkgsUnstable.calibre
+
+      # Media apps
+      pkgsUnstable.darktable
+      evince
+      gthumb
+      guvcview
+      imv
+      lightworksWithDesktop
+      pkgsUnstable.losslesscut-bin
+      loupe
+      pkgsUnstable.obs-studio
+      rawtherapee
+      vlc
+      pkgsUnstable.tauon
+      wavpack
+
+      # System GUI apps
+      baobab
+      gnome-disk-utility
+      mission-center
+      nautilus
+      networkmanagerapplet
+      pavucontrol
+      pkgsUnstable.proton-vpn
+      qpwgraph
+      pkgsUnstable.waypaper
+
+      # Media tools & codecs
+      ffmpeg-full
+      ffmpegthumbnailer
+      gnome-epub-thumbnailer
+      libavif
+      libheif
+      mediainfo
+      mediainfo-gui
+      spek
+      v4l-utils
+      alsa-utils
+
+      # Extended codecs
+      faac
+      faad2
+      fdk_aac
+      flac
+      lame
+      libmad
+      libogg
+      libvorbis
+      opusTools
+      libdvdcss
+      libdvdread
+      libdvdnav
+      x264
+      x265
+
+      # GStreamer
+      gst_all_1.gstreamer
+      gst_all_1.gst-plugins-base
+      gst_all_1.gst-plugins-good
+      gst_all_1.gst-plugins-bad
+      gst_all_1.gst-plugins-ugly
+      gst_all_1.gst-libav
+      gst_all_1.gst-vaapi
+
+      # Gaming tools and helpers
+      mesa-demos
+      steam-run
+      mangohud
+    ])
+    ++ [
+      pkgsUnstable.antigravity-ide
+      pkgsUnstable.antigravity-cli
+      pkgsUnstable.ryzenadj
+    ];
+
+  fonts = {
+    enableDefaultPackages = true;
+    fontconfig.enable = true;
+
+    packages = with pkgs; [
+      nerd-fonts.meslo-lg
+      nerd-fonts.fira-code
+      nerd-fonts.jetbrains-mono
+
+      noto-fonts
+      noto-fonts-cjk-sans
+      noto-fonts-color-emoji
+
+      roboto
+      unifont
+      freefont_ttf
+      ipaexfont
+      corefonts
+    ];
+
+    fontconfig.defaultFonts = {
+      monospace = [
+        "JetBrainsMono Nerd Font"
+        "FiraCode Nerd Font"
       ];
-    })
-    rofi-power-menu
-    slurp
-    sxhkd
-    wl-clipboard
-    wlr-randr
-    xdg-utils
-
-    # CLI utilities
-    btop
-    chafa
-    cpupower-gui
-    curl
-    eza
-    fastfetch
-    fd
-    gawk
-    gdu
-    glmark2
-    htop
-    imagemagick
-    jq
-    matugen
-    lm_sensors
-    phoronix-test-suite
-    linuxPackages.cpupower
-    nvtopPackages.amd
-    p7zip
-    poppler-utils
-    ripgrep
-    ryzen-monitor-ng
-    s-tui
-    pkgsUnstable.lmstudio
-    stressapptest
-    sysbench
-    vulkan-tools
-    vulkan-caps-viewer
-    vkmark
-    clinfo
-    amdgpu_top
-    radeontop
-    rocmPackages.rocminfo
-    rocmPackages.rocm-smi
-    rocmPackages.rocm-runtime
-    rocmPackages.amdsmi
-    rocmPackages.rocblas
-    rocmPackages.hipblas
-    rocmPackages.hipblaslt
-    rocmPackages.rocsolver
-    rocmPackages.rocsparse
-    rocmPackages.hipsparse
-    rocmPackages.rocfft
-    rocmPackages.hipfft
-    rocmPackages.rocrand
-    rocmPackages.hiprand
-    rocmPackages.rocprim
-    rocmPackages.rocthrust
-    rocmPackages.hipcub
-    rocmPackages.miopen
-    rocmPackages.rocm-bandwidth-test
-    stress-ng
-    tree
-    unzip
-    wget
-    xz
-    zip
-    zstd
-
-    # Filesystem
-    dosfstools
-    exfatprogs
-    ntfs3g
-    pciutils
-    udiskie
-    usbutils
-    bluez-tools
-
-    # Shell & version control
-    bash
-    git
-
-    # Networking — packet capture & protocol analysis
-    tcpdump
-    wireshark
-    termshark
-    ngrep
-    tcpflow
-
-    # Networking — scanning & recon
-    nmap
-    arp-scan
-    whois
-    hping
-    macchanger
-  ];
+      sansSerif = [
+        "Noto Sans"
+        "Roboto"
+      ];
+      serif = [ "Noto Serif" ];
+      emoji = [ "Noto Color Emoji" ];
+    };
+  };
 }
