@@ -23,9 +23,10 @@ let
     };
 
   ryzenScripts = [
+    pkgs.ryzenadj
     (mkSystemScript {
       name = "ryzenadj-profile";
-      runtimeInputs = with pkgs; [ coreutils ];
+      runtimeInputs = with pkgs; [ coreutils ryzenadj ];
     })
     (mkSystemScript {
       name = "toggle-battery-reserve";
