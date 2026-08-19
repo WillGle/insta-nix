@@ -6,6 +6,9 @@
     ./network.nix
     ../../modules/nixos/base.nix
     ../../modules/nixos/openlogi.nix
+    ../../modules/nixos/llm.nix
+    ../../modules/nixos/ryzen.nix
+    ../../modules/nixos/desktop-integration.nix
     ../../users/will.nix
     ./system.nix
     ../../modules/nixos/roles/kubernetes.nix
