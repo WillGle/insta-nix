@@ -9,6 +9,7 @@
     ../../modules/nixos/llm.nix
     ../../modules/nixos/ryzen.nix
     ../../modules/nixos/desktop-integration.nix
+    ../../modules/nixos/tailscale.nix
     ../../users/will.nix
     ./system.nix
     ../../modules/nixos/roles/kubernetes.nix
