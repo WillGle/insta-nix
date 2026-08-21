@@ -22,8 +22,9 @@ What the campaign established:
   trust.
 - **Vulkan inference (`llm-run`) was unaffected throughout** — the stable
   lane stays stable.
-- Stack for experiments: docker container `rocm-unsloth` (ubuntu:24.04 +
-  torch 2.11+rocm7.2 wheels + unsloth[amd]); recreate recipe in the worklog.
+- The experiment stack was TORN DOWN 2026-08-22 by user decision (stochastic
+  training rejected even for experiments; ~25 GiB reclaimed). Recreate recipe
+  remains in the worklog if ever wanted on supported hardware.
 - DaVinci Resolve removed from the box (2026-08-22) → the old "protect the
   shared OpenCL ICD" constraint is obsolete.
 - **Real fine-tuning = cloud GPU (Unsloth QLoRA) → export GGUF → serve
