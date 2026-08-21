@@ -13,9 +13,17 @@ CPU), and **declarative** (the tools ship in the host config).
 | Fetch a model (GGUF) from HuggingFace | `llm-pull` | `ollama pull` |
 | Check it fits the GPU at a context | `llm-fit` *(optional)* | — |
 | Serve it (auto-sized, OpenAI API) | `llm-run` | `ollama run` |
-| Engine | llama.cpp Vulkan (b9309) | (older bundled llama.cpp) |
+| Engine | llama.cpp Vulkan (tracks nixpkgs-unstable) | (older bundled llama.cpp) |
 
-Models are plain `.gguf` files under `~/.lmstudio/models/` (LM Studio sees them too) — no hidden registry.
+Models are plain `.gguf` files under `~/.lmstudio/models/` (LM Studio sees them
+too) — no hidden registry. Since 2026-08-22 that path is a symlink to
+`/mnt/vault/lmstudio-models` (the PCIe 4.0 drive → ~2× faster model loads);
+use the `~/.lmstudio/models/...` path everywhere as before.
+
+Measured on this box (gemma-3-4b UD-Q4, performance profile, 2026-08-22 stack
+= kernel 7.2 + Mesa 26.2): **pp512 787 t/s, tg128 33.2 t/s** — decode sits at
+~85% of the LPDDR5 bandwidth ceiling, so bigger gains come from model choice,
+not tuning.
 
 ## Flow
 
@@ -44,9 +52,32 @@ llm-run ~/.lmstudio/models/unsloth/gemma-3-12b-it-GGUF/gemma-3-12b-it-UD-Q4_K_XL
 
 **④ Use — point any client at the server:**
 
-- LM Studio / OpenWebUI / editor AI extension: `base_url = http://127.0.0.1:8080/v1`
+- Any OpenAI-compatible client: `base_url = http://127.0.0.1:8080/v1`, API key
+  = anything (llama-server doesn't check one).
 - `curl http://127.0.0.1:8080/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}]}'`
 - CLI chat: `llama-cli -m <file> -ngl 999 -fa on`
+
+Useful knobs: `LLM_PORT=8081 llm-run …` for a second model on another port;
+`llm-run <model> 8192 -- -np 4` for 4 parallel slots (context is split across
+slots); `LLM_HOST=0.0.0.0` only when a container/another device must reach it.
+
+## Editor / app integration (state as of 2026-08-22)
+
+| App | How | Status |
+| --- | --- | --- |
+| **Zed** | `language_models.openai_compatible` provider "llama-server" → agent panel | **Already configured** in `~/.config/zed/settings.json`; first use asks an API key — type anything |
+| **VSCode** | Continue / Cline / Roo: provider `openai`, `apiBase: http://127.0.0.1:8080/v1` | Works |
+| **LM Studio** | Shares the same GGUF *files* (its own engine, not llama-server) | Works; pick the Vulkan runtime |
+| **Antigravity** | No official BYOK/custom endpoint | Not possible (only ToS-breaking patches) |
+
+Start `llm-run` first; every client above then works against the one server.
+
+## Max speed checklist
+
+1. Performance power profile (waybar toggle, or `sudo ryzenadj-profile performance`
+   + `powerprofilesctl set performance`) — power-saver caps the APU at 10 W.
+2. Plugged into AC.
+3. That's it — `-fa on`, full offload, and KV auto-sizing are already `llm-run` defaults.
 
 ## Choosing a model (efficiency on a ~102 GB/s bandwidth-bound iGPU)
 
@@ -54,15 +85,27 @@ Decode speed ≈ memory-bandwidth ÷ model-size, so:
 
 - **Prefer Unsloth UD quants** when available — same speed, closer to BF16 quality.
 - **Prefer small-active MoE** (e.g. Qwen3-30B-A3B): ~30B knowledge at ~3B speed.
-- **Size to the wall:** 4–8B / small-MoE ≈ snappy (≈15–32 t/s); 14B ≈ usable (≈9–10 t/s); 27–32B dense ≈ batch-only.
-- Use `llm-fit` to pick the largest model + context that still fits the ~13.6 GiB GTT (raisable via `ttm.pages_limit`).
+- **Size to the wall:** 4–8B / small-MoE ≈ snappy (≈15–33 t/s); 14B ≈ usable (≈9–10 t/s); 27–32B dense ≈ batch-only.
+- Use `llm-fit` to pick the largest model + context that still fits the **22 GiB GTT**
+  (already raised via `ttm.pages_limit=5767168`). Verified: Qwen2.5-Coder-14B Q4_K_M
+  fully offloads at ctx 8192 with f16 KV.
 
 ## LM Studio (secondary GUI)
 
 - **LM Studio** (`lm-studio`): GUI — select the **Vulkan** runtime, keep it updated; it reads the same
   `~/.lmstudio/models/` files (including ones `llm-pull` fetched).
-- **ollama was removed 2026-06-07** (measured ~1.8× slower than `llm-run`; nothing depended on it). The
-  `llm-ollama-*` wrappers are gone. If you ever want it back, re-add `pkgsUnstable.ollama-vulkan`.
+- **ollama is gone — keep it that way.** Removed 2026-06-07 (measured ~1.8× slower than
+  `llm-run`), it crept back via Zed's agent config and the WisdomTree compose stack, and was
+  fully removed host-wide again on 2026-08-22 (user decision: "llm only"). Every consumer now
+  goes through llama-server's OpenAI API or the shared GGUF files.
+
+## Fine-tuning / training
+
+**Not on this GPU.** The 2026-08-22 campaign verdict: PyTorch/ROCm training on gfx1103 is
+stochastic (~80% instant-fail odds per attempt) — see
+[`../archive/rocm/README.md`](../archive/rocm/README.md). The working pipeline is:
+**cloud GPU + Unsloth QLoRA → export GGUF → `llm-pull`-style drop into
+`~/.lmstudio/models/` → serve with `llm-run`.**
 
 ## Verification
 
