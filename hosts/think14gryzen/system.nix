@@ -5,6 +5,14 @@
   ...
 }:
 let
+  # ryzen-smu upstream still calls cpuid_eax()/cpuid_ebx() bare; kernel >= 7.x
+  # moved those helpers out of the headers smu.c pulls in transitively.
+  ryzenSmuFixed = pkgsUnstable.linuxPackages_latest.ryzen-smu.overrideAttrs (old: {
+    postPatch = (old.postPatch or "") + ''
+      sed -i '1i #include <asm/cpuid/api.h>' smu.c
+    '';
+  });
+
   # Lightworks wrapper that adds the official .desktop file and icon,
   # missing from nixpkgs buildFHSUserEnv by default.
   lightworksWithDesktop = pkgs.symlinkJoin {
@@ -86,6 +94,14 @@ in
     cpupower-gui.enable = true;
     openlogi.enable = true;
 
+    # sched_ext userspace scheduler (needs the mainline kernel above):
+    # latency-aware scheduling keeps the desktop responsive under heavy
+    # LLM/compile load.
+    scx = {
+      enable = true;
+      scheduler = "scx_lavd";
+    };
+
     udev.extraRules = ''
       # FiiO DAC (JadeAudio JA11 / SNOWSKY Melody) for WebHID access
       ATTRS{idVendor}=="2972", ATTRS{idProduct}=="0126", MODE="0666", GROUP="users"
@@ -99,9 +115,17 @@ in
     NetworkManager-wait-online.enable = false;
   };
 
+  # Newer amdgpu MES/SMU/VCN blobs than the 25.11 snapshot; mkBefore so the
+  # unstable copy wins path collisions against the stable default set.
+  hardware.firmware = lib.mkBefore [ pkgsUnstable.linux-firmware ];
+
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
+    # Mesa/RADV from unstable — a year of RDNA3 gains over 25.2 for both
+    # llama.cpp Vulkan (llm-run) and gaming.
+    package = pkgsUnstable.mesa;
+    package32 = pkgsUnstable.pkgsi686Linux.mesa;
     extraPackages = with pkgs; [
       vulkan-loader
       vulkan-tools
@@ -109,8 +133,9 @@ in
       libva
       libva-utils
       libva-vdpau-driver
-      mesa
-      mesa.opencl
+      # mesa itself comes from `package` (unstable) above; listing the stable
+      # copy here again would collide in the graphics-drivers buildEnv.
+      pkgsUnstable.mesa.opencl
       # AMD OpenCL ICD. Originally for DaVinci Resolve (removed 2026-08-22);
       # kept for clinfo and any OpenCL consumer.
       rocmPackages.clr
@@ -138,8 +163,11 @@ in
       "msr"
       "ryzen_smu"
     ];
-    kernelPackages = pkgs.linuxPackages_6_12;
-    extraModulePackages = [ pkgs.linuxPackages_6_12.ryzen-smu ];
+    # Mainline from unstable (7.2 as of 2026-08): ~1.5y of amdgpu, amd-pstate
+    # (per-core EPP boost), and sched_ext maturity over the old 6.12 LTS pin.
+    # The pin existed for ryzen-smu, which builds against 7.2 since 2026-04.
+    kernelPackages = pkgsUnstable.linuxPackages_latest;
+    extraModulePackages = [ ryzenSmuFixed ];
 
     initrd.kernelModules = [ "amdgpu" ];
     blacklistedKernelModules = [ "lenovo_wmi_gamezone" ];
