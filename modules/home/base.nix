@@ -31,7 +31,6 @@
       enable = true;
       shellInit = ''
         fish_add_path "$HOME/.cargo/bin"
-        fish_add_path "$HOME/.opencode/bin"
       '';
       interactiveShellInit = ''
         set fish_greeting
