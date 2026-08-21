@@ -94,13 +94,10 @@ in
     cpupower-gui.enable = true;
     openlogi.enable = true;
 
-    # sched_ext userspace scheduler (needs the mainline kernel above):
-    # latency-aware scheduling keeps the desktop responsive under heavy
-    # LLM/compile load.
-    scx = {
-      enable = true;
-      scheduler = "scx_lavd";
-    };
+    # scx_lavd was tried here (2026-08-22) and REMOVED: measured -21% prefill
+    # and relative jittery decode (27.9-31.9 vs a stable 33.2 t/s) on llama.cpp
+    # Vulkan — latency-first scheduling starves the GPU submission thread.
+    # EEVDF default wins for this box's throughput-first priorities.
 
     udev.extraRules = ''
       # FiiO DAC (JadeAudio JA11 / SNOWSKY Melody) for WebHID access
