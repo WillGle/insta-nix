@@ -458,6 +458,9 @@ in
     ++ [
       pkgsUnstable.antigravity-ide
       pkgsUnstable.antigravity-cli
+      # pi coding agent — drives the local llama-server via the custom
+      # provider in ~/.pi/agent/models.json (and Zed via pi-acp).
+      pkgsUnstable.pi-coding-agent
     ];
 
   fonts = {
