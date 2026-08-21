@@ -39,6 +39,15 @@ let
       pkgs.gcc.cc.lib # Needed for some standard c++ libraries sometimes
     ];
 
+    # GPUI dlopens libwayland-client and libvulkan at runtime instead of
+    # declaring them in DT_NEEDED, so autoPatchelfHook would not add them to
+    # the RUNPATH from buildInputs alone; without these the GUI panics with
+    # NoWaylandLib before creating its window.
+    runtimeDependencies = [
+      pkgs.wayland
+      pkgs.vulkan-loader
+    ];
+
     unpackPhase = "dpkg-deb -x $src .";
 
     installPhase = ''
