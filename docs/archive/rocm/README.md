@@ -11,9 +11,13 @@ envelope — see `ROCM_WORKLOG_20260822-022110.md` and the updated recipe in
 - **Reproducible MES-hang triggers (avoid both):** Unsloth's MLP-LoRA kernel
   path (`gate/up/down_proj` targets) and SDPA mem-efficient attention
   (`TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1`).
-- **Safe envelope (proven):** LoRA on attention only (q/k/v/o) + default
+- **Safe envelope (conditional):** LoRA on attention only (q/k/v/o) + default
   attention path — Qwen3-4B QLoRA ran 100 steps / 19.6 min sustained at
-  performance clocks, kernel log clean, Tctl 58 °C.
+  performance clocks, kernel log clean, Tctl 58 °C. **Caveat (late 2026-08-22):
+  this held on near-fresh MES state (≤2 prior resets); after 3+ resets in one
+  boot even this config fast-fails (2/2). Trusted runs require a fresh reboot;
+  reboot again after any reset. Multi-hour stability still unproven** — see
+  "Conclusion v2" in the worklog.
 - Stack: docker container `rocm-unsloth` (ubuntu:24.04 + torch 2.11+rocm7.2
   wheels + unsloth[amd]), `HSA_OVERRIDE_GFX_VERSION=11.0.2` scoped per-process
   (mandatory — the wheels ship no gfx1103 binaries; no-spoof segfaults).
