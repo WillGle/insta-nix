@@ -111,7 +111,8 @@ in
       libva-vdpau-driver
       mesa
       mesa.opencl
-      # Restore the AMD OpenCL ICD so DaVinci Resolve can see the 780M again.
+      # AMD OpenCL ICD. Originally for DaVinci Resolve (removed 2026-08-22);
+      # kept for clinfo and any OpenCL consumer.
       rocmPackages.clr
       rocmPackages.clr.icd
     ];
