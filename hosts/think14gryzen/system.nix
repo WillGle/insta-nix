@@ -432,7 +432,6 @@ in
     ++ [
       pkgsUnstable.antigravity-ide
       pkgsUnstable.antigravity-cli
-      pkgsUnstable.ryzenadj
     ];
 
   fonts = {
