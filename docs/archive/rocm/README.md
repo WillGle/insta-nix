@@ -2,29 +2,32 @@
 
 ## Current status (2026-08-22)
 
-**The framework lane is no longer a blanket NO-GO.** The historical
-"PyTorch-ROCm heavy compute = MES reset" failure was isolated to two precise
-kernel paths, and QLoRA training now runs stably on the 780M inside a defined
-envelope — see `ROCM_WORKLOG_20260822-022110.md` and the updated recipe in
-`docs/internal/ML_GPU_COMPUTE_20260607.md`:
+**Final verdict (Conclusion v3 in `ROCM_WORKLOG_20260822-022110.md`): local
+PyTorch/Unsloth training on gfx1103 is STOCHASTIC — functionally correct when
+it runs, but the same 4B QLoRA config went 1 PASS (100 steps / 19.6 min
+clean) vs 4 instant MES hangs across fresh boots, reset states, power
+profiles, and identical scripts. No variable predicts survival. NOT usable
+for real training; matches AMD/Unsloth excluding gfx1103 from their support
+matrices.**
 
-- **Reproducible MES-hang triggers (avoid both):** Unsloth's MLP-LoRA kernel
-  path (`gate/up/down_proj` targets) and SDPA mem-efficient attention
-  (`TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1`).
-- **Safe envelope (conditional):** LoRA on attention only (q/k/v/o) + default
-  attention path — Qwen3-4B QLoRA ran 100 steps / 19.6 min sustained at
-  performance clocks, kernel log clean, Tctl 58 °C. **Caveat (late 2026-08-22):
-  this held on near-fresh MES state (≤2 prior resets); after 3+ resets in one
-  boot even this config fast-fails (2/2). Trusted runs require a fresh reboot;
-  reboot again after any reset. Multi-hour stability still unproven** — see
-  "Conclusion v2" in the worklog.
-- Stack: docker container `rocm-unsloth` (ubuntu:24.04 + torch 2.11+rocm7.2
-  wheels + unsloth[amd]), `HSA_OVERRIDE_GFX_VERSION=11.0.2` scoped per-process
-  (mandatory — the wheels ship no gfx1103 binaries; no-spoof segfaults).
-- A MES hang is now a ~5 s MODE2 reset with the session surviving (kernel
-  6.12.93) — 3 resets during the isolation campaign, 0 logouts.
-- DaVinci Resolve was removed from the box (2026-08-22), so the old
-  "protect the shared OpenCL ICD" constraint is obsolete.
+What the campaign established:
+- ROCm 7.2 wheels + `HSA_OVERRIDE_GFX_VERSION=11.0.2` (mandatory — no-spoof
+  segfaults) compute *correctly* when they survive: real gradients, decreasing
+  loss, saved adapters, ~4 TFLOPS fp16 matmul. Fine for short throwaway
+  experiments at ~80% instant-fail odds per attempt.
+- Higher-intensity lanes (MLP-LoRA targets, AOTriton experimental attention)
+  failed 3/3 — read as higher crash probability, not distinct root causes.
+- A MES hang now costs ~5 s (MODE2 reset, session survives, kernel 6.12.93;
+  7 resets across the campaign, 0 logouts) — cheap to retry, impossible to
+  trust.
+- **Vulkan inference (`llm-run`) was unaffected throughout** — the stable
+  lane stays stable.
+- Stack for experiments: docker container `rocm-unsloth` (ubuntu:24.04 +
+  torch 2.11+rocm7.2 wheels + unsloth[amd]); recreate recipe in the worklog.
+- DaVinci Resolve removed from the box (2026-08-22) → the old "protect the
+  shared OpenCL ICD" constraint is obsolete.
+- **Real fine-tuning = cloud GPU (Unsloth QLoRA) → export GGUF → serve
+  locally via `llm-run`.**
 
 ## Previous status (2026-06-07)
 
