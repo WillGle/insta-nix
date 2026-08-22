@@ -27,8 +27,15 @@ let
 
   llmLib = ../../hosts/think14gryzen/assets/llm/lib/common.sh;
 
+  # llmfit from unstable (not in 25.11), wrapped with the GTT ceiling: its
+  # autodetect only sees the 4G VRAM carve and would hide most models.
+  llmfitWrapped = pkgs.writeShellScriptBin "llmfit" ''
+    exec ${pkgsUnstable.llmfit}/bin/llmfit --memory 22G "$@"
+  '';
+
   llmPackages = [
     llamaCppVulkan
+    llmfitWrapped
     (mkSystemScript {
       name = "llm-pull";
       dir = ../../hosts/think14gryzen/assets/local-bin;
