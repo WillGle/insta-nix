@@ -58,6 +58,17 @@ let
       ];
     })
     (mkSystemScript {
+      name = "llm-list";
+      dir = ../../hosts/laptop/assets/local-bin;
+      runtimeInputs = with pkgs; [
+        coreutils
+        curl
+        findutils
+        gawk
+        jq
+      ];
+    })
+    (mkSystemScript {
       name = "llm-run";
       dir = ../../hosts/laptop/assets/local-bin;
       vars = { llmLib = "${llmLib}"; };
