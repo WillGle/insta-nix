@@ -196,6 +196,16 @@ for ((index = ${#publish[@]} - 1; index >= 0; index--)); do
   mv -- "$dest/$file.$revision.part" "$dest/$file"
 done
 
+# Mirror into llmfit's flat cache dir: llmfit only lists *.gguf directly in
+# there (no recursive search), so nested owner/repo layouts are invisible
+# to it without these links.
+LLMFIT_CACHE="${LLMFIT_CACHE:-$HOME/.cache/llmfit/models}"
+mkdir -p "$LLMFIT_CACHE"
+for file in "${todo[@]}"; do
+  case "$(basename "$file")" in mmproj*) continue ;; esac
+  ln -sfn "$dest/$file" "$LLMFIT_CACHE/$(basename "$file")"
+done
+
 echo
 echo "done -> $dest/$first"
 echo "next:"
