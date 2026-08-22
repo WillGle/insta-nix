@@ -6,14 +6,17 @@ The optimal local-LLM workflow on `think14gryzen`: **fast** (llama.cpp Vulkan, m
 bundled-ollama engine), **overflow-safe** (auto KV-cache sizing so context never silently spills to
 CPU), and **declarative** (the tools ship in the host config).
 
-## TL;DR — three tools + one engine
+## TL;DR — the tool belt
 
-| Role | Tool | ≈ ollama |
+| Role | Tool | Notes |
 | --- | --- | --- |
-| Fetch a model (GGUF) from HuggingFace | `llm-pull` | `ollama pull` |
-| Check it fits the GPU at a context | `llm-fit` *(optional)* | — |
-| Serve it (auto-sized, OpenAI API) | `llm-run` | `ollama run` |
-| Engine | llama.cpp Vulkan (tracks nixpkgs-unstable) | (older bundled llama.cpp) |
+| **Discover** models that fit this hardware | `llmfit` | curated-catalog TUI/CLI, wrapped with `--memory 22G` |
+| **Fetch** a GGUF from HuggingFace | `llm-pull` | prefers Unsloth UD quants; mirrors into llmfit's cache |
+| **Inventory** what is installed | `llm-list` | ground truth: every GGUF + what's being served |
+| **Fit-check** a local file at a context | `llm-fit` | exact answer from the real engine |
+| **Serve** (auto-sized, OpenAI API) | `llm-run` | lightest KV that keeps full offload, `-fa on` |
+| **Agentic coding** on a repo | `pi` | via provider `llama-server` (see below) |
+| Engine | llama.cpp Vulkan | tracks nixpkgs-unstable |
 
 Models are plain `.gguf` files under `~/.lmstudio/models/` (LM Studio sees them
 too) — no hidden registry. Since 2026-08-22 that path is a symlink to
@@ -27,27 +30,49 @@ not tuning.
 
 ## Flow
 
+**⓪ Discover (when shopping for a model):**
+
+```bash
+llmfit                # TUI: browse models scored against this machine
+llmfit --cli fit -n 10   # or the classic table
+```
+
+The wrapper bakes in `--memory 22G` (autodetect only sees the 4G VRAM carve).
+Trust the fit/score columns, NOT the tok/s estimates (optimistic ~2×). Its
+"installed" badge only matches names in its own catalog — for what is really
+installed, use `llm-list`.
+
 **① Pull a model (once per model).** Prefers Unsloth **UD** quants (better quality-per-byte at the same speed):
 
 ```bash
-llm-pull unsloth/gemma-3-12b-it-GGUF          # auto-picks UD-Q4_K_XL
-llm-pull bartowski/<Model>-GGUF Q4_K_M        # repo without UD: name the quant
+llm-pull unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF   # auto-picks UD-Q4_K_XL
+llm-pull bartowski/<Model>-GGUF Q4_K_M               # repo without UD: name the quant
 ```
 
-Find repos at huggingface.co (search "`<model> GGUF`"); `unsloth/*` (UD quants) then `bartowski/*` are the go-tos.
+Find repos at huggingface.co (search "`<model> GGUF`"); `unsloth/*` (UD quants)
+then `bartowski/*` are the go-tos. Downloads resume if interrupted (rerun the
+same command). Each pull also drops a flat symlink into
+`~/.cache/llmfit/models/` so llmfit sees it.
+
+**①b Inventory anytime:**
+
+```bash
+llm-list    # every installed GGUF + size + what llama-server is serving now
+```
 
 **② (Optional) Check fit before committing to a big model/context:**
 
 ```bash
-llm-fit ~/.lmstudio/models/unsloth/gemma-3-12b-it-GGUF/gemma-3-12b-it-UD-Q4_K_XL.gguf 32768
+llm-fit ~/.lmstudio/models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768
 #  → fits f16? if not, the lightest KV-cache type that fixes it, or a GTT-raise hint.
 ```
 
 **③ Run (each use) — auto-fits and serves:**
 
 ```bash
-llm-run ~/.lmstudio/models/unsloth/gemma-3-12b-it-GGUF/gemma-3-12b-it-UD-Q4_K_XL.gguf 8192
+llm-run ~/.lmstudio/models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
 #  → picks lightest KV that keeps full GPU offload, -fa on; serves http://127.0.0.1:8080
+#  → append `-- --jinja` whenever an agent/tool-calling client will connect
 ```
 
 **④ Use — point any client at the server:**
@@ -65,12 +90,35 @@ slots); `LLM_HOST=0.0.0.0` only when a container/another device must reach it.
 
 | App | How | Status |
 | --- | --- | --- |
+| **pi** (terminal agent) | provider `llama-server` in `~/.pi/agent/models.json` | **Configured & tested** — see next section |
 | **Zed** | `language_models.openai_compatible` provider "llama-server" → agent panel | **Already configured** in `~/.config/zed/settings.json`; first use asks an API key — type anything |
 | **VSCode** | Continue / Cline / Roo: provider `openai`, `apiBase: http://127.0.0.1:8080/v1` | Works |
 | **LM Studio** | Shares the same GGUF *files* (its own engine, not llama-server) | Works; pick the Vulkan runtime |
 | **Antigravity** | No official BYOK/custom endpoint | Not possible (only ToS-breaking patches) |
 
 Start `llm-run` first; every client above then works against the one server.
+
+## Coding agent on a repo (pi + Qwen3-Coder)
+
+The resident coding model is **Qwen3-Coder-30B-A3B UD-Q4_K_XL** (16.5G MoE,
+3.3B active): fits the 22 GiB GTT at **ctx 32768 with f16 KV**, measured
+**~29 t/s** decode — verified reading/reasoning over a real repo via pi's
+read/grep/edit tools.
+
+```bash
+# 1. serve — --jinja is REQUIRED for tool calling (without it the model
+#    chats fine but the agent cannot read/edit files):
+llm-run ~/.lmstudio/models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
+
+# 2. agent, inside any repo:
+cd <repo>
+pi --provider llama-server --model qwen3-coder-30b-a3b        # interactive TUI
+pi -p --provider llama-server --model qwen3-coder-30b-a3b "…" # one-shot
+```
+
+In pi's TUI, `/model` switches between the local model and cloud defaults
+(`~/.pi/agent/models.json` hot-reloads). pi itself ships declaratively
+(`pkgsUnstable.pi-coding-agent`); Zed can also drive it via `pi-acp`.
 
 ## Max speed checklist
 
@@ -85,10 +133,12 @@ Decode speed ≈ memory-bandwidth ÷ model-size, so:
 
 - **Prefer Unsloth UD quants** when available — same speed, closer to BF16 quality.
 - **Prefer small-active MoE** (e.g. Qwen3-30B-A3B): ~30B knowledge at ~3B speed.
-- **Size to the wall:** 4–8B / small-MoE ≈ snappy (≈15–33 t/s); 14B ≈ usable (≈9–10 t/s); 27–32B dense ≈ batch-only.
+- **Size to the wall:** 4–8B / small-MoE ≈ snappy (≈15–33 t/s); 14B dense ≈ usable (≈9–10 t/s); 27–32B dense ≈ batch-only.
 - Use `llm-fit` to pick the largest model + context that still fits the **22 GiB GTT**
-  (already raised via `ttm.pages_limit=5767168`). Verified: Qwen2.5-Coder-14B Q4_K_M
-  fully offloads at ctx 8192 with f16 KV.
+  (already raised via `ttm.pages_limit=5767168`).
+- Reference points measured on this box: gemma-3-4b UD-Q4 ≈ 33 t/s;
+  **Qwen3-Coder-30B-A3B UD-Q4 ≈ 29 t/s at ctx 32k** — a 30B-class MoE running
+  ~3× faster than the 14B dense it replaced. MoE is the way on this hardware.
 
 ## LM Studio (secondary GUI)
 
@@ -110,7 +160,8 @@ stochastic (~80% instant-fail odds per attempt) — see
 ## Verification
 
 ```bash
-command -v llm-pull llm-fit llm-run llama-server    # all in /run/current-system/sw/bin
+command -v llmfit llm-pull llm-list llm-fit llm-run llama-server pi   # all in /run/current-system/sw/bin
+llm-list                                             # inventory + serving status
 llm-run <model.gguf> 8192 &                          # then: curl http://127.0.0.1:8080/v1/models
 ```
 
