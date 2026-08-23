@@ -122,7 +122,10 @@ in
     # Mesa/RADV from unstable — a year of RDNA3 gains over 25.2 for both
     # llama.cpp Vulkan (llm-run) and gaming.
     package = pkgsUnstable.mesa;
-    package32 = pkgsUnstable.pkgsi686Linux.mesa;
+    # 32-bit stays on stable 25.2: Mesa 26.2 i686 breaks classic GLX visual
+    # selection, so Steam's 32-bit vgui2 client dies at startup with
+    # "glXChooseVisual failed" (verified 2026-08-23 against 25.2.6 i686).
+    package32 = pkgs.pkgsi686Linux.mesa;
     extraPackages = with pkgs; [
       vulkan-loader
       vulkan-tools
@@ -200,6 +203,25 @@ in
 
     steam = {
       enable = true;
+      # Pin Steam to stable 25.2 RADV on both arches. Mesa 26.2's RADV makes
+      # CS2's librendersystemvulkan.so null-deref during renderer init — a
+      # hard, 100%-reproducible SIGSEGV before the game draws a frame.
+      # Bisected 2026-08-23: holding kernel/firmware/layers constant, only
+      # swapping the ICD to 25.2.6 fixes it; disabling every implicit layer
+      # (anti_lag, device_select, MangoHud, overlay, fossilize) does not.
+      # This is the 64-bit sibling of the i686 GLX break already worked
+      # around via hardware.graphics.package32 above.
+      #
+      # VK_DRIVER_FILES REPLACES the ICD search path rather than extending
+      # it, so both arches must be listed or 32-bit Vulkan titles lose their
+      # driver entirely. The rest of the system keeps Mesa 26.2 for
+      # llama.cpp Vulkan (llm-run).
+      package = pkgs.steam.override {
+        extraEnv.VK_DRIVER_FILES = lib.concatStringsSep ":" [
+          "${pkgs.mesa}/share/vulkan/icd.d/radeon_icd.x86_64.json"
+          "${pkgs.pkgsi686Linux.mesa}/share/vulkan/icd.d/radeon_icd.i686.json"
+        ];
+      };
       remotePlay.openFirewall = false;
       dedicatedServer.openFirewall = false;
     };
