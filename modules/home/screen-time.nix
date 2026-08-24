@@ -80,7 +80,10 @@ in
       });
       ".local/bin/rofi-screen-time-cache" = scriptFile (mkScript {
         name = "rofi-screen-time-cache";
-        runtimeInputs = with pkgs; [ coreutils ];
+        runtimeInputs = with pkgs; [
+          coreutils
+          util-linux # flock
+        ];
       });
       ".local/bin/rofi-screen-time-stats" = scriptFile (mkScript {
         name = "rofi-screen-time-stats";
@@ -175,6 +178,31 @@ in
         };
       };
 
+      # The tracker pauses when logind reports the session idle (or hyprlock is
+      # up). Idle management is off by design on this host (see system.nix:
+      # hypridle.enable = false), so nothing ever set IdleHint and screen time
+      # was really "unlocked time" — a 20-minute coffee break counted for
+      # whatever window was focused. swayidle here does exactly one thing:
+      # flag the session idle after 5 minutes without input. No DPMS, no lock,
+      # no suspend; hypridle has no equivalent option, which is why it is
+      # swayidle. Restarting on failure keeps a compositor hiccup from leaving
+      # the tracker blind for the rest of the session.
+      rofi-screen-time-idlehint = {
+        Unit = {
+          Description = "Mark the session idle for the screen-time tracker";
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
+        Service = {
+          ExecStart = "${pkgs.swayidle}/bin/swayidle -w idlehint 300";
+          Restart = "on-failure";
+          RestartSec = "5s";
+        };
+        Install = {
+          WantedBy = [ "graphical-session.target" ];
+        };
+      };
+
       rofi-screen-time-cache = {
         Unit = {
           Description = "Warm the default rofi screen-time popup cache";
@@ -202,7 +230,11 @@ in
         };
         Timer = {
           OnActiveSec = "20s";
-          OnUnitActiveSec = "2m";
+          # A warm costs ~10 s of CPU (four views rendered by bash+jq). At 2 m
+          # that was ~9% of a core all day for a popup opened a few times a
+          # day; the popup now refreshes a stale cache itself on open, so the
+          # timer only has to keep it from going cold.
+          OnUnitActiveSec = "5m";
           Unit = "rofi-screen-time-cache.service";
         };
         Install = {
