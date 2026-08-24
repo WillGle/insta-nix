@@ -111,7 +111,7 @@
     "format": "{}",
     "interval": 2,
     "signal": 2,
-    "on-click-right": "$HOME/.local/bin/waybar-power-monitor bmode-toggle",
+    "on-click": "$HOME/.local/bin/waybar-power-monitor bmode-toggle",
     "tooltip": true
   },
   "custom/atomic_note": {
