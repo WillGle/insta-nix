@@ -196,7 +196,7 @@ top_procs="$(
         for (j = i - 1; j >= 1 && t[order[j]] < t[k]; j--) order[j + 1] = order[j]
         order[j + 1] = k
       }
-      for (i = 1; i <= m && i <= 3; i++) {
+      for (i = 1; i <= m && i <= 5; i++) {
         k = order[i]
         label = substr(k, 1, 15)
         gsub(/&/, "\\&amp;", label); gsub(/</, "\\&lt;", label); gsub(/>/, "\\&gt;", label)
@@ -251,16 +251,16 @@ m_swap="$(marker "$s_swap" "spill")"
 # zram's compressed store — what closing programs can give back).
 tooltip="<b><span foreground='$ACCENT'>MEMORY ($total_g + $vram_tot_g GiB)</span></b>
 $SEP
-<tt>RAM       $(printf '%12s' "${used_g}/${total_g}") GiB $(progress_bar "$used_pct")
-VRAM      $(printf '%12s' "${vram_g}/${vram_tot_g}") GiB $(progress_bar "$vram_pct")
+<tt>RAM       $(printf '%13s' "${used_g} / ${total_g}") GiB $(progress_bar "$used_pct")
+VRAM      $(printf '%13s' "${vram_g} / ${vram_tot_g}") GiB $(progress_bar "$vram_pct")
 $SEP
-GTT       $(printf '%12s' "${gtt_g}/${gtt_tot_g}") GiB $(progress_bar "$gtt_pct")
-zram      $(printf '%12s' "${zram_used_g}/${zram_size_g}") GiB $(progress_bar "$zram_pct")
-Swapfile  $(printf '%12s' "${file_used_g}/${file_size_g}") GiB $(progress_bar "$file_pct")${m_swap}
-Pressure  $(printf '%12s' "${psi_full}/${PSI_CRIT}") %   $(progress_bar "$psi_pct")${m_psi}
+GTT       $(printf '%13s' "${gtt_g} / ${gtt_tot_g}") GiB $(progress_bar "$gtt_pct")
+zram      $(printf '%13s' "${zram_used_g} / ${zram_size_g}") GiB $(progress_bar "$zram_pct")
+Swapfile  $(printf '%13s' "${file_used_g} / ${file_size_g}") GiB $(progress_bar "$file_pct")${m_swap}
+Pressure  $(printf '%13s' "${psi_full} / ${PSI_CRIT}") %   $(progress_bar "$psi_pct")${m_psi}
 
-Available $(printf '%12s' "$avail_g") GiB${m_avail}
-Apps      $(printf '%12s' "$apps_g") GiB</tt>
+Available $(printf '%13s' "$avail_g") GiB${m_avail}
+Apps      $(printf '%13s' "$apps_g") GiB</tt>
 
 <b><span foreground='$ACCENT'>TOP</span></b>
 $SEP
