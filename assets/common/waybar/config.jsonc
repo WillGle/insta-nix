@@ -110,9 +110,14 @@
     "exec": "$HOME/.local/bin/atomic-note render-waybar",
     "max-length": 45,
     "return-type": "json",
-    "interval": 1,
+    // The script signals the module (5) after every change it makes, and the
+    // editor path signals on close; polling once a second cost ~4% of a core
+    // to re-read a file that changes a few times a day.
+    "interval": 30,
     "on-click": "$HOME/.local/bin/atomic-note rofi",
     "on-click-right": "$HOME/.local/bin/atomic-note add",
+    // Middle click completes the task shown on the bar (undo from the menu).
+    "on-click-middle": "$HOME/.local/bin/atomic-note done-top",
     "signal": 5,
     "tooltip": true
   },
