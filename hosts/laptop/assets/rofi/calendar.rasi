@@ -1,8 +1,8 @@
 @theme "~/.config/rofi/theme.rasi"
 
-/* rofi-calendar: the window is the month sheet. The input bar and the list
-   are removed — navigation is keyboard-only (←/→/t) — so the calendar is the
-   only child and sits in a single layer of padding instead of three.
+/* rofi-calendar: a month sheet over a date search box. The list is removed —
+   the entry is for typing a date to jump to, months move with ←/→ — so the
+   calendar sits in a single layer of padding instead of three.
 
    The sheet is set well above the 10 pt menu size: a 20-column grid at menu
    size filled barely half the window. The family is spelled out because a
@@ -14,9 +14,35 @@ window {
 }
 
 mainbox {
-  children:         [ message ];
+  children:         [ inputbar, message, listview ];
   spacing:          0;
   padding:          10px;
+}
+
+/* The three dmenu rows (◀ · Hôm nay · ▶) become one row of buttons. */
+listview {
+  columns:          3;
+  lines:            1;
+  fixed-columns:    true;
+  spacing:          6px;
+  margin:           4px 0 0 0;
+}
+
+element {
+  children:         [ element-text ];
+  padding:          6px 8px;
+}
+
+element-text {
+  horizontal-align: 0.5;
+}
+
+inputbar {
+  margin:           0 0 4px 0;
+}
+
+entry {
+  placeholder:      "15/3 · 3/2027 · 15/3/2027";
 }
 
 message {
