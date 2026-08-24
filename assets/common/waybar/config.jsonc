@@ -24,11 +24,6 @@
   "hyprland/workspaces": {
     "format": "{name}"
   },
-  "clock#time": {
-    "format": " {:%H:%M}",
-    "interval": 60,
-    "tooltip-format": "<b><span foreground='#58a6ff'>TIME</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{:%A, %d %B %Y\n%H:%M}</tt>"
-  },
   "clock#calendar": {
     "format": " {:%a %d %b}",
     "interval": 60,
