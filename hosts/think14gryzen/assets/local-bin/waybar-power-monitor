@@ -882,7 +882,7 @@ Voltage:      ${volt_v}V  |  Cycles: $cycles</tt>
 $SEP
 <tt>Mode:         ${reserve_label}</tt>
 
-<span size='small' alpha='50%'>Right-click: toggle reserve  |  $health_msg</span>"
+<span size='small' alpha='50%'>Click: toggle reserve  |  $health_msg</span>"
 
         printf '{"text":"%s  %s  %s%%  %s", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s", "%s"]}\n' \
             "$text_label" "$icon" "$cap" "$p_icon" \
