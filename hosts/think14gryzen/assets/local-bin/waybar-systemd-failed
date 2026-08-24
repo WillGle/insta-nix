@@ -7,144 +7,21 @@ export LC_ALL=C
 # ability to check looked exactly like having checked and found nothing wrong.
 # "ok" therefore carries a visible mark of its own, and an unreadable systemd
 # reports "unknown" instead of vanishing.
-#
-# The tooltip carries a second section: a keybinding cheat-sheet read from the
-# deployed hyprland.conf on every refresh, so it never drifts from what the
-# keys actually do. Descriptions come from the bind itself (script name, or
-# dispatcher + argument) or from a comment written directly above the bind.
 
-HYPR_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.conf"
-ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
 escape_markup() {
   printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
 
-# One line per bind, grouped under the "# --- Section ---" headers of the
-# conf. Consecutive binds that differ only by a digit (workspace 1..5) fold
-# into one row. `$mod` is MOD4, shown as Super.
-keybind_sheet() {
-  [ -r "$HYPR_CONF" ] || { printf 'hyprland.conf not readable'; return 0; }
-  awk '
-    function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
-    function modname(m) {
-      if (m == "$mod" || m == "SUPER" || m == "MOD4") return "Super"
-      if (m == "SHIFT") return "Shift"
-      if (m == "ALT")   return "Alt"
-      if (m == "CTRL" || m == "CONTROL") return "Ctrl"
-      return m
-    }
-    function keyname(k) {
-      sub(/^XF86/, "", k)
-      if (k == "Return") return "Enter"
-      if (k == "Escape") return "Esc"
-      if (k == "period") return "."
-      if (k == "Equal")  return "="
-      if (k == "mouse:272") return "LMB"
-      if (k == "mouse:273") return "RMB"
-      if (k == "left" || k == "right" || k == "up" || k == "down") return toupper(substr(k, 1, 1)) substr(k, 2)
-      return k
-    }
-    # Dispatcher + argument, with the few cryptic ones spelled out.
-    function dispdesc(disp, arg) {
-      if (disp == "movefocus") {
-        if (arg == "l") arg = "left"; else if (arg == "r") arg = "right"
-        else if (arg == "u") arg = "up"; else if (arg == "d") arg = "down"
-        return "focus " arg
-      }
-      if (disp == "movetoworkspace") return "move to workspace " arg
-      return arg == "" ? disp : disp " " arg
-    }
-    function combo(mods, key,   n, parts, i, out) {
-      out = ""
-      n = split(mods, parts, /[ \t]+/)
-      for (i = 1; i <= n; i++) if (parts[i] != "") out = out modname(parts[i]) "+"
-      return out keyname(key)
-    }
-    # Description of an exec: the command without its directory or .sh, plus
-    # its first argument that is not a flag (or the one after a flag), so
-    # "rofi-show drun" and "rofi power-menu" read as what they are.
-    function execdesc(cmd,   n, t, base, i, extra) {
-      n = split(cmd, t, /[ \t]+/)
-      base = t[1]; sub(/^.*\//, "", base); sub(/\.sh$/, "", base)
-      extra = ""
-      for (i = 2; i <= n && i <= 3; i++) {
-        if (t[i] ~ /^-/) continue
-        if (t[i] ~ /^["$~\/@]/) break
-        extra = t[i]; break
-      }
-      return extra == "" ? base : base " " extra
-    }
-    function flush() {
-      if (pend_combo == "") return
-      if (pend_sec != cur_sec) {
-        if (cur_sec != "") printf "\n"
-        printf "%s\n", pend_sec
-        cur_sec = pend_sec
-      }
-      if (length(pend_desc) > 34) pend_desc = substr(pend_desc, 1, 33) "…"
-      printf "  %-18s %s\n", pend_combo, pend_desc
-      pend_combo = ""
-    }
-    # Section headers come in two dash styles: "# --- Mouse ---" and
-    # "# ── Screenshot ────".
-    /^# --- .* ---/ { s = $0; sub(/^# --- /, "", s); sub(/ ---.*$/, "", s); sec = s; note = ""; note_lines = 0; next }
-    /^# ── .* ──/   { s = $0; sub(/^# ── /, "", s); sub(/ ──.*$/, "", s); sec = s; note = ""; note_lines = 0; next }
-    # A comment block above a bind: only a one-line comment, or a line in the
-    # "Key: what it does" form, is trusted as the description. The last line
-    # of a paragraph of prose ("...external keyboards that do emit it.") is not.
-    /^#/ { note = $0; sub(/^#[ \t]*/, "", note); note_lines++; next }
-    /^[ \t]*$/ { note = ""; note_lines = 0; next }
-    /^bindm? *=/ {
-      line = $0; sub(/^bindm? *= */, "", line)
-      inline = ""
-      if (match(line, /[ \t]+#.*$/)) { inline = substr(line, RSTART); sub(/^[ \t]+#[ \t]*/, "", inline); line = substr(line, 1, RSTART - 1) }
-      n = split(line, f, ",")
-      mods = trim(f[1]); key = trim(f[2]); disp = trim(f[3])
-      arg = ""
-      for (i = 4; i <= n; i++) arg = arg (i > 4 ? "," : "") f[i]
-      arg = trim(arg)
-
-      # A comment right above the bind ("Super + S: Fullscreen screenshot,
-      # save to ~/Pictures") or at its end is the best description; keep the
-      # part after the key label and before the first comma.
-      desc = ""
-      if (inline != "") desc = inline
-      else if (note != "" && (note_lines == 1 || note ~ /^[A-Za-z0-9+ ]+: /)) desc = note
-      if (desc != "") { sub(/^[A-Za-z0-9+ ]+: */, "", desc); sub(/,.*$/, "", desc); sub(/^\(optional\) */, "", desc) }
-      if (desc == "") desc = (disp == "exec") ? execdesc(arg) : dispdesc(disp, arg)
-      note = ""; note_lines = 0
-
-      c = combo(mods, key)
-      # Fold "Super+1 workspace 1" … "Super+5 workspace 5" into one row.
-      if (key ~ /^[0-9]$/ && pend_combo != "" && pend_mods == mods && pend_disp == disp && pend_sec == sec) {
-        pend_combo = combo(mods, pend_first "..." key); pend_desc = dispdesc(disp, "N")
-        pend_last = key
-        next
-      }
-      flush()
-      pend_combo = c; pend_desc = desc; pend_sec = sec; pend_mods = mods; pend_disp = disp; pend_first = key
-    }
-    END { flush() }
-  ' "$HYPR_CONF"
-}
-
-sheet="$(escape_markup "$(keybind_sheet)")"
-keys_block="<b><span foreground='$ACCENT'>KEYBINDINGS</span></b>
-$SEP
-<tt>$sheet</tt>"
-
 emit() {
-  jq -cn --arg text "$1" --arg tooltip "$2
-
-$keys_block" --arg class "$3" \
+  jq -cn --arg text "$1" --arg tooltip "$2" --arg class "$3" \
     '{text: $text, tooltip: $tooltip, class: $class}'
 }
 
 if ! raw="$(systemctl --failed --no-legend --plain 2>&1)"; then
   emit "󰀦 ?" \
-    "$(printf "<b><span foreground='@signalWarning@'>SYSTEMD STATE UNKNOWN</span></b>\n%s\n<tt>%s</tt>\n\n<span size='small' alpha='50%%'>Could not query systemd; this is not an all-clear</span>" \
+    "$(printf "<b><span foreground='@signalWarning@'>SYSTEMD STATE UNKNOWN</span></b>\n%s\n<tt>%s</tt>\n\n<span size='small' alpha='50%%'>Could not query systemd; this is not an all-clear  |  Click: view keybindings</span>" \
       "$SEP" "$(escape_markup "$raw")")" \
     "unknown"
   exit 0
@@ -158,11 +35,11 @@ fi
 if [ "$failed" -gt 0 ]; then
   units="$(printf '%s\n' "$raw" | awk '{print $1}')"
   emit "  ${failed} failed" \
-    "$(printf "<b><span foreground='@signalCritical@'>FAILED SYSTEMD UNITS</span></b>\n%s\n<tt>%s</tt>\n\n<span size='small' alpha='50%%'>Run 'systemctl --failed' to check details</span>" \
+    "$(printf "<b><span foreground='@signalCritical@'>FAILED SYSTEMD UNITS</span></b>\n%s\n<tt>%s</tt>\n\n<span size='small' alpha='50%%'>Run 'systemctl --failed' to check details  |  Click: view keybindings</span>" \
       "$SEP" "$(escape_markup "$units")")" \
     "failed"
 else
   emit "·" \
-    "$(printf "<b><span foreground='@signalOk@'>SYSTEMD OK</span></b>\n%s\n<tt>No failed units</tt>" "$SEP")" \
+    "$(printf "<b><span foreground='@signalOk@'>SYSTEMD OK</span></b>\n%s\n<tt>No failed units</tt>\n\n<span size='small' alpha='50%%'>Click: view &amp; search keybindings</span>" "$SEP")" \
     "ok"
 fi
