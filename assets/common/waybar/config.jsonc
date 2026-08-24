@@ -108,7 +108,7 @@
   },
   "custom/atomic_note": {
     "exec": "$HOME/.local/bin/atomic-note render-waybar",
-    "max-length": 45,
+    "max-length": 50,
     "return-type": "json",
     // The script signals the module (5) after every change it makes, and the
     // editor path signals on close; polling once a second cost ~4% of a core
