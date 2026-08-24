@@ -47,7 +47,18 @@ can_use_default_cache() {
   [ "$(cat "$(default_date_cache_file)" 2>/dev/null)" = "$today" ]
 }
 
+# Seconds a warmed view may be before opening it triggers a background
+# re-warm. Every open and every view switch used to spawn a full warm (~10 s
+# of CPU) even when the cache was seconds old.
+CACHE_STALE_SECONDS=120
+
 refresh_default_cache_async() {
+  local stamp age
+  stamp="$(default_date_cache_file)"
+  if [ -f "$stamp" ]; then
+    age=$(( $(date +%s) - $(stat -c %Y "$stamp" 2>/dev/null || echo 0) ))
+    [ "$age" -ge "$CACHE_STALE_SECONDS" ] || return 0
+  fi
   if [ -x "$CACHE_BIN" ]; then
     setsid -f "$CACHE_BIN" >/dev/null 2>&1 || true
   fi

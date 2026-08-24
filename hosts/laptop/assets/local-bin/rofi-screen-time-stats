@@ -20,10 +20,14 @@ FORMAT="json"
 TARGET_DATE="$(date +%F)"
 THEME_FILE=""
 ROWS_FILE=""
+ALL_VIEWS_DIR=""
 
 usage() {
   cat <<'EOF'
 Usage: rofi-screen-time-stats [--date YYYY-MM-DD] [--view summary|activity|health|timer] [--format json|theme|rows|files] [--theme-file PATH --rows-file PATH]
+       rofi-screen-time-stats [--date YYYY-MM-DD] --all-views-dir DIR
+  --all-views-dir  render every view from one data pass into
+                   DIR/default-<view>-theme.rasi and DIR/default-<view>-rows.txt
 EOF
 }
 
@@ -60,6 +64,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --rows-file)
       ROWS_FILE="${2:-}"
+      shift 2
+      ;;
+    --all-views-dir)
+      ALL_VIEWS_DIR="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -99,6 +107,20 @@ BUNDLE_JSON="$(build_data_bundle_json "$TARGET_DATE" "$CATEGORY_MAP_JSON")"
 METRICS_JSON="$(build_metrics_context "$BUNDLE_JSON")"
 SCORED_JSON="$(build_scored_context "$METRICS_JSON")"
 CONTEXT_JSON="$(build_insighted_context "$SCORED_JSON")"
+
+# Everything above this line is the same for every view; only the payload is
+# per view. The cache warm used to run this script once per view and so paid
+# for the day-file bundle four times over.
+if [ -n "$ALL_VIEWS_DIR" ]; then
+  mkdir -p "$ALL_VIEWS_DIR"
+  for VIEW in summary activity health timer; do
+    THEME_FILE="$ALL_VIEWS_DIR/default-$VIEW-theme.rasi"
+    ROWS_FILE="$ALL_VIEWS_DIR/default-$VIEW-rows.txt"
+    render_files "$(build_view_payload "$VIEW" "$CONTEXT_JSON")"
+  done
+  exit 0
+fi
+
 PAYLOAD_JSON="$(build_view_payload "$VIEW" "$CONTEXT_JSON")"
 
 case "$FORMAT" in
