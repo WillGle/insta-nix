@@ -69,7 +69,7 @@ nvme_temp_map() {
 # counted once. Sizes are read in bytes rather than via -BG, which rounds a
 # 1 G partition to "1G / 1G".
 df_out="$(
-  df -P -B1 2>/dev/null | awk -v temps="$(nvme_temp_map)" '
+  df -P -T -B1 2>/dev/null | awk -v temps="$(nvme_temp_map)" '
     BEGIN {
       n = split(temps, lines, "\n")
       for (i = 1; i <= n; i++) {
@@ -87,10 +87,9 @@ df_out="$(
       g = b / 1073741824
       return g >= 100 ? sprintf("%.0fG", g) : sprintf("%.1fG", g)
     }
-    function human(b,   g) {
-      g = b / 1073741824
-      return g >= 100 ? sprintf("%.0f G", g) : sprintf("%.1f G", g)
-    }
+    # Tooltip sizes: two decimals and a spaced unit ("307.31 GiB") — the
+    # compact "307G" form read as one token and was hard to scan.
+    function human(b) { return sprintf("%.2f GiB", b / 1073741824) }
     function bar(p,   i, s) {
       s = "["
       for (i = 1; i <= 10; i++) s = s (i <= int(p / 10) ? "■" : "□")
@@ -114,21 +113,22 @@ df_out="$(
       else if (d ~ /^[a-z]+[0-9]+$/) sub(/[0-9]+$/, "", d)
       return d
     }
+    # df -T columns: fs type size used avail cap% mount...
     NR > 1 && $1 ~ /^\/dev\// {
-      m = $6
-      for (i = 7; i <= NF; i++) m = m " " $i
+      m = $7
+      for (i = 8; i <= NF; i++) m = m " " $i
       if (seen[$1]++) next
       gsub(/&/, "\\&amp;", m); gsub(/</, "\\&lt;", m); gsub(/>/, "\\&gt;", m)
 
       d = diskof($1)
-      tot[d] += $2; usd[d] += $3; avl[d] += $4
+      tot[d] += $3; usd[d] += $4; avl[d] += $5
       # Label the drive by its shallowest mount: "/" reads better than
-      # "/boot" for the disk that happens to carry both.
-      if (!(d in lbl) || length(m) < length(lbl[d])) lbl[d] = m
+      # "/boot" for the disk that happens to carry both. The filesystem type
+      # shown is that mount's.
+      if (!(d in lbl) || length(m) < length(lbl[d])) { lbl[d] = m; fst[d] = $2 }
     }
-    # Two lines per drive rather than one wide row, with the mount on the
-    # first line and the device on the second, so no line runs past the
-    # 30-odd columns of the rest of the bar tooltips.
+    # Two lines per drive: "DK n (mount)  used / total (pct) - fstype", then
+    # "bar · temperature".
     END {
       n = 0
       for (d in tot) ord[++n] = d
@@ -149,8 +149,11 @@ df_out="$(
         if (pct > worst_pct) worst_pct = pct
         if (tc > worst_temp) worst_temp = tc
         if (i > 1) table = table "\n\n"
-        table = table sprintf("%-14s%7s / %-6s %3d%% %s\n", lbl[d], human(usd[d]), human(tot[d]), pct, bar(pct))
-        table = table sprintf("%-14s%7s free · %s", d, human(avl[d]), t)
+        # The printed share is used/total (what the numbers on the line show);
+        # dfpct above, which excludes the ext4 reserve, only drives the colour.
+        share = tot[d] > 0 ? int(usd[d] * 100 / tot[d] + 0.5) : 0
+        table = table sprintf("DK %d (%s)   %s / %s (%d%%) - %s\n", i, lbl[d], human(usd[d]), human(tot[d]), share, fst[d])
+        table = table sprintf("%s · %s", bar(share), t)
         # Bar: one "<mount> <free> <temp>" per drive, e.g. "/ 126G 34°".
         text = text (i > 1 ? "  " : "") short_mount(lbl[d]) " " human_bar(avl[d]) (tc >= 0 ? sprintf(" %.0f°", tc) : "")
       }
