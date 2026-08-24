@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# rofi-calendar — a month sheet, nothing else. No search box, no menu rows:
-# the window is the calendar, navigation is on the keyboard.
-#   ←/h  previous month     →/l  next month     t  today     Enter/Esc  close
-# Colours come from the theme at build time (replaceVars), like every other
-# script here, so the sheet follows a theme regeneration instead of drifting.
+# rofi-calendar — a month sheet with a date search box.
+#   type a date + Enter   jump to it: 15/3 · 3/2027 · 15/3/2027 · 2027-03-15 · 15
+#   ←  →                  previous / next month
+#   Ctrl+t                back to today
+#   ◀ · Hôm nay · ▶       the same three as mouse buttons under the sheet
+#   Enter (empty)         today (the middle button is pre-selected)
+#   Esc                   close
+# The searched day is ringed in the accent colour and its weekday is printed
+# under the sheet; today keeps its filled pill. Colours come from the theme at
+# build time (replaceVars), like every other script here.
+#
+# Arguments (internal, used when the script re-executes itself):
+#   $1 year  $2 month  $3 focused day or ""  $4 message under the sheet or ""
 
 ACCENT="@themeAccent@"
 BASE="@themeBase@"
@@ -17,9 +25,41 @@ today_d=$(date +%-d)
 
 year=$(( ${1:-$today_y} + 0 ))
 month=$(( ${2:-$today_m} + 0 ))
+focus="${3:-}"
+note="${4:-}"
 if   [ "$month" -gt 12 ]; then month=1;  year=$((year + 1))
 elif [ "$month" -lt 1 ];  then month=12; year=$((year - 1))
 fi
+
+# Turn what was typed into "year month day". Numbers may be separated by
+# / - . or spaces; the order is day-first unless the first number is a year.
+#   15          → day 15 of the month on screen
+#   15/3        → 15 March, this year         3/2027  → March 2027 (no day)
+#   15/3/2027   → the full date               2027-03-15 → the same, ISO order
+# Prints "y m d" (d may be empty) or nothing when the text is not a date.
+parse_query() {
+  local q="$1" a b c n y m d
+  q="${q//[\/.\-]/ }"
+  read -r a b c _ <<< "$q"
+  for n in "$a" "${b:-0}" "${c:-0}"; do
+    [[ "$n" =~ ^[0-9]+$ ]] || return 0
+  done
+  if [ -z "${b:-}" ]; then                      # one number: a day
+    y=$year; m=$month; d=$a
+  elif [ "$a" -ge 1000 ]; then                  # y m [d]
+    y=$a; m=$b; d="${c:-}"
+  elif [ -z "${c:-}" ]; then                    # d m  or  m y
+    if [ "$b" -gt 12 ]; then y=$b; m=$a; d=""; else y=$today_y; m=$b; d=$a; fi
+  else                                          # d m y
+    y=$c; m=$b; d=$a
+    [ "$y" -lt 100 ] && y=$((y + 2000))
+  fi
+  [ "$m" -ge 1 ] && [ "$m" -le 12 ] || return 0
+  if [ -n "$d" ]; then
+    date -d "$(printf '%04d-%02d-%02d' "$y" "$m" "$d")" >/dev/null 2>&1 || return 0
+  fi
+  printf '%s %s %s\n' "$y" "$m" "${d:-}"
+}
 
 # cal in the Vietnamese locale prints "Tháng 8 2026" and T2…CN, matching the
 # rest of the UI; -m starts the week on Monday. Every line is padded to the
@@ -27,7 +67,7 @@ fi
 sheet="$(
   LC_ALL=vi_VN.UTF-8 cal -m "$month" "$year" | LC_ALL=C.UTF-8 awk \
     -v ty="$today_y" -v tm="$today_m" -v td="$today_d" -v cy="$year" -v cm="$month" \
-    -v accent="$ACCENT" -v base="$BASE" -v subtext="$SUBTEXT" '
+    -v fd="${focus:-0}" -v accent="$ACCENT" -v base="$BASE" -v subtext="$SUBTEXT" '
     function trim(s) { gsub(/^ +| +$/, "", s); return s }
     NR == 1 {
       title = trim($0)
@@ -47,6 +87,8 @@ sheet="$(
         num = trim(cell)
         if (num != "" && cy == ty && cm == tm && num + 0 == td + 0)
           cell = sprintf("<span background=\"%s\" foreground=\"%s\"><b>%s</b></span>", accent, base, cell)
+        else if (num != "" && num + 0 == fd + 0)
+          cell = sprintf("<span foreground=\"%s\" underline=\"double\"><b>%s</b></span>", accent, cell)
         else if (c >= 6 && num != "")
           cell = sprintf("<span foreground=\"%s\">%s</span>", subtext, cell)
         line = line cell (c < 7 ? " " : "")
@@ -56,33 +98,68 @@ sheet="$(
   '
 )"
 
+# A found date gets its weekday spelled out under the sheet.
+if [ -n "$focus" ] && [ -z "$note" ]; then
+  note="$(LC_ALL=vi_VN.UTF-8 date -d "$(printf '%04d-%02d-%02d' "$year" "$month" "$focus")" '+%A, %d/%m/%Y' 2>/dev/null || true)"
+fi
+note_line=""
+[ -n "$note" ] && note_line="
+<span foreground=\"$ACCENT\" size=\"small\">$note</span>"
+
 # Short enough to stay on one line under the 20-column grid.
-hint="<span size=\"x-small\" alpha=\"50%\">← → tháng · t hôm nay · Esc</span>"
+hint="<span size=\"x-small\" alpha=\"50%\">← → tháng · Ctrl+t hôm nay · Esc</span>"
+
+# One row of mouse buttons under the sheet. They are ordinary dmenu rows laid
+# out in three columns by calendar.rasi; "Hôm nay" is pre-selected so Enter on
+# an empty box goes to today. A typed date matches none of them (no digits in
+# the labels, and matching is plain substring), so Enter then returns the text.
+BTN_PREV="◀  Tháng trước"
+BTN_TODAY="Hôm nay"
+BTN_NEXT="Tháng sau  ▶"
 
 rofi_args=(
   -dmenu
   -markup-rows
+  -matching normal
+  -selected-row 1
   -config "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi"
   -p "Lịch"
-  -mesg "$sheet
+  -mesg "$sheet$note_line
 $hint"
-  # Left/Right normally move the cursor in the (hidden) entry; free them first.
+  # Left/Right normally move the cursor in the entry; a date is a few
+  # characters, so the arrows are worth more as month navigation.
   -kb-move-char-back ""
   -kb-move-char-forward ""
-  -kb-custom-1 "Left,h"
-  -kb-custom-2 "Right,l"
-  -kb-custom-3 "t"
+  -kb-custom-1 "Left"
+  -kb-custom-2 "Right"
+  -kb-custom-3 "Control+t"
 )
 [ -r "$RASI" ] && rofi_args+=(-theme "$RASI")
 
-# Exit codes: 10/11/12 for the custom keys, 0/1 for Enter/Esc.
-rc=0
-rofi "${rofi_args[@]}" <<< "" >/dev/null || rc=$?
+# Exit codes: 10/11/12 for the custom keys; 0 with the typed text on Enter;
+# 1 on Esc. Enter on an empty box closes.
+# The status of a command substitution is the status of the assignment, so it
+# can be caught here; catching it inside the $(…) would be lost to the subshell.
+query="$(printf '%s\n%s\n%s\n' "$BTN_PREV" "$BTN_TODAY" "$BTN_NEXT" | rofi "${rofi_args[@]}")" && rc=0 || rc=$?
+prev_m=$((month - 1)); prev_y=$year
+[ "$prev_m" -lt 1 ] && { prev_m=12; prev_y=$((year - 1)); }
 case "$rc" in
-  10) prev_m=$((month - 1)); prev_y=$year
-      [ "$prev_m" -lt 1 ] && { prev_m=12; prev_y=$((year - 1)); }
-      exec "$0" "$prev_y" "$prev_m" ;;
+  10) exec "$0" "$prev_y" "$prev_m" ;;
   11) exec "$0" "$year" "$((month + 1))" ;;
   12) exec "$0" "$today_y" "$today_m" ;;
+  0)
+    case "$query" in
+      "$BTN_PREV")  exec "$0" "$prev_y" "$prev_m" ;;
+      "$BTN_NEXT")  exec "$0" "$year" "$((month + 1))" ;;
+      "$BTN_TODAY") exec "$0" "$today_y" "$today_m" ;;
+    esac
+    query="$(printf '%s' "$query" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -n "$query" ] || exit 0
+    if parsed="$(parse_query "$query")" && [ -n "$parsed" ]; then
+      read -r py pm pd <<< "$parsed"
+      exec "$0" "$py" "$pm" "${pd:-}"
+    fi
+    exec "$0" "$year" "$month" "$focus" "không nhận ra: $(printf '%s' "$query" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')"
+    ;;
   *)  exit 0 ;;
 esac
