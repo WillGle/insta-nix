@@ -74,10 +74,10 @@ window#waybar {
 #pulseaudio,
 #custom-screen_time,
 #custom-memory_info,
+#custom-disk_info,
 #custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
-#custom-refresh_rate,
 #custom-atomic_note,
 #backlight,
 #idle_inhibitor,
@@ -101,10 +101,10 @@ menuitem,
 #pulseaudio,
 #custom-screen_time,
 #custom-memory_info,
+#custom-disk_info,
 #custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
-#custom-refresh_rate,
 #custom-atomic_note,
 #backlight,
 #idle_inhibitor,
@@ -136,10 +136,10 @@ menuitem,
 #pulseaudio,
 #custom-screen_time,
 #custom-memory_info,
+#custom-disk_info,
 #custom-network_info,
 #custom-apu_info,
 #custom-power_flow,
-#custom-refresh_rate,
 #custom-atomic_note,
 #backlight,
 #idle_inhibitor,
@@ -193,10 +193,10 @@ menuitem,
 #pulseaudio:hover,
 #custom-screen_time:hover,
 #custom-memory_info:hover,
+#custom-disk_info:hover,
 #custom-network_info:hover,
 #custom-apu_info:hover,
 #custom-power_flow:hover,
-#custom-refresh_rate:hover,
 #custom-atomic_note:hover,
 #backlight:hover,
 #idle_inhibitor:hover,
@@ -250,6 +250,15 @@ menuitem:hover,
 }
 
 #custom-memory_info.critical {
+  color: @signal-critical;
+  font-weight: bold;
+}
+
+#custom-disk_info.warning {
+  color: @signal-warning;
+}
+
+#custom-disk_info.critical {
   color: @signal-critical;
   font-weight: bold;
 }

@@ -79,10 +79,21 @@ in
       name = "waybar-memory-info";
       runtimeInputs = with pkgs; [
         coreutils
+        findutils
         gawk
         gnused
         jq
+        libnotify
         procps
+      ];
+      vars = { inherit themeAccent; };
+    });
+    ".local/bin/waybar-disk-info" = scriptFile (mkScript {
+      name = "waybar-disk-info";
+      runtimeInputs = with pkgs; [
+        coreutils
+        gawk
+        jq
       ];
       vars = { inherit themeAccent; };
     });
@@ -136,21 +147,6 @@ in
         signalEco = signal.eco;
       };
       excludeShellChecks = [ "SC2034" ];
-    });
-    ".local/bin/waybar-refresh-label" = scriptFile (mkScript {
-      name = "waybar-refresh-label";
-      runtimeInputs = with pkgs; [
-        hyprland
-        jq
-      ];
-    });
-    ".local/bin/waybar-refresh-toggle" = scriptFile (mkScript {
-      name = "waybar-refresh-toggle";
-      runtimeInputs = with pkgs; [
-        hyprland
-        jq
-        libnotify
-      ];
     });
     ".local/bin/waybar-systemd-failed" = scriptFile (mkScript {
       name = "waybar-systemd-failed";

@@ -5,7 +5,6 @@
   "modules-left": [
     "custom/screen_time",
     "clock#calendar",
-    "custom/refresh_rate",
     "backlight",
     "pulseaudio",
     "hyprland/workspaces"
@@ -16,6 +15,7 @@
   ],
   "modules-right": [
     "custom/memory_info",
+    "custom/disk_info",
     "custom/apu_info",
     "custom/power_flow",
     "custom/network_info",
@@ -68,6 +68,13 @@
     "interval": 1,
     "tooltip": true
   },
+  // ─── Disks (per-drive usage + NVMe temperature) ───────────────────
+  "custom/disk_info": {
+    "exec": "$HOME/.local/bin/waybar-disk-info",
+    "return-type": "json",
+    "interval": 30,
+    "tooltip": true
+  },
   // ─── Audio ────────────────────────────────────────────────────────
   "pulseaudio": {
     "format": "{icon}  {volume}%",
@@ -95,6 +102,7 @@
     "return-type": "json",
     "format": "{}",
     "interval": 2,
+    "on-click": "$HOME/.local/bin/waybar-power-monitor toggle",
     "tooltip": true
   },
   "custom/power_flow": {
@@ -103,17 +111,8 @@
     "format": "{}",
     "interval": 2,
     "signal": 2,
-    "on-click": "$HOME/.local/bin/waybar-power-monitor toggle",
     "on-click-right": "$HOME/.local/bin/waybar-power-monitor bmode-toggle",
     "tooltip": true
-  },
-  // ─── Refresh Rate ─────────────────────────────────────────────────
-  "custom/refresh_rate": {
-    "exec": "$HOME/.local/bin/waybar-refresh-label",
-    "return-type": "text",
-    "interval": 1,
-    "on-click": "$HOME/.local/bin/waybar-refresh-toggle",
-    "tooltip": false
   },
   "custom/atomic_note": {
     "exec": "$HOME/.local/bin/atomic-note render-waybar",
