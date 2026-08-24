@@ -242,8 +242,8 @@ render_transition_bars() {
     # The newline is appended outside the substitution: $( ) strips trailing
     # newlines, so a \n inside the format string is silently swallowed and every
     # row runs into the next one.
-    output+="$(printf '%-24s  %s  %4s×  <span foreground="%s" size="small">%s</span>' \
-      "$(escape_markup "$(clip_text "$pair_name" 24)")" \
+    output+="$(printf '%s  %s  %4s×  <span foreground="%s" size="small">%s</span>' \
+      "$(escape_markup "$(pad_right "$(clip_text "$pair_name" 24)" 24)")" \
       "$(bar_markup "$count" "$max_count" 14 "$ACCENT_COLOR" "$BASE_COLOR")" \
       "$count" \
       "$SUBTEXT_COLOR" \
@@ -297,14 +297,16 @@ kv_markup_raw_value() {
     "$value"
 }
 
+# The label is padded by characters (pad_right) before it is escaped: %-*s
+# counted bytes, so a "●" tag or an "&amp;" entity in the label pushed the
+# value column right on that row alone.
 kv_markup_aligned() {
   local width="$1"
   local label="$2"
   local value="$3"
-  printf '<span foreground="%s">%-*s</span> <span weight="600">%s</span>' \
+  printf '<span foreground="%s">%s</span> <span weight="600">%s</span>' \
     "$SUBTEXT_COLOR" \
-    "$width" \
-    "$(escape_markup "$label")" \
+    "$(escape_markup "$(pad_right "$label" "$width")")" \
     "$(escape_markup "$value")"
 }
 
@@ -312,11 +314,20 @@ kv_markup_raw_value_aligned() {
   local width="$1"
   local label="$2"
   local value="$3"
-  printf '<span foreground="%s">%-*s</span> <span weight="600">%s</span>' \
+  printf '<span foreground="%s">%s</span> <span weight="600">%s</span>' \
     "$SUBTEXT_COLOR" \
-    "$width" \
-    "$(escape_markup "$label")" \
+    "$(escape_markup "$(pad_right "$label" "$width")")" \
     "$value"
+}
+
+# Left-align to a width measured in characters. bash's printf pads %-Ns by
+# bytes, so a label holding "→" (1 character, 3 bytes) came out two columns
+# short and the bar after it started early.
+pad_right() {
+  local value="${1:-}" width="${2:-0}" fill
+  fill=$((width - ${#value}))
+  [ "$fill" -gt 0 ] || { printf '%s' "$value"; return 0; }
+  printf '%s%*s' "$value" "$fill" ''
 }
 
 clip_text() {
@@ -522,8 +533,8 @@ render_category_bars() {
     [ -n "$name" ] || continue
     # Same hue the 24-hour strip gives this category, so a colour means one
     # category across the whole dashboard instead of "this is a bar".
-    output+="$(printf '%-13s  %s  %6s  %s' \
-      "$name" \
+    output+="$(printf '%s  %s  %6s  %s' \
+      "$(pad_right "$name" 13)" \
       "$(bar_markup "$seconds" "$max_seconds" 20 "$(category_color "$name")" "$BASE_COLOR")" \
       "$(seconds_to_short "$seconds")" \
       "$(format_ratio_percent "$share")")"$'\n'
@@ -565,9 +576,9 @@ render_app_usage_timeline() {
     [ -n "$name" ] || continue
     label="$(clip_text "$name" 16)"
     timeline="$(sparkline_from_json "$slots_json" "$peak_index")"
-    output+="$(printf '<span foreground="%s">%-16s</span> %s  <span weight="600">%6s</span> <span foreground="%s">%4s</span> <span foreground="%s" size="small">%s · busy %s</span>' \
+    output+="$(printf '<span foreground="%s">%s</span> %s  <span weight="600">%6s</span> <span foreground="%s">%4s</span> <span foreground="%s" size="small">%s · busy %s</span>' \
       "$TEXT_COLOR" \
-      "$(escape_markup "$label")" \
+      "$(escape_markup "$(pad_right "$label" 16)")" \
       "$timeline" \
       "$(seconds_to_short "$seconds")" \
       "$SUBTEXT_COLOR" \
@@ -642,9 +653,9 @@ render_top_app_bars() {
   # fifth process inside the fourth.
   while IFS=$'\t' read -r name category seconds share; do
     [ -n "$name" ] || continue
-    output+="$(printf '<span foreground="%s">%-18s</span> %s  <span weight="600">%6s</span> <span foreground="%s">%4s</span> <span foreground="%s" size="small">%s</span>' \
+    output+="$(printf '<span foreground="%s">%s</span> %s  <span weight="600">%6s</span> <span foreground="%s">%4s</span> <span foreground="%s" size="small">%s</span>' \
       "$TEXT_COLOR" \
-      "$(escape_markup "$(clip_text "$name" 18)")" \
+      "$(escape_markup "$(pad_right "$(clip_text "$name" 18)" 18)")" \
         "$(bar_markup "$seconds" "$max_seconds" 14 "$ACCENT_COLOR" "$BASE_COLOR")" \
       "$(seconds_to_short "$seconds")" \
       "$SUBTEXT_COLOR" \
