@@ -18,14 +18,18 @@ export LC_ALL=C
 # missing-glyph/error-icon rendering on some font stacks.
 ICON_MEM="RAM"
 
-# Colour thresholds. PSI is "full avg10": the share of the last 10 s in which
-# every non-idle task was stalled on memory. 0–1% is idle noise; 5% is where
-# input starts to stutter; 15% is multi-second freezes and the last moment a
-# terminal still answers. Available is in GiB.
-PSI_WARN=5
-PSI_CRIT=15
-AVAIL_WARN_GIB=2
-AVAIL_CRIT_GIB=1
+# Colour thresholds, tuned to warn only when a freeze is close. With a 30B
+# model loaded the machine's normal state is Available ≈ 1.2–1.7 G and PSI
+# ≈ 0.1–0.2%, and that must stay green — a warning that is on all day is not
+# a warning. PSI is "full avg10": the share of the last 10 s in which every
+# non-idle task was stalled on memory. ~10% is input starting to stutter,
+# ~25% is multi-second freezes and the last moment a terminal still answers.
+# Available is in GiB. Spill to the SSD swapfile is critical on its own: it
+# only starts once zram is full.
+PSI_WARN=10
+PSI_CRIT=25
+AVAIL_WARN_GIB=1
+AVAIL_CRIT_GIB=0.5
 
 # Per-process GTT is attributed from /proc/*/fdinfo, which costs a find plus an
 # awk each refresh. Skip it while the GPU holds less than this: desktop apps
@@ -97,7 +101,7 @@ fi
 # 2 critical, one each for Available, PSI and the swapfile. The module class is
 # the worst of the three, and the tooltip marks the offending line.
 IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
-  zram_used_g zram_size_g zram_ratio zram_real_g file_used_h file_size_g \
+  zram_used_g zram_size_g zram_pct zram_real_g file_used_g file_size_g file_pct psi_pct \
   s_avail s_psi s_swap class < <(
   awk -v used="$mem_used_kb" -v total="$mem_total_kb" -v avail="$mem_avail_kb" \
       -v gtt="$gtt_used_kb" \
@@ -106,11 +110,6 @@ IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
       -v psi_warn="$PSI_WARN" -v psi_crit="$PSI_CRIT" \
       -v av_warn="$AVAIL_WARN_GIB" -v av_crit="$AVAIL_CRIT_GIB" '
     function gib(kb) { return kb / 1048576 }
-    function human_kb(kb) {
-      if (kb >= 1048576) return sprintf("%.1f G", gib(kb))
-      if (kb >= 1024)    return sprintf("%.0f M", kb / 1024)
-      return kb > 0 ? sprintf("%d K", kb) : "0 B"
-    }
     BEGIN {
       avail_g = gib(avail)
       sa = avail_g < av_crit ? 2 : (avail_g < av_warn ? 1 : 0)
@@ -122,10 +121,14 @@ IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
       # pages physically occupy, and everything else (RSS + kernel).
       apps = used - gtt - zreal / 1024
       if (apps < 0) apps = 0
-      printf "%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%s\t%.1f\t%d\t%d\t%d\t%s\n",
+      # The pressure bar is scaled to the critical threshold, not to 100%:
+      # on a 0–100 scale it would sit empty right up to the freeze.
+      psi_pct = psi_crit > 0 ? (psi + 0) * 100 / psi_crit : 0
+      if (psi_pct > 100) psi_pct = 100
+      printf "%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.1f\t%.0f\t%.0f\t%d\t%d\t%d\t%s\n",
         gib(used), gib(total), avail_g, (total > 0 ? used * 100 / total : 0), gib(apps), gib(gtt),
-        gib(zu), gib(zs), (zreal > 0 ? zorig / zreal : 0), zreal / 1073741824,
-        human_kb(fu), gib(fs),
+        gib(zu), gib(zs), (zs > 0 ? zu * 100 / zs : 0), zreal / 1073741824,
+        gib(fu), gib(fs), (fs > 0 ? fu * 100 / fs : 0), psi_pct,
         sa, sp, ss, cls
     }'
 )
@@ -199,7 +202,7 @@ if [ "$class" != "$last_class" ]; then
   printf '%s\n' "$class" > "$STATE_FILE" 2>/dev/null || true
   if [ "$class" = "critical" ]; then
     notify-send -u critical -a "Memory" "RAM critical" \
-      "Available ${avail_g} G · PSI ${psi_full}% · Swapfile ${file_used_h}
+      "Available ${avail_g} G · PSI ${psi_full}% · Swapfile ${file_used_g} G
 $top_procs" \
       2>/dev/null || true
   fi
@@ -226,7 +229,7 @@ m_swap="$(marker "$s_swap" "spill")"
 
 tooltip="<b><span foreground='$ACCENT'>MEMORY ($total_g G)</span></b>
 $SEP
-<tt>Used:         $(printf '%5s' "$used_g") G   $(printf '%3d' "$used_pct")% $(progress_bar "$used_pct")
+<tt>Used:         $(printf '%9s' "${used_g}/${total_g%.*}G") $(progress_bar "$used_pct")
   GTT         $(printf '%5s' "$gtt_g") G
   zram        $(printf '%5s' "$zram_real_g") G
   Apps        $(printf '%5s' "$apps_g") G
@@ -234,9 +237,9 @@ Available:    $(printf '%5s' "$avail_g") G${m_avail}</tt>
 
 <b><span foreground='$ACCENT'>SWAP</span></b>
 $SEP
-<tt>zram:         $(printf '%5s' "$zram_used_g") G / $zram_size_g G   ${zram_ratio}x
-Swapfile:     $(printf '%7s' "$file_used_h") / $file_size_g G${m_swap}
-Pressure:     $(printf '%5s' "$psi_full")%   (warn $PSI_WARN · crit $PSI_CRIT)${m_psi}</tt>
+<tt>zram:         $(printf '%9s' "${zram_used_g}/${zram_size_g%.*}G") $(progress_bar "$zram_pct")
+Swapfile:     $(printf '%9s' "${file_used_g}/${file_size_g%.*}G") $(progress_bar "$file_pct")${m_swap}
+Pressure:     $(printf '%9s' "${psi_full}/${PSI_CRIT}%") $(progress_bar "$psi_pct")${m_psi}</tt>
 
 <b><span foreground='$ACCENT'>TOP</span></b>
 $SEP
