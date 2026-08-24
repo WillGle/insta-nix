@@ -33,11 +33,13 @@ sheet="$(
       title = trim($0)
       # Centre by hand: the markup around the title would defeat %-20s.
       pad = int((20 - length(title)) / 2)
-      printf "%*s<span foreground=\"%s\" size=\"large\"><b>%s</b></span>\n", pad, "", accent, title
+      printf "%*s<span foreground=\"%s\" size=\"large\" line_height=\"1.6\"><b>%s</b></span>\n", pad, "", accent, title
       next
     }
-    NR == 2 { printf "<span foreground=\"%s\">%-20s</span>\n", subtext, $0; next }
+    NR == 2 { printf "<span foreground=\"%s\" line_height=\"1.4\">%-20s</span>\n", subtext, $0; next }
     {
+      # line_height opens the rows up a little so the grid reads as a table
+      # rather than a block of digits.
       row = sprintf("%-20s", $0)
       line = ""
       for (c = 1; c <= 7; c++) {
@@ -49,12 +51,13 @@ sheet="$(
           cell = sprintf("<span foreground=\"%s\">%s</span>", subtext, cell)
         line = line cell (c < 7 ? " " : "")
       }
-      print line
+      printf "<span line_height=\"1.4\">%s</span>\n", line
     }
   '
 )"
 
-hint="<span size=\"small\" alpha=\"50%\">←  →  tháng   ·   t  hôm nay   ·   Esc</span>"
+# Short enough to stay on one line under the 20-column grid.
+hint="<span size=\"x-small\" alpha=\"50%\">← → tháng · t hôm nay · Esc</span>"
 
 rofi_args=(
   -dmenu
