@@ -369,6 +369,19 @@ in
   programs.waybar.systemd.enable = lib.mkForce true;
   wayland.systemd.target = "hyprland-session.target";
 
+  # GTK3 does not read org.gnome.desktop.interface color-scheme — that key only
+  # steers GTK4/libadwaita and the xdg-desktop-portal. With no settings.ini on
+  # disk, GTK3 resolved gtk-application-prefer-dark-theme to false and every
+  # GTK3 app rendered light against this dark desktop; blueman is simply where
+  # it was most obvious. Declare it once so the whole GTK3 surface follows,
+  # rather than per-app GTK_THEME overrides wedged into .desktop files that Nix
+  # regenerates anyway. GTK4 is set too so the two toolkits cannot drift.
+  gtk = {
+    enable = true;
+    gtk3.extraConfig."gtk-application-prefer-dark-theme" = true;
+    gtk4.extraConfig."gtk-application-prefer-dark-theme" = true;
+  };
+
   xdg.configFile = {
     "theme/templates".source = ../../theme/templates;
     "theme/static.env".text = ''
