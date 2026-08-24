@@ -1,79 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export LC_ALL=C
-# Waybar Memory Info - Top 5 RAM consumers
-# Outputs JSON for custom module
+# Waybar Memory Info — RAM / swap / pressure, with a top-consumers tooltip.
+# Outputs JSON for a custom module. Refreshes once a second, so every read below
+# is a shell builtin or a single awk pass; nothing loops over processes in bash.
+#
+# Why this module does not colour itself by used%: on this APU the iGPU has no
+# VRAM of its own. amdgpu borrows system RAM (GTT, capped by ttm.pages_limit)
+# and llama.cpp keeps a whole model there, so used% sits at ~96% whenever a
+# model is loaded and the machine is perfectly fine. The colour instead follows
+# what actually predicts a freeze: MemAvailable, PSI (how much wall-clock time
+# every task spent stalled on memory), and spill from zram to the SSD swapfile.
+# The GPU's own VRAM/GTT split lives in the APU tooltip; disks have their own
+# module.
 
 # Use a stable text prefix instead of a private-use glyph to avoid
 # missing-glyph/error-icon rendering on some font stacks.
 ICON_MEM="RAM"
 
-escape_markup() {
-  printf '%s' "$1" | sed \
-    -e 's/&/\&amp;/g' \
-    -e 's/</\&lt;/g' \
-    -e 's/>/\&gt;/g'
-}
+# Colour thresholds. PSI is "full avg10": the share of the last 10 s in which
+# every non-idle task was stalled on memory. 0–1% is idle noise; 5% is where
+# input starts to stutter; 15% is multi-second freezes and the last moment a
+# terminal still answers. Available is in GiB.
+PSI_WARN=5
+PSI_CRIT=15
+AVAIL_WARN_GIB=2
+AVAIL_CRIT_GIB=1
 
-# RAM and swap, in GiB and percent, from one `free` pass. This module refreshes
-# once a second and the same seven numbers used to cost seven free+awk pairs;
-# the percentages come out of the same MiB figures rather than a second
-# unscaled call, which changes nothing since both sides of the ratio scale.
-IFS=$'\t' read -r used total available perc swap_used swap_total swap_perc < <(
-  free -m | awk '
-    /^Mem:/  { m_used = $3; m_total = $2; m_avail = $7 }
-    /^Swap:/ { s_used = $3; s_total = $2 }
-    END {
-      printf "%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.0f\n",
-        m_used/1024, m_total/1024, m_avail/1024,
-        (m_total > 0 ? m_used/m_total * 100.0 : 0),
-        s_used/1024, s_total/1024,
-        (s_total > 0 ? s_used/s_total * 100.0 : 0)
-    }'
-)
+# Per-process GTT is attributed from /proc/*/fdinfo, which costs a find plus an
+# awk each refresh. Skip it while the GPU holds less than this: desktop apps
+# keep tens of MiB there and nothing hides behind that.
+GTT_SCAN_MIN_KB=$((1024 * 1024))
 
-# Get top 5 processes by memory %
-top_procs="$(
-  ps -eo comm=,pmem= --sort=-pmem | sed -n '1,5p' | while read -r proc pmem; do
-    [ -n "${proc:-}" ] || continue
-    proc="$(escape_markup "$proc")"
-    printf '%-16s %5.1f%%\n' "$proc" "${pmem:-0}"
-  done
-)"
-[ -n "$top_procs" ] || top_procs="Unavailable"
-
-# Composite temperature per NVMe namespace, keyed by the name df reports
-# (nvme1n1). An hwmon node owns the namespace directory it belongs to, so the
-# mapping is a plain path test — no readlink needed. Every read here uses the
-# shell builtin rather than cat: this module refreshes once a second, so a
-# fork per sysfs file is not free.
-nvme_temp_map() {
-  local h name lbl label base raw nsdir
-
-  for h in /sys/class/hwmon/hwmon*; do
-    [ -r "$h/name" ] || continue
-    read -r name < "$h/name" || continue
-    [ "$name" = "nvme" ] || continue
-
-    # "Composite" is the drive-level sensor; the numbered ones are per-die and
-    # read lower, so reporting them would understate how hot the drive is.
-    for lbl in "$h"/temp*_label; do
-      [ -r "$lbl" ] || continue
-      read -r label < "$lbl" || continue
-      [ "$label" = "Composite" ] || continue
-
-      base="${lbl%_label}"
-      [ -r "${base}_input" ] || continue
-      read -r raw < "${base}_input" || continue
-
-      for nsdir in "$h"/device/nvme*n[0-9]; do
-        [ -d "$nsdir" ] || continue
-        printf '%s %s\n' "${nsdir##*/}" "$raw"
-      done
-      break
-    done
-  done
-}
+STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/waybar-memory-info.class"
 
 # Progress bar helper
 progress_bar() {
@@ -87,115 +46,204 @@ progress_bar() {
   printf '[%s]' "$bar"
 }
 
-class=$(awk -v p="${perc:-0}" 'BEGIN{if(p>=90) print "critical"; else if(p>=70) print "warning"; else print "normal"}')
+# ── /proc/meminfo, one read ──────────────────────────────────────────────────
+declare -A MI
+while read -r key value _; do
+  MI[${key%:}]=$value
+done < /proc/meminfo
 
-# Color for accent
+mem_total_kb=${MI[MemTotal]:-0}
+mem_avail_kb=${MI[MemAvailable]:-0}
+# GPUActive is the amdgpu GTT footprint as the kernel accounts it — the same
+# figure as mem_info_gtt_used in sysfs, but already in hand.
+gtt_used_kb=${MI[GPUActive]:-0}
+# `free` semantics for Used, so the bar text stays the number it always was.
+mem_used_kb=$(( mem_total_kb - ${MI[MemFree]:-0} - ${MI[Buffers]:-0} - ${MI[Cached]:-0} - ${MI[SReclaimable]:-0} ))
+(( mem_used_kb < 0 )) && mem_used_kb=0
+
+# ── swap: zram (compressed in RAM) vs the swapfile (NVMe) ───────────────────
+# /proc/swaps gives used/size per device; zram's mm_stat gives what its
+# compressed pages actually occupy in RAM, which is the number that matters
+# when the question is "how much RAM is left".
+zram_used_kb=0; zram_size_kb=0; file_used_kb=0; file_size_kb=0
+while read -r dev type size used _; do
+  case "$dev" in
+    Filename) continue ;;
+    /dev/zram*) zram_size_kb=$(( zram_size_kb + size )); zram_used_kb=$(( zram_used_kb + used )) ;;
+    *) [ "$type" = "file" ] || continue
+       file_size_kb=$(( file_size_kb + size )); file_used_kb=$(( file_used_kb + used )) ;;
+  esac
+done < /proc/swaps
+
+zram_orig_b=0; zram_real_b=0
+for f in /sys/block/zram*/mm_stat; do
+  [ -r "$f" ] || continue
+  read -r orig _ real _ < "$f" || continue
+  zram_orig_b=$(( zram_orig_b + orig ))
+  zram_real_b=$(( zram_real_b + real ))
+done
+
+# ── PSI: memory "full" avg10 ─────────────────────────────────────────────────
+psi_full="0.00"
+if [ -r /proc/pressure/memory ]; then
+  while read -r kind a10 _; do
+    [ "$kind" = "full" ] || continue
+    psi_full=${a10#avg10=}
+  done < /proc/pressure/memory
+fi
+
+# ── one awk pass turns the raw figures into every displayed number ───────────
+# The last three fields say which signal tripped: 0 normal, 1 warning,
+# 2 critical, one each for Available, PSI and the swapfile. The module class is
+# the worst of the three, and the tooltip marks the offending line.
+IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
+  zram_used_g zram_size_g zram_ratio zram_real_g file_used_h file_size_g \
+  s_avail s_psi s_swap class < <(
+  awk -v used="$mem_used_kb" -v total="$mem_total_kb" -v avail="$mem_avail_kb" \
+      -v gtt="$gtt_used_kb" \
+      -v zu="$zram_used_kb" -v zs="$zram_size_kb" -v zorig="$zram_orig_b" -v zreal="$zram_real_b" \
+      -v fu="$file_used_kb" -v fs="$file_size_kb" -v psi="$psi_full" \
+      -v psi_warn="$PSI_WARN" -v psi_crit="$PSI_CRIT" \
+      -v av_warn="$AVAIL_WARN_GIB" -v av_crit="$AVAIL_CRIT_GIB" '
+    function gib(kb) { return kb / 1048576 }
+    function human_kb(kb) {
+      if (kb >= 1048576) return sprintf("%.1f G", gib(kb))
+      if (kb >= 1024)    return sprintf("%.0f M", kb / 1024)
+      return kb > 0 ? sprintf("%d K", kb) : "0 B"
+    }
+    BEGIN {
+      avail_g = gib(avail)
+      sa = avail_g < av_crit ? 2 : (avail_g < av_warn ? 1 : 0)
+      sp = psi + 0 >= psi_crit ? 2 : (psi + 0 >= psi_warn ? 1 : 0)
+      ss = fu > 0 ? 2 : 0
+      worst = sa; if (sp > worst) worst = sp; if (ss > worst) worst = ss
+      cls = worst == 2 ? "critical" : (worst == 1 ? "warning" : "normal")
+      # Used is split into what the GPU borrowed (GTT), what zram compressed
+      # pages physically occupy, and everything else (RSS + kernel).
+      apps = used - gtt - zreal / 1024
+      if (apps < 0) apps = 0
+      printf "%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%s\t%.1f\t%d\t%d\t%d\t%s\n",
+        gib(used), gib(total), avail_g, (total > 0 ? used * 100 / total : 0), gib(apps), gib(gtt),
+        gib(zu), gib(zs), (zreal > 0 ? zorig / zreal : 0), zreal / 1073741824,
+        human_kb(fu), gib(fs),
+        sa, sp, ss, cls
+    }'
+)
+
+# ── top consumers: RSS + GTT, aggregated by command name ─────────────────────
+# ps does not see GTT — llama-server holding 18 GiB shows a few hundred MiB of
+# RSS — so the DRM fdinfo of every process with a /dev/dri fd is folded in.
+# Only fds pointing at /dev/dri are read (one find), and duplicate fds to the
+# same DRM client are counted once via drm-client-id.
+gtt_by_pid=""
+if (( gtt_used_kb >= GTT_SCAN_MIN_KB )); then
+  # shellcheck disable=SC2016  # $1/$2 belong to the awk program, not the shell
+  gtt_by_pid="$(
+    (find /proc/[0-9]*/fd -lname '/dev/dri/*' -printf '%h/../fdinfo/%f\n' 2>/dev/null || true) \
+      | xargs -r awk '
+        FNR == 1 { split(FILENAME, p, "/"); pid = p[3] }
+        $1 == "drm-client-id:" { client = $2 }
+        $1 == "drm-resident-gtt:" {
+          kb = $2
+          if ($3 == "MiB") kb *= 1024
+          else if ($3 == "GiB") kb *= 1048576
+          seen_key = pid "/" client
+          if (!(seen_key in seen)) { seen[seen_key] = 1; gtt[pid] += kb }
+        }
+        END { for (id in gtt) print id, gtt[id] }
+      ' 2>/dev/null || true
+  )"
+fi
+
+top_procs="$(
+  ps -eo pid=,rss=,comm= | awk -v gtt_list="$gtt_by_pid" '
+    BEGIN {
+      n = split(gtt_list, lines, "\n")
+      for (i = 1; i <= n; i++) if (split(lines[i], kv, " ") == 2) gtt[kv[1]] = kv[2]
+    }
+    {
+      pid = $1; rss = $2
+      name = $3; for (i = 4; i <= NF; i++) name = name " " $i
+      # Nix wrapProgram runs the real binary as ".foo-wrapped"; show "foo".
+      # comm is cut at 15 chars, so the suffix may survive only as "-w".
+      if (sub(/^\./, "", name)) sub(/-(w|wr|wra|wrap|wrapp|wrappe|wrapped)$/, "", name)
+      t[name] += rss + (pid in gtt ? gtt[pid] : 0)
+    }
+    END {
+      for (k in t) if (t[k] > 0) order[++m] = k
+      # Insertion sort, descending by total — a few hundred names at most.
+      for (i = 2; i <= m; i++) {
+        k = order[i]
+        for (j = i - 1; j >= 1 && t[order[j]] < t[k]; j--) order[j + 1] = order[j]
+        order[j + 1] = k
+      }
+      for (i = 1; i <= m && i <= 3; i++) {
+        k = order[i]
+        label = substr(k, 1, 15)
+        gsub(/&/, "\\&amp;", label); gsub(/</, "\\&lt;", label); gsub(/>/, "\\&gt;", label)
+        printf "%-15s%5.1f G\n", label, t[k] / 1048576
+      }
+    }'
+)"
+[ -n "$top_procs" ] || top_procs="Unavailable"
+
+# ── one-shot notification on entering critical ───────────────────────────────
+# Nothing here kills anything: the point is a heads-up that arrives while the
+# desktop is still responsive, so the user can close something themselves.
+# The class is only written when it changes, so the steady state costs no I/O.
+last_class=""
+if [ -r "$STATE_FILE" ]; then
+  read -r last_class < "$STATE_FILE" || true
+fi
+if [ "$class" != "$last_class" ]; then
+  printf '%s\n' "$class" > "$STATE_FILE" 2>/dev/null || true
+  if [ "$class" = "critical" ]; then
+    notify-send -u critical -a "Memory" "RAM critical" \
+      "Available ${avail_g} G · PSI ${psi_full}% · Swapfile ${file_used_h}
+$top_procs" \
+      2>/dev/null || true
+  fi
+fi
+
+# ── tooltip ──────────────────────────────────────────────────────────────────
 ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
-# One row per physical drive, not per mount. Partitions of the same disk are
-# summed, so /boot folds into its drive's totals instead of taking a row of
-# its own. Pseudo filesystems (tmpfs, devtmpfs, efivarfs) are dropped by
-# requiring a /dev source, and a device mounted twice — /nix/store alongside
-# / — is only counted once.
-#
-# Sizes are read in bytes rather than via -BG, which rounds a 1 G partition to
-# "1G / 1G". All formatting happens in this one awk pass; doing it per field
-# cost ~120 ms per refresh on a module that runs every second.
-disk_table="$(
-  df -P -B1 2>/dev/null | awk -v temps="$(nvme_temp_map)" '
-    BEGIN {
-      n = split(temps, lines, "\n")
-      for (i = 1; i <= n; i++) {
-        if (split(lines[i], kv, " ") == 2) tmap[kv[1]] = kv[2]
-      }
-    }
-    function human(b,   g) {
-      g = b / 1073741824
-      return g >= 100 ? sprintf("%.0f G", g) : sprintf("%.1f G", g)
-    }
-    function bar(p,   i, s) {
-      s = "["
-      for (i = 1; i <= 10; i++) s = s (i <= int(p / 10) ? "■" : "□")
-      return s "]"
-    }
-    # Strip the partition suffix to reach the physical device. A whole-disk
-    # mount (nvme0n1, sda) carries no suffix and must survive untouched, which
-    # is why the nvme/mmc form is matched explicitly rather than by trailing
-    # digits.
-    function diskof(dev,   d) {
-      d = dev
-      sub(/^\/dev\//, "", d)
-      if (d ~ /^(nvme[0-9]+n[0-9]+|mmcblk[0-9]+)p[0-9]+$/) sub(/p[0-9]+$/, "", d)
-      else if (d ~ /^[a-z]+[0-9]+$/) sub(/[0-9]+$/, "", d)
-      return d
-    }
-    NR > 1 && $1 ~ /^\/dev\// && !seen[$1]++ {
-      m = $6
-      for (i = 7; i <= NF; i++) m = m " " $i
-      gsub(/&/, "\\&amp;", m); gsub(/</, "\\&lt;", m); gsub(/>/, "\\&gt;", m)
+# A ◀ on the line whose signal tripped, with the threshold it crossed, so the
+# colour never has to be decoded from memory.
+marker() {
+  case "$1" in
+    2) printf '  ◀ critical (%s)' "$2" ;;
+    1) printf '  ◀ warning (%s)' "$2" ;;
+    *) ;;
+  esac
+}
+avail_lim=$AVAIL_WARN_GIB; [ "$s_avail" = 2 ] && avail_lim=$AVAIL_CRIT_GIB
+psi_lim=$PSI_WARN;         [ "$s_psi" = 2 ] && psi_lim=$PSI_CRIT
+m_avail="$(marker "$s_avail" "&lt; $avail_lim G")"
+m_psi="$(marker "$s_psi" "&gt; $psi_lim%")"
+m_swap="$(marker "$s_swap" "spill")"
 
-      d = diskof($1)
-      tot[d] += $2; usd[d] += $3; avl[d] += $4
-      # Label the drive by its shallowest mount: "/" reads better than
-      # "/boot" for the disk that happens to carry both.
-      if (!(d in lbl) || length(m) < length(lbl[d])) lbl[d] = m
-    }
-    # Two lines per drive rather than one wide row: a single row carrying all
-    # of this ran 76 columns while every other line in this tooltip is under
-    # 30, which stretched the tooltip until it wrapped. Splitting keeps every
-    # field and holds the 14-column label grid, with the mount on the first
-    # line and the device on the second.
-    END {
-      n = 0
-      for (d in tot) ord[++n] = d
-      # Insertion sort by mount path — a handful of drives, and sorting here
-      # keeps each pair of lines together, which piping to sort would not.
-      for (i = 2; i <= n; i++) {
-        k = ord[i]
-        for (j = i - 1; j >= 1 && lbl[ord[j]] > lbl[k]; j--) ord[j + 1] = ord[j]
-        ord[j + 1] = k
-      }
-
-      for (i = 1; i <= n; i++) {
-        d = ord[i]
-        cap = usd[d] + avl[d]
-        # df rounds capacity up, so match it: a table that disagrees by a
-        # percent with what df itself prints reads as a bug.
-        raw = cap > 0 ? usd[d] * 100 / cap : 0
-        pct = (raw == int(raw)) ? raw : int(raw) + 1
-        t = (d in tmap) ? sprintf("%.0f°C", tmap[d] / 1000) : "--"
-
-        if (i > 1) printf "\n"
-        printf "%-14s%7s / %-6s %3d%% %s\n", lbl[d], human(usd[d]), human(tot[d]), pct, bar(pct)
-        printf "%-14s%7s free · %s\n", d, human(avl[d]), t
-      }
-    }
-  '
-)"
-[ -n "$disk_table" ] || disk_table="Unavailable"
-
-tooltip="<b><span foreground='$ACCENT'>MEMORY USAGE</span></b>
+tooltip="<b><span foreground='$ACCENT'>MEMORY ($total_g G)</span></b>
 $SEP
-<tt>Used:         $used G / $total G
-Available:    $available G
-Status:       $perc% $(progress_bar "$perc")</tt>
+<tt>Used:         $(printf '%5s' "$used_g") G   $(printf '%3d' "$used_pct")% $(progress_bar "$used_pct")
+  GTT         $(printf '%5s' "$gtt_g") G
+  zram        $(printf '%5s' "$zram_real_g") G
+  Apps        $(printf '%5s' "$apps_g") G
+Available:    $(printf '%5s' "$avail_g") G${m_avail}</tt>
 
-<b><span foreground='$ACCENT'>SWAP &amp; ZRAM</span></b>
+<b><span foreground='$ACCENT'>SWAP</span></b>
 $SEP
-<tt>Swap/ZRAM:    $swap_used G / $swap_total G
-Status:       $swap_perc% $(progress_bar "$swap_perc")</tt>
+<tt>zram:         $(printf '%5s' "$zram_used_g") G / $zram_size_g G   ${zram_ratio}x
+Swapfile:     $(printf '%7s' "$file_used_h") / $file_size_g G${m_swap}
+Pressure:     $(printf '%5s' "$psi_full")%   (warn $PSI_WARN · crit $PSI_CRIT)${m_psi}</tt>
 
-<b><span foreground='$ACCENT'>DISKS</span></b>
-$SEP
-<tt>${disk_table}</tt>
-
-<b><span foreground='$ACCENT'>TOP CONSUMERS</span></b>
+<b><span foreground='$ACCENT'>TOP</span></b>
 $SEP
 <tt>$top_procs</tt>"
 
 jq -cn \
-    --arg text "${ICON_MEM} ${used}G (${perc}%)" \
+    --arg text "${ICON_MEM} ${used_g}G (${used_pct}%)" \
     --arg tooltip "$tooltip" \
     --arg class "$class" \
     '{text: $text, tooltip: $tooltip, class: $class}'
