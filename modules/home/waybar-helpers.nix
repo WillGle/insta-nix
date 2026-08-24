@@ -163,5 +163,16 @@ in
         signalCritical = signal.critical;
       };
     });
+    ".local/bin/rofi-calendar" = scriptFile (mkScript {
+      name = "rofi-calendar";
+      runtimeInputs = with pkgs; [
+        coreutils
+        gawk
+        gnused
+        procps
+        rofi
+        util-linux
+      ];
+    });
   };
 }
