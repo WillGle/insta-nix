@@ -76,7 +76,7 @@ sheet="$(
       # No size/line_height attributes anywhere in the sheet: rofi sizes the
       # message box from the line count at the base font, so anything that
       # makes a line taller is drawn past the box and clipped (rows 24–31
-      # vanished with line_height=1.4). Spacing comes from the 17 pt font.
+      # vanished with line_height=1.4). Spacing comes from the 14 pt font.
       printf "%*s<span foreground=\"%s\"><b>%s</b></span>\n", pad, "", accent, title
       next
     }

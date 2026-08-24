@@ -10,7 +10,7 @@
    (study-timer.rasi does the same for its rows). */
 
 window {
-  width:            400px;
+  width:            360px;
 }
 
 mainbox {
@@ -52,6 +52,6 @@ message {
 }
 
 textbox {
-  font:             "JetBrainsMono Nerd Font 17";
+  font:             "JetBrainsMono Nerd Font 14";
   horizontal-align: 0.5;
 }
