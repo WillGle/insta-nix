@@ -13,9 +13,10 @@ ROFI_COMMON=(
   -i
   -markup-rows
   -config "$HOME/.config/rofi/config.rasi"
-  -theme-str 'window { width: 650px; }'
-  -theme-str 'listview { columns: 1; lines: 14; }'
-  -theme-str 'element { children: [ element-text ]; }'
+  -theme-str 'window { width: 85%; }'
+  -theme-str 'listview { columns: 3; lines: 14; spacing: 6px; }'
+  -theme-str 'element { children: [ element-text ]; padding: 6px 10px; }'
+  -theme-str 'element-text { font: "JetBrainsMono Nerd Font Mono 11"; }'
 )
 
 parsed_list="$(
@@ -42,40 +43,40 @@ awk '
   function combo(mods, key,   n, parts, i, out) {
     out = ""
     n = split(mods, parts, /[ \t]+/)
-    for (i = 1; i <= n; i++) if (parts[i] != "") out = out modname(parts[i]) " + "
+    for (i = 1; i <= n; i++) if (parts[i] != "") out = out modname(parts[i]) "+"
     return out keyname(key)
   }
   function dispdesc(disp, arg) {
     if (disp == "movefocus") {
       if (arg == "l") arg = "Left"; else if (arg == "r") arg = "Right"
       else if (arg == "u") arg = "Up"; else if (arg == "d") arg = "Down"
-      return "Focus Window (" arg ")"
+      return "Focus (" arg ")"
     }
-    if (disp == "movetoworkspace") return "Move Window to Workspace " arg
-    if (disp == "workspace") return "Switch to Workspace " arg
-    if (disp == "killactive") return "Close Active Window"
-    if (disp == "togglefloating") return "Toggle Floating Window"
-    if (disp == "exit") return "Exit Hyprland Session"
+    if (disp == "movetoworkspace") return "Move to WS " arg
+    if (disp == "workspace") return "Workspace " arg
+    if (disp == "killactive") return "Close Window"
+    if (disp == "togglefloating") return "Toggle Float"
+    if (disp == "exit") return "Exit Session"
     if (disp == "exec") {
-      if (arg ~ /rofi.*power-menu/) return "Power Menu (Shutdown/Reboot/Logout)"
+      if (arg ~ /rofi.*power-menu/) return "Power Menu"
       if (arg ~ /rofi-show drun/) return "App Launcher"
       if (arg ~ /rofi-show calc/) return "Calculator"
       if (arg ~ /rofi-show emoji/) return "Emoji Picker"
-      if (arg ~ /rofi-network/) return "Network / WiFi Manager"
+      if (arg ~ /rofi-network/) return "Network Manager"
       if (arg ~ /rofi-clipboard/) return "Clipboard History"
       if (arg ~ /rofi-show window/) return "Window Switcher"
-      if (arg ~ /toggle_waybar/) return "Toggle Waybar Visibility"
+      if (arg ~ /toggle_waybar/) return "Toggle Waybar"
       if (arg ~ /monitor-setup/) return "Monitor Setup"
       if (arg ~ /theme-lock/) return "Lock Screen"
-      if (arg ~ /foot yazi/) return "File Manager (Yazi)"
-      if (arg ~ /^foot$/) return "Terminal (Foot)"
-      if (arg ~ /rotate_select/) return "Rotate Screen Orientation"
-      if (arg ~ /toggle_touchpad/) return "Toggle Touchpad On/Off"
-      if (arg ~ /wpctl set-mute/) return "Toggle Audio Mute"
-      if (arg ~ /wpctl set-volume.*-/) return "Decrease Volume"
-      if (arg ~ /wpctl set-volume.*\+/) return "Increase Volume"
-      if (arg ~ /brightnessctl.*-/) return "Decrease Brightness"
-      if (arg ~ /brightnessctl.*\+/) return "Increase Brightness"
+      if (arg ~ /foot yazi/) return "File Manager"
+      if (arg ~ /^foot$/) return "Terminal"
+      if (arg ~ /rotate_select/) return "Rotate Screen"
+      if (arg ~ /toggle_touchpad/) return "Toggle Touchpad"
+      if (arg ~ /wpctl set-mute/) return "Audio Mute"
+      if (arg ~ /wpctl set-volume.*-/) return "Volume -"
+      if (arg ~ /wpctl set-volume.*\+/) return "Volume +"
+      if (arg ~ /brightnessctl.*-/) return "Brightness -"
+      if (arg ~ /brightnessctl.*\+/) return "Brightness +"
       if (arg ~ /grim.*slurp/) return "Screenshot (Area)"
       if (arg ~ /grim/) return "Screenshot (Full)"
       return arg
@@ -84,11 +85,13 @@ awk '
   }
   function flush() {
     if (pend_combo == "") return
-    printf "<b>%-22s</b>  ➔  %s\t|%s\n", pend_combo, pend_desc, pend_cmd
+    if (sec == "") sec = "General"
+    printf "<span foreground=\"#89b4fa\">[%s]</span> <b>%-14s</b> ➔ %s\t|%s\n", sec, pend_combo, pend_desc, pend_cmd
     pend_combo = ""
   }
-  /^# --- .* ---/ { sec = $0; sub(/^# --- /, "", sec); sub(/ ---.*$/, "", sec); next }
-  /^# ── .* ──/   { sec = $0; sub(/^# ── /, "", sec); sub(/ ──.*$/, "", sec); next }
+  BEGIN { sec = "Basic" }
+  /^# --- .* ---/ { s = $0; sub(/^# --- /, "", s); sub(/ ---.*$/, "", s); sec = s; next }
+  /^# ── .* ──/   { s = $0; sub(/^# ── /, "", s); sub(/ ──.*$/, "", s); sec = s; next }
   /^bindm? *=/ {
     line = $0; sub(/^bindm? *= */, "", line)
     if (match(line, /[ \t]+#.*$/)) line = substr(line, 1, RSTART - 1)
@@ -103,7 +106,7 @@ awk '
 
     if (key ~ /^[0-9]$/ && pend_combo != "" && pend_mods == mods && pend_disp == disp) {
       pend_combo = combo(mods, pend_first "..." key)
-      pend_desc = (disp == "movetoworkspace") ? "Move Window to Workspace 1..5" : "Switch to Workspace 1..5"
+      pend_desc = (disp == "movetoworkspace") ? "Move to WS 1..5" : "Workspace 1..5"
       next
     }
     flush()
@@ -116,12 +119,14 @@ awk '
 selected="$(printf "%s\n" "$parsed_list" | cut -d$'\t' -f1 | rofi "${ROFI_COMMON[@]}" -p "⌨ Shorthands" || true)"
 
 if [ -n "$selected" ]; then
-  # Strip pango tags when matching
-  raw_key="$(printf "%s" "$selected" | sed 's/<[^>]*>//g' | awk '{print $1}')"
-  cmd="$(printf "%s\n" "$parsed_list" | grep -F "${raw_key}" | head -n1 | cut -d$'\t' -f2 | sed 's/^|//')"
-  if [ -n "$cmd" ]; then
-    cmd="${cmd/\#\~/$HOME}"
-    cmd="${cmd/\~/$HOME}"
-    eval "$cmd" &
+  # Extract combo key to match command mapping
+  raw_key="$(printf "%s" "$selected" | sed 's/<[^>]*>//g' | awk '{print $2}')"
+  if [ -n "$raw_key" ]; then
+    cmd="$(printf "%s\n" "$parsed_list" | grep -F "${raw_key}" | head -n1 | cut -d$'\t' -f2 | sed 's/^|//')"
+    if [ -n "$cmd" ]; then
+      cmd="${cmd/\#\~/$HOME}"
+      cmd="${cmd/\~/$HOME}"
+      eval "$cmd" &
+    fi
   fi
 fi
