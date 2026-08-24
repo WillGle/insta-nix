@@ -50,13 +50,19 @@
     "exec": "$HOME/.local/bin/waybar-memory-info",
     "return-type": "json",
     "interval": 1,
+    // Click shows/hides the disk block next to it (see custom/disk_info).
+    "on-click": "$HOME/.local/bin/waybar-disk-info toggle",
     "tooltip": true
   },
   // ─── Disks (per-drive usage + NVMe temperature) ───────────────────
+  // Hidden until the memory block is clicked: exec-if fails while the
+  // state file is absent, and signal 8 re-runs the module on each toggle.
   "custom/disk_info": {
+    "exec-if": "$HOME/.local/bin/waybar-disk-info visible",
     "exec": "$HOME/.local/bin/waybar-disk-info",
     "return-type": "json",
     "interval": 30,
+    "signal": 8,
     "tooltip": true
   },
   // ─── Audio ────────────────────────────────────────────────────────

@@ -10,6 +10,25 @@ ICON_DISK=$(printf "")
 ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
+# The block is hidden by default and opened from the memory module's click.
+# waybar keeps no state, so the state is this file; `visible` is the module's
+# exec-if (a non-zero exit hides it) and `toggle` flips the file and signals
+# waybar (SIGRTMIN+8) so every module with "signal": 8 re-runs at once.
+# pkill must match the exact process name: without -x, "waybar" also matches
+# the helper scripts (waybar-power-monitor…) and an RT signal kills them.
+STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/waybar-disk-panel"
+SIGNAL=8
+case "${1:-}" in
+  visible)
+    if [ -e "$STATE_FILE" ]; then exit 0; else exit 1; fi
+    ;;
+  toggle)
+    if [ -e "$STATE_FILE" ]; then rm -f "$STATE_FILE"; else : > "$STATE_FILE"; fi
+    pkill "-RTMIN+$SIGNAL" -x waybar || pkill "-RTMIN+$SIGNAL" -x .waybar-wrapped || true
+    exit 0
+    ;;
+esac
+
 # Composite temperature per NVMe namespace, keyed by the name df reports
 # (nvme1n1). An hwmon node owns the namespace directory it belongs to, so the
 # mapping is a plain path test — no readlink needed.

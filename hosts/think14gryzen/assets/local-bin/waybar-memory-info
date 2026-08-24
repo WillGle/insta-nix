@@ -240,7 +240,9 @@ Pressure:     $(printf '%5s' "$psi_full")%   (warn $PSI_WARN · crit $PSI_CRIT)$
 
 <b><span foreground='$ACCENT'>TOP</span></b>
 $SEP
-<tt>$top_procs</tt>"
+<tt>$top_procs</tt>
+
+<span size='small' alpha='50%'>Click: show/hide disks</span>"
 
 jq -cn \
     --arg text "${ICON_MEM} ${used_g}G (${used_pct}%)" \
