@@ -18,7 +18,6 @@
     "custom/memory_info",
     "custom/apu_info",
     "custom/power_flow",
-    "bluetooth",
     "custom/network_info",
     "tray"
   ],
@@ -126,32 +125,15 @@
     "signal": 5,
     "tooltip": true
   },
-  // Native module rather than another custom/ poller: it follows BlueZ over
-  // D-Bus signals, so there is no interval and nothing shells out to
-  // bluetoothctl. Click opens overskride, whose single pair-and-connect action
-  // is the reason blueman-manager's window is hidden from launchers.
-  "bluetooth": {
-    "format": "󰂯",
-    "format-disabled": "󰂲",
-    "format-off": "󰂲",
-    "format-connected": "󰂱 {num_connections}",
-    // Plain text, no Pango markup: unlike every other module here, waybar's
-    // bluetooth module sets its tooltip with set_tooltip_text rather than
-    // set_tooltip_markup (src/modules/bluetooth.cpp), so <b> and <span> would
-    // render as literal angle brackets. Alignment is done with spaces instead.
-    "tooltip-format": "BLUETOOTH\n──────────────────────────\nAdapter:    {controller_alias}\nAddress:    {controller_address}\nStatus:     {status}\nConnected:  {num_connections}\n\nClick: Bluetooth manager",
-    "tooltip-format-connected": "BLUETOOTH\n──────────────────────────\nAdapter:    {controller_alias}\nAddress:    {controller_address}\nConnected:  {num_connections}\n\nDEVICES\n──────────────────────────\n{device_enumerate}\n\nClick: Bluetooth manager",
-    "tooltip-format-enumerate-connected": "{device_alias}",
-    "tooltip-format-enumerate-connected-battery": "{device_alias} ({device_battery_percentage}%)",
-    "on-click": "overskride"
-  },
   "custom/network_info": {
     "exec": "$HOME/.local/bin/waybar-network-info",
     "return-type": "json",
     "interval": 5,
     "signal": 6,
+    // One block, two destinations: left opens the network menu, right the
+    // Bluetooth manager. The block reports both, so both buttons are live.
     "on-click": "$HOME/.local/bin/rofi-network",
-    "on-click-right": "$HOME/.local/bin/rofi-network",
+    "on-click-right": "$HOME/.local/bin/bluetooth-gui",
     "tooltip": true
   },
   "backlight": {

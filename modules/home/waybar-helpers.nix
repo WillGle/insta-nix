@@ -51,6 +51,16 @@ let
 in
 {
   home.file = {
+    ".local/bin/bluetooth-gui" = scriptFile (mkScript {
+      name = "bluetooth-gui";
+      runtimeInputs = with pkgs; [
+        coreutils
+        hyprland
+        jq
+        util-linux
+      ];
+    });
+
     ".local/bin/rofi-network" = scriptFile (mkScript {
       name = "rofi-network";
       vars = {
@@ -82,10 +92,11 @@ in
         inherit themeAccent;
         networkLib = "${networkLib}";
       };
-      # No bluez here on purpose: Bluetooth now comes from Waybar's native
-      # module, which follows BlueZ over D-Bus signals. Shelling out to
-      # bluetoothctl on a 5s poll registered and tore down an advertisement
-      # monitor on every single call, which flooded bluetoothd's journal.
+      # systemd, not bluez, is what carries Bluetooth here: the script reads
+      # BlueZ's properties with busctl. bluetoothctl would do the same job but
+      # registers and tears down an advertisement monitor on every invocation,
+      # which at this module's 5s interval flooded bluetoothd's journal with
+      # ~1700 lines an hour. busctl reads the property silently.
       runtimeInputs = with pkgs; [
         coreutils
         gawk
@@ -94,6 +105,7 @@ in
         iproute2
         jq
         networkmanager
+        systemd
         wireguard-tools
       ];
       excludeShellChecks = [ "SC2034" ];
