@@ -15,4 +15,4 @@ Tracked documentation lives in this directory tree. Local-only operational notes
 ## Archived Material
 
 - [`archive/REMOTE_MIGRATION.md`](./archive/REMOTE_MIGRATION.md): legacy remote migration note kept for historical reference.
-- [`archive/rocm/README.md`](./archive/rocm/README.md): ROCm status + investigation archive — runtime (Tier A) active since 2026-06-07; framework lane still NO-GO.
+- [`archive/rocm/README.md`](./archive/rocm/README.md): ROCm status + investigation archive — Tier A trimmed to diagnostics + OpenCL on 2026-08-25 (HIP libraries removed, nothing used them); framework lane NO-GO, training is cloud-only.
