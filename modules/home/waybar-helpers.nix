@@ -82,8 +82,11 @@ in
         inherit themeAccent;
         networkLib = "${networkLib}";
       };
+      # No bluez here on purpose: Bluetooth now comes from Waybar's native
+      # module, which follows BlueZ over D-Bus signals. Shelling out to
+      # bluetoothctl on a 5s poll registered and tore down an advertisement
+      # monitor on every single call, which flooded bluetoothd's journal.
       runtimeInputs = with pkgs; [
-        bluez
         coreutils
         gawk
         gnugrep

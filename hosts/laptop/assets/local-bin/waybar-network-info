@@ -13,38 +13,6 @@ escape_markup() {
   printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
 
-get_bluetooth_status() {
-  if ! systemctl is-active --quiet bluetooth; then
-    echo "Disabled"
-    return
-  fi
-  
-  local connected
-  connected=$(bluetoothctl devices Connected 2>/dev/null || true)
-  if [ -z "$connected" ]; then
-    echo "Active (No devices connected)"
-    return
-  fi
-
-  local output=""
-  while read -r _ mac name; do
-    local battery=""
-    if command -v bluetoothctl >/dev/null 2>&1; then
-      battery=$(bluetoothctl info "$mac" 2>/dev/null | grep "Battery Percentage" | awk -F'[\(\)]' '{print $2}' | tr -d ' ' || true)
-      if [ -z "$battery" ]; then
-        battery=$(bluetoothctl info "$mac" 2>/dev/null | grep "Battery Percentage" | awk '{print $NF}' | tr -d ' ' || true)
-      fi
-    fi
-    if [ -n "$battery" ]; then
-      output+="${name} (${battery}%), "
-    else
-      output+="${name}, "
-    fi
-  done <<< "$connected"
-  
-  echo "${output%, }"
-}
-
 active_wifi_ap_line() {
   local iface="$1"
   local target_ssid="${2:-}"
@@ -142,9 +110,6 @@ main() {
     vpn_interfaces="None"
   fi
 
-  bt_status="$(get_bluetooth_status)"
-  escaped_bt_status="$(escape_markup "$bt_status")"
-
   if [ -n "$ethernet_line" ]; then
     IFS=$'\t' read -r ethernet_name ethernet_device <<< "$ethernet_line"
     ip="$(current_ip "$ethernet_device")"
@@ -164,11 +129,7 @@ $SEP
 <tt>IP:           ${ip:-Unavailable}
 Gateway:      ${gateway:-Unavailable}
 DNS:          ${dns:-None}
-VPN Active:   $vpn_interfaces</tt>
-
-<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
-$SEP
-<tt>Devices:      $escaped_bt_status</tt>"
+VPN Active:   $vpn_interfaces</tt>"
 
     if [ -n "$wifi_conn" ]; then
       escaped_ssid="$(escape_markup "${ssid:-<hidden>}")"
@@ -221,11 +182,7 @@ $SEP
 <tt>IP:           ${ip:-Unavailable}
 Gateway:      ${gateway:-Unavailable}
 DNS:          ${dns:-None}
-VPN Active:   $vpn_interfaces</tt>
-
-<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
-$SEP
-<tt>Devices:      $escaped_bt_status</tt>"
+VPN Active:   $vpn_interfaces</tt>"
 
     tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: Network menu</span>"
     if [ -n "$wifi_ap" ]; then
@@ -241,10 +198,6 @@ $SEP
 $SEP
 <tt>Status:       Wi-Fi disabled</tt>
 
-<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
-$SEP
-<tt>Devices:      $escaped_bt_status</tt>
-
 <span size='small' alpha='50%'>Click: Network menu</span>"
     emit_json "󰖪" "$tooltip" "disabled"
     exit 0
@@ -253,10 +206,6 @@ $SEP
   tooltip="<b><span foreground='$ACCENT'>$title</span></b>
 $SEP
 <tt>Status:       Disconnected</tt>
-
-<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
-$SEP
-<tt>Devices:      $escaped_bt_status</tt>
 
 <span size='small' alpha='50%'>Click: Network menu</span>"
   emit_json "󰤮" "$tooltip" "disconnected"
