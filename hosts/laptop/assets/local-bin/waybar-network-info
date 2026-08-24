@@ -9,70 +9,88 @@ export PATH="$PATH:/run/current-system/sw/bin"
 # shellcheck source=/dev/null
 . "@networkLib@"
 
+# Every refresh used to be ~14 nmcli/busctl round-trips (one per question:
+# wifi interface, active ethernet, active wifi, IP, gateway, DNS, adapter
+# powered, then three properties per paired device). NetworkManager and BlueZ
+# both answer everything in one call, so the module asks once for all devices
+# and once for all Bluetooth objects, then reads the answers from memory. The
+# rendered text is unchanged.
+
 escape_markup() {
-  printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+  local s="${1:-}"
+  s="${s//&/"&amp;"}"
+  s="${s//</"&lt;"}"
+  s="${s//>/"&gt;"}"
+  printf '%s' "$s"
 }
 
-# busctl, never bluetoothctl. Every bluetoothctl invocation registers an
-# advertisement monitor with bluetoothd and tears it down again on exit, which
-# at this module's 5s interval wrote two journal lines a tick — roughly 1700
-# lines per hour, for a status string. busctl reads the property and says
-# nothing.
-bluez_prop() {
-  busctl --json=short get-property org.bluez "$1" "$2" "$3" 2>/dev/null \
-    | sed -n 's/.*"data":\(.*\)}/\1/p'
-}
+# ── NetworkManager, one query for all devices ────────────────────────────────
+# Fills NM_TYPE / NM_CONN / NM_IP / NM_GW / NM_DNS keyed by device name and
+# NM_DEVICES with the devices in NetworkManager's own order (the order
+# `nmcli device` lists them in, which is what wifi_iface relied on).
+# Terse `device show` prints one "KEY:VALUE" per line with no escaping, and a
+# blank line between devices. DNS servers are joined with " | ", the way the
+# old `nmcli -g IP4.DNS` printed several.
+declare -A NM_TYPE NM_CONN NM_IP NM_GW NM_DNS
+NM_DEVICES=()
 
-# Echoes a human-readable summary of the adapter, or the connected devices with
-# their battery level when BlueZ exposes one (it only does with Experimental
-# enabled, which base.nix sets).
-get_bluetooth_status() {
-  if ! systemctl is-active --quiet bluetooth; then
-    echo "Disabled"
-    return
-  fi
-
-  local tree adapter paths path connected alias battery output=""
-
-  tree="$(busctl --no-pager tree org.bluez 2>/dev/null)"
-  adapter="$(printf '%s\n' "$tree" | grep -oE '/org/bluez/hci[0-9]+$' | sort -u | head -1)"
-  if [ -z "$adapter" ]; then
-    echo "No adapter"
-    return
-  fi
-
-  if [ "$(bluez_prop "$adapter" org.bluez.Adapter1 Powered)" != "true" ]; then
-    echo "Powered off"
-    return
-  fi
-
-  paths="$(printf '%s\n' "$tree" | grep -oE '/org/bluez/hci[0-9]+/dev_[0-9A-F_]+$' | sort -u)"
-  while read -r path; do
-    [ -n "$path" ] || continue
-    connected="$(bluez_prop "$path" org.bluez.Device1 Connected)"
-    [ "$connected" = "true" ] || continue
-
-    alias="$(bluez_prop "$path" org.bluez.Device1 Alias | sed 's/^"//; s/"$//')"
-    battery="$(bluez_prop "$path" org.bluez.Battery1 Percentage)"
-    if [ -n "$battery" ]; then
-      output+="${alias} (${battery}%), "
-    else
-      output+="${alias}, "
+load_nm_devices() {
+  local line key value dev="" dns=""
+  while IFS= read -r line; do
+    if [ -z "$line" ]; then
+      [ -n "$dev" ] && NM_DNS[$dev]="$dns"
+      dev=""; dns=""
+      continue
     fi
-  done <<< "$paths"
-
-  [ -n "$output" ] || { echo "None connected"; return; }
-  echo "${output%, }"
+    key="${line%%:*}"
+    value="${line#*:}"
+    case "$key" in
+      GENERAL.DEVICE)  dev="$value"; NM_DEVICES+=("$dev"); NM_TYPE[$dev]=""; NM_CONN[$dev]=""; NM_IP[$dev]=""; NM_GW[$dev]="" ;;
+      GENERAL.TYPE)    NM_TYPE[$dev]="$value" ;;
+      GENERAL.CONNECTION) NM_CONN[$dev]="$value" ;;
+      IP4.ADDRESS\[1\]) NM_IP[$dev]="${value%%/*}" ;;
+      IP4.GATEWAY)     NM_GW[$dev]="$value" ;;
+      IP4.DNS\[*\])    [ -n "$value" ] && dns="${dns:+$dns | }$value" ;;
+    esac
+  done < <(nmcli -t -f GENERAL.DEVICE,GENERAL.TYPE,GENERAL.CONNECTION,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS device show 2>/dev/null; printf '\n')
+  [ -n "$dev" ] && NM_DNS[$dev]="$dns"
+  return 0
 }
 
-# The bar shows one glyph for Bluetooth next to the network one, so both live in
-# a single block. Only three states are worth distinguishing at a glance.
-bluetooth_icon() {
-  case "${1:-}" in
-    Disabled | "Powered off" | "No adapter") printf '󰂲' ;;
-    "None connected") printf '󰂯' ;;
-    *) printf '󰂱' ;;
-  esac
+first_wifi_iface() {
+  local d
+  for d in ${NM_DEVICES[@]+"${NM_DEVICES[@]}"}; do
+    if [ "${NM_TYPE[$d]}" = "wifi" ]; then
+      printf '%s\n' "$d"
+      return 0
+    fi
+  done
+}
+
+# Active connections, one query. nmcli -t escapes literal colons inside values
+# as "\:", which collides with the field separator: masked to \x01 before the
+# split, restored after (same trick as the shared helpers).
+NM_ACTIVE=""
+load_nm_active() {
+  NM_ACTIVE="$(nmcli -t -f NAME,UUID,TYPE,DEVICE connection show --active 2>/dev/null | sed 's/\\:/\x01/g')"
+}
+
+# "name<TAB>device" of the first active Ethernet connection.
+active_ethernet() {
+  printf '%s\n' "$NM_ACTIVE" | awk -F: '$3 == "802-3-ethernet" && !found {
+      name=$1; device=$4;
+      gsub(/\x01/, ":", name); gsub(/\x01/, ":", device);
+      print name "\t" device; found = 1
+    }'
+}
+
+# "name<TAB>uuid<TAB>device" of the active Wi-Fi connection on the interface.
+active_wifi_connection_on() {
+  local iface="$1"
+  printf '%s\n' "$NM_ACTIVE" | awk -F: -v target="$iface" '$3 == "802-11-wireless" && $4 == target && !found {
+      gsub(/\x01/, ":", $1); gsub(/\x01/, ":", $4);
+      print $1 "\t" $2 "\t" $4; found = 1
+    }'
 }
 
 active_wifi_ap_line() {
@@ -97,19 +115,70 @@ active_wifi_ap_line() {
     | awk -F: -v target="$masked_ssid" '$2 == target && !found { print; found = 1 }'
 }
 
-current_ip() {
-  local iface="$1"
-  nmcli -g IP4.ADDRESS device show "$iface" 2>/dev/null | sed -n '1s#/.*##p'
+# ── Bluetooth, one query for every object ────────────────────────────────────
+# busctl, never bluetoothctl. Every bluetoothctl invocation registers an
+# advertisement monitor with bluetoothd and tears it down again on exit, which
+# at this module's interval wrote two journal lines a tick — roughly 1700 lines
+# per hour, for a status string. GetManagedObjects returns every adapter and
+# device with its properties in one round-trip, and one jq reads the lot.
+#
+# Echoes a human-readable summary of the adapter, or the connected devices with
+# their battery level when BlueZ exposes one (it only does with Experimental
+# enabled, which base.nix sets).
+get_bluetooth_status() {
+  if ! systemctl is-active --quiet bluetooth; then
+    echo "Disabled"
+    return
+  fi
+
+  local objects
+  objects="$(busctl call org.bluez / org.freedesktop.DBus.ObjectManager GetManagedObjects --json=short 2>/dev/null || true)"
+
+  # Lines: first the adapter verdict ("none" / "off" / "on"), then for each
+  # connected device — in path order, as the old `sort -u` walk visited them —
+  # its alias and battery percentage (empty when BlueZ has none), one per line.
+  local -a lines=()
+  mapfile -t lines < <(printf '%s' "$objects" | jq -r '
+    (.data[0] // {}) as $o
+    | ($o | keys | map(select(test("^/org/bluez/hci[0-9]+$"))) | sort | .[0]) as $adapter
+    | if $adapter == null then "none"
+      elif ($o[$adapter]["org.bluez.Adapter1"].Powered.data != true) then "off"
+      else "on",
+        ($o | keys | map(select(test("^/org/bluez/hci[0-9]+/dev_[0-9A-F_]+$"))) | sort | .[]
+          | $o[.] as $d
+          | select($d["org.bluez.Device1"].Connected.data == true)
+          | ($d["org.bluez.Device1"].Alias.data // ""),
+            ($d["org.bluez.Battery1"].Percentage.data // "" | tostring))
+      end' 2>/dev/null)
+
+  case "${lines[0]:-none}" in
+    none) echo "No adapter"; return ;;
+    off)  echo "Powered off"; return ;;
+  esac
+
+  local output="" i alias battery
+  for ((i = 1; i + 1 < ${#lines[@]}; i += 2)); do
+    alias="${lines[$i]}"
+    battery="${lines[$((i + 1))]:-}"
+    if [ -n "$battery" ]; then
+      output+="${alias} (${battery}%), "
+    else
+      output+="${alias}, "
+    fi
+  done
+
+  [ -n "$output" ] || { echo "None connected"; return; }
+  echo "${output%, }"
 }
 
-active_ethernet() {
-  nmcli -t -f TYPE,NAME,DEVICE connection show --active \
-    | sed 's/\\:/\x01/g' \
-    | awk -F: '$1 == "802-3-ethernet" && !found {
-        name=$2; device=$3;
-        gsub(/\x01/, ":", name); gsub(/\x01/, ":", device);
-        print name "\t" device; found = 1
-      }'
+# The bar shows one glyph for Bluetooth next to the network one, so both live in
+# a single block. Only three states are worth distinguishing at a glance.
+bluetooth_icon() {
+  case "${1:-}" in
+    Disabled | "Powered off" | "No adapter") printf '󰂲' ;;
+    "None connected") printf '󰂯' ;;
+    *) printf '󰂱' ;;
+  esac
 }
 
 emit_json() {
@@ -137,7 +206,10 @@ main() {
   local escaped_ssid escaped_security escaped_ethernet_name escaped_ethernet_device
   local bt_status escaped_bt_status bt_icon
 
-  iface="$(wifi_iface)"
+  load_nm_devices
+  load_nm_active
+
+  iface="$(first_wifi_iface)"
   ethernet_line="$(active_ethernet)"
   wifi_conn=""
   wifi_name=""
@@ -147,7 +219,7 @@ main() {
   wifi_ap=""
 
   if [ -n "$iface" ]; then
-    wifi_conn="$(active_wifi_connection "$iface")"
+    wifi_conn="$(active_wifi_connection_on "$iface")"
     if [ -n "$wifi_conn" ]; then
       IFS=$'\t' read -r wifi_name wifi_uuid wifi_device <<< "$wifi_conn"
       wifi_ssid="$(connection_ssid "$wifi_uuid" "$wifi_name")"
@@ -183,9 +255,9 @@ main() {
 
   if [ -n "$ethernet_line" ]; then
     IFS=$'\t' read -r ethernet_name ethernet_device <<< "$ethernet_line"
-    ip="$(current_ip "$ethernet_device")"
-    gateway="$(current_gateway "$ethernet_device")"
-    dns="$(current_dns "$ethernet_device")"
+    ip="${NM_IP[$ethernet_device]:-}"
+    gateway="${NM_GW[$ethernet_device]:-}"
+    dns="${NM_DNS[$ethernet_device]:-}"
     escaped_ethernet_name="$(escape_markup "${ethernet_name:-Connected}")"
     escaped_ethernet_device="$(escape_markup "${ethernet_device:-Unknown}")"
 
@@ -221,15 +293,15 @@ Security:     Unavailable</tt>"
     tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
 $SEP
 <tt>Devices:      $escaped_bt_status</tt>"
-    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Left: Network menu  ·  Right: Bluetooth</span>"
+    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: network menu · Right: Bluetooth</span>"
     emit_json "$bt_icon 󰈀" "$tooltip" "ethernet"
     exit 0
   fi
 
   if [ -n "$wifi_conn" ]; then
-    ip="$(current_ip "$iface")"
-    gateway="$(current_gateway "$iface")"
-    dns="$(current_dns "$iface")"
+    ip="${NM_IP[$iface]:-}"
+    gateway="${NM_GW[$iface]:-}"
+    dns="${NM_DNS[$iface]:-}"
     escaped_ssid="$(escape_markup "${ssid:-<hidden>}")"
     escaped_security="$(escape_markup "$(security_label "$security")")"
     escaped_bssid="$(escape_markup "${bssid:-Unavailable}")"
@@ -264,7 +336,7 @@ VPN Active:   $vpn_interfaces</tt>"
 $SEP
 <tt>Devices:      $escaped_bt_status</tt>"
 
-    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Left: Network menu  ·  Right: Bluetooth</span>"
+    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: network menu · Right: Bluetooth</span>"
     if [ -n "$wifi_ap" ]; then
       emit_json "$bt_icon $(signal_icon "$signal")" "$tooltip" "connected"
     else
@@ -283,7 +355,7 @@ Status:       Wi-Fi disabled</tt>
 $SEP
 <tt>Devices:      $escaped_bt_status</tt>
 
-<span size='small' alpha='50%'>Left: Network menu  ·  Right: Bluetooth</span>"
+<span size='small' alpha='50%'>Click: network menu · Right: Bluetooth</span>"
     emit_json "$bt_icon 󰖪" "$tooltip" "disabled"
     exit 0
   fi
@@ -297,7 +369,7 @@ Status:       Disconnected</tt>
 $SEP
 <tt>Devices:      $escaped_bt_status</tt>
 
-<span size='small' alpha='50%'>Left: Network menu  ·  Right: Bluetooth</span>"
+<span size='small' alpha='50%'>Click: network menu · Right: Bluetooth</span>"
   emit_json "$bt_icon 󰤮" "$tooltip" "disconnected"
 }
 
