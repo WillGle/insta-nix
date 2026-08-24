@@ -4,7 +4,8 @@ export LC_ALL=C
 # Waybar Disk Info — free space on / in the bar, one row per physical drive
 # with its NVMe temperature in the tooltip. Split out of waybar-memory-info,
 # where the disk table had nothing to do with the question that module
-# answers; disks change slowly, so this one refreshes every 30 s.
+# answers. It refreshes every 2 s like the APU/power blocks, since the NVMe
+# temperatures are the live part; capacity changing slowly costs nothing extra.
 
 ICON_DISK=$(printf "")
 ACCENT="@themeAccent@"
