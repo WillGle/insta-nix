@@ -735,18 +735,7 @@ case "$MODE" in
         cpu_peak_freq="$CPU_FREQ_PEAK_GHZ"
         gpu_freq=$(get_gpu_freq)
 
-        # Governor & EPP
-        governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "unknown")
-        epp=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo "unknown")
         profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
-
-        if limits_fields="$(profile_limits "$profile")"; then
-          IFS=$'\t' read -r lim_stapm lim_slow lim_fast lim_temp <<< "$limits_fields"
-          limits_text="TDP Limits:   STAPM ${lim_stapm}W / Slow ${lim_slow}W / Fast ${lim_fast}W
-Temp Limit:   ${lim_temp}°C"
-        else
-          limits_text="TDP Limits:   Unknown"
-        fi
 
         case "$profile" in
             performance) active_marker_perf=" ◀" ; active_marker_bal="" ; active_marker_sav="" ;;
@@ -771,11 +760,6 @@ GPU:          $(printf "%3d" "$gpu_util")% $(progress_bar "$gpu_util") @ $gpu_fr
 <b><span foreground='$ACCENT'>GPU MEMORY</span></b>
 $SEP
 <tt>$(get_gpu_mem_text)</tt>
-
-<b><span foreground='$ACCENT'>GOVERNOR &amp; HARDWARE LIMITS</span></b>
-$SEP
-<tt>Gov / EPP:    $governor / $epp
-$limits_text</tt>
 
 <b><span foreground='$ACCENT'>POWER PROFILE</span></b>
 $SEP
