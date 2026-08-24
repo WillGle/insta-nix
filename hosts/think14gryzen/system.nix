@@ -329,10 +329,15 @@ in
       udiskie
       usbutils
       bluez-tools
-      # GTK4 Bluetooth manager. blueman-applet stays as the pairing agent and
-      # tray icon (services.blueman in modules/nixos/base.nix); this replaces
-      # only blueman-manager's window, whose pair -> connect -> trust flow is
-      # three separate right-click menus where GNOME's panel is one click.
+      # GTK4 Bluetooth manager, and the only one surfaced in launchers — see
+      # hosts/think14gryzen/home.nix, which hides blueman-manager's entry.
+      # blueman-applet stays as the pairing agent and tray icon
+      # (services.blueman in modules/nixos/base.nix); this replaces only
+      # blueman-manager's window, whose pair -> connect -> trust flow is three
+      # separate right-click menus where GNOME's panel is one click. That split
+      # is not cosmetic: connecting without pairing leaves an unencrypted link
+      # that HID-over-GATT cannot use, and trusting it persists the dead entry.
+      # modules/nixos/bluetooth.nix sweeps up whatever still slips through.
       overskride
 
       # Shell & version control
