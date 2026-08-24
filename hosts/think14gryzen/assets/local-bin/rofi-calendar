@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+today_y=$(date +%Y)
+today_m=$(date +%-m)
+today_d=$(date +%-d)
+
+year="${1:-$today_y}"
+month="${2:-$today_m}"
+
+# Ensure numeric format
+year=$((year + 0))
+month=$((month + 0))
+
+# Bounds check for month
+if [ "$month" -gt 12 ]; then
+  month=1
+  year=$((year + 1))
+elif [ "$month" -lt 1 ]; then
+  month=12
+  year=$((year - 1))
+fi
+
+# Calculate prev and next month/year
+prev_m=$((month - 1))
+prev_y=$year
+if [ "$prev_m" -lt 1 ]; then
+  prev_m=12
+  prev_y=$((year - 1))
+fi
+
+next_m=$((month + 1))
+next_y=$year
+if [ "$next_m" -gt 12 ]; then
+  next_m=1
+  next_y=$((year + 1))
+fi
+
+# Format calendar block using cal and awk with Pango markup
+cal_text="$(
+  LC_ALL=C cal -m "$month" "$year" | awk -v ty="$today_y" -v tm="$today_m" -v td="$today_d" -v cy="$year" -v cm="$month" '
+    NR == 1 {
+      gsub(/^ +| +$/, "", $0)
+      printf "<span foreground=\"#58a6ff\"><b>%s</b></span>\n", $0
+      next
+    }
+    NR == 2 {
+      printf "<span foreground=\"#89b4fa\"><b>%s</b></span>\n", $0
+      next
+    }
+    {
+      line = ""
+      for (i = 1; i <= length($0); i += 3) {
+        chunk = substr($0, i, 3)
+        num = chunk; gsub(/ /, "", num)
+        if (num != "" && cy == ty && cm == tm && num == td) {
+          line = line sprintf("<span foreground=\"#a7d293\"><b>%s</b></span>", chunk)
+        } else {
+          line = line chunk
+        }
+      }
+      print line
+    }
+  '
+)"
+
+ROFI_COMMON=(
+  -dmenu
+  -i
+  -markup-rows
+  -config "$HOME/.config/rofi/config.rasi"
+  -theme-str 'window { width: 320px; }'
+  -theme-str 'listview { lines: 4; }'
+  -theme-str 'textbox { font: "JetBrainsMono Nerd Font Mono 13"; }'
+)
+
+# Navigation choices
+CHOICE_PREV="◀  Tháng trước"
+CHOICE_TODAY="󰃭  Hôm nay (${today_d}/${today_m}/${today_y})"
+CHOICE_NEXT="Tháng sau  ▶"
+CHOICE_CLOSE="❌  Đóng"
+
+MENU_ITEMS="${CHOICE_PREV}\n${CHOICE_TODAY}\n${CHOICE_NEXT}\n${CHOICE_CLOSE}"
+
+selected="$(printf "%b" "$MENU_ITEMS" | rofi "${ROFI_COMMON[@]}" -p " Lịch" -mesg "$cal_text" || true)"
+
+case "$selected" in
+  "$CHOICE_PREV")
+    exec "$0" "$prev_y" "$prev_m"
+    ;;
+  "$CHOICE_NEXT")
+    exec "$0" "$next_y" "$next_m"
+    ;;
+  "$CHOICE_TODAY")
+    exec "$0" "$today_y" "$today_m"
+    ;;
+  *)
+    exit 0
+    ;;
+esac
