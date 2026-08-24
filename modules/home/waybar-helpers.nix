@@ -159,7 +159,6 @@ in
         systemd
       ];
       vars = {
-        inherit themeAccent;
         signalOk = signal.ok;
         signalWarning = signal.warning;
         signalCritical = signal.critical;
