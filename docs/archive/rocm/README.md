@@ -34,12 +34,15 @@ What the campaign established:
 
 ROCm partially active on `think14gryzen` (Radeon 780M / gfx1103):
 
-- **Runtime / library stack (Tier A): ACTIVE.** The full `rocmPackages` userspace (clr, clr.icd,
-  rocminfo, rocm-smi, rocm-runtime, rocblas, hipblas, hipblaslt, rocsolver, rocsparse, hipsparse,
-  rocfft, hipfft, rocrand, hiprand, rocprim, rocthrust, hipcub, miopen, amdsmi, rocm-bandwidth-test)
-  is installed via the host config. It is cache-served (no local compilation) and **library-only**,
-  so it dispatches no GPU kernels and cannot trigger the historical GPU-reset/logout. `clr`/`clr.icd`
-  also feed DaVinci Resolve's OpenCL on the same 780M.
+- **Runtime / library stack (Tier A): TRIMMED 2026-08-25.** Installed via the host config are
+  the diagnostics only — `rocminfo`, `rocm-smi`, `rocm-runtime`, `amdsmi` — plus `clr`/`clr.icd`
+  for OpenCL (`clinfo`; DaVinci Resolve was removed 2026-08-22). The HIP compute libraries that
+  made up the rest of Tier A (rocblas, hipblas, hipblaslt, rocsolver, rocsparse, hipsparse, rocfft,
+  hipfft, rocrand, hiprand, rocprim, rocthrust, hipcub, miopen, rocm-bandwidth-test; ~7.8 GiB of
+  closure) were removed: after the 2026-08-22 verdict below nothing on the host used them — the
+  training lane is cloud-only and llama.cpp runs on Vulkan. Re-adding them is one line in
+  `hosts/think14gryzen/system.nix`, cache-served. (History: full Tier A was reinstated 2026-06-07
+  as library-only, which is why it was harmless to keep until then.)
 - **Framework / compute lane (PyTorch-ROCm, ollama-rocm, llama.cpp-HIP): NO-GO for LLM; stability-gated for ML.**
   gfx1103 is not an officially supported ROCm target and previously caused MES failure → GPU reset → logout.
   - **LLM inference does NOT use ROCm.** It runs on **Vulkan** via `llm-run` (llama.cpp). Measured 2026-06-07:

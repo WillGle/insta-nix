@@ -294,25 +294,20 @@ in
       clinfo
       amdgpu_top
       radeontop
+      # ROCm: diagnostics only. The HIP compute libraries (rocblas, hipblas,
+      # hipblaslt, rocsolver, rocsparse, hipsparse, rocfft, hipfft, rocrand,
+      # hiprand, rocprim, rocthrust, hipcub, miopen, rocm-bandwidth-test —
+      # ~7.8 GiB of closure) were the "Tier A" runtime kept on 2026-06-07 for
+      # local training. The 2026-08-22 verdict (docs/archive/rocm/README.md)
+      # closed that lane: gfx1103 is not a supported ROCm target, training on
+      # it is stochastic, and it moved to cloud GPUs; llama.cpp runs on Vulkan
+      # (modules/nixos/llm.nix). Nothing on this host linked against those
+      # libraries afterwards, so they were removed 2026-08-25. Re-adding is a
+      # line here, cache-served. OpenCL (clr/clr.icd) stays in extraPackages.
       rocmPackages.rocminfo
       rocmPackages.rocm-smi
       rocmPackages.rocm-runtime
       rocmPackages.amdsmi
-      rocmPackages.rocblas
-      rocmPackages.hipblas
-      rocmPackages.hipblaslt
-      rocmPackages.rocsolver
-      rocmPackages.rocsparse
-      rocmPackages.hipsparse
-      rocmPackages.rocfft
-      rocmPackages.hipfft
-      rocmPackages.rocrand
-      rocmPackages.hiprand
-      rocmPackages.rocprim
-      rocmPackages.rocthrust
-      rocmPackages.hipcub
-      rocmPackages.miopen
-      rocmPackages.rocm-bandwidth-test
       stress-ng
       tree
       unzip
