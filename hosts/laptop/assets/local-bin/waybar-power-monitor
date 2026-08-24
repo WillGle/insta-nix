@@ -684,6 +684,37 @@ if [ "${warn_count:-0}" -gt 0 ]; then
     health_cls="degraded"
 fi
 
+# GPU memory on this APU is two pools: the VRAM carve-out (fixed by the BIOS,
+# outside MemTotal) and GTT (borrowed from system RAM, capped by
+# ttm.pages_limit, so it competes with every process). RADV hands both to
+# Vulkan as one device-local heap; their sum is what llama.cpp can use.
+get_gpu_mem_text() {
+    local d vu=0 vt=0 gu=0 gt=0
+    for d in /sys/class/drm/card*/device; do
+        [ -r "$d/mem_info_gtt_total" ] || continue
+        read -r vu < "$d/mem_info_vram_used"  2>/dev/null || vu=0
+        read -r vt < "$d/mem_info_vram_total" 2>/dev/null || vt=0
+        read -r gu < "$d/mem_info_gtt_used"   2>/dev/null || gu=0
+        read -r gt < "$d/mem_info_gtt_total"  2>/dev/null || gt=0
+        break
+    done
+    [ "$gt" -gt 0 ] || return 0
+    awk -v vu="$vu" -v vt="$vt" -v gu="$gu" -v gt="$gt" '
+        function g(b) { return b / 1073741824 }
+        function bar(p,   i, s) {
+            s = "["
+            for (i = 1; i <= 10; i++) s = s (i <= int(p / 10) ? "■" : "□")
+            return s "]"
+        }
+        BEGIN {
+            tu = vu + gu; tt = vt + gt
+            pct = tt > 0 ? tu * 100 / tt : 0
+            printf "VRAM:       %5.1f G / %4.1f G\n", g(vu), g(vt)
+            printf "GTT:        %5.1f G / %4.1f G\n", g(gu), g(gt)
+            printf "Total:      %5.1f G / %4.1f G  %3d%% %s", g(tu), g(tt), pct, bar(pct)
+        }'
+}
+
 # --- Output Generation ---
 
 case "$MODE" in
@@ -717,6 +748,13 @@ Temp Limit:   ${lim_temp}°C"
           limits_text="TDP Limits:   Unknown"
         fi
 
+        case "$profile" in
+            performance) active_marker_perf=" ◀" ; active_marker_bal="" ; active_marker_sav="" ;;
+            balanced)    active_marker_perf="" ;   active_marker_bal=" ◀" ; active_marker_sav="" ;;
+            power-saver) active_marker_perf="" ;   active_marker_bal="" ;   active_marker_sav=" ◀" ;;
+            *)           active_marker_perf="" ;   active_marker_bal="" ;   active_marker_sav="" ;;
+        esac
+
         # Classes
         t_cls="normal"
         if [ "$t_cpu" -ge 85 ] || [ "$t_gpu" -ge 85 ]; then t_cls="critical";
@@ -730,21 +768,26 @@ $SEP
 <tt>CPU:          $(printf "%3d" "$cpu_util")% $(progress_bar "$cpu_util") @ $cpu_freq GHz avg
 GPU:          $(printf "%3d" "$gpu_util")% $(progress_bar "$gpu_util") @ $gpu_freq MHz</tt>
 
+<b><span foreground='$ACCENT'>GPU MEMORY</span></b>
+$SEP
+<tt>$(get_gpu_mem_text)</tt>
+
 <b><span foreground='$ACCENT'>GOVERNOR &amp; HARDWARE LIMITS</span></b>
 $SEP
 <tt>Gov / EPP:    $governor / $epp
 $limits_text</tt>
 
+<b><span foreground='$ACCENT'>POWER PROFILE</span></b>
+$SEP
+<tt>$(cheat_sheet_line "Performance" performance "$active_marker_perf")
+$(cheat_sheet_line "Balanced" balanced "$active_marker_bal")
+$(cheat_sheet_line "Power Saver" power-saver "$active_marker_sav")</tt>
+
 <b><span foreground='$ACCENT'>CLOCK</span></b>
 $SEP
 <tt>Peak CPU:     $cpu_peak_core @ $cpu_peak_freq GHz</tt>
 
-<b><span foreground='$ACCENT'>THERMALS</span></b>
-$SEP
-<tt>CPU Core:     $t_cpu°C
-iGPU:         $t_gpu°C</tt>
-
-<span size='small' alpha='50%'>$health_msg</span>"
+<span size='small' alpha='50%'>Click: cycle profile  |  $health_msg</span>"
 
         printf '{"text":"%s %s°C %s %s°C %sGHz %s%%", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
             "$ICON_GPU" "$t_gpu" "$ICON_CPU" "$t_cpu" "$cpu_freq" "$cpu_util" \
@@ -851,17 +894,11 @@ Capacity:     $wh_now / $wh_full Wh
 $time_line
 Voltage:      ${volt_v}V  |  Cycles: $cycles</tt>
 
-<b><span foreground='$ACCENT'>POWER PROFILE</span></b>
-$SEP
-<tt>$(cheat_sheet_line "Performance" performance "$active_marker_perf")
-$(cheat_sheet_line "Balanced" balanced "$active_marker_bal")
-$(cheat_sheet_line "Power Saver" power-saver "$active_marker_sav")</tt>
-
 <b><span foreground='$ACCENT'>BATTERY RESERVE</span></b>
 $SEP
 <tt>Mode:         ${reserve_label}</tt>
 
-<span size='small' alpha='50%'>Click: cycle profile  |  Right-click: toggle reserve  |  $health_msg</span>"
+<span size='small' alpha='50%'>Right-click: toggle reserve  |  $health_msg</span>"
 
         printf '{"text":"%s  %s  %s%%  %s", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s", "%s"]}\n' \
             "$text_label" "$icon" "$cap" "$p_icon" \
