@@ -4,7 +4,10 @@
   ...
 }:
 {
-  imports = [ ./theme.nix ];
+  imports = [
+    ./bluetooth.nix
+    ./theme.nix
+  ];
 
   # Locale / Time
   time.timeZone = "Asia/Ho_Chi_Minh";
