@@ -2,25 +2,30 @@
 
 /* rofi-calendar: the window is the month sheet. The input bar and the list
    are removed — navigation is keyboard-only (←/→/t) — so the calendar is the
-   only child and sits in a single layer of padding instead of three. */
+   only child and sits in a single layer of padding instead of three.
+
+   The sheet is set well above the 10 pt menu size: a 20-column grid at menu
+   size filled barely half the window. The family is spelled out because a
+   rasi font cannot combine @mono-font's family with a different size
+   (study-timer.rasi does the same for its rows). */
 
 window {
-  width:            300px;
+  width:            400px;
 }
 
 mainbox {
   children:         [ message ];
   spacing:          0;
-  padding:          8px;
+  padding:          10px;
 }
 
 message {
   background-color: transparent;
   margin:           0;
-  padding:          8px 4px;
+  padding:          10px 4px;
 }
 
 textbox {
-  font:             @mono-font;
+  font:             "JetBrainsMono Nerd Font 17";
   horizontal-align: 0.5;
 }
