@@ -124,7 +124,8 @@ df_out="$(
       tot[d] += $3; usd[d] += $4; avl[d] += $5
       # Label the drive by its shallowest mount: "/" reads better than
       # "/boot" for the disk that happens to carry both. The filesystem type
-      # shown is that mount's.
+      # shown is the one of that mount. (No apostrophes here: this comment
+      # lives inside the single-quoted awk program.)
       if (!(d in lbl) || length(m) < length(lbl[d])) { lbl[d] = m; fst[d] = $2 }
     }
     # Two lines per drive: "DK n (mount)  used / total (pct) - fstype", then
@@ -154,8 +155,13 @@ df_out="$(
         share = tot[d] > 0 ? int(usd[d] * 100 / tot[d] + 0.5) : 0
         table = table sprintf("DK %d (%s)   %s / %s (%d%%) - %s\n", i, lbl[d], human(usd[d]), human(tot[d]), share, fst[d])
         table = table sprintf("%s · %s", bar(share), t)
-        # Bar: one "<mount> <free> <temp>" per drive, e.g. "/ 126G 34°".
-        text = text (i > 1 ? "  " : "") short_mount(lbl[d]) " " human_bar(avl[d]) (tc >= 0 ? sprintf(" %.0f°", tc) : "")
+        # Bar: one "mount  free  temp" cluster per drive, joined by a dot.
+        # The mount label and the separator are dimmed (waybar renders this
+        # text as Pango markup) so the eye lands on the numbers:
+        #   /  127G  33°C  ·  /mnt  396G  36°C
+        text = text (i > 1 ? "  <span alpha=\"60%\">·</span>  " : "") \
+               "<span alpha=\"60%\">" short_mount(lbl[d]) "</span>  " human_bar(avl[d]) \
+               (tc >= 0 ? sprintf("  %.0f°C", tc) : "")
       }
       # Scalars on the first line, the multi-line table after it; the shell
       # splits on that first newline below (read would stop at it).
@@ -181,7 +187,7 @@ $SEP
 <tt>${disk_table}</tt>"
 
 jq -cn \
-  --arg text "${ICON_DISK} ${bar_text}" \
+  --arg text "${ICON_DISK}  ${bar_text}" \
   --arg tooltip "$tooltip" \
   --arg class "$class" \
   '{text: $text, tooltip: $tooltip, class: $class}'
