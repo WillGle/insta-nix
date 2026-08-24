@@ -94,6 +94,7 @@ in
         coreutils
         gawk
         jq
+        procps
       ];
       vars = { inherit themeAccent; };
     });
