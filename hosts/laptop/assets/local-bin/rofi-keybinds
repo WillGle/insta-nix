@@ -13,10 +13,10 @@ ROFI_COMMON=(
   -i
   -markup-rows
   -config "$HOME/.config/rofi/config.rasi"
-  -theme-str 'window { width: 85%; }'
-  -theme-str 'listview { columns: 3; lines: 14; spacing: 6px; }'
-  -theme-str 'element { children: [ element-text ]; padding: 6px 10px; }'
-  -theme-str 'element-text { font: "JetBrainsMono Nerd Font Mono 11"; }'
+  -theme-str 'window { width: 90%; }'
+  -theme-str 'listview { columns: 3; lines: 14; spacing: 4px; }'
+  -theme-str 'element { children: [ element-text ]; padding: 4px 8px; }'
+  -theme-str 'element-text { font: "JetBrainsMono Nerd Font Mono 10.5"; }'
 )
 
 parsed_list="$(
@@ -30,7 +30,17 @@ awk '
     return m
   }
   function keyname(k) {
-    sub(/^XF86/, "", k)
+    if (k ~ /^XF86/) {
+      sub(/^XF86/, "", k)
+      if (k == "AudioMute") return "Mute"
+      if (k == "AudioLowerVolume") return "Vol-"
+      if (k == "AudioRaiseVolume") return "Vol+"
+      if (k == "AudioMicMute") return "MicMute"
+      if (k == "MonBrightnessDown") return "Bright-"
+      if (k == "MonBrightnessUp") return "Bright+"
+      if (k == "TouchpadToggle") return "Touchpad"
+      return k
+    }
     if (k == "Return") return "Enter"
     if (k == "Escape") return "Esc"
     if (k == "period") return "."
@@ -85,13 +95,13 @@ awk '
   }
   function flush() {
     if (pend_combo == "") return
-    if (sec == "") sec = "General"
-    printf "<span foreground=\"#89b4fa\">[%s]</span> <b>%-14s</b> ➔ %s\t|%s\n", sec, pend_combo, pend_desc, pend_cmd
+    s = (pend_sec != "") ? pend_sec : "General"
+    printf "<span foreground=\"#89b4fa\">[%s]</span> <b>%-13s</b> ➔ %s\t|%s\n", s, pend_combo, pend_desc, pend_cmd
     pend_combo = ""
   }
   BEGIN { sec = "Basic" }
-  /^# --- .* ---/ { s = $0; sub(/^# --- /, "", s); sub(/ ---.*$/, "", s); sec = s; next }
-  /^# ── .* ──/   { s = $0; sub(/^# ── /, "", s); sub(/ ──.*$/, "", s); sec = s; next }
+  /^# --- .* ---/ { flush(); s = $0; sub(/^# --- /, "", s); sub(/ ---.*$/, "", s); sec = s; next }
+  /^# ── .* ──/   { flush(); s = $0; sub(/^# ── /, "", s); sub(/ ──.*$/, "", s); sec = s; next }
   /^bindm? *=/ {
     line = $0; sub(/^bindm? *= */, "", line)
     if (match(line, /[ \t]+#.*$/)) line = substr(line, 1, RSTART - 1)
@@ -104,13 +114,13 @@ awk '
     desc = dispdesc(disp, arg)
     cmd = (disp == "exec") ? arg : ""
 
-    if (key ~ /^[0-9]$/ && pend_combo != "" && pend_mods == mods && pend_disp == disp) {
+    if (key ~ /^[0-9]$/ && pend_combo != "" && pend_mods == mods && pend_disp == disp && pend_sec == sec) {
       pend_combo = combo(mods, pend_first "..." key)
       pend_desc = (disp == "movetoworkspace") ? "Move to WS 1..5" : "Workspace 1..5"
       next
     }
     flush()
-    pend_combo = c; pend_desc = desc; pend_cmd = cmd; pend_mods = mods; pend_disp = disp; pend_first = key
+    pend_combo = c; pend_desc = desc; pend_cmd = cmd; pend_sec = sec; pend_mods = mods; pend_disp = disp; pend_first = key
   }
   END { flush() }
 ' "$HYPR_CONF"
@@ -119,7 +129,6 @@ awk '
 selected="$(printf "%s\n" "$parsed_list" | cut -d$'\t' -f1 | rofi "${ROFI_COMMON[@]}" -p "⌨ Shorthands" || true)"
 
 if [ -n "$selected" ]; then
-  # Extract combo key to match command mapping
   raw_key="$(printf "%s" "$selected" | sed 's/<[^>]*>//g' | awk '{print $2}')"
   if [ -n "$raw_key" ]; then
     cmd="$(printf "%s\n" "$parsed_list" | grep -F "${raw_key}" | head -n1 | cut -d$'\t' -f2 | sed 's/^|//')"
