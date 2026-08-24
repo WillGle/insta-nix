@@ -61,6 +61,20 @@ mem_avail_kb=${MI[MemAvailable]:-0}
 # GPUActive is the amdgpu GTT footprint as the kernel accounts it — the same
 # figure as mem_info_gtt_used in sysfs, but already in hand.
 gtt_used_kb=${MI[GPUActive]:-0}
+
+# ── GPU pools from the first amdgpu card ────────────────────────────────────
+# Two pools: the VRAM carve-out (fixed by the BIOS, lives OUTSIDE MemTotal) and
+# GTT (borrowed from system RAM, capped by ttm.pages_limit, INSIDE MemTotal —
+# the GTT line in the Used tree). RADV hands both to Vulkan as one device-local
+# heap, so llama.cpp fills the 4 G carve-out first and the rest lands in GTT.
+vram_used_kb=0; vram_total_kb=0; gtt_total_kb=0
+for d in /sys/class/drm/card*/device; do
+  [ -r "$d/mem_info_gtt_total" ] || continue
+  read -r b < "$d/mem_info_vram_used"  2>/dev/null && vram_used_kb=$(( b / 1024 ))
+  read -r b < "$d/mem_info_vram_total" 2>/dev/null && vram_total_kb=$(( b / 1024 ))
+  read -r b < "$d/mem_info_gtt_total"  2>/dev/null && gtt_total_kb=$(( b / 1024 ))
+  break
+done
 # `free` semantics for Used, so the bar text stays the number it always was.
 mem_used_kb=$(( mem_total_kb - ${MI[MemFree]:-0} - ${MI[Buffers]:-0} - ${MI[Cached]:-0} - ${MI[SReclaimable]:-0} ))
 (( mem_used_kb < 0 )) && mem_used_kb=0
@@ -101,10 +115,11 @@ fi
 # 2 critical, one each for Available, PSI and the swapfile. The module class is
 # the worst of the three, and the tooltip marks the offending line.
 IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
-  zram_used_g zram_size_g zram_pct zram_real_g file_used_g file_size_g file_pct psi_pct \
+  vram_g vram_tot_g vram_pct gtt_tot_g gtt_pct \
+  zram_used_g zram_size_g zram_pct file_used_g file_size_g file_pct psi_pct \
   s_avail s_psi s_swap class < <(
   awk -v used="$mem_used_kb" -v total="$mem_total_kb" -v avail="$mem_avail_kb" \
-      -v gtt="$gtt_used_kb" \
+      -v gtt="$gtt_used_kb" -v gtt_tot="$gtt_total_kb" -v vram="$vram_used_kb" -v vram_tot="$vram_total_kb" \
       -v zu="$zram_used_kb" -v zs="$zram_size_kb" -v zorig="$zram_orig_b" -v zreal="$zram_real_b" \
       -v fu="$file_used_kb" -v fs="$file_size_kb" -v psi="$psi_full" \
       -v psi_warn="$PSI_WARN" -v psi_crit="$PSI_CRIT" \
@@ -117,17 +132,18 @@ IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
       ss = fu > 0 ? 2 : 0
       worst = sa; if (sp > worst) worst = sp; if (ss > worst) worst = ss
       cls = worst == 2 ? "critical" : (worst == 1 ? "warning" : "normal")
-      # Used is split into what the GPU borrowed (GTT), what zram compressed
-      # pages physically occupy, and everything else (RSS + kernel).
+      # Apps = Used minus what the GPU borrowed (GTT, shown in the GPU block)
+      # and what zram compressed pages physically occupy: RSS + kernel.
       apps = used - gtt - zreal / 1024
       if (apps < 0) apps = 0
       # The pressure bar is scaled to the critical threshold, not to 100%:
       # on a 0–100 scale it would sit empty right up to the freeze.
       psi_pct = psi_crit > 0 ? (psi + 0) * 100 / psi_crit : 0
       if (psi_pct > 100) psi_pct = 100
-      printf "%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.1f\t%.0f\t%.0f\t%d\t%d\t%d\t%s\n",
+      printf "%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.1f\t%.1f\t%.0f\t%.1f\t%.0f\t%.1f\t%.1f\t%.0f\t%.1f\t%.1f\t%.0f\t%.0f\t%d\t%d\t%d\t%s\n",
         gib(used), gib(total), avail_g, (total > 0 ? used * 100 / total : 0), gib(apps), gib(gtt),
-        gib(zu), gib(zs), (zs > 0 ? zu * 100 / zs : 0), zreal / 1073741824,
+        gib(vram), gib(vram_tot), (vram_tot > 0 ? vram * 100 / vram_tot : 0), gib(gtt_tot), (gtt_tot > 0 ? gtt * 100 / gtt_tot : 0),
+        gib(zu), gib(zs), (zs > 0 ? zu * 100 / zs : 0),
         gib(fu), gib(fs), (fs > 0 ? fu * 100 / fs : 0), psi_pct,
         sa, sp, ss, cls
     }'
@@ -184,7 +200,7 @@ top_procs="$(
         k = order[i]
         label = substr(k, 1, 15)
         gsub(/&/, "\\&amp;", label); gsub(/</, "\\&lt;", label); gsub(/>/, "\\&gt;", label)
-        printf "%-15s%5.1f G\n", label, t[k] / 1048576
+        printf "%-15s%7.1f GiB\n", label, t[k] / 1048576
       }
     }'
 )"
@@ -227,19 +243,24 @@ m_avail="$(marker "$s_avail" "&lt; $avail_lim G")"
 m_psi="$(marker "$s_psi" "&gt; $psi_lim%")"
 m_swap="$(marker "$s_swap" "spill")"
 
-tooltip="<b><span foreground='$ACCENT'>MEMORY ($total_g G)</span></b>
+# One block, one table: every pool that can fill up gets the same
+# "used/total unit [bar]" row — the 27 G the OS sees and the 4 G VRAM
+# carve-out are the same LPDDR5, so the header shows both halves of the
+# physical total. Below the table, the two figures that are not a pool:
+# Available (what the colour thresholds watch) and Apps (Used minus GTT and
+# zram's compressed store — what closing programs can give back).
+tooltip="<b><span foreground='$ACCENT'>MEMORY ($total_g + $vram_tot_g GiB)</span></b>
 $SEP
-<tt>Used:         $(printf '%9s' "${used_g}/${total_g%.*}G") $(progress_bar "$used_pct")
-  GTT         $(printf '%5s' "$gtt_g") G
-  zram        $(printf '%5s' "$zram_real_g") G
-  Apps        $(printf '%5s' "$apps_g") G
-Available:    $(printf '%5s' "$avail_g") G${m_avail}</tt>
+<tt>RAM       $(printf '%12s' "${used_g}/${total_g}") GiB $(progress_bar "$used_pct")
+VRAM      $(printf '%12s' "${vram_g}/${vram_tot_g}") GiB $(progress_bar "$vram_pct")
+$SEP
+GTT       $(printf '%12s' "${gtt_g}/${gtt_tot_g}") GiB $(progress_bar "$gtt_pct")
+zram      $(printf '%12s' "${zram_used_g}/${zram_size_g}") GiB $(progress_bar "$zram_pct")
+Swapfile  $(printf '%12s' "${file_used_g}/${file_size_g}") GiB $(progress_bar "$file_pct")${m_swap}
+Pressure  $(printf '%12s' "${psi_full}/${PSI_CRIT}") %   $(progress_bar "$psi_pct")${m_psi}
 
-<b><span foreground='$ACCENT'>SWAP</span></b>
-$SEP
-<tt>zram:         $(printf '%9s' "${zram_used_g}/${zram_size_g%.*}G") $(progress_bar "$zram_pct")
-Swapfile:     $(printf '%9s' "${file_used_g}/${file_size_g%.*}G") $(progress_bar "$file_pct")${m_swap}
-Pressure:     $(printf '%9s' "${psi_full}/${PSI_CRIT}%") $(progress_bar "$psi_pct")${m_psi}</tt>
+Available $(printf '%12s' "$avail_g") GiB${m_avail}
+Apps      $(printf '%12s' "$apps_g") GiB</tt>
 
 <b><span foreground='$ACCENT'>TOP</span></b>
 $SEP
