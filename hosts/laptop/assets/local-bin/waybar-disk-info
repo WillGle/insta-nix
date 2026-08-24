@@ -55,7 +55,17 @@ df_out="$(
       for (i = 1; i <= n; i++) {
         if (split(lines[i], kv, " ") == 2) tmap[kv[1]] = kv[2]
       }
-      root_free = 0; root_pct = 0
+      worst_pct = 0; worst_temp = 0
+    }
+    # Bar label for a mount: "/" stays, anything deeper is cut to its first
+    # component ("/mnt/vault" → "/mnt") so two drives fit in the bar.
+    function short_mount(m) {
+      if (m != "/" && match(m, /^\/[^\/]+/)) return substr(m, RSTART, RLENGTH)
+      return m
+    }
+    function human_bar(b,   g) {
+      g = b / 1073741824
+      return g >= 100 ? sprintf("%.0fG", g) : sprintf("%.1fG", g)
     }
     function human(b,   g) {
       g = b / 1073741824
@@ -87,7 +97,6 @@ df_out="$(
     NR > 1 && $1 ~ /^\/dev\// {
       m = $6
       for (i = 7; i <= NF; i++) m = m " " $i
-      if (m == "/") { root_free = $4; root_pct = dfpct($3, $4) }
       if (seen[$1]++) next
       gsub(/&/, "\\&amp;", m); gsub(/</, "\\&lt;", m); gsub(/>/, "\\&gt;", m)
 
@@ -111,29 +120,37 @@ df_out="$(
         ord[j + 1] = k
       }
 
-      table = ""
+      table = ""; text = ""
       for (i = 1; i <= n; i++) {
         d = ord[i]
         pct = dfpct(usd[d], avl[d])
-        t = (d in tmap) ? sprintf("%.0f°C", tmap[d] / 1000) : "--"
+        tc = (d in tmap) ? tmap[d] / 1000 : -1
+        t = tc >= 0 ? sprintf("%.0f°C", tc) : "--"
+        if (pct > worst_pct) worst_pct = pct
+        if (tc > worst_temp) worst_temp = tc
         if (i > 1) table = table "\n\n"
         table = table sprintf("%-14s%7s / %-6s %3d%% %s\n", lbl[d], human(usd[d]), human(tot[d]), pct, bar(pct))
         table = table sprintf("%-14s%7s free · %s", d, human(avl[d]), t)
+        # Bar: one "<mount> <free> <temp>" per drive, e.g. "/ 126G 34°".
+        text = text (i > 1 ? "  " : "") short_mount(lbl[d]) " " human_bar(avl[d]) (tc >= 0 ? sprintf(" %.0f°", tc) : "")
       }
       # Scalars on the first line, the multi-line table after it; the shell
       # splits on that first newline below (read would stop at it).
-      printf "%s\t%d\n%s", human(root_free), root_pct, table
+      printf "%s\t%d\t%d\n%s", text, worst_pct, worst_temp, table
     }
   '
 )"
 first_line="${df_out%%$'\n'*}"
 disk_table="${df_out#*$'\n'}"
-IFS=$'\t' read -r root_free root_pct <<< "$first_line"
+IFS=$'\t' read -r bar_text worst_pct worst_temp <<< "$first_line"
 [ -n "${disk_table:-}" ] && [ "$disk_table" != "$df_out" ] || disk_table="Unavailable"
+[ -n "${bar_text:-}" ] || bar_text="n/a"
 
+# Worst drive decides the colour: nearly full, or hot for an NVMe (SMART's own
+# warning threshold on these drives is 85 °C; 70/80 leaves headroom).
 class="normal"
-if   [ "${root_pct:-0}" -ge 95 ]; then class="critical"
-elif [ "${root_pct:-0}" -ge 85 ]; then class="warning"
+if   [ "${worst_pct:-0}" -ge 95 ] || [ "${worst_temp:-0}" -ge 80 ]; then class="critical"
+elif [ "${worst_pct:-0}" -ge 85 ] || [ "${worst_temp:-0}" -ge 70 ]; then class="warning"
 fi
 
 tooltip="<b><span foreground='$ACCENT'>DISKS</span></b>
@@ -141,7 +158,7 @@ $SEP
 <tt>${disk_table}</tt>"
 
 jq -cn \
-  --arg text "${ICON_DISK} ${root_free% *}G" \
+  --arg text "${ICON_DISK} ${bar_text}" \
   --arg tooltip "$tooltip" \
   --arg class "$class" \
   '{text: $text, tooltip: $tooltip, class: $class}'
