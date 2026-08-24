@@ -176,5 +176,16 @@ in
         util-linux
       ];
     });
+    ".local/bin/rofi-keybinds" = scriptFile (mkScript {
+      name = "rofi-keybinds";
+      runtimeInputs = with pkgs; [
+        coreutils
+        gawk
+        gnused
+        libnotify
+        procps
+        rofi
+      ];
+    });
   };
 }

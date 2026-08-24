@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HYPR_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.conf"
+
+if [ ! -r "$HYPR_CONF" ]; then
+  command -v notify-send >/dev/null 2>&1 && notify-send "Keybindings" "Cannot read hyprland.conf"
+  exit 1
+fi
+
+ROFI_COMMON=(
+  -dmenu
+  -i
+  -config "$HOME/.config/rofi/config.rasi"
+  -theme-str 'window { width: 550px; }'
+  -theme-str 'listview { lines: 14; }'
+  -theme-str 'textbox { font: "JetBrainsMono Nerd Font Mono 12"; }'
+)
+
+parsed_list="$(
+awk '
+  function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+  function modname(m) {
+    if (m == "$mod" || m == "SUPER" || m == "MOD4") return "Super"
+    if (m == "SHIFT") return "Shift"
+    if (m == "ALT")   return "Alt"
+    if (m == "CTRL" || m == "CONTROL") return "Ctrl"
+    return m
+  }
+  function keyname(k) {
+    sub(/^XF86/, "", k)
+    if (k == "Return") return "Enter"
+    if (k == "Escape") return "Esc"
+    if (k == "period") return "."
+    if (k == "Equal")  return "="
+    if (k == "mouse:272") return "LMB"
+    if (k == "mouse:273") return "RMB"
+    if (k == "left" || k == "right" || k == "up" || k == "down") return toupper(substr(k, 1, 1)) substr(k, 2)
+    return k
+  }
+  function combo(mods, key,   n, parts, i, out) {
+    out = ""
+    n = split(mods, parts, /[ \t]+/)
+    for (i = 1; i <= n; i++) if (parts[i] != "") out = out modname(parts[i]) " + "
+    return out keyname(key)
+  }
+  function dispdesc(disp, arg) {
+    if (disp == "movefocus") {
+      if (arg == "l") arg = "Left"; else if (arg == "r") arg = "Right"
+      else if (arg == "u") arg = "Up"; else if (arg == "d") arg = "Down"
+      return "Focus Window (" arg ")"
+    }
+    if (disp == "movetoworkspace") return "Move Window to Workspace " arg
+    if (disp == "workspace") return "Switch to Workspace " arg
+    if (disp == "killactive") return "Close Active Window"
+    if (disp == "togglefloating") return "Toggle Floating Window"
+    if (disp == "exit") return "Exit Hyprland Session"
+    if (disp == "exec") {
+      if (arg ~ /rofi.*power-menu/) return "Power Menu (Shutdown/Reboot/Logout)"
+      if (arg ~ /rofi-show drun/) return "App Launcher"
+      if (arg ~ /rofi-show calc/) return "Calculator"
+      if (arg ~ /rofi-show emoji/) return "Emoji Picker"
+      if (arg ~ /rofi-network/) return "Network / WiFi Manager"
+      if (arg ~ /rofi-clipboard/) return "Clipboard History"
+      if (arg ~ /rofi-show window/) return "Window Switcher"
+      if (arg ~ /toggle_waybar/) return "Toggle Waybar Visibility"
+      if (arg ~ /monitor-setup/) return "Monitor Setup"
+      if (arg ~ /theme-lock/) return "Lock Screen"
+      if (arg ~ /foot yazi/) return "File Manager (Yazi)"
+      if (arg ~ /^foot$/) return "Terminal (Foot)"
+      if (arg ~ /rotate_select/) return "Rotate Screen Orientation"
+      if (arg ~ /toggle_touchpad/) return "Toggle Touchpad On/Off"
+      if (arg ~ /wpctl set-mute/) return "Toggle Audio Mute"
+      if (arg ~ /wpctl set-volume.*-/) return "Decrease Volume"
+      if (arg ~ /wpctl set-volume.*\+/) return "Increase Volume"
+      if (arg ~ /brightnessctl.*-/) return "Decrease Brightness"
+      if (arg ~ /brightnessctl.*\+/) return "Increase Brightness"
+      if (arg ~ /grim.*slurp/) return "Screenshot (Area)"
+      if (arg ~ /grim/) return "Screenshot (Full)"
+      return arg
+    }
+    return arg == "" ? disp : disp " " arg
+  }
+  function flush() {
+    if (pend_combo == "") return
+    printf "%-22s  ➔  %s\t|%s\n", pend_combo, pend_desc, pend_cmd
+    pend_combo = ""
+  }
+  /^# --- .* ---/ { sec = $0; sub(/^# --- /, "", sec); sub(/ ---.*$/, "", sec); next }
+  /^# ── .* ──/   { sec = $0; sub(/^# ── /, "", sec); sub(/ ──.*$/, "", sec); next }
+  /^bindm? *=/ {
+    line = $0; sub(/^bindm? *= */, "", line)
+    if (match(line, /[ \t]+#.*$/)) line = substr(line, 1, RSTART - 1)
+    n = split(line, f, ",")
+    mods = trim(f[1]); key = trim(f[2]); disp = trim(f[3])
+    arg = ""
+    for (i = 4; i <= n; i++) arg = arg (i > 4 ? "," : "") f[i]
+    arg = trim(arg)
+    c = combo(mods, key)
+    desc = dispdesc(disp, arg)
+    cmd = (disp == "exec") ? arg : ""
+
+    if (key ~ /^[0-9]$/ && pend_combo != "" && pend_mods == mods && pend_disp == disp) {
+      pend_combo = combo(mods, pend_first "..." key)
+      pend_desc = (disp == "movetoworkspace") ? "Move Window to Workspace 1..5" : "Switch to Workspace 1..5"
+      next
+    }
+    flush()
+    pend_combo = c; pend_desc = desc; pend_cmd = cmd; pend_mods = mods; pend_disp = disp; pend_first = key
+  }
+  END { flush() }
+' "$HYPR_CONF"
+)"
+
+selected="$(printf "%s\n" "$parsed_list" | cut -d$'\t' -f1 | rofi "${ROFI_COMMON[@]}" -p "⌨ Shorthands" || true)"
+
+if [ -n "$selected" ]; then
+  cmd="$(printf "%s\n" "$parsed_list" | grep -F "${selected}" | head -n1 | cut -d$'\t' -f2 | sed 's/^|//')"
+  if [ -n "$cmd" ]; then
+    cmd="${cmd/\#\~/$HOME}"
+    cmd="${cmd/\~/$HOME}"
+    eval "$cmd" &
+  fi
+fi
