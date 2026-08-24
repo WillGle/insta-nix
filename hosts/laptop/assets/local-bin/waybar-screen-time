@@ -39,7 +39,10 @@ load_timer_json() {
 }
 
 active_window_json() {
-  hyprctl activewindow -j 2>/dev/null || jq -n '{}'
+  # hyprctl prints its "couldn't connect" complaint on stdout with status 0
+  # when the socket is not reachable, and that text broke every jq below;
+  # only pass on what actually parses.
+  hyprctl activewindow -j 2>/dev/null | jq -c . 2>/dev/null || jq -n '{}'
 }
 
 emit_json() {
