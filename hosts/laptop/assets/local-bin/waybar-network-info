@@ -13,6 +13,68 @@ escape_markup() {
   printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
 
+# busctl, never bluetoothctl. Every bluetoothctl invocation registers an
+# advertisement monitor with bluetoothd and tears it down again on exit, which
+# at this module's 5s interval wrote two journal lines a tick — roughly 1700
+# lines per hour, for a status string. busctl reads the property and says
+# nothing.
+bluez_prop() {
+  busctl --json=short get-property org.bluez "$1" "$2" "$3" 2>/dev/null \
+    | sed -n 's/.*"data":\(.*\)}/\1/p'
+}
+
+# Echoes a human-readable summary of the adapter, or the connected devices with
+# their battery level when BlueZ exposes one (it only does with Experimental
+# enabled, which base.nix sets).
+get_bluetooth_status() {
+  if ! systemctl is-active --quiet bluetooth; then
+    echo "Disabled"
+    return
+  fi
+
+  local tree adapter paths path connected alias battery output=""
+
+  tree="$(busctl --no-pager tree org.bluez 2>/dev/null)"
+  adapter="$(printf '%s\n' "$tree" | grep -oE '/org/bluez/hci[0-9]+$' | sort -u | head -1)"
+  if [ -z "$adapter" ]; then
+    echo "No adapter"
+    return
+  fi
+
+  if [ "$(bluez_prop "$adapter" org.bluez.Adapter1 Powered)" != "true" ]; then
+    echo "Powered off"
+    return
+  fi
+
+  paths="$(printf '%s\n' "$tree" | grep -oE '/org/bluez/hci[0-9]+/dev_[0-9A-F_]+$' | sort -u)"
+  while read -r path; do
+    [ -n "$path" ] || continue
+    connected="$(bluez_prop "$path" org.bluez.Device1 Connected)"
+    [ "$connected" = "true" ] || continue
+
+    alias="$(bluez_prop "$path" org.bluez.Device1 Alias | sed 's/^"//; s/"$//')"
+    battery="$(bluez_prop "$path" org.bluez.Battery1 Percentage)"
+    if [ -n "$battery" ]; then
+      output+="${alias} (${battery}%), "
+    else
+      output+="${alias}, "
+    fi
+  done <<< "$paths"
+
+  [ -n "$output" ] || { echo "None connected"; return; }
+  echo "${output%, }"
+}
+
+# The bar shows one glyph for Bluetooth next to the network one, so both live in
+# a single block. Only three states are worth distinguishing at a glance.
+bluetooth_icon() {
+  case "${1:-}" in
+    Disabled | "Powered off" | "No adapter") printf '󰂲' ;;
+    "None connected") printf '󰂯' ;;
+    *) printf '󰂱' ;;
+  esac
+}
+
 active_wifi_ap_line() {
   local iface="$1"
   local target_ssid="${2:-}"
@@ -67,8 +129,13 @@ main() {
   local ssid signal security freq ip gateway dns tooltip
   local ACCENT="@themeAccent@"
   local SEP="<span alpha='30%'>──────────────────────────</span>"
-  local title="NETWORK"
+  # One block on the bar carries both link and Bluetooth, so the tooltip is
+  # titled for the pair. The transport (Wi-Fi / Ethernet) moves into a Link:
+  # field rather than the header, which keeps every heading inside the width of
+  # the 26-character rule below it.
+  local title="NETWORK AND CONNECTION"
   local escaped_ssid escaped_security escaped_ethernet_name escaped_ethernet_device
+  local bt_status escaped_bt_status bt_icon
 
   iface="$(wifi_iface)"
   ethernet_line="$(active_ethernet)"
@@ -110,6 +177,10 @@ main() {
     vpn_interfaces="None"
   fi
 
+  bt_status="$(get_bluetooth_status)"
+  escaped_bt_status="$(escape_markup "$bt_status")"
+  bt_icon="$(bluetooth_icon "$bt_status")"
+
   if [ -n "$ethernet_line" ]; then
     IFS=$'\t' read -r ethernet_name ethernet_device <<< "$ethernet_line"
     ip="$(current_ip "$ethernet_device")"
@@ -118,9 +189,10 @@ main() {
     escaped_ethernet_name="$(escape_markup "${ethernet_name:-Connected}")"
     escaped_ethernet_device="$(escape_markup "${ethernet_device:-Unknown}")"
 
-    tooltip="<b><span foreground='$ACCENT'>$title (ETHERNET)</span></b>
+    tooltip="<b><span foreground='$ACCENT'>$title</span></b>
 $SEP
-<tt>SSID/Name:    $escaped_ethernet_name
+<tt>Link:         Ethernet
+SSID/Name:    $escaped_ethernet_name
 Device:       $escaped_ethernet_device
 Status:       Connected</tt>
 
@@ -146,8 +218,11 @@ Band:         ?
 Security:     Unavailable</tt>"
       fi
     fi
-    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: Network menu</span>"
-    emit_json "󰈀" "$tooltip" "ethernet"
+    tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
+$SEP
+<tt>Devices:      $escaped_bt_status</tt>"
+    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Left: Network menu  ·  Right: Bluetooth</span>"
+    emit_json "$bt_icon 󰈀" "$tooltip" "ethernet"
     exit 0
   fi
 
@@ -160,9 +235,10 @@ Security:     Unavailable</tt>"
     escaped_bssid="$(escape_markup "${bssid:-Unavailable}")"
     escaped_rate="$(escape_markup "${rate:-Unavailable}")"
 
-    tooltip="<b><span foreground='$ACCENT'>$title (WI-FI)</span></b>
+    tooltip="<b><span foreground='$ACCENT'>$title</span></b>
 $SEP
-<tt>SSID:         $escaped_ssid
+<tt>Link:         Wi-Fi
+SSID:         $escaped_ssid
 Interface:    $iface
 BSSID:        $escaped_bssid
 Link Speed:   $escaped_rate"
@@ -184,31 +260,45 @@ Gateway:      ${gateway:-Unavailable}
 DNS:          ${dns:-None}
 VPN Active:   $vpn_interfaces</tt>"
 
-    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: Network menu</span>"
+    tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
+$SEP
+<tt>Devices:      $escaped_bt_status</tt>"
+
+    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Left: Network menu  ·  Right: Bluetooth</span>"
     if [ -n "$wifi_ap" ]; then
-      emit_json "$(signal_icon "$signal")" "$tooltip" "connected"
+      emit_json "$bt_icon $(signal_icon "$signal")" "$tooltip" "connected"
     else
-      emit_json "󰖩" "$tooltip" "connected"
+      emit_json "$bt_icon 󰖩" "$tooltip" "connected"
     fi
     exit 0
   fi
 
   if [ -n "$iface" ] && [ -z "$wifi_conn" ] && ! wifi_enabled; then
-    tooltip="<b><span foreground='$ACCENT'>$title (WI-FI)</span></b>
+    tooltip="<b><span foreground='$ACCENT'>$title</span></b>
 $SEP
-<tt>Status:       Wi-Fi disabled</tt>
+<tt>Link:         Wi-Fi
+Status:       Wi-Fi disabled</tt>
 
-<span size='small' alpha='50%'>Click: Network menu</span>"
-    emit_json "󰖪" "$tooltip" "disabled"
+<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
+$SEP
+<tt>Devices:      $escaped_bt_status</tt>
+
+<span size='small' alpha='50%'>Left: Network menu  ·  Right: Bluetooth</span>"
+    emit_json "$bt_icon 󰖪" "$tooltip" "disabled"
     exit 0
   fi
 
   tooltip="<b><span foreground='$ACCENT'>$title</span></b>
 $SEP
-<tt>Status:       Disconnected</tt>
+<tt>Link:         None
+Status:       Disconnected</tt>
 
-<span size='small' alpha='50%'>Click: Network menu</span>"
-  emit_json "󰤮" "$tooltip" "disconnected"
+<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
+$SEP
+<tt>Devices:      $escaped_bt_status</tt>
+
+<span size='small' alpha='50%'>Left: Network menu  ·  Right: Bluetooth</span>"
+  emit_json "$bt_icon 󰤮" "$tooltip" "disconnected"
 }
 
 main "$@"

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Open the Bluetooth manager, or focus the window that is already up.
+#
+# overskride is not single-instance: a second invocation starts a second process
+# with a second window, so a bar button that just execs it stacks them up on
+# every click. Asking Hyprland first keeps one window and turns repeat clicks
+# into "bring it to me".
+#
+# The class pattern matches the float/centre rules in hypr/hyprland.conf; keep
+# the two in step. The binary itself comes from systemPackages — it is pinned to
+# pkgsUnstable in system.nix because stable's 0.6.5 deadlocks before it maps a
+# window.
+set -euo pipefail
+export PATH="$PATH:/run/current-system/sw/bin"
+
+if hyprctl -j clients 2>/dev/null \
+  | jq -e 'any(.[]; (.class // "") | test("overskride"; "i"))' >/dev/null 2>&1; then
+  hyprctl dispatch focuswindow 'class:^(.*[Oo]verskride.*)$' >/dev/null
+else
+  setsid -f overskride >/dev/null 2>&1
+fi
