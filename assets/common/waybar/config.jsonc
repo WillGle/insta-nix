@@ -137,6 +137,7 @@
     "exec": "$HOME/.local/bin/waybar-systemd-failed",
     "return-type": "json",
     "interval": 10,
+    "on-click": "setsid -f $HOME/.local/bin/rofi-keybinds",
     "tooltip": true
   },
   "tray": {}
