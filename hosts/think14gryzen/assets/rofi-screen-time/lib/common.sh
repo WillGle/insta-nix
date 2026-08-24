@@ -71,8 +71,17 @@ humanize_class() {
   printf '%s\n' "${out%" "}"
 }
 
+# Pure parameter expansion: this is called for every label on every row, and
+# as a sed pipeline it was ~70 forks per rendered view.
 escape_markup() {
-  printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+  local s="${1:-}"
+  # The replacements are quoted: with bash's patsub_replacement (default since
+  # 5.2) an unquoted & in them would stand for the matched text, turning ">"
+  # into ">gt;".
+  s="${s//&/"&amp;"}"
+  s="${s//</"&lt;"}"
+  s="${s//>/"&gt;"}"
+  printf '%s' "$s"
 }
 
 rasi_quote() {
@@ -115,16 +124,18 @@ seconds_to_compact() {
   printf '%dm\n' "$minutes"
 }
 
+# awk, not jq: the input is one number, and jq costs ~10 ms of start-up per
+# call. Rounding is half away from zero, as jq's round (C round()) was.
 format_ratio_percent() {
   local raw="${1:-}"
-  jq -nr --arg raw "$raw" '
-    ($raw | if . == "" or . == "null" then null else tonumber? end) as $ratio
-    | if $ratio == null then
-        "Unavailable"
-      else
-        (($ratio * 100) | round | tostring) + "%"
-      end
-  '
+  case "$raw" in
+    ""|null) printf 'Unavailable\n'; return 0 ;;
+  esac
+  awk -v r="$raw" 'BEGIN {
+    if (r !~ /^[-+]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][-+]?[0-9]+)?$/) { print "Unavailable"; exit }
+    x = r * 100
+    printf "%d%%\n", (x < 0 ? int(x - 0.5) : int(x + 0.5))
+  }'
 }
 
 format_ratio_points_delta() {

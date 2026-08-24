@@ -338,24 +338,34 @@ render_digital_health() {
   local context_json="$1"
   local eye_risk cog_load circ_phase ultr_score rec_gaps wellbeing_json wellbeing_val afi confidence untracked
 
-  eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
-  cog_load="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // "—"')"
-  circ_phase="$(printf '%s' "$context_json" | jq -r '.today.metrics.circadian_phase // "Unknown"')"
-  ultr_score="$(printf '%s' "$context_json" | jq -r '.today.metrics.ultradian_score // 0')"
-  rec_gaps="$(printf '%s' "$context_json" | jq -r '.today.metrics.recovery_gap_count // 0')"
-  afi="$(printf '%s' "$context_json" | jq -r '.today.metrics.attention_fragmentation_index | if . == null then "—" else (. * 10 | round / 10 | tostring) end')"
-  wellbeing_json="$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')"
-  wellbeing_val="$(score_value_text "$wellbeing_json")"
-  confidence="$(printf '%s' "$wellbeing_json" | jq -r '.confidence // "Medium"')"
-  untracked="$(printf '%s' "$wellbeing_json" | jq -r '.untracked_percent // 0')"
+  # All twelve context reads in one jq (NUL-separated); each was a process
+  # re-parsing the ~150 KB context. The wellbeing value follows
+  # score_value_text: "Unavailable" unless the score is available.
+  local -a f
+  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
+    .today.scores.digital_wellbeing_score as $wb
+    | [ (.today.metrics.eye_strain_risk // "Low"),
+        (.today.metrics.cognitive_load_score // "—"),
+        (.today.metrics.circadian_phase // "Unknown"),
+        (.today.metrics.ultradian_score // 0),
+        (.today.metrics.recovery_gap_count // 0),
+        (.today.metrics.attention_fragmentation_index | if . == null then "—" else (. * 10 | round / 10 | tostring) end),
+        (if $wb.available == true then ($wb.value | round | tostring) else "Unavailable" end),
+        ($wb.confidence // "Medium"),
+        ($wb.untracked_percent // 0),
+        (if (.today.metrics.cognitive_load_score // 0) > 50 then "y" else "n" end),
+        (if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end)
+      ] | map(tostring) | join(([0] | implode))')
+  eye_risk="${f[0]}"; cog_load="${f[1]}"; circ_phase="${f[2]}"; ultr_score="${f[3]}"
+  rec_gaps="${f[4]}"; afi="${f[5]}"; wellbeing_val="${f[6]}"; confidence="${f[7]}"; untracked="${f[8]}"
 
   local eye_color="$SUCCESS_COLOR"
   [ "$eye_risk" = "Moderate" ] && eye_color="$WARNING_COLOR"
   [ "$eye_risk" = "High" ] && eye_color="$ERROR_COLOR"
 
   local cog_color="$SUCCESS_COLOR"
-  [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 50 then "y" else "n" end')" = "y" ] && cog_color="$WARNING_COLOR"
-  [ "$(printf '%s' "$context_json" | jq -r 'if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end')" = "y" ] && cog_color="$ERROR_COLOR"
+  [ "${f[9]}" = "y" ] && cog_color="$WARNING_COLOR"
+  [ "${f[10]}" = "y" ] && cog_color="$ERROR_COLOR"
 
   # One encoding per kind of value: bounded ratios get a bar the eye reads by
   # length, small counts get pips it reads by counting, rank labels carry the
@@ -402,10 +412,10 @@ render_digital_health() {
 
 note_health_alert_color() {
   local context_json="$1"
-  local eye_risk cog_score
-  eye_risk="$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')"
-  cog_score="$(printf '%s' "$context_json" | jq -r '.today.metrics.cognitive_load_score // 0')"
-  if [ "$eye_risk" = "High" ] || [ "$(jq -nr --argjson c "$cog_score" 'if $c > 70 then "y" else "n" end')" = "y" ]; then
+  # One jq answers the whole question; it was three.
+  if [ "$(printf '%s' "$context_json" | jq -r '
+        if (.today.metrics.eye_strain_risk // "Low") == "High"
+           or (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end')" = "y" ]; then
     printf '%s' "$ERROR_COLOR"
   else
     printf '%s' "$BASE_COLOR"
@@ -463,22 +473,25 @@ emit_row() {
   printf '\n'
 }
 
+# One jq per call instead of two; an empty score is "Unavailable" as before.
 score_value_text() {
   local score_json="$1"
-  if [ "$(printf '%s' "$score_json" | jq -r '.available')" != "true" ]; then
+  if [ -z "$score_json" ]; then
     printf 'Unavailable\n'
     return 0
   fi
-  printf '%s\n' "$(printf '%s' "$score_json" | jq -r '(.value | round | tostring)')"
+  printf '%s\n' "$(printf '%s' "$score_json" | jq -r '
+    if .available == true then (.value | round | tostring) else "Unavailable" end')"
 }
 
 score_subtext() {
   local score_json="$1"
-  if [ "$(printf '%s' "$score_json" | jq -r '.available')" != "true" ]; then
-    printf '%s\n' "$(printf '%s' "$score_json" | jq -r '.reason // "Unavailable"')"
+  if [ -z "$score_json" ]; then
+    printf '\n'
     return 0
   fi
-  printf '%s\n' "$(printf '%s' "$score_json" | jq -r '.label')"
+  printf '%s\n' "$(printf '%s' "$score_json" | jq -r '
+    if .available == true then .label else (.reason // "Unavailable") end')"
 }
 
 render_category_bars() {
@@ -691,11 +704,16 @@ render_baseline_summary() {
   local context_json="$1"
   local active_delta active_avg focus_delta frag_delta study_delta
 
-  active_delta="$(printf '%s' "$context_json" | jq -r '.baseline.deltas.total_seconds.vs_yesterday // 0')"
-  active_avg="$(printf '%s' "$context_json" | jq -r '.baseline.deltas.total_seconds.vs_avg7 // empty')"
-  focus_delta="$(printf '%s' "$context_json" | jq -r '.baseline.deltas.focus_score.vs_avg7 // empty')"
-  frag_delta="$(printf '%s' "$context_json" | jq -r '.baseline.deltas.fragmentation_score.vs_avg7 // empty')"
-  study_delta="$(printf '%s' "$context_json" | jq -r '.baseline.deltas.study_ratio.vs_avg7 // empty')"
+  # Five context reads in one jq (NUL-separated) instead of five processes.
+  local -a f
+  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
+    [ (.baseline.deltas.total_seconds.vs_yesterday // 0),
+      (.baseline.deltas.total_seconds.vs_avg7 // ""),
+      (.baseline.deltas.focus_score.vs_avg7 // ""),
+      (.baseline.deltas.fragmentation_score.vs_avg7 // ""),
+      (.baseline.deltas.study_ratio.vs_avg7 // "")
+    ] | map(tostring) | join(([0] | implode))')
+  active_delta="${f[0]}"; active_avg="${f[1]}"; focus_delta="${f[2]}"; frag_delta="${f[3]}"; study_delta="${f[4]}"
 
   printf '%s\n%s\n%s\n%s' \
     "$(kv_markup "Compared with yesterday" "$(delta_label_seconds "$active_delta")")" \
@@ -710,31 +728,46 @@ render_baseline_summary() {
 
 render_focus_breakdown() {
   local context_json="$1"
-  local focus_json frag_json dist_json consistency_json
-
-  focus_json="$(printf '%s' "$context_json" | jq -c '.today.scores.focus_score')"
-  frag_json="$(printf '%s' "$context_json" | jq -c '.today.scores.fragmentation_score')"
-  dist_json="$(printf '%s' "$context_json" | jq -c '.today.scores.distraction_load')"
-  consistency_json="$(printf '%s' "$context_json" | jq -c '.today.scores.daily_consistency_score')"
+  # Value and label of the four scores from one jq (NUL-separated), with the
+  # same rules as score_value_text / score_subtext; it was twelve processes.
+  local -a f
+  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
+    def score_value: if .available == true then (.value | round | tostring) else "Unavailable" end;
+    def score_label: if .available == true then .label else (.reason // "Unavailable") end;
+    [ (.today.scores.focus_score | score_value, score_label),
+      (.today.scores.fragmentation_score | score_value, score_label),
+      (.today.scores.distraction_load | score_value, score_label),
+      (.today.scores.daily_consistency_score | score_value, score_label)
+    ] | map(tostring) | join(([0] | implode))')
 
   printf '%s\n%s\n%s\n%s' \
-    "$(kv_markup_aligned 18 "Focus" "$(score_value_text "$focus_json")/100 • $(score_subtext "$focus_json")")" \
-    "$(kv_markup_aligned 18 "Fragmentation" "$(score_value_text "$frag_json")/100 • $(score_subtext "$frag_json")")" \
-    "$(kv_markup_aligned 18 "Distraction load" "$(score_value_text "$dist_json")/100 • $(score_subtext "$dist_json")")" \
-    "$(kv_markup_aligned 18 "Consistency" "$(score_value_text "$consistency_json")/100 • $(score_subtext "$consistency_json")")"
+    "$(kv_markup_aligned 18 "Focus" "${f[0]}/100 • ${f[1]}")" \
+    "$(kv_markup_aligned 18 "Fragmentation" "${f[2]}/100 • ${f[3]}")" \
+    "$(kv_markup_aligned 18 "Distraction load" "${f[4]}/100 • ${f[5]}")" \
+    "$(kv_markup_aligned 18 "Consistency" "${f[6]}/100 • ${f[7]}")"
 }
 
 render_behavior_summary() {
   local context_json="$1"
   local longest current deep short top_label top_count switch_rate
 
-  longest="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
-  current="$(printf '%s' "$context_json" | jq -r '.today.metrics.current_focus_block_seconds // 0')"
-  deep="$(printf '%s' "$context_json" | jq -r '.today.metrics.deep_focus_block_count // 0')"
-  short="$(printf '%s' "$context_json" | jq -r '.today.metrics.short_focus_block_count // 0')"
-  top_label="$(printf '%s' "$context_json" | jq -r '.today.metrics.top_transition_label // "None yet"')"
-  top_count="$(printf '%s' "$context_json" | jq -r '.today.metrics.top_transition_count // 0')"
-  switch_rate="$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')"
+  # All nine context reads in one jq (NUL-separated); each was a process
+  # re-parsing the ~150 KB context.
+  local -a f
+  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
+    [ (.today.metrics.longest_focus_block_seconds // 0),
+      (.today.metrics.current_focus_block_seconds // 0),
+      (.today.metrics.deep_focus_block_count // 0),
+      (.today.metrics.short_focus_block_count // 0),
+      (.today.metrics.top_transition_label // "None yet"),
+      (.today.metrics.top_transition_count // 0),
+      (.today.metrics.switch_rate // ""),
+      (.today.metrics.safe_total_seconds // .today.total_seconds // 0),
+      (.today.behavior.classified_transitions.cross_context // 0),
+      (.baseline.deltas.switch_rate.avg7 // "")
+    ] | map(tostring) | join(([0] | implode))')
+  longest="${f[0]}"; current="${f[1]}"; deep="${f[2]}"; short="${f[3]}"
+  top_label="${f[4]}"; top_count="${f[5]}"; switch_rate="${f[6]}"
 
   # An arrow glyph instead of "->" so the direction is a mark, not two
   # characters the reader parses as text.
@@ -744,8 +777,8 @@ render_behavior_summary() {
 
   local bar_w=26
   local day_seconds blocks_total cross_count
-  day_seconds="$(printf '%s' "$context_json" | jq -r '.today.metrics.safe_total_seconds // .today.total_seconds // 0')"
-  cross_count="$(printf '%s' "$context_json" | jq -r '.today.behavior.classified_transitions.cross_context // 0')"
+  day_seconds="${f[7]}"
+  cross_count="${f[8]}"
   blocks_total=$((deep + short))
 
   # Two block lengths against the same day-long scale, so "best" and "right now"
@@ -781,10 +814,11 @@ render_behavior_summary() {
   # someone who averages 35/h, which encodes nothing. Against the baseline the
   # same marks answer "busier or calmer than usual".
   local switch_avg switch_pips switch_note
-  switch_avg="$(printf '%s' "$context_json" | jq -r '.baseline.deltas.switch_rate.avg7 // empty')"
+  switch_avg="${f[9]}"
   if [ -n "$switch_avg" ]; then
-    switch_pips="$(jq -nr --argjson r "${switch_rate:-0}" --argjson a "$switch_avg" \
-      'if $a <= 0 then 0 else (($r * 10 / $a) | floor) end')"
+    # Rates are non-negative, so int() is the floor jq computed here.
+    switch_pips="$(awk -v r="${switch_rate:-0}" -v a="$switch_avg" \
+      'BEGIN { if (a <= 0) print 0; else print int(r * 10 / a) }')"
     switch_note="vs usual $(format_decimal_label "$switch_avg" "/h")"
   else
     switch_pips=0
@@ -839,18 +873,31 @@ render_study_summary() {
   local context_json="$1"
   local study_seconds study_ratio active_label focus_window
 
-  study_seconds="$(printf '%s' "$context_json" | jq -r '.today.study_seconds')"
-  study_ratio="$(printf '%s' "$context_json" | jq -r '.today.metrics.study_ratio')"
-  focus_window="$(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')"
+  # All nine context reads in one jq (NUL-separated); it was up to nine.
+  local -a f
+  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
+    [ .today.study_seconds,
+      .today.metrics.study_ratio,
+      .today.metrics.focus_window,
+      .study_active.active,
+      (.study_active.mode // ""),
+      (.study_active.current_session // ""),
+      (.study_active.planned_sessions // ""),
+      (.study_active.remaining_total_seconds // ""),
+      (.study_active.elapsed_seconds // 0)
+    ] | map(tostring) | join(([0] | implode))')
+  study_seconds="${f[0]}"
+  study_ratio="${f[1]}"
+  focus_window="${f[2]}"
 
-  if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
+  if [ "${f[3]}" = "true" ]; then
     local mode current planned left elapsed
 
-    mode="$(printf '%s' "$context_json" | jq -r '.study_active.mode // empty')"
-    current="$(printf '%s' "$context_json" | jq -r '.study_active.current_session // empty')"
-    planned="$(printf '%s' "$context_json" | jq -r '.study_active.planned_sessions // empty')"
-    left="$(printf '%s' "$context_json" | jq -r '.study_active.remaining_total_seconds // empty')"
-    elapsed="$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds // 0')"
+    mode="${f[4]}"
+    current="${f[5]}"
+    planned="${f[6]}"
+    left="${f[7]}"
+    elapsed="${f[8]}"
 
     if [ -n "$mode" ]; then
       active_label="$mode"
@@ -879,21 +926,37 @@ render_study_summary() {
 
 render_confidence_breakdown() {
   local context_json="$1"
-  local conf mapped_pct unknown_time browser_pct total_seconds
-  local mapped_raw unknown_raw browser_raw
+  local conf mapped_pct unknown_time browser_pct unknown_raw
 
-  conf="$(printf '%s' "$context_json" | jq -r '.data_quality.model_confidence // "Unknown"')"
-  mapped_raw="$(printf '%s' "$context_json" | jq -r '.data_quality.known_category_ratio // 0')"
-  unknown_raw="$(printf '%s' "$context_json" | jq -r '.today.categories.seconds["Unknown"] // 0')"
-  browser_raw="$(printf '%s' "$context_json" | jq -r '.data_quality.browser_ambiguity_ratio // 0')"
-  mapped_pct="$(printf '%s' "$mapped_raw" | jq -r '(. * 100 | round | tostring) + "%"')"
+  # Every figure of this block from one jq (NUL-separated): it was twelve
+  # processes, four of them re-parsing the ~150 KB context.
+  local -a f
+  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
+    (.data_quality.known_category_ratio // 0) as $mapped
+    | (.today.categories.seconds["Unknown"] // 0) as $unknown
+    | (.data_quality.browser_ambiguity_ratio // 0) as $browser
+    | (.today.metrics.safe_total_seconds // .today.total_seconds // 0) as $t
+    | [ (.data_quality.model_confidence // "Unknown"),
+        $unknown,
+        (($mapped * 100 | round | tostring) + "%"),
+        (($browser * 100 | round | tostring) + "%"),
+        (if $mapped >= 0.85 then "Good" else "\u2193 below 85% threshold" end),
+        (if $browser < 0.30 then "OK" else "\u2193 high ambiguity" end),
+        (if $unknown < 1800 then "OK" else "\u2193 significant" end),
+        ($mapped * 100 | round),
+        ($browser * 100 | round),
+        ((if $t > 0 then (($unknown * 100 / $t) | round) else 0 end) | if . > 100 then 100 else . end)
+      ] | map(tostring) | join(([0] | implode))')
+  conf="${f[0]}"
+  unknown_raw="${f[1]}"
+  mapped_pct="${f[2]}"
   unknown_time="$(seconds_to_short "$unknown_raw")"
-  browser_pct="$(printf '%s' "$browser_raw" | jq -r '(. * 100 | round | tostring) + "%"')"
+  browser_pct="${f[3]}"
 
   local mapped_status browser_status unknown_status
-  mapped_status="$(printf '%s' "$mapped_raw" | jq -r 'if . >= 0.85 then "Good" else "\u2193 below 85% threshold" end')"
-  browser_status="$(printf '%s' "$browser_raw" | jq -r 'if . < 0.30 then "OK" else "\u2193 high ambiguity" end')"
-  unknown_status="$(printf '%s' "$unknown_raw" | jq -r 'if . < 1800 then "OK" else "\u2193 significant" end')"
+  mapped_status="${f[4]}"
+  browser_status="${f[5]}"
+  unknown_status="${f[6]}"
 
   # These three bars used to be blue, amber and purple -- one hue per metric, so
   # colour said "which row is this" while all three rows carried the same "this
@@ -901,19 +964,14 @@ render_confidence_breakdown() {
   # same ladder the summary view uses, so a hue means the same thing everywhere.
   # App mapping is "higher is better", so its ladder is inverted.
   local mapped_pct_num unknown_pct_num browser_pct_num
-  mapped_pct_num="$(printf '%s' "$mapped_raw" | jq -r '(. * 100 | round)')"
-  browser_pct_num="$(printf '%s' "$browser_raw" | jq -r '(. * 100 | round)')"
+  mapped_pct_num="${f[7]}"
+  browser_pct_num="${f[8]}"
   # Share of the tracked day, not seconds against a two-hour ceiling. The old
   # cap saturated: 3h27m and 5h29m are two hours apart and both drew a full bar,
   # so the row could not distinguish a bad day from a much worse one. This also
   # puts all three drivers on one scale -- percent of the day -- so their bar
   # lengths are comparable with each other.
-  unknown_pct_num="$(printf '%s' "$context_json" | jq -r \
-    --argjson unknown "$unknown_raw" '
-      (.today.metrics.safe_total_seconds // .today.total_seconds // 0) as $t
-      | if $t > 0 then (($unknown * 100 / $t) | round) else 0 end
-      | if . > 100 then 100 else . end
-    ')"
+  unknown_pct_num="${f[9]}"
 
   printf '%s\n%s\n%s\n%s\n%s' \
     "$(kv_markup_aligned 18 "Model confidence" "$conf")" \
@@ -929,36 +987,27 @@ render_unknown_apps() {
   local output="" mapping_note=""
 
   # Compute projected coverage if we map the top unknown app
-  local top_name top_seconds top_projected
-  top_name="$(printf '%s' "$context_json" | jq -r '
-    (.today.metrics.safe_total_seconds // 1) as $total
-    | (.today.categories.seconds["Unknown"] // 0) as $unk
-    | .today.app_entries | map(select(.category == "Unknown")) | sort_by(-.seconds)
-    | if length > 0 then .[0].name else "" end
-  ')"
-  top_seconds="$(printf '%s' "$context_json" | jq -r '
-    .today.app_entries | map(select(.category == "Unknown")) | sort_by(-.seconds)
-    | if length > 0 then .[0].seconds else 0 end
-  ')"
-  top_projected="$(printf '%s' "$context_json" | jq -r '
-    (.today.metrics.safe_total_seconds // 1) as $total
-    | (.today.categories.seconds["Unknown"] // 0) as $unk
-    | (.today.metrics.known_category_ratio // 0) as $mapped
-    | (.today.app_entries | map(select(.category == "Unknown")) | sort_by(-.seconds) | if length > 0 then .[0].seconds else 0 end) as $top
-    | (($mapped * $total + $top) / $total * 100 | round | tostring) + "%"
-  ')"
+  # The projection figures from one jq (NUL-separated) instead of seven.
+  local top_name top_projected top_is_big
   local current_pct cur_val top_val max_val
-  current_pct="$(printf '%s' "$context_json" | jq -r '(.data_quality.known_category_ratio // 0) * 100 | round | tostring')"
-  cur_val="$(printf '%s' "$context_json" | jq -r '(.data_quality.known_category_ratio // 0) * 100 | round')"
-  top_val="$(printf '%s' "$context_json" | jq -r '
+  local -a f
+  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
     (.today.metrics.safe_total_seconds // 1) as $total
     | (.today.metrics.known_category_ratio // 0) as $mapped
-    | (.today.app_entries | map(select(.category == "Unknown")) | sort_by(-.seconds) | if length > 0 then .[0].seconds else 0 end) as $top
-    | (($mapped * $total + $top) / $total * 100 | round)
-  ')"
+    | (.today.app_entries | map(select(.category == "Unknown")) | sort_by(-.seconds)) as $unknown
+    | (if ($unknown | length) > 0 then $unknown[0].seconds else 0 end) as $top
+    | [ (if ($unknown | length) > 0 then $unknown[0].name else "" end),
+        ((($mapped * $total + $top) / $total * 100 | round | tostring) + "%"),
+        ((.data_quality.known_category_ratio // 0) * 100 | round | tostring),
+        ((.data_quality.known_category_ratio // 0) * 100 | round),
+        (($mapped * $total + $top) / $total * 100 | round),
+        ($top > 600)
+      ] | map(tostring) | join(([0] | implode))')
+  top_name="${f[0]}"; top_projected="${f[1]}"; current_pct="${f[2]}"
+  cur_val="${f[3]}"; top_val="${f[4]}"; top_is_big="${f[5]}"
   max_val=100
 
-  if [ -n "$top_name" ] && [ "$top_name" != "null" ] && [ "$(printf '%s' "$top_seconds" | jq -r '. > 600')" = "true" ]; then
+  if [ -n "$top_name" ] && [ "$top_name" != "null" ] && [ "$top_is_big" = "true" ]; then
     # Current coverage takes the severity ladder, inverted because more mapped
     # is better. The projection stays on the decorative accent: it used to be
     # green, which in every other block means "inside the safe threshold", so
@@ -1037,19 +1086,36 @@ build_view_payload() {
   local card4_label card4_value card4_sub
   local primary_title primary_body chart_b_title chart_b_body chart_c_title chart_c_body insight_title insight_body
 
-  target_date="$(printf '%s' "$context_json" | jq -r '.target_date')"
-  updated_time="$(updated_time_label "$(printf '%s' "$context_json" | jq -r '.today.updated_at')")"
-  total_seconds="$(printf '%s' "$context_json" | jq -r '.today.total_seconds')"
-  study_ratio="$(printf '%s' "$context_json" | jq -r '.today.metrics.study_ratio')"
-  focus_json="$(printf '%s' "$context_json" | jq -c '.today.scores.focus_score')"
-  frag_json="$(printf '%s' "$context_json" | jq -c '.today.scores.fragmentation_score')"
+  # The scalars every view needs, from one jq: this used to be eleven jq
+  # processes, each re-parsing the whole context. NUL-separated because an
+  # insight text may contain newlines.
+  local -a scalars
+  mapfile -d '' -t scalars < <(printf '%s' "$context_json" | jq -j '
+    [ .target_date,
+      .today.updated_at,
+      .today.total_seconds,
+      .today.metrics.study_ratio,
+      (.today.scores.focus_score | tojson),
+      (.today.scores.fragmentation_score | tojson),
+      (.today.metrics.longest_focus_block_seconds // 0),
+      (.today.metrics.switch_rate // ""),
+      .today.categories.top_category,
+      .today.metrics.peak_slot_label,
+      (.insights.main.text // "No major insight available yet.")
+    ] | map(tostring) | join(([0] | implode))')
+  target_date="${scalars[0]}"
+  updated_time="$(updated_time_label "${scalars[1]}")"
+  total_seconds="${scalars[2]}"
+  study_ratio="${scalars[3]}"
+  focus_json="${scalars[4]}"
+  frag_json="${scalars[5]}"
     focus_value="$(score_value_text "$focus_json")"
     frag_value="$(score_value_text "$frag_json")"
-    longest_focus_seconds="$(printf '%s' "$context_json" | jq -r '.today.metrics.longest_focus_block_seconds // 0')"
-    switch_rate_label="$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h" "n/a")"
-    top_category="$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')"
-  peak_window="$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
-  main_insight="$(printf '%s' "$context_json" | jq -r '.insights.main.text // "No major insight available yet."')"
+    longest_focus_seconds="${scalars[6]}"
+    switch_rate_label="$(format_decimal_label "${scalars[7]}" "/h" "n/a")"
+    top_category="${scalars[8]}"
+  peak_window="${scalars[9]}"
+  main_insight="${scalars[10]}"
   summary_active="$(seconds_to_compact "$total_seconds")"
   summary_study_ratio="$(format_ratio_percent "$study_ratio")"
   navigation_json="$(build_navigation_json "$view" "$target_date")"
@@ -1067,33 +1133,41 @@ build_view_payload() {
       # Not the deep-block count: the Deep ratio row already carries it, as a bar
       # that shows the ratio this number cannot. What no other element says is
       # how much of the tracked day that single best block accounts for.
-      card2_sub="$(printf '%s' "$context_json" | jq -r \
+      # The branch's eight context reads in one jq (NUL-separated).
+      local -a s
+      mapfile -d '' -t s < <(printf '%s' "$context_json" | jq -j \
         --argjson block "$longest_focus_seconds" '
-          (.today.metrics.safe_total_seconds // .today.total_seconds // 0) as $t
-          | if $t > 0 then (($block * 100 / $t) | round | tostring) + "% of tracked day"
-            else "no tracked time yet" end
-        ')"
+        [ ((.today.metrics.safe_total_seconds // .today.total_seconds // 0) as $t
+            | if $t > 0 then (($block * 100 / $t) | round | tostring) + "% of tracked day"
+              else "no tracked time yet" end),
+          (.today.switch_count // 0),
+          (.today.scores.digital_wellbeing_score | tojson),
+          ((.today.scores.digital_wellbeing_score.drivers // [])
+            | if length > 0 then
+                (.[0] | "\(if .type == "positive" then "+" else "−" end) \(.name) (\(.impact))")
+              else "Balanced baseline" end),
+          .today.study_seconds,
+          .today.metrics.study_goal_seconds,
+          .study_active.active,
+          .study_active.elapsed_seconds
+        ] | map(tostring) | join(([0] | implode))')
+      card2_sub="${s[0]}"
       card3_label="App switching"
       card3_value="$switch_rate_label"
-      card3_sub="$(printf '%s' "$context_json" | jq -r '.today.switch_count // 0') switches today"
+      card3_sub="${s[1]} switches today"
       card4_label="Wellbeing"
       local _wb_label
-      _wb_label="$(score_subtext "$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')")"
+      _wb_label="$(score_subtext "${s[2]}")"
       card4_value="$_wb_label"
       # Not the two scores: the How-you-are-doing bars carry both, and a bar
       # says "how far along the range" in a way "34/100" cannot. What no bar can
       # say is *why*, so the card takes the driver -- with room for it, instead
       # of the 30-character stub the panel row was clipping it to.
-      card4_sub="$(printf '%s' "$context_json" | jq -r '
-        (.today.scores.digital_wellbeing_score.drivers // [])
-        | if length > 0 then
-            (.[0] | "\(if .type == "positive" then "+" else "−" end) \(.name) (\(.impact))")
-          else "Balanced baseline" end
-      ')"
-      
+      card4_sub="${s[3]}"
+
       primary_title="Today at a glance"
       primary_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">24-Hour Activity Strip</span>\n%s\n\n<span foreground=\"%s\" weight=\"600\">Top Apps Today</span>\n%s' \
-        "$(render_goal_gauge "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')" "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')")" \
+        "$(render_goal_gauge "${s[4]}" "${s[5]}")" \
         "$ACCENT_COLOR" \
         "$(render_hero_day_strip "$context_json")" \
         "$ACCENT_COLOR" \
@@ -1112,8 +1186,8 @@ build_view_payload() {
         "$(render_baseline_summary "$context_json")")"
 
       local study_status
-      if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then
-        study_status="Study session: $(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')") active."
+      if [ "${s[6]}" = "true" ]; then
+        study_status="Study session: $(seconds_to_short "${s[7]}") active."
       else
         study_status="Tracking Mode: Normal (Study inactive)."
       fi
@@ -1127,25 +1201,37 @@ build_view_payload() {
     activity)
       title="App timeline"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Main category" "$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')")"
+      # The branch's eight context reads in one jq (NUL-separated).
+      local -a a
+      mapfile -d '' -t a < <(printf '%s' "$context_json" | jq -j '
+        [ .today.categories.top_category,
+          .today.categories.top_category_seconds,
+          (.today.metrics.active_slot_count | tostring),
+          .today.metrics.peak_slot_label,
+          .today.metrics.peak_slot_seconds,
+          .today.study_seconds,
+          (.today.raw.slots_30m | tojson),
+          .today.metrics.focus_window
+        ] | map(tostring) | join(([0] | implode))')
+      meta="$(kv_markup "Main category" "${a[0]}")"
       card1_label="Main category"
-      card1_value="$(humanize_class "$(printf '%s' "$context_json" | jq -r '.today.categories.top_category')")"
-      card1_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.categories.top_category_seconds')")"
+      card1_value="$(humanize_class "${a[0]}")"
+      card1_sub="$(seconds_to_short "${a[1]}")"
       card2_label="Active half-hours"
-      card2_value="$(printf '%s' "$context_json" | jq -r '.today.metrics.active_slot_count | tostring')"
+      card2_value="${a[2]}"
       card2_sub="30-minute blocks"
       card3_label="Busiest 30-min"
-      card3_value="$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_label')"
-      card3_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.peak_slot_seconds')") active"
+      card3_value="${a[3]}"
+      card3_sub="$(seconds_to_short "${a[4]}") active"
       card4_label="Study share"
       card4_value="$(format_ratio_percent "$study_ratio")"
-      card4_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')") total"
+      card4_sub="$(seconds_to_short "${a[5]}") total"
       
       primary_title="Apps across the day"
       primary_body="$(render_app_usage_timeline "$context_json" 8)"
       
       chart_b_title="Busy hours"
-      chart_b_body="$(render_timeline_chart "$(printf '%s' "$context_json" | jq -c '.today.raw.slots_30m')" "Densest 90-min window: $(printf '%s' "$context_json" | jq -r '.today.metrics.focus_window')")"$'\n'"$(kv_markup "Resolution" "Chart: 1-hour bins  |  Cards: 30-min  |  Collected: 5-min")"
+      chart_b_body="$(render_timeline_chart "${a[6]}" "Densest 90-min window: ${a[7]}")"$'\n'"$(kv_markup "Resolution" "Chart: 1-hour bins  |  Cards: 30-min  |  Collected: 5-min")"
       
       chart_c_title="Category breakdown"
       chart_c_body="$(render_category_bars "$context_json" 6 true)"
@@ -1158,7 +1244,18 @@ build_view_payload() {
     health)
       title="Focus & strain"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(printf '%s' "$context_json" | jq -r '"Model confidence: " + (.data_quality.model_confidence // "Unknown")  + "  •  " + (if .data_quality.schema_ready then "v2 data" else "Legacy data" end)')"
+      # The branch's seven context reads in one jq (NUL-separated).
+      local -a h
+      mapfile -d '' -t h < <(printf '%s' "$context_json" | jq -j '
+        [ ("Model confidence: " + (.data_quality.model_confidence // "Unknown")  + "  •  " + (if .data_quality.schema_ready then "v2 data" else "Legacy data" end)),
+          (.today.metrics.switch_rate // ""),
+          .today.metrics.known_category_ratio,
+          (.today.scores.digital_wellbeing_score | tojson),
+          (.today.metrics.eye_strain_risk // "Low"),
+          (.insights.by_class.quality.text // "All systems operational."),
+          ((.data_quality.unknown_share * 100 | round | tostring) + "%")
+        ] | map(tostring) | join(([0] | implode))')
+      meta="${h[0]}"
       card1_label="Focus structure"
       card1_value="${focus_value}/100"
       card1_sub="$(score_subtext "$focus_json")"
@@ -1166,10 +1263,10 @@ build_view_payload() {
       card2_value="${frag_value}/100"
       card2_sub="$(score_subtext "$frag_json")"
       card3_label="App switching"
-      card3_value="$(format_decimal_label "$(printf '%s' "$context_json" | jq -r '.today.metrics.switch_rate // empty')" "/h")"
+      card3_value="$(format_decimal_label "${h[1]}" "/h")"
       card3_sub="Switches per hour"
       card4_label="Mapped apps"
-      card4_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.known_category_ratio')")"
+      card4_value="$(format_ratio_percent "${h[2]}")"
       card4_sub="Share with known type"
       
       primary_title="What the scores mean"
@@ -1179,22 +1276,22 @@ build_view_payload() {
         "$(render_focus_vs_baseline "$context_json")")"
         
       local _wb_score_health _wb_label_health
-      _wb_score_health="$(score_value_text "$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')")"
-      _wb_label_health="$(score_subtext "$(printf '%s' "$context_json" | jq -c '.today.scores.digital_wellbeing_score')")"
+      _wb_score_health="$(score_value_text "${h[3]}")"
+      _wb_label_health="$(score_subtext "${h[3]}")"
       chart_b_title="Score drivers"
       chart_b_body="$(printf '%s\n%s\n%s' \
         "$(kv_markup_aligned 18 "Wellbeing" "$_wb_score_health/100 • $_wb_label_health")" \
-        "$(kv_markup_aligned 18 "Eye strain risk" "$(printf '%s' "$context_json" | jq -r '.today.metrics.eye_strain_risk // "Low"')")" \
+        "$(kv_markup_aligned 18 "Eye strain risk" "${h[4]}")" \
         "$(render_confidence_breakdown "$context_json" 18)")"
 
       chart_c_title="Unsorted apps"
       chart_c_body="$(render_unknown_apps "$context_json")"
 
       insight_title="Main issue"
-      insight_body="$(printf '%s' "$context_json" | jq -r '.insights.by_class.quality.text // "All systems operational."')"
+      insight_body="${h[5]}"
 
       local unknown_pct_note
-      unknown_pct_note="$(printf '%s' "$context_json" | jq -r '(.data_quality.unknown_share * 100 | round | tostring) + "%"')"
+      unknown_pct_note="${h[6]}"
       note_text="${unknown_pct_note} of today's activity is unclassified — scores reflect mapped apps only."
       ;;
     timer)
@@ -1202,29 +1299,41 @@ build_view_payload() {
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
       meta="$(kv_markup "Updated" "$updated_time")"
       card1_label="Study today"
-      card1_value="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')")"
+      # The branch's eight context reads in one jq (NUL-separated).
+      local -a t
+      mapfile -d '' -t t < <(printf '%s' "$context_json" | jq -j '
+        [ .today.study_seconds,
+          .today.metrics.study_goal_progress,
+          .today.metrics.study_goal_seconds,
+          .study_active.active,
+          .study_active.elapsed_seconds,
+          (.study_active.mode // "No plan active"),
+          (.today.categories.slots | tojson),
+          (.insights.main.text // "Start a session to track goal velocity.")
+        ] | map(tostring) | join(([0] | implode))')
+      card1_value="$(seconds_to_short "${t[0]}")"
       card1_sub="Total today"
       card2_label="Target hit"
-      card2_value="$(format_ratio_percent "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_progress')")"
-      card2_sub="$(seconds_to_short "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')") target"
+      card2_value="$(format_ratio_percent "${t[1]}")"
+      card2_sub="$(seconds_to_short "${t[2]}") target"
       card3_label="Current Session"
-      card3_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then seconds_to_short "$(printf '%s' "$context_json" | jq -r '.study_active.elapsed_seconds')"; else printf "Not running"; fi)"
+      card3_value="$(if [ "${t[3]}" = "true" ]; then seconds_to_short "${t[4]}"; else printf "Not running"; fi)"
       card3_sub="Elapsed"
       card4_label="Timer state"
-      card4_value="$(if [ "$(printf '%s' "$context_json" | jq -r '.study_active.active')" = "true" ]; then printf "Running"; else printf "Idle"; fi)"
-      card4_sub="$(printf '%s' "$context_json" | jq -r '.study_active.mode // "No plan active"')"
+      card4_value="$(if [ "${t[3]}" = "true" ]; then printf "Running"; else printf "Idle"; fi)"
+      card4_sub="${t[5]}"
       
       primary_title=""
-      primary_body="$(render_goal_gauge "$(printf '%s' "$context_json" | jq -r '.today.study_seconds')" "$(printf '%s' "$context_json" | jq -r '.today.metrics.study_goal_seconds')")"
+      primary_body="$(render_goal_gauge "${t[0]}" "${t[2]}")"
       
       chart_b_title="Plan"
       chart_b_body="$(render_study_summary "$context_json")"
       
       chart_c_title="Focus rhythm"
-      chart_c_body="$(render_momentum_chart "$(printf '%s' "$context_json" | jq -c '.today.categories.slots')")"
+      chart_c_body="$(render_momentum_chart "${t[6]}")"
       
       insight_title="Next step"
-      insight_body="$(printf '%s' "$context_json" | jq -r '.insights.main.text // "Start a session to track goal velocity."')"
+      insight_body="${t[7]}"
       note_text="This screen reads the background study timer service."
       ;;
     *)
@@ -1235,7 +1344,9 @@ build_view_payload() {
       ;;
   esac
 
-  jq -n \
+  # The context arrives on stdin: it runs past the 128 KiB a single argument
+  # may hold, so --argjson is not an option for it.
+  printf '%s' "$context_json" | jq \
     --arg view "$view" \
     --arg target_date "$target_date" \
     --arg title "$title" \
@@ -1269,14 +1380,18 @@ build_view_payload() {
     --arg summary_top_category "$top_category" \
     --arg summary_peak_window "$peak_window" \
     --arg summary_main_insight "$main_insight" \
-    --argjson metrics "$(printf '%s' "$context_json" | jq -c '.today.metrics')" \
-    --argjson scores "$(printf '%s' "$context_json" | jq -c '.today.scores')" \
-    --argjson categories "$(printf '%s' "$context_json" | jq -c '.today.categories')" \
-    --argjson data_quality "$(printf '%s' "$context_json" | jq -c '.data_quality')" \
-    --argjson insights "$(printf '%s' "$context_json" | jq -c '.insights')" \
-    --argjson baseline "$(printf '%s' "$context_json" | jq -c '.baseline')" \
     --argjson navigation "$navigation_json" \
-    '{
+    '
+    # The six sub-objects used to be six jq processes each re-parsing the whole
+    # context; the whole context comes in once and they are picked out here.
+    . as $context
+    | $context.today.metrics as $metrics
+    | $context.today.scores as $scores
+    | $context.today.categories as $categories
+    | $context.data_quality as $data_quality
+    | $context.insights as $insights
+    | $context.baseline as $baseline
+    | {
       view: $view,
       target_date: $target_date,
       title: $title,

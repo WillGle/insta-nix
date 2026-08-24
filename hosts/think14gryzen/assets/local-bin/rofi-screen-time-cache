@@ -27,22 +27,23 @@ date_file() {
 
 mkdir -p "$CACHE_DIR"
 
+# One warm at a time. Both the timer and the popup's on-open refresh call this,
+# and a warm is several seconds of CPU; a second caller while one is running
+# would only redo the same work, so it leaves instead of queueing.
+exec 9>"${CACHE_DIR}/.warm.lock"
+flock -n 9 || exit 0
+
 # All four views, not just summary. Rendering one view costs well over a second,
 # and only summary was ever warmed, so every [A]/[F]/[S] keystroke paid that in
-# full while [T] came back instantly. The date stamp is written last, after the
-# payload, so a run interrupted midway leaves a stale stamp that fails the
-# freshness check rather than a half-written view that passes it.
-for view in summary activity health timer; do
-  date_tmp="$(mktemp "${CACHE_DIR}/date.XXXXXX")"
-  if "$STATS_BIN" \
-    --view "$view" \
-    --date "$TARGET_DATE" \
-    --format files \
-    --theme-file "$(theme_file "$view")" \
-    --rows-file "$(rows_file "$view")"; then
+# full while [T] came back instantly. They are rendered by a single stats run:
+# the day-file bundle behind them is view-independent and used to be rebuilt
+# four times. The date stamps are written last, after the payloads, so a run
+# interrupted midway leaves stale stamps that fail the freshness check rather
+# than half-written views that pass it.
+if "$STATS_BIN" --date "$TARGET_DATE" --all-views-dir "$CACHE_DIR"; then
+  for view in summary activity health timer; do
+    date_tmp="$(mktemp "${CACHE_DIR}/date.XXXXXX")"
     printf '%s\n' "$TARGET_DATE" >"$date_tmp"
     mv "$date_tmp" "$(date_file "$view")"
-  else
-    rm -f "$date_tmp"
-  fi
-done
+  done
+fi
