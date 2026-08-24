@@ -11,10 +11,11 @@ fi
 ROFI_COMMON=(
   -dmenu
   -i
+  -markup-rows
   -config "$HOME/.config/rofi/config.rasi"
-  -theme-str 'window { width: 550px; }'
-  -theme-str 'listview { lines: 14; }'
-  -theme-str 'textbox { font: "JetBrainsMono Nerd Font Mono 12"; }'
+  -theme-str 'window { width: 650px; }'
+  -theme-str 'listview { columns: 1; lines: 14; }'
+  -theme-str 'element { children: [ element-text ]; }'
 )
 
 parsed_list="$(
@@ -83,7 +84,7 @@ awk '
   }
   function flush() {
     if (pend_combo == "") return
-    printf "%-22s  ➔  %s\t|%s\n", pend_combo, pend_desc, pend_cmd
+    printf "<b>%-22s</b>  ➔  %s\t|%s\n", pend_combo, pend_desc, pend_cmd
     pend_combo = ""
   }
   /^# --- .* ---/ { sec = $0; sub(/^# --- /, "", sec); sub(/ ---.*$/, "", sec); next }
@@ -115,7 +116,9 @@ awk '
 selected="$(printf "%s\n" "$parsed_list" | cut -d$'\t' -f1 | rofi "${ROFI_COMMON[@]}" -p "⌨ Shorthands" || true)"
 
 if [ -n "$selected" ]; then
-  cmd="$(printf "%s\n" "$parsed_list" | grep -F "${selected}" | head -n1 | cut -d$'\t' -f2 | sed 's/^|//')"
+  # Strip pango tags when matching
+  raw_key="$(printf "%s" "$selected" | sed 's/<[^>]*>//g' | awk '{print $1}')"
+  cmd="$(printf "%s\n" "$parsed_list" | grep -F "${raw_key}" | head -n1 | cut -d$'\t' -f2 | sed 's/^|//')"
   if [ -n "$cmd" ]; then
     cmd="${cmd/\#\~/$HOME}"
     cmd="${cmd/\~/$HOME}"
