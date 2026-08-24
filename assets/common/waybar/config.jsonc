@@ -61,7 +61,9 @@
     "exec-if": "$HOME/.local/bin/waybar-disk-info visible",
     "exec": "$HOME/.local/bin/waybar-disk-info",
     "return-type": "json",
-    "interval": 30,
+    // Same cadence as apu_info/power_flow: the block is a temperature
+    // readout while open, not just a capacity table.
+    "interval": 2,
     "signal": 8,
     "tooltip": true
   },
