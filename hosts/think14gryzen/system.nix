@@ -119,23 +119,32 @@ in
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
-    # Mesa/RADV from unstable — a year of RDNA3 gains over 25.2 for both
-    # llama.cpp Vulkan (llm-run) and gaming.
-    package = pkgsUnstable.mesa;
-    # 32-bit stays on stable 25.2: Mesa 26.2 i686 breaks classic GLX visual
-    # selection, so Steam's 32-bit vgui2 client dies at startup with
-    # "glXChooseVisual failed" (verified 2026-08-23 against 25.2.6 i686).
-    package32 = pkgs.pkgsi686Linux.mesa;
+    # Mesa stays on stable (the nixpkgs-25.11 default) for the whole system.
+    # ba72b36 moved it to unstable 26.2 for llama.cpp throughput; that broke
+    # four separate things because Mesa's driver .so files declare NO libdrm
+    # dependency — no RPATH, no DT_NEEDED — and resolve those symbols from
+    # whichever process dlopens them. Mesa 26.2 wants libdrm 2.4.134 while
+    # every nixpkgs-25.11 application ships 2.4.129, so serving 26.2
+    # system-wide meant: Steam's i686 client dead on GLX, CS2 SIGSEGV in
+    # RADV, VA-API decode dead (libva ABI), and Chromium/Brave silently
+    # losing GPU acceleration entirely ("undefined symbol:
+    # amdgpu_va_manager_query_sw_info" -> EGL init fails -> --use-gl=disabled).
+    # The 26.2 throughput win is preserved where it is actually safe: scoped
+    # to llama.cpp in modules/nixos/llm.nix, which is built from pkgsUnstable
+    # and therefore already carries the matching libdrm.
     extraPackages = with pkgs; [
       vulkan-loader
       vulkan-tools
       vulkan-validation-layers
+      # libva must match the Mesa that provides the VA driver; both are stable
+      # now, so these stay stable too. Mixing them is what killed hardware
+      # video decode (stable libva 2.22 looks for __vaDriverInit_1_22, unstable
+      # Mesa 26.2 exports only __vaDriverInit_1_24).
       libva
       libva-utils
       libva-vdpau-driver
-      # mesa itself comes from `package` (unstable) above; listing the stable
-      # copy here again would collide in the graphics-drivers buildEnv.
-      pkgsUnstable.mesa.opencl
+      mesa
+      mesa.opencl
       # AMD OpenCL ICD. Originally for DaVinci Resolve (removed 2026-08-22);
       # kept for clinfo and any OpenCL consumer.
       rocmPackages.clr
@@ -203,25 +212,10 @@ in
 
     steam = {
       enable = true;
-      # Pin Steam to stable 25.2 RADV on both arches. Mesa 26.2's RADV makes
-      # CS2's librendersystemvulkan.so null-deref during renderer init — a
-      # hard, 100%-reproducible SIGSEGV before the game draws a frame.
-      # Bisected 2026-08-23: holding kernel/firmware/layers constant, only
-      # swapping the ICD to 25.2.6 fixes it; disabling every implicit layer
-      # (anti_lag, device_select, MangoHud, overlay, fossilize) does not.
-      # This is the 64-bit sibling of the i686 GLX break already worked
-      # around via hardware.graphics.package32 above.
-      #
-      # VK_DRIVER_FILES REPLACES the ICD search path rather than extending
-      # it, so both arches must be listed or 32-bit Vulkan titles lose their
-      # driver entirely. The rest of the system keeps Mesa 26.2 for
-      # llama.cpp Vulkan (llm-run).
-      package = pkgs.steam.override {
-        extraEnv.VK_DRIVER_FILES = lib.concatStringsSep ":" [
-          "${pkgs.mesa}/share/vulkan/icd.d/radeon_icd.x86_64.json"
-          "${pkgs.pkgsi686Linux.mesa}/share/vulkan/icd.d/radeon_icd.i686.json"
-        ];
-      };
+      # No VK_DRIVER_FILES override needed any more: the system Mesa is stable
+      # 25.2.6 again, which is the RADV that CS2 actually runs on. The override
+      # existed only to route around unstable Mesa 26.2 — see the note on
+      # hardware.graphics above.
       remotePlay.openFirewall = false;
       dedicatedServer.openFirewall = false;
     };
@@ -286,7 +280,12 @@ in
       ripgrep
       ryzen-monitor-ng
       s-tui
-      pkgsUnstable.lmstudio
+      # lmstudio dropped 2026-08-24: the llm-* belt (llmfit / llm-pull /
+      # llm-list / llm-fit / llm-run) plus pi covers every role it filled, and
+      # keeping it would mean a second package needing the scoped unstable
+      # RADV override from modules/nixos/llm.nix. Models are untouched —
+      # ~/.lmstudio/models is just the default path the scripts use, and
+      # LLM_MODELS_DIR overrides it.
       stressapptest
       sysbench
       vulkan-tools
@@ -330,6 +329,11 @@ in
       udiskie
       usbutils
       bluez-tools
+      # GTK4 Bluetooth manager. blueman-applet stays as the pairing agent and
+      # tray icon (services.blueman in modules/nixos/base.nix); this replaces
+      # only blueman-manager's window, whose pair -> connect -> trust flow is
+      # three separate right-click menus where GNOME's panel is one click.
+      overskride
 
       # Shell & version control
       bash
@@ -402,7 +406,7 @@ in
 
       # Office & productivity
       gsimplecal
-      pkgsUnstable.libreoffice-fresh
+      pkgsUnstable.libreoffice-stable
       wpsoffice
       pkgsUnstable.xournalpp
       pkgsUnstable.zotero
