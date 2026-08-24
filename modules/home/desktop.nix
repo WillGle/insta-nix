@@ -376,10 +376,14 @@ in
   # it was most obvious. Declare it once so the whole GTK3 surface follows,
   # rather than per-app GTK_THEME overrides wedged into .desktop files that Nix
   # regenerates anyway. GTK4 is set too so the two toolkits cannot drift.
+  # GTK4 is deliberately left out. libadwaita reads AdwStyleManager:color-scheme,
+  # which already resolves to prefer-dark through the portal, and warns on every
+  # single startup when this key is set instead:
+  #   Adwaita-WARNING: Using GtkSettings:gtk-application-prefer-dark-theme with
+  #   libadwaita is unsupported.
   gtk = {
     enable = true;
     gtk3.extraConfig."gtk-application-prefer-dark-theme" = true;
-    gtk4.extraConfig."gtk-application-prefer-dark-theme" = true;
   };
 
   xdg.configFile = {
