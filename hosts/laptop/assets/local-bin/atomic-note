@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# atomic-note — a small task queue on the waybar.
+#
+#   Storage   ~/.atomic_tasks, one task per line: "[Priority] body".
+#   Order     shown by priority (critical → low), then file order; a new task
+#             is prepended so it leads its group, "move to top" puts it first.
+#   Undo      done/clear move the lines to ~/.atomic_tasks.done as
+#             "<batch epoch><TAB>line"; `undo` (Alt+z in the menu) restores the
+#             most recent batch.
+#   Quick add one screen: a priority prefix in the text replaces the picker —
+#             "!! …" critical · "! …" high · "- …" low · none = moderate ·
+#             the "[critical] …" spelling still works.
+
 TASK_FILE="${HOME}/.atomic_tasks"
 TASK_LOCK_FILE="${TASK_FILE}.lock"
+DONE_FILE="${TASK_FILE}.done"
 ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
 THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
 
@@ -29,13 +42,12 @@ TASK_MODERATE_BG="@signalNotice@"
 TASK_LOW_BG="@signalOk@"
 CHIP_ICON_FONT_DESC="@monoFont@ @rofiFontSize@"
 
+# Exact process name only: without -x the pattern also matched the waybar-*
+# helper scripts running at that instant (waybar-memory-info every second,
+# waybar-power-monitor…) and an RT signal terminates them, blanking their
+# module for a refresh. Nix wraps the binary, so both names are tried.
 refresh_waybar() {
-  pkill -RTMIN+5 waybar >/dev/null 2>&1 || true
-}
-
-rofi_prompt() {
-  local prompt="$1"
-  printf '' | rofi -dmenu -p "$prompt" -config "$ROFI_CONFIG"
+  pkill -RTMIN+5 -x waybar >/dev/null 2>&1 || pkill -RTMIN+5 -x .waybar-wrapped >/dev/null 2>&1 || true
 }
 
 resolve_editor() {
@@ -83,52 +95,39 @@ normalize_priority() {
 
 priority_label() {
   case "$1" in
-    critical)
-      printf '%s\n' "Critical"
-      ;;
-    high)
-      printf '%s\n' "High"
-      ;;
-    moderate)
-      printf '%s\n' "Moderate"
-      ;;
-    low)
-      printf '%s\n' "Low"
-      ;;
+    critical) printf '%s\n' "Critical" ;;
+    high)     printf '%s\n' "High" ;;
+    moderate) printf '%s\n' "Moderate" ;;
+    low)      printf '%s\n' "Low" ;;
   esac
 }
 
 priority_icon() {
   case "$1" in
-    critical)
-      printf '%s\n' "◆"
-      ;;
-    high)
-      printf '%s\n' "▲"
-      ;;
-    moderate)
-      printf '%s\n' "●"
-      ;;
-    low)
-      printf '%s\n' "○"
-      ;;
+    critical) printf '%s\n' "◆" ;;
+    high)     printf '%s\n' "▲" ;;
+    moderate) printf '%s\n' "●" ;;
+    low)      printf '%s\n' "○" ;;
   esac
 }
 
 priority_bg() {
   case "$1" in
-    critical)
-      printf '%s\n' "$TASK_CRITICAL_BG"
-      ;;
-    high)
-      printf '%s\n' "$TASK_HIGH_BG"
-      ;;
-    moderate)
-      printf '%s\n' "$TASK_MODERATE_BG"
-      ;;
-    low)
-      printf '%s\n' "$TASK_LOW_BG"
-      ;;
+    critical) printf '%s\n' "$TASK_CRITICAL_BG" ;;
+    high)     printf '%s\n' "$TASK_HIGH_BG" ;;
+    moderate) printf '%s\n' "$TASK_MODERATE_BG" ;;
+    low)      printf '%s\n' "$TASK_LOW_BG" ;;
+  esac
+}
+
+# Sort key: lower is shown first.
+priority_rank() {
+  case "$1" in
+    critical) printf '0\n' ;;
+    high)     printf '1\n' ;;
+    moderate) printf '2\n' ;;
+    low)      printf '3\n' ;;
+    *)        printf '2\n' ;;
   esac
 }
 
@@ -136,21 +135,11 @@ task_priority() {
   local task="$1"
   local lower="${task,,}"
   case "$lower" in
-    \[critical\]*|\[a\]*)
-      printf '%s\n' "critical"
-      ;;
-    \[high\]*|\[b\]*)
-      printf '%s\n' "high"
-      ;;
-    \[moderate\]*|\[medium\]*|\[c\]*)
-      printf '%s\n' "moderate"
-      ;;
-    \[low\]*|\[d\]*)
-      printf '%s\n' "low"
-      ;;
-    *)
-      printf '%s\n' "moderate"
-      ;;
+    \[critical\]*|\[a\]*) printf '%s\n' "critical" ;;
+    \[high\]*|\[b\]*)     printf '%s\n' "high" ;;
+    \[moderate\]*|\[medium\]*|\[c\]*) printf '%s\n' "moderate" ;;
+    \[low\]*|\[d\]*)      printf '%s\n' "low" ;;
+    *)                    printf '%s\n' "moderate" ;;
   esac
 }
 
@@ -176,10 +165,25 @@ format_task() {
   printf '[%s] %s\n' "$(priority_label "$priority")" "$body"
 }
 
+# Quick-add syntax: a leading "!!" / "!" / "-" sets the priority so the picker
+# is not needed; the "[critical] …" spelling is still honoured. Prints
+# "<priority><TAB><body>".
+parse_quick_add() {
+  local text priority body
+  text="$(trim_whitespace "$1")"
+  case "$text" in
+    '!!'*) priority="critical"; body="${text#!!}" ;;
+    '!'*)  priority="high";     body="${text#!}" ;;
+    '-'*)  priority="low";      body="${text#-}" ;;
+    *)     priority="$(task_priority "$text")"; body="$(task_body "$text")" ;;
+  esac
+  printf '%s\t%s\n' "$priority" "$(trim_whitespace "$body")"
+}
+
 escape_markup() {
-  local value="${1//&/&amp;}"
-  value="${value//</&lt;}"
-  value="${value//>/&gt;}"
+  local value="${1//&/"&amp;"}"
+  value="${value//</"&lt;"}"
+  value="${value//>/"&gt;"}"
   printf '%s\n' "$value"
 }
 
@@ -209,46 +213,34 @@ icon_chip() {
     "$icon"
 }
 
-section_label() {
-  local label="$1"
-  printf '<span bgcolor="%s" foreground="%s"> %s </span>\n' \
-    "$SECTION_BG" \
-    "$SECTION_FG" \
-    "$(escape_markup "$label")"
-}
-
-empty_cell() {
-  printf '<span foreground="%s"> </span>\n' "$SECTION_BG"
-}
-
 empty_task_label() {
-  printf '<span foreground="%s" weight="600">No active tasks</span>  <span foreground="%s" size="small">Nothing pending</span>\n' \
+  printf '<span foreground="%s" weight="600">No active tasks</span>  <span foreground="%s" size="small">Alt+a to add one</span>\n' \
     "$SECTION_FG" \
     "$INFO_FG"
 }
 
 task_label() {
   local task="$1"
-  local priority
-  local body
+  local priority body
   priority="$(task_priority "$task")"
   body="$(task_body "$task")"
-  printf '%s  <span weight="600">%s</span>  <span foreground="%s" size="small">%s priority</span>\n' \
+  printf '%s  <span weight="600">%s</span>\n' \
     "$(icon_chip "$(priority_icon "$priority")" "$(priority_bg "$priority")")" \
-    "$(escape_markup "$body")" \
-    "$INFO_FG" \
-    "$(priority_label "$priority")"
+    "$(escape_markup "$body")"
+}
+
+# ── prompts ──────────────────────────────────────────────────────────────────
+
+quick_add_prompt() {
+  printf '' | rofi -dmenu -p "Add" \
+    -theme-str 'entry { placeholder: "Task…   !! critical · ! high · - low · none = moderate"; }' \
+    -config "$ROFI_CONFIG"
 }
 
 select_priority() {
   local prompt="$1"
   local default_priority="${2:-moderate}"
-  local empty_mode="${3:-default}"
-  local critical_option
-  local high_option
-  local moderate_option
-  local low_option
-  local selection
+  local critical_option high_option moderate_option low_option selection
 
   critical_option="$(chip_label "$(priority_icon critical)" "$(priority_bg critical)" "Critical")"
   high_option="$(chip_label "$(priority_icon high)" "$(priority_bg high)" "High")"
@@ -257,35 +249,20 @@ select_priority() {
 
   selection="$(
     printf '%s\n%s\n%s\n%s\n' \
-      "$critical_option" \
-      "$high_option" \
-      "$moderate_option" \
-      "$low_option" \
+      "$critical_option" "$high_option" "$moderate_option" "$low_option" \
       | rofi -dmenu -i -markup-rows -p "$prompt" -config "$ROFI_CONFIG"
-  )"
+  )" || true
 
   case "$selection" in
-    "$critical_option")
-      printf '%s\n' "critical"
-      ;;
-    "$high_option")
-      printf '%s\n' "high"
-      ;;
-    "$moderate_option")
-      printf '%s\n' "moderate"
-      ;;
-    "$low_option")
-      printf '%s\n' "low"
-      ;;
-    *)
-      if [ "$empty_mode" = "empty" ]; then
-        printf '%s\n' ""
-      else
-        printf '%s\n' "$default_priority"
-      fi
-      ;;
+    "$critical_option") printf '%s\n' "critical" ;;
+    "$high_option")     printf '%s\n' "high" ;;
+    "$moderate_option") printf '%s\n' "moderate" ;;
+    "$low_option")      printf '%s\n' "low" ;;
+    *)                  printf '%s\n' "$default_priority" ;;
   esac
 }
+
+# ── storage ──────────────────────────────────────────────────────────────────
 
 read_tasks() {
   mapfile -t TASKS < "$TASK_FILE"
@@ -343,106 +320,35 @@ task_index_of() {
   return 1
 }
 
-render_waybar() {
-  read_tasks
-
-  local count="${#TASKS[@]}"
-  if [ "$count" -eq 0 ]; then
-    jq -cn \
-      --arg text "󰠮 Empty" \
-      --arg tooltip "No active tasks" \
-      --arg class "empty" \
-      '{text: $text, tooltip: $tooltip, class: $class}'
-    return 0
-  fi
-
-  local top_task="${TASKS[0]}"
-  local remaining=$((count - 1))
-  local top_priority
-  local top_body
-  local top_icon
-  local display_text
-  local tooltip
-  local priority
-  local body
+# Indices of TASKS in display order: priority rank, then file order.
+sorted_task_indices() {
   local i
-
-  top_priority="$(task_priority "$top_task")"
-  top_body="$(task_body "$top_task")"
-  top_icon="$(priority_icon "$top_priority")"
-  display_text="[$top_icon] $top_body"
-  if [ "$remaining" -gt 0 ]; then
-    display_text="$display_text   ($remaining)"
-  fi
-
-  tooltip="<b><span foreground='${THEME_STATIC_ACCENT:-#58a6ff}'>ATOMIC TASKS</span></b>
-<span alpha='30%'>──────────────────────────</span>
-<tt>"
-  for ((i = 0; i < 5 && i < count; i++)); do
-    priority="$(task_priority "${TASKS[$i]}")"
-    body="$(task_body "${TASKS[$i]}")"
-    color="$(priority_bg "$priority")"
-    tooltip+="<span foreground='$color'>$(priority_icon "$priority")</span> [$(priority_label "$priority")] $(escape_markup "$body")"$'\n'
-  done
-
-  if [ "$count" -gt 5 ]; then
-    tooltip+="... and $((count - 5)) more"
-  fi
-  tooltip+="</tt>"
-
-  jq -cn \
-    --arg text "$display_text" \
-    --arg tooltip "$tooltip" \
-    --arg class "$top_priority" \
-    '{text: $text, tooltip: $tooltip, class: $class}'
+  for i in "${!TASKS[@]}"; do
+    printf '%s\t%s\n' "$(priority_rank "$(task_priority "${TASKS[$i]}")")" "$i"
+  done | sort -s -t $'\t' -k1,1n | cut -f2
 }
 
-add_task() {
-  local note="${1:-}"
-  local priority_input="${2:-}"
-  local priority=""
-  if [ -z "$note" ]; then
-    note="$(rofi_prompt "Task:")"
-    note="$(trim_whitespace "$note")"
-    if [ -z "$note" ]; then
-      return 0
-    fi
-    if [ -n "$priority_input" ] && priority="$(normalize_priority "$priority_input" 2>/dev/null)"; then
-      :
-    else
-      priority="$(select_priority "Priority:" "moderate" "empty")"
-      if [ -z "$priority" ]; then
-        return 0
-      fi
-    fi
-  else
-    note="$(trim_whitespace "$note")"
-    if [ -z "$note" ]; then
-      return 0
-    fi
-    # normalize_priority defaults an empty argument to "moderate" and succeeds,
-    # so it has to be skipped outright when no priority was passed -- otherwise
-    # the "[critical] note" spelling below is never reached.
-    if [ -n "$priority_input" ] && priority="$(normalize_priority "$priority_input" 2>/dev/null)"; then
-      :
-    else
-      priority="$(task_priority "$note")"
-      note="$(trim_whitespace "$(task_body "$note")")"
-    fi
-  fi
-
-  local formatted
-  formatted="$(format_task "$note" "$priority")" || return 0
-  update_tasks task_append "$formatted"
+# Completed lines go to the done log as "<batch epoch><TAB>line", so a whole
+# clear can be undone as one batch.
+log_done() {
+  local batch="$1"
+  shift
+  local line
+  for line in "$@"; do
+    printf '%s\t%s\n' "$batch" "$line"
+  done >> "$DONE_FILE"
 }
 
-task_append() {
-  TASKS+=("$1")
+# ── mutators (run under update_tasks) ────────────────────────────────────────
+
+task_prepend() {
+  TASKS=("$1" ${TASKS[@]+"${TASKS[@]}"})
 }
 
 task_drop() {
   local index
   index="$(task_index_of "$1")" || return 1
+  log_done "$(date +%s)" "$1"
   TASKS=("${TASKS[@]:0:index}" "${TASKS[@]:index+1}")
 }
 
@@ -459,7 +365,51 @@ task_replace() {
 }
 
 task_truncate() {
+  if [ "${#TASKS[@]}" -gt 0 ]; then
+    log_done "$(date +%s)" "${TASKS[@]}"
+  fi
   TASKS=()
+}
+
+# Put the most recent done batch back at the top and drop it from the log.
+task_undo_last() {
+  local batch tmp
+  local -a restored=()
+  [ -s "$DONE_FILE" ] || return 1
+  batch="$(tail -n 1 "$DONE_FILE" | cut -f1)"
+  mapfile -t restored < <(awk -F '\t' -v b="$batch" '$1 == b { sub(/^[^\t]*\t/, ""); print }' "$DONE_FILE")
+  [ "${#restored[@]}" -gt 0 ] || return 1
+  tmp="$(mktemp "${DONE_FILE}.XXXXXX")"
+  awk -F '\t' -v b="$batch" '$1 != b' "$DONE_FILE" > "$tmp"
+  mv "$tmp" "$DONE_FILE"
+  TASKS=("${restored[@]}" ${TASKS[@]+"${TASKS[@]}"})
+}
+
+# ── commands ─────────────────────────────────────────────────────────────────
+
+add_task() {
+  local note="${1:-}"
+  local priority_input="${2:-}"
+  local priority="" body="" parsed
+
+  if [ -z "$note" ]; then
+    note="$(quick_add_prompt)" || true
+  fi
+  note="$(trim_whitespace "$note")"
+  [ -n "$note" ] || return 0
+
+  # An explicit priority argument wins; otherwise the text itself says it.
+  if [ -n "$priority_input" ] && priority="$(normalize_priority "$priority_input" 2>/dev/null)"; then
+    body="$(task_body "$note")"
+  else
+    parsed="$(parse_quick_add "$note")"
+    priority="${parsed%%$'\t'*}"
+    body="${parsed#*$'\t'}"
+  fi
+
+  local formatted
+  formatted="$(format_task "$body" "$priority")" || return 0
+  update_tasks task_prepend "$formatted"
 }
 
 open_file_in_terminal() {
@@ -470,7 +420,13 @@ open_file_in_terminal() {
   # relying on an unquoted expansion that reads like an oversight.
   local -a editor_argv
   read -r -a editor_argv <<< "$editor_cmd"
-  foot -e sh -lc 'exec "$@"' sh "${editor_argv[@]}" "$TASK_FILE" >/dev/null 2>&1 &
+  # Refresh once the editor closes: this is the one path that changes the file
+  # without going through update_tasks, and the module no longer polls every
+  # second to notice it.
+  (
+    foot -e sh -lc 'exec "$@"' sh "${editor_argv[@]}" "$TASK_FILE" >/dev/null 2>&1
+    refresh_waybar
+  ) &
 }
 
 list_tasks() {
@@ -481,54 +437,66 @@ clear_tasks() {
   update_tasks task_truncate
 }
 
+# The task shown on the bar: first in display order.
+top_task() {
+  read_tasks
+  [ "${#TASKS[@]}" -gt 0 ] || return 1
+  local first
+  first="$(sorted_task_indices | head -n 1)"
+  printf '%s\n' "${TASKS[$first]}"
+}
+
+done_top_task() {
+  local task
+  task="$(top_task)" || return 0
+  update_tasks task_drop "$task"
+}
+
+undo_last() {
+  update_tasks task_undo_last
+}
+
 edit_task() {
   local current="$1"
-  local current_body
-  local current_priority
-  local updated
+  local current_body current_priority updated
   current_body="$(task_body "$current")"
   current_priority="$(task_priority "$current")"
-  updated="$(printf '%s' "$current_body" | rofi -dmenu -p "Edit Task:" -config "$ROFI_CONFIG")"
-  if [ -z "$updated" ]; then
-    return 0
-  fi
-
+  updated="$(printf '%s' "$current_body" | rofi -dmenu -p "Edit" -config "$ROFI_CONFIG")" || true
+  [ -n "$updated" ] || return 0
   update_tasks task_replace "$current" "$(format_task "$updated" "$current_priority")"
+}
+
+set_priority() {
+  local current="$1"
+  local new_priority="$2"
+  update_tasks task_replace "$current" "$(format_task "$(task_body "$current")" "$new_priority")"
 }
 
 change_priority() {
   local current="$1"
-  local current_body
-  local current_priority
   local updated_priority
-  current_body="$(task_body "$current")"
-  current_priority="$(task_priority "$current")"
-  updated_priority="$(select_priority "Priority:" "$current_priority")"
-  update_tasks task_replace "$current" "$(format_task "$current_body" "$updated_priority")"
+  updated_priority="$(select_priority "Priority" "$(task_priority "$current")")"
+  set_priority "$current" "$updated_priority"
 }
 
 confirm_clear() {
-  local choice
-  local no_option
-  local yes_option
+  local choice no_option yes_option
   no_option="$(chip_label "󰜺" "$ACTION_CANCEL_BG" "No")"
   yes_option="$(chip_label "󰄬" "$ACTION_CLEAR_BG" "Yes, clear all")"
 
   choice="$(
     printf '%s\n%s\n' "$no_option" "$yes_option" \
-      | rofi -dmenu -i -markup-rows -p "Clear all tasks?" -config "$ROFI_CONFIG"
-  )"
+      | rofi -dmenu -i -markup-rows -p "Clear all tasks?" \
+          -mesg "Alt+z in the menu brings them back." \
+          -config "$ROFI_CONFIG"
+  )" || true
   [ "$choice" = "$yes_option" ]
 }
 
+# Per-task menu for mouse users; every action here also has a key on the row.
 task_menu() {
   local task="$1"
-  local choice
-  local done_option
-  local edit_option
-  local priority_option
-  local move_option
-  local cancel_option
+  local choice done_option edit_option priority_option move_option cancel_option
 
   done_option="$(chip_label "󰄬" "$ACTION_ADD_BG" "Mark done")"
   edit_option="$(chip_label "󰏫" "$ACTION_EDIT_BG" "Edit task")"
@@ -536,103 +504,112 @@ task_menu() {
   move_option="$(chip_label "󰁝" "$ACTION_MOVE_BG" "Move to top")"
   cancel_option="$(chip_label "󰜺" "$ACTION_CANCEL_BG" "Cancel")"
 
+  # The body goes in the message line, not the prompt: a long task made the
+  # prompt chip run across the window.
   choice="$(
     printf '%s\n%s\n%s\n%s\n%s\n' \
-      "$done_option" \
-      "$edit_option" \
-      "$priority_option" \
-      "$move_option" \
-      "$cancel_option" \
-      | rofi -dmenu -i -markup-rows -p "Task: $(task_body "$task")" -config "$ROFI_CONFIG"
-  )"
+      "$done_option" "$edit_option" "$priority_option" "$move_option" "$cancel_option" \
+      | rofi -dmenu -i -markup-rows -p "Task" \
+          -mesg "$(escape_markup "$(task_body "$task")")" \
+          -config "$ROFI_CONFIG"
+  )" || true
 
   case "$choice" in
-    "$done_option")
-      update_tasks task_drop "$task"
-      ;;
-    "$edit_option")
-      edit_task "$task"
-      ;;
-    "$priority_option")
-      change_priority "$task"
-      ;;
-    "$move_option")
-      update_tasks task_promote "$task"
-      ;;
-    *)
-      ;;
+    "$done_option")     update_tasks task_drop "$task" ;;
+    "$edit_option")     edit_task "$task" ;;
+    "$priority_option") change_priority "$task" ;;
+    "$move_option")     update_tasks task_promote "$task" ;;
+    *) ;;
   esac
 }
 
+# ── waybar ───────────────────────────────────────────────────────────────────
+
+render_waybar() {
+  read_tasks
+
+  local count="${#TASKS[@]}"
+  if [ "$count" -eq 0 ]; then
+    jq -cn \
+      --arg text "󰠮 Empty" \
+      --arg tooltip "No active tasks" \
+      --arg class "empty" \
+      '{text: $text, tooltip: $tooltip, class: $class}'
+    return 0
+  fi
+
+  local -a order
+  mapfile -t order < <(sorted_task_indices)
+  local top_task="${TASKS[${order[0]}]}"
+  local remaining=$((count - 1))
+  local top_priority display_text tooltip priority i
+
+  top_priority="$(task_priority "$top_task")"
+  display_text="[$(priority_icon "$top_priority")] $(task_body "$top_task")"
+  if [ "$remaining" -gt 0 ]; then
+    display_text="$display_text   ($remaining)"
+  fi
+
+  # Every task, in display order; the 5-row cap was too low for a list whose
+  # whole point is to be short.
+  tooltip="<b><span foreground='${THEME_STATIC_ACCENT:-#58a6ff}'>ATOMIC TASKS</span></b>
+<span alpha='30%'>──────────────────────────</span>
+<tt>"
+  for i in "${order[@]}"; do
+    priority="$(task_priority "${TASKS[$i]}")"
+    tooltip+="<span foreground='$(priority_bg "$priority")'>$(priority_icon "$priority")</span> $(escape_markup "$(task_body "${TASKS[$i]}")")"$'\n'
+  done
+  tooltip="${tooltip%$'\n'}</tt>
+
+<span size='small' alpha='50%'>Click: menu · Right: add · Middle: done top</span>"
+
+  jq -cn \
+    --arg text "$display_text" \
+    --arg tooltip "$tooltip" \
+    --arg class "$top_priority" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+# ── main menu ────────────────────────────────────────────────────────────────
+# One sorted list. Enter opens the per-task menu; the row keys act directly:
+#   Alt+a add · Alt+o open file · Alt+x clear · Alt+z undo
+#   Alt+d done · Alt+e edit · Alt+↑ move to top · Alt+1..4 set priority
+# rofi prints the highlighted row (-format i) with every custom key, so a key
+# always acts on the row under the cursor.
+
 rofi_menu() {
+  local action_theme
+  action_theme="$(mktemp)"
+  # rofi reads the theme by path, so it must outlive the menu call; clean it
+  # up on the way out too, or a killed menu leaves it in /tmp.
+  trap 'rm -f "$action_theme"' EXIT
+
   while true; do
     read_tasks
 
-    local options=()
-    local hot_task_labels=()
-    local low_task_labels=()
-    local task_labels=()
-    local hot_header
-    local low_header
-    local hot_rows=()
-    local low_rows=()
-    local task
-    local display_task
-    local priority
-    local hot_count=0
-    local low_count=0
-    local total_count=0
-    local row_count=0
-    local menu_lines=0
-    local status_text
-    local i
-    local left_cell
-    local right_cell
-    local selection=""
-    local status=0
-    local action_theme
+    local -a order=() options=() row_task=()
+    local total_count="${#TASKS[@]}"
+    local status_text menu_lines selection status i task hot=0
 
-    for task in "${TASKS[@]}"; do
-      display_task="$(task_label "$task")"
-      task_labels+=("$display_task")
-      priority="$(task_priority "$task")"
-      if [ "$priority" = "critical" ] || [ "$priority" = "high" ]; then
-        hot_task_labels+=("$display_task")
-      else
-        low_task_labels+=("$display_task")
-      fi
+    mapfile -t order < <(sorted_task_indices)
+    for i in ${order[@]+"${order[@]}"}; do
+      task="${TASKS[$i]}"
+      options+=("$(task_label "$task")")
+      row_task+=("$task")
+      case "$(task_priority "$task")" in critical|high) hot=$((hot + 1)) ;; esac
     done
-
-    hot_rows=("${hot_task_labels[@]}")
-    low_rows=("${low_task_labels[@]}")
-    hot_count="${#hot_rows[@]}"
-    low_count="${#low_rows[@]}"
-    total_count="${#TASKS[@]}"
-    hot_header="$(section_label "Critical / High  $hot_count")"
-    low_header="$(section_label "Moderate / Low  $low_count")"
-
     if [ "$total_count" -eq 0 ]; then
-      hot_rows=("$(empty_task_label)")
-      hot_count=0
-      low_count=0
+      options+=("$(empty_task_label)")
+      row_task+=("")
       status_text="No active tasks"
     else
-      status_text="$total_count active  •  $hot_count urgent  •  $low_count later"
+      status_text="$total_count active  •  $hot urgent"
     fi
+    status_text="$status_text   <span alpha='60%'>Alt+d done · Alt+e edit · Alt+↑ top · Alt+1-4 priority · Alt+z undo</span>"
 
-    row_count="${#hot_rows[@]}"
-    if [ "${#low_rows[@]}" -gt "$row_count" ]; then
-      row_count="${#low_rows[@]}"
-    fi
-    if [ "$row_count" -lt 1 ]; then
-      row_count=1
-    fi
-    menu_lines=$((row_count + 1))
+    menu_lines="${#options[@]}"
+    [ "$menu_lines" -gt 12 ] && menu_lines=12
 
-    action_theme="$(mktemp)"
-    # rofi reads the theme by path, so it must outlive the menu call; clean it
-    # up on the way out too, or a killed menu leaves it in /tmp.
-    trap 'rm -f "$action_theme"' EXIT
     cat > "$action_theme" <<EOF
 @theme "~/.config/rofi/theme.rasi"
 
@@ -693,7 +670,7 @@ button selected.normal {
 }
 
 button-add {
-  content: "󰐕 Add";
+  content: "󰐕 Add  Alt+a";
   text-color: ${ACTION_ADD_BG};
   border-color: ${ACTION_ADD_BG};
   action: "kb-custom-1";
@@ -706,7 +683,7 @@ button-add selected.normal {
 }
 
 button-open {
-  content: "󰈔 Open";
+  content: "󰈔 Open  Alt+o";
   text-color: ${ACTION_OPEN_BG};
   border-color: ${ACTION_OPEN_BG};
   action: "kb-custom-2";
@@ -719,7 +696,7 @@ button-open selected.normal {
 }
 
 button-clear {
-  content: "󰩹 Clear";
+  content: "󰩹 Clear  Alt+x";
   text-color: ${ACTION_CLEAR_BG};
   border-color: ${ACTION_CLEAR_BG};
   action: "kb-custom-3";
@@ -740,11 +717,13 @@ inputbar {
   background-color: ${SECTION_BG};
 }
 
+entry {
+  placeholder: "Filter…";
+}
+
 listview {
-  columns: 2;
+  columns: 1;
   lines: ${menu_lines};
-  flow: horizontal;
-  fixed-columns: true;
   fixed-height: false;
   spacing: 6px;
   padding: 0;
@@ -762,78 +741,45 @@ element selected {
 }
 EOF
 
-    options+=("$hot_header" "$low_header")
-    for ((i = 0; i < row_count; i++)); do
-      if [ "$i" -lt "${#hot_rows[@]}" ]; then
-        left_cell="${hot_rows[$i]}"
-      else
-        left_cell="$(empty_cell)"
-      fi
-      if [ "$i" -lt "${#low_rows[@]}" ]; then
-        right_cell="${low_rows[$i]}"
-      else
-        right_cell="$(empty_cell)"
-      fi
-      options+=("$left_cell" "$right_cell")
-    done
-
+    status=0
     selection="$(
       printf '%s\n' "${options[@]}" \
-        | rofi -dmenu -i -hover-select -markup-rows -p "Atomic Tasks" \
-          -kb-custom-1 "Alt+1" \
-          -kb-custom-2 "Alt+2" \
-          -kb-custom-3 "Alt+3" \
+        | rofi -dmenu -i -hover-select -markup-rows -format i -p "Atomic Tasks" \
+          -kb-custom-1 "Alt+a" \
+          -kb-custom-2 "Alt+o" \
+          -kb-custom-3 "Alt+x" \
+          -kb-custom-4 "Alt+z" \
+          -kb-custom-5 "Alt+d" \
+          -kb-custom-6 "Alt+e" \
+          -kb-custom-7 "Alt+Up" \
+          -kb-custom-8 "Alt+1" \
+          -kb-custom-9 "Alt+2" \
+          -kb-custom-10 "Alt+3" \
+          -kb-custom-11 "Alt+4" \
           -config "$ROFI_CONFIG" -theme "$action_theme"
     )" || status=$?
-    rm -f "$action_theme"
+
+    # The task under the cursor, if the key needs one.
+    task=""
+    if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -lt "${#row_task[@]}" ]; then
+      task="${row_task[$selection]}"
+    fi
 
     case "$status" in
-      0)
-        ;;
-      1)
-        return 0
-        ;;
-      10)
-        add_task
-        continue
-        ;;
-      11)
-        open_file_in_terminal
-        return 0
-        ;;
-      12)
-        if confirm_clear; then
-          clear_tasks
-        fi
-        continue
-        ;;
-      *)
-        return 0
-        ;;
-    esac
-
-    case "$selection" in
-      "")
-        return 0
-        ;;
-      "$hot_header"|"$low_header")
-        continue
-        ;;
-      *)
-        local idx=0
-        local found=0
-        for display_task in "${task_labels[@]}"; do
-          if [ "$display_task" = "$selection" ]; then
-            task_menu "${TASKS[$idx]}"
-            found=1
-            break
-          fi
-          idx=$((idx + 1))
-        done
-        if [ "$found" -eq 0 ]; then
-          continue
-        fi
-        ;;
+      0)  [ -n "$task" ] || return 0; task_menu "$task" ;;
+      1)  return 0 ;;
+      10) add_task ;;
+      11) open_file_in_terminal; return 0 ;;
+      12) if confirm_clear; then clear_tasks; fi ;;
+      13) undo_last || true ;;
+      14) [ -n "$task" ] && update_tasks task_drop "$task" ;;
+      15) [ -n "$task" ] && edit_task "$task" ;;
+      16) [ -n "$task" ] && update_tasks task_promote "$task" ;;
+      17) [ -n "$task" ] && set_priority "$task" critical ;;
+      18) [ -n "$task" ] && set_priority "$task" high ;;
+      19) [ -n "$task" ] && set_priority "$task" moderate ;;
+      20) [ -n "$task" ] && set_priority "$task" low ;;
+      *)  return 0 ;;
     esac
   done
 }
@@ -844,6 +790,12 @@ case "${1:-}" in
     ;;
   add)
     add_task "${2:-}" "${3:-}"
+    ;;
+  done-top)
+    done_top_task
+    ;;
+  undo)
+    undo_last
     ;;
   file)
     open_file_in_terminal
