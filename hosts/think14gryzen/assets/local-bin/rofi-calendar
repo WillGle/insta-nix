@@ -1,100 +1,85 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# rofi-calendar — a month sheet, nothing else. No search box, no menu rows:
+# the window is the calendar, navigation is on the keyboard.
+#   ←/h  previous month     →/l  next month     t  today     Enter/Esc  close
+# Colours come from the theme at build time (replaceVars), like every other
+# script here, so the sheet follows a theme regeneration instead of drifting.
+
+ACCENT="@themeAccent@"
+BASE="@themeBase@"
+SUBTEXT="@themeSubtext@"
+RASI="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/calendar.rasi"
 
 today_y=$(date +%Y)
 today_m=$(date +%-m)
 today_d=$(date +%-d)
 
-year="${1:-$today_y}"
-month="${2:-$today_m}"
-
-# Ensure numeric format
-year=$((year + 0))
-month=$((month + 0))
-
-# Bounds check for month
-if [ "$month" -gt 12 ]; then
-  month=1
-  year=$((year + 1))
-elif [ "$month" -lt 1 ]; then
-  month=12
-  year=$((year - 1))
+year=$(( ${1:-$today_y} + 0 ))
+month=$(( ${2:-$today_m} + 0 ))
+if   [ "$month" -gt 12 ]; then month=1;  year=$((year + 1))
+elif [ "$month" -lt 1 ];  then month=12; year=$((year - 1))
 fi
 
-# Calculate prev and next month/year
-prev_m=$((month - 1))
-prev_y=$year
-if [ "$prev_m" -lt 1 ]; then
-  prev_m=12
-  prev_y=$((year - 1))
-fi
-
-next_m=$((month + 1))
-next_y=$year
-if [ "$next_m" -gt 12 ]; then
-  next_m=1
-  next_y=$((year + 1))
-fi
-
-# Format calendar block using cal and awk with Pango markup
-cal_text="$(
-  LC_ALL=C cal -m "$month" "$year" | awk -v ty="$today_y" -v tm="$today_m" -v td="$today_d" -v cy="$year" -v cm="$month" '
+# cal in the Vietnamese locale prints "Tháng 8 2026" and T2…CN, matching the
+# rest of the UI; -m starts the week on Monday. Every line is padded to the
+# 20-column grid so the textbox can centre them as one block.
+sheet="$(
+  LC_ALL=vi_VN.UTF-8 cal -m "$month" "$year" | LC_ALL=C.UTF-8 awk \
+    -v ty="$today_y" -v tm="$today_m" -v td="$today_d" -v cy="$year" -v cm="$month" \
+    -v accent="$ACCENT" -v base="$BASE" -v subtext="$SUBTEXT" '
+    function trim(s) { gsub(/^ +| +$/, "", s); return s }
     NR == 1 {
-      gsub(/^ +| +$/, "", $0)
-      printf "<span foreground=\"#58a6ff\"><b>%s</b></span>\n", $0
+      title = trim($0)
+      # Centre by hand: the markup around the title would defeat %-20s.
+      pad = int((20 - length(title)) / 2)
+      printf "%*s<span foreground=\"%s\" size=\"large\"><b>%s</b></span>\n", pad, "", accent, title
       next
     }
-    NR == 2 {
-      printf "<span foreground=\"#89b4fa\"><b>%s</b></span>\n", $0
-      next
-    }
+    NR == 2 { printf "<span foreground=\"%s\">%-20s</span>\n", subtext, $0; next }
     {
+      row = sprintf("%-20s", $0)
       line = ""
-      for (i = 1; i <= length($0); i += 3) {
-        chunk = substr($0, i, 3)
-        num = chunk; gsub(/ /, "", num)
-        if (num != "" && cy == ty && cm == tm && num == td) {
-          line = line sprintf("<span foreground=\"#a7d293\"><b>%s</b></span>", chunk)
-        } else {
-          line = line chunk
-        }
+      for (c = 1; c <= 7; c++) {
+        cell = substr(row, (c - 1) * 3 + 1, 2)
+        num = trim(cell)
+        if (num != "" && cy == ty && cm == tm && num + 0 == td + 0)
+          cell = sprintf("<span background=\"%s\" foreground=\"%s\"><b>%s</b></span>", accent, base, cell)
+        else if (c >= 6 && num != "")
+          cell = sprintf("<span foreground=\"%s\">%s</span>", subtext, cell)
+        line = line cell (c < 7 ? " " : "")
       }
       print line
     }
   '
 )"
 
-ROFI_COMMON=(
+hint="<span size=\"small\" alpha=\"50%\">←  →  tháng   ·   t  hôm nay   ·   Esc</span>"
+
+rofi_args=(
   -dmenu
-  -i
   -markup-rows
-  -config "$HOME/.config/rofi/config.rasi"
-  -theme-str 'window { width: 320px; }'
-  -theme-str 'listview { lines: 4; }'
-  -theme-str 'textbox { font: "JetBrainsMono Nerd Font Mono 13"; }'
+  -config "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi"
+  -p "Lịch"
+  -mesg "$sheet
+$hint"
+  # Left/Right normally move the cursor in the (hidden) entry; free them first.
+  -kb-move-char-back ""
+  -kb-move-char-forward ""
+  -kb-custom-1 "Left,h"
+  -kb-custom-2 "Right,l"
+  -kb-custom-3 "t"
 )
+[ -r "$RASI" ] && rofi_args+=(-theme "$RASI")
 
-# Navigation choices
-CHOICE_PREV="◀  Tháng trước"
-CHOICE_TODAY="󰃭  Hôm nay (${today_d}/${today_m}/${today_y})"
-CHOICE_NEXT="Tháng sau  ▶"
-CHOICE_CLOSE="❌  Đóng"
-
-MENU_ITEMS="${CHOICE_PREV}\n${CHOICE_TODAY}\n${CHOICE_NEXT}\n${CHOICE_CLOSE}"
-
-selected="$(printf "%b" "$MENU_ITEMS" | rofi "${ROFI_COMMON[@]}" -p " Lịch" -mesg "$cal_text" || true)"
-
-case "$selected" in
-  "$CHOICE_PREV")
-    exec "$0" "$prev_y" "$prev_m"
-    ;;
-  "$CHOICE_NEXT")
-    exec "$0" "$next_y" "$next_m"
-    ;;
-  "$CHOICE_TODAY")
-    exec "$0" "$today_y" "$today_m"
-    ;;
-  *)
-    exit 0
-    ;;
+# Exit codes: 10/11/12 for the custom keys, 0/1 for Enter/Esc.
+rc=0
+rofi "${rofi_args[@]}" <<< "" >/dev/null || rc=$?
+case "$rc" in
+  10) prev_m=$((month - 1)); prev_y=$year
+      [ "$prev_m" -lt 1 ] && { prev_m=12; prev_y=$((year - 1)); }
+      exec "$0" "$prev_y" "$prev_m" ;;
+  11) exec "$0" "$year" "$((month + 1))" ;;
+  12) exec "$0" "$today_y" "$today_m" ;;
+  *)  exit 0 ;;
 esac

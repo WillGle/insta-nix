@@ -7,6 +7,8 @@
 let
   inherit (osConfig.theme) signal;
   themeAccent = osConfig.theme.colors.accent;
+  themeBase = osConfig.theme.colors.base;
+  themeSubtext = osConfig.theme.colors.subtext;
 
   mkScript =
     {
@@ -169,11 +171,10 @@ in
       runtimeInputs = with pkgs; [
         coreutils
         gawk
-        gnused
-        procps
         rofi
         util-linux
       ];
+      vars = { inherit themeAccent themeBase themeSubtext; };
     });
     ".local/bin/rofi-keybinds" = scriptFile (mkScript {
       name = "rofi-keybinds";
@@ -186,5 +187,9 @@ in
         rofi
       ];
     });
+  };
+
+  xdg.configFile = {
+    "rofi/calendar.rasi".source = ../../hosts/think14gryzen/assets/rofi/calendar.rasi;
   };
 }

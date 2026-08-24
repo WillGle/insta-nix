@@ -1,0 +1,26 @@
+@theme "~/.config/rofi/theme.rasi"
+
+/* rofi-calendar: the window is the month sheet. The input bar and the list
+   are removed — navigation is keyboard-only (←/→/t) — so the calendar is the
+   only child and sits in a single layer of padding instead of three. */
+
+window {
+  width:            300px;
+}
+
+mainbox {
+  children:         [ message ];
+  spacing:          0;
+  padding:          8px;
+}
+
+message {
+  background-color: transparent;
+  margin:           0;
+  padding:          8px 4px;
+}
+
+textbox {
+  font:             @mono-font;
+  horizontal-align: 0.5;
+}
