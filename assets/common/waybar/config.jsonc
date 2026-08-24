@@ -49,7 +49,10 @@
   "custom/memory_info": {
     "exec": "$HOME/.local/bin/waybar-memory-info",
     "return-type": "json",
-    "interval": 1,
+    // A refresh is ~80 ms of CPU (fdinfo scan for GTT, ps for the top list).
+    // The thresholds it watches move over seconds, not sub-second, so 2 s
+    // halves the cost without changing when a warning appears.
+    "interval": 2,
     // Click shows/hides the disk block next to it (see custom/disk_info).
     "on-click": "$HOME/.local/bin/waybar-disk-info toggle",
     "tooltip": true
@@ -124,7 +127,10 @@
   "custom/network_info": {
     "exec": "$HOME/.local/bin/waybar-network-info",
     "return-type": "json",
-    "interval": 5,
+    // A refresh is ~1 s of CPU (nmcli and busctl round-trips); signal 6 fires
+    // after every change made through the menus, so the poll only catches
+    // external changes and 10 s is plenty for those.
+    "interval": 10,
     "signal": 6,
     // One block, two destinations: left opens the network menu, right the
     // Bluetooth manager. The block reports both, so both buttons are live.
