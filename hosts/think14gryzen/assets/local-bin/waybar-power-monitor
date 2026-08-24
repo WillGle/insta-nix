@@ -70,9 +70,50 @@ warn_once() {
     fi
 }
 
+# No fork on the happy path: this runs after every successful read, so the
+# unconditional rm was ~15 processes per refresh for markers that never exist.
 clear_warn() {
     local key="$1"
+    [ -e "$WARN_DIR/$key" ] || return 0
     rm -f "$WARN_DIR/$key" 2>/dev/null || true
+}
+
+# One-line sysfs node via the read builtin. `cat` forked a process per value,
+# and the apu and pwr modes read about forty of them every two seconds; that
+# was most of the ~1 s of CPU each refresh cost. Fails when the node is
+# unreadable, so callers keep their `|| echo 0` / `|| true` fallbacks.
+read_node() {
+    local value=""
+    IFS= read -r value 2>/dev/null < "$1" || [ -n "$value" ] || return 1
+    printf '%s\n' "$value"
+}
+
+# powerprofilesctl is a D-Bus round-trip (~0.1 s of CPU) and both bar modes
+# asked it every two seconds. The answer is cached as "<epoch> <profile>" for
+# PROFILE_CACHE_SECONDS; the toggle below writes the new value straight into
+# the cache, so a change made from the bar shows on the next refresh and only
+# a change made elsewhere waits out the TTL.
+PROFILE_CACHE_FILE="$STATE_DIR/profile"
+PROFILE_CACHE_SECONDS=10
+
+remember_power_profile() {
+    mkdir -p "$STATE_DIR" 2>/dev/null || true
+    printf '%(%s)T %s\n' -1 "$1" > "$PROFILE_CACHE_FILE" 2>/dev/null || true
+}
+
+get_power_profile() {
+    local line stamp profile now
+    if line="$(read_node "$PROFILE_CACHE_FILE")"; then
+        read -r stamp profile <<< "$line"
+        printf -v now '%(%s)T' -1
+        if is_uint "$stamp" && [ -n "$profile" ] && [ $((now - stamp)) -lt "$PROFILE_CACHE_SECONDS" ]; then
+            printf '%s\n' "$profile"
+            return 0
+        fi
+    fi
+    profile="$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")"
+    remember_power_profile "$profile"
+    printf '%s\n' "$profile"
 }
 
 is_uint() {
@@ -94,7 +135,7 @@ detect_battery_dir() {
 
     for d in /sys/class/power_supply/*; do
         [ -d "$d" ] || continue
-        t="$(cat "$d/type" 2>/dev/null || true)"
+        t="$(read_node "$d/type" || true)"
         if [ "$t" = "Battery" ]; then
             BAT_DIR="$d"
             clear_warn "battery_dir"
@@ -114,7 +155,7 @@ battery_num() {
         path="$BAT_DIR/$node"
         if [ -r "$path" ]; then
             clear_warn "battery_node_$node"
-            cat "$path"
+            read_node "$path" || true
         else
             warn_once "battery_node_$node" "missing battery node: $path"
             echo 0
@@ -132,7 +173,7 @@ battery_text() {
         path="$BAT_DIR/$node"
         if [ -r "$path" ]; then
             clear_warn "battery_text_$node"
-            cat "$path"
+            read_node "$path" || true
         else
             warn_once "battery_text_$node" "missing battery node: $path"
             echo "$fallback"
@@ -149,7 +190,7 @@ battery_num_optional() {
     if detect_battery_dir; then
         path="$BAT_DIR/$node"
         if [ -r "$path" ]; then
-            cat "$path"
+            read_node "$path" || true
             return 0
         fi
     fi
@@ -161,14 +202,14 @@ battery_power_uw() {
     if detect_battery_dir; then
         if [ -r "$BAT_DIR/power_now" ]; then
             clear_warn "battery_power"
-            cat "$BAT_DIR/power_now"
+            read_node "$BAT_DIR/power_now" || true
             return 0
         fi
 
         if [ -r "$BAT_DIR/current_now" ] && [ -r "$BAT_DIR/voltage_now" ]; then
             clear_warn "battery_power"
-            current_ua="$(cat "$BAT_DIR/current_now" 2>/dev/null || echo 0)"
-            current_uv="$(cat "$BAT_DIR/voltage_now" 2>/dev/null || echo 0)"
+            current_ua="$(read_node "$BAT_DIR/current_now" || echo 0)"
+            current_uv="$(read_node "$BAT_DIR/voltage_now" || echo 0)"
             awk -v ua="${current_ua:-0}" -v uv="${current_uv:-0}" 'BEGIN{printf "%.0f", (ua * uv) / 1000000}'
             return 0
         fi
@@ -188,7 +229,7 @@ battery_energy_uwh() {
     if detect_battery_dir; then
         if [ -r "$BAT_DIR/$energy_node" ]; then
             clear_warn "battery_energy_$kind"
-            cat "$BAT_DIR/$energy_node" 2>/dev/null || echo 0
+            read_node "$BAT_DIR/$energy_node" || echo 0
             return 0
         fi
 
@@ -198,8 +239,8 @@ battery_energy_uwh() {
 
         if [ -r "$BAT_DIR/$charge_node" ] && [ -r "$BAT_DIR/$voltage_node" ]; then
             clear_warn "battery_energy_$kind"
-            charge_now="$(cat "$BAT_DIR/$charge_node" 2>/dev/null || echo 0)"
-            voltage_now="$(cat "$BAT_DIR/$voltage_node" 2>/dev/null || echo 0)"
+            charge_now="$(read_node "$BAT_DIR/$charge_node" || echo 0)"
+            voltage_now="$(read_node "$BAT_DIR/$voltage_node" || echo 0)"
             awk -v c="${charge_now:-0}" -v v="${voltage_now:-0}" 'BEGIN{printf "%.0f", (c * v) / 1000000}'
             return 0
         fi
@@ -216,7 +257,7 @@ detect_amdgpu_hwmon() {
     fi
 
     for d in /sys/class/hwmon/hwmon*; do
-        if [ "$(cat "$d/name" 2>/dev/null || true)" = "amdgpu" ]; then
+        if [ "$(read_node "$d/name" || true)" = "amdgpu" ]; then
             AMDGPU_HWMON="$d"
             clear_warn "amdgpu_hwmon"
             return 0
@@ -252,9 +293,9 @@ ac_online() {
 
     for d in /sys/class/power_supply/*; do
         [ -d "$d" ] || continue
-        type="$(cat "$d/type" 2>/dev/null || true)"
+        type="$(read_node "$d/type" || true)"
         [ "$type" = "Mains" ] || continue
-        online="$(cat "$d/online" 2>/dev/null || echo 0)"
+        online="$(read_node "$d/online" || echo 0)"
         if [ "$online" = "1" ]; then
             echo 1
             return 0
@@ -268,7 +309,7 @@ get_ppt_input_uw() {
     if detect_amdgpu_hwmon; then
         if [ -r "$AMDGPU_HWMON/power1_input" ]; then
             clear_warn "ppt_input"
-            cat "$AMDGPU_HWMON/power1_input" 2>/dev/null || echo 0
+            read_node "$AMDGPU_HWMON/power1_input" || echo 0
             return 0
         fi
     fi
@@ -281,13 +322,13 @@ get_ppt_average_uw() {
     if detect_amdgpu_hwmon; then
         if [ -r "$AMDGPU_HWMON/power1_average" ]; then
             clear_warn "ppt_average"
-            cat "$AMDGPU_HWMON/power1_average" 2>/dev/null || echo 0
+            read_node "$AMDGPU_HWMON/power1_average" || echo 0
             return 0
         fi
 
         if [ -r "$AMDGPU_HWMON/power1_input" ]; then
             clear_warn "ppt_average"
-            cat "$AMDGPU_HWMON/power1_input" 2>/dev/null || echo 0
+            read_node "$AMDGPU_HWMON/power1_input" || echo 0
             return 0
         fi
     fi
@@ -300,7 +341,7 @@ get_ppt_label() {
     local label
 
     if detect_amdgpu_hwmon && [ -r "$AMDGPU_HWMON/power1_label" ]; then
-        label="$(cat "$AMDGPU_HWMON/power1_label" 2>/dev/null || true)"
+        label="$(read_node "$AMDGPU_HWMON/power1_label" || true)"
         if [ -n "$label" ]; then
             echo "$label"
             return 0
@@ -310,12 +351,14 @@ get_ppt_label() {
     echo "PPT"
 }
 
+# Counted with a glob rather than find | wc: two processes per refresh for a
+# directory that is empty whenever the sensors are healthy.
 warning_count() {
-    if [ -d "$WARN_DIR" ]; then
-        find "$WARN_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l
-    else
-        echo 0
-    fi
+    local f n=0
+    for f in "$WARN_DIR"/*; do
+        [ -f "$f" ] && n=$((n + 1))
+    done
+    echo "$n"
 }
 
 # The one copy of what ryzenadj-profile actually sets, for the Ryzen 7 8845H.
@@ -361,11 +404,11 @@ apply_ryzen_settings() {
 get_temp() {
     local name="$1"
     for d in /sys/class/hwmon/hwmon*; do
-        if [ "$(cat "$d/name" 2>/dev/null)" = "$name" ]; then
+        if [ "$(read_node "$d/name" || true)" = "$name" ]; then
             # Try multiple common temperature inputs (Edge/Junction usually safer/faster)
-            cat "$d/edge_input" 2>/dev/null || \
-            cat "$d/temp1_input" 2>/dev/null || \
-            cat "$d/junction_input" 2>/dev/null || \
+            read_node "$d/edge_input" || \
+            read_node "$d/temp1_input" || \
+            read_node "$d/junction_input" || \
             echo 0
             return
         fi
@@ -453,17 +496,18 @@ get_cpu_freq_data() {
     peak_khz=0
     peak_idx=0
 
-    while IFS= read -r cpu_path; do
+    # Walk cpu0, cpu1, … in numeric order by index rather than globbing and
+    # piping through sort -V: same order, no processes, builtin reads.
+    for ((cpu_idx = 0; ; cpu_idx++)); do
+        cpu_path="/sys/devices/system/cpu/cpu${cpu_idx}/cpufreq/scaling_cur_freq"
+        [ -e "$cpu_path" ] || break
         [ -r "$cpu_path" ] || continue
 
-        khz="$(cat "$cpu_path" 2>/dev/null || echo 0)"
+        khz="$(read_node "$cpu_path" || echo 0)"
         if ! is_uint "$khz"; then
             khz=0
         fi
 
-        cpu_name="${cpu_path%/cpufreq/scaling_cur_freq}"
-        cpu_name="${cpu_name##*/}"
-        cpu_idx="${cpu_name#cpu}"
         avg_sum=$((avg_sum + khz))
         avg_count=$((avg_count + 1))
 
@@ -471,7 +515,7 @@ get_cpu_freq_data() {
             peak_khz="$khz"
             peak_idx="$cpu_idx"
         fi
-    done < <(printf '%s\n' /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq | sort -V)
+    done
 
     if [ "$avg_count" -gt 0 ]; then
         CPU_FREQ_AVG="$(awk -v sum="$avg_sum" -v count="$avg_count" 'BEGIN{printf "%.2f", sum/count/1000000}')"
@@ -482,7 +526,7 @@ get_cpu_freq_data() {
 
 get_gpu_usage() {
     if detect_gpu_busy_path; then
-        cat "$GPU_BUSY_PATH" 2>/dev/null || echo 0
+        read_node "$GPU_BUSY_PATH" || echo 0
     else
         echo 0
     fi
@@ -490,8 +534,9 @@ get_gpu_usage() {
 
 get_gpu_freq() {
     # GPU Shader Clock in MHz
-    if detect_amdgpu_hwmon; then
-        awk '{printf "%d", $1/1000000}' "$AMDGPU_HWMON/freq1_input" 2>/dev/null || echo 0
+    local hz
+    if detect_amdgpu_hwmon && hz="$(read_node "$AMDGPU_HWMON/freq1_input")" && is_uint "$hz"; then
+        echo $((hz / 1000000))
     else
         echo 0
     fi
@@ -532,14 +577,17 @@ case "$MODE" in
         case "$p" in
             performance)
                 /run/current-system/sw/bin/powerprofilesctl set balanced
+                remember_power_profile balanced
                 apply_ryzen_settings "balanced"
                 ;;
             balanced)
                 /run/current-system/sw/bin/powerprofilesctl set power-saver
+                remember_power_profile power-saver
                 apply_ryzen_settings "power-saver"
                 ;;
             power-saver)
                 /run/current-system/sw/bin/powerprofilesctl set performance
+                remember_power_profile performance
                 apply_ryzen_settings "performance"
                 ;;
         esac
@@ -560,41 +608,18 @@ esac
 # --- Main Data Gathering ---
 
 # System Total Power & Voltage
+# Raw readings first (all builtin reads), then one awk turns them into every
+# displayed figure. This block used to be eleven awk processes, one per number,
+# on every refresh of both bar modes. The formulas and roundings are the ones
+# each of those awks applied, including the two quirks worth keeping straight:
+# the time estimate goes through awk's default %.6g print before it is split
+# into hours and minutes, and the board power is the difference of the
+# already-rounded watt strings, not of the raw microwatts.
 sys_uw=$(battery_power_uw)
-sys_w=$(awk -v uw="${sys_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
 volt_uv=$(battery_num "voltage_now")
-volt_v=$(awk -v uv="${volt_uv:-0}" "BEGIN{printf \"%.2f\", uv/1000000}")
 cap=$(battery_num "capacity")
 stat=$(battery_text "status" "Unknown")
 ac_is_online=$(ac_online)
-
-# Battery Time Estimation
-time_str=""
-if [ "${sys_uw:-0}" -gt 500000 ]; then # 0.5W minimum to avoid noise
-    e_now=$(battery_energy_uwh "now")
-    e_full=$(battery_energy_uwh "full")
-    
-    hours_raw=""
-    if [ "$stat" = "Discharging" ]; then
-        # Hours remaining
-        hours_raw=$(awk -v now="${e_now:-0}" -v uw="${sys_uw:-1}" "BEGIN{print now / uw}")
-    elif [ "$stat" = "Charging" ]; then
-        # Hours until full
-        hours_raw=$(awk -v full="${e_full:-0}" -v now="${e_now:-0}" -v uw="${sys_uw:-1}" "BEGIN{print (full - now) / uw}")
-    fi
-    
-    if [ -n "$hours_raw" ]; then
-        h_m=$(awk -v hr="$hours_raw" 'BEGIN{ 
-            if (hr > 0 && hr < 24) {
-                h = int(hr);
-                m = int((hr - h) * 60 + 0.5);
-                if (m == 60) { h++; m = 0; }
-                printf "%d:%02d", h, m;
-            }
-        }')
-        [ -n "$h_m" ] && time_str="[$h_m]"
-    fi
-fi
 
 # Battery Health & Capacity Metrics
 e_now=$(battery_energy_uwh "now")
@@ -605,22 +630,53 @@ if [ -z "$e_design" ]; then
 fi
 cycles=$(battery_num_optional "cycle_count" "N/A")
 
-wh_now=$(awk -v en="${e_now:-0}" "BEGIN{printf \"%.1f\", en/1000000}")
-wh_full=$(awk -v ef="${e_full:-0}" "BEGIN{printf \"%.1f\", ef/1000000}")
-if [ "${e_design:-0}" -gt 0 ]; then
-    health_text="$(awk -v ef="${e_full:-0}" -v ed="${e_design:-1}" 'BEGIN{printf "%.1f%%", (ef/ed)*100}')"
-else
-    health_text="N/A"
-fi
-
 # PPT power. Temperatures are read where they are consumed (the apu branch), not
 # here: this preamble runs for every mode, and a reading nothing prints is a
 # hwmon directory walk charged to every waybar poll.
 ppt_label=$(get_ppt_label)
 ppt_input_uw=$(get_ppt_input_uw)
 ppt_avg_uw=$(get_ppt_average_uw)
-ppt_now_w=$(awk -v uw="${ppt_input_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
-ppt_avg_w=$(awk -v uw="${ppt_avg_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
+
+# "|" separates the fields: read would fold the empty time estimate away if
+# the separator were whitespace.
+IFS='|' read -r sys_w volt_v h_m wh_now wh_full health_text ppt_now_w ppt_avg_w cpu_w_measured < <(
+    awk -v uw="${sys_uw:-0}" -v uv="${volt_uv:-0}" -v stat="$stat" \
+        -v now="${e_now:-0}" -v full="${e_full:-0}" -v design="${e_design:-0}" \
+        -v ppt_in="${ppt_input_uw:-0}" -v ppt_avg="${ppt_avg_uw:-0}" '
+    BEGIN {
+        sys_w = sprintf("%.1f", uw / 1000000)
+        volt  = sprintf("%.2f", uv / 1000000)
+
+        # Battery time estimation: 0.5 W minimum to avoid noise.
+        hm = ""
+        if (uw > 500000) {
+            hr = ""
+            if (stat == "Discharging")   hr = sprintf("%.6g", now / uw) + 0
+            else if (stat == "Charging") hr = sprintf("%.6g", (full - now) / uw) + 0
+            if (hr != "" && hr > 0 && hr < 24) {
+                h = int(hr)
+                m = int((hr - h) * 60 + 0.5)
+                if (m == 60) { h++; m = 0 }
+                hm = sprintf("%d:%02d", h, m)
+            }
+        }
+
+        wh_now  = sprintf("%.1f", now / 1000000)
+        wh_full = sprintf("%.1f", full / 1000000)
+        health  = (design > 0) ? sprintf("%.1f%%", (full / design) * 100) : "N/A"
+
+        ppt_now = sprintf("%.1f", ppt_in / 1000000)
+        ppt_avg_s = sprintf("%.1f", ppt_avg / 1000000)
+
+        v = sys_w - ppt_avg_s
+        if (v < 0) v = 0
+        board = sprintf("%.1f", v)
+
+        printf "%s|%s|%s|%s|%s|%s|%s|%s|%s\n", sys_w, volt, hm, wh_now, wh_full, health, ppt_now, ppt_avg_s, board
+    }'
+)
+time_str=""
+[ -n "$h_m" ] && time_str="[$h_m]"
 
 # Board/peripheral power is only measurable while discharging, where it is
 # whatever is left of the battery draw after the APU. On AC nothing measures
@@ -629,12 +685,12 @@ ppt_avg_w=$(awk -v uw="${ppt_avg_uw:-0}" "BEGIN{printf \"%.1f\", uw/1000000}")
 # Discharging branch may write: on "Not charging" the battery draw is ~0, so
 # the same subtraction would clamp to 0 and poison the stored value.
 if [ "$stat" = "Discharging" ]; then
-    cpu_w=$(awk -v sw="${sys_w:-0}" -v pw="${ppt_avg_w:-0}" 'BEGIN{ v=sw-pw; if(v<0) v=0; printf "%.1f", v }')
+    cpu_w="$cpu_w_measured"
     board_w_state="measured"
     mkdir -p "$STATE_DIR" 2>/dev/null || true
     printf '%s\n' "$cpu_w" > "$BOARD_W_FILE" 2>/dev/null || true
 else
-    cpu_w="$(cat "$BOARD_W_FILE" 2>/dev/null || true)"
+    cpu_w="$(read_node "$BOARD_W_FILE" || true)"
     case "$cpu_w" in
         '' | *[!0-9.]*)
             cpu_w="5.0"
@@ -654,11 +710,14 @@ estimate_input_line() {
     local apu="$1" board="$2" batt="$3"
     local total board_disp parts
 
-    total="$(awk -v a="${apu:-0}" -v b="${board:-0}" -v c="${batt:-0}" 'BEGIN{ printf "%.0f", a+b+c }')"
+    local batt_shown
+    # Both figures from one awk instead of two.
+    read -r total batt_shown < <(awk -v a="${apu:-0}" -v b="${board:-0}" -v c="${batt:-0}" \
+        'BEGIN{ printf "%.0f %d\n", a+b+c, (c > 0.1) ? 1 : 0 }')
     board_disp="$board"
     [ "${board_w_state:-default}" = "default" ] && board_disp="~${board}"
     parts="APU ${apu} + board ${board_disp}"
-    if [ "$(awk -v c="${batt:-0}" 'BEGIN{ print (c > 0.1) ? 1 : 0 }')" = "1" ]; then
+    if [ "$batt_shown" = "1" ]; then
         parts="${parts} + batt ${batt}"
     fi
 
@@ -692,8 +751,7 @@ case "$MODE" in
         t_gpu_raw=$(get_temp "amdgpu")
         t_cpu_raw=$(get_temp "k10temp")
         
-        t_gpu=$(awk -v tr="${t_gpu_raw:-0}" "BEGIN{printf \"%.0f\", tr/1000}")
-        t_cpu=$(awk -v tr="${t_cpu_raw:-0}" "BEGIN{printf \"%.0f\", tr/1000}")
+        read -r t_gpu t_cpu < <(awk -v g="${t_gpu_raw:-0}" -v c="${t_cpu_raw:-0}" 'BEGIN{printf "%.0f %.0f\n", g/1000, c/1000}')
         
         # Usage & Freq
         cpu_util=$(get_cpu_usage)
@@ -704,7 +762,7 @@ case "$MODE" in
         cpu_peak_freq="$CPU_FREQ_PEAK_GHZ"
         gpu_freq=$(get_gpu_freq)
 
-        profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
+        profile=$(get_power_profile)
 
         case "$profile" in
             performance) active_marker_perf=" ◀" ; active_marker_bal="" ; active_marker_sav="" ;;
@@ -736,7 +794,7 @@ $(cheat_sheet_line "Power Saver" power-saver "$active_marker_sav")</tt>
 $SEP
 <tt>Peak CPU:     $cpu_peak_core @ $cpu_peak_freq GHz</tt>
 
-<span size='small' alpha='50%'>Click: cycle profile  |  $health_msg</span>"
+<span size='small' alpha='50%'>Click: cycle profile · $health_msg</span>"
 
         printf '{"text":"%s %s°C %s %s°C %sGHz %s%%", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
             "$ICON_GPU" "$t_gpu" "$ICON_CPU" "$t_cpu" "$cpu_freq" "$cpu_util" \
@@ -745,7 +803,7 @@ $SEP
         ;;
     pwr)
         # Power Profile info (for tooltip only)
-        profile=$(/run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo "unknown")
+        profile=$(get_power_profile)
         battery_w_abs=$(awk -v uw="${sys_uw:-0}" 'BEGIN{v=uw/1000000; if(v<0) v=-v; printf "%.1f", v}')
 
         # On battery the battery draw IS the whole machine, measured exactly, so
@@ -847,7 +905,7 @@ Voltage:      ${volt_v}V  |  Cycles: $cycles</tt>
 $SEP
 <tt>Mode:         ${reserve_label}</tt>
 
-<span size='small' alpha='50%'>Click: toggle reserve  |  $health_msg</span>"
+<span size='small' alpha='50%'>Click: toggle reserve · $health_msg</span>"
 
         printf '{"text":"%s  %s  %s%%  %s", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s", "%s"]}\n' \
             "$text_label" "$icon" "$cap" "$p_icon" \
