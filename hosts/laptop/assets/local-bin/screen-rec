@@ -24,6 +24,17 @@ OUT_DIR="$HOME/Videos"
 
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
+# Written as \U escapes, not literal glyphs. Pasted Nerd Font characters live
+# in a private use area and did not survive editing this file; the module then
+# rendered as a blank space on the bar, which is indistinguishable from having
+# no button at all. Codepoints are Material Design Icons, the f0001-f1af0
+# block the installed FiraCode Nerd Font covers.
+ICON_IDLE="$(printf '\U000f0567')"  # nf-md-video
+ICON_REC="$(printf '\U000f044a')"   # nf-md-record
+ICON_APP="$(printf '\U000f057e')"   # nf-md-volume_high
+ICON_MIC="$(printf '\U000f036c')"   # nf-md-microphone
+ICON_MUTE="$(printf '\U000f0581')"  # nf-md-volume_off
+
 emit() {
   jq -cn --arg text "$1" --arg tooltip "$2" --arg class "$3" \
     '{text: $text, tooltip: $tooltip, class: $class}'
@@ -71,9 +82,9 @@ choose_audio_mode() {
   # so the rows stay short enough for a small menu.
   rows="$(
     printf '%s\t%s\n' \
-      "app" " App sound" \
-      "mic" " Microphone" \
-      "none" " No audio" \
+      "app" "$ICON_APP  App sound" \
+      "mic" "$ICON_MIC  Microphone" \
+      "none" "$ICON_MUTE  No audio" \
     | while IFS=$'\t' read -r key label; do
         if [ "$key" = "$current" ]; then
           printf '%s  ●\n' "$label"
@@ -116,9 +127,9 @@ audio_label() {
 
 audio_icon() {
   case "$(audio_mode)" in
-    app) printf '' ;;
-    mic) printf '' ;;
-    *) printf '' ;;
+    app) printf '%s' "$ICON_APP" ;;
+    mic) printf '%s' "$ICON_MIC" ;;
+    *) printf '%s' "$ICON_MUTE" ;;
   esac
 }
 
@@ -202,12 +213,12 @@ start_recording() {
 case "${1:-toggle}" in
   status)
     if is_recording; then
-      emit " REC" \
+      emit "$ICON_REC REC" \
         "$(printf "<b><span foreground='@signalCritical@'>RECORDING</span></b>\n%s\n<tt>%s</tt>\n<tt>Audio: %s</tt>\n\n<span size='small' alpha='50%%'>Click: full screen  |  Right click: region  |  Middle click: audio source</span>" \
           "$SEP" "$(basename "$(cat "$OUT_FILE" 2>/dev/null || echo '?')")" "$(audio_label)")" \
         "recording"
     else
-      emit " $(audio_icon)" \
+      emit "$ICON_IDLE $(audio_icon)" \
         "$(printf "<b>SCREEN RECORDING</b>\n%s\n<tt>Idle · audio: %s</tt>\n\n<span size='small' alpha='50%%'>Click: full screen  |  Right click: region  |  Middle click: audio source</span>" \
           "$SEP" "$(audio_label)")" \
         "idle"
