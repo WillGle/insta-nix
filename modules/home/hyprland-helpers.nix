@@ -64,6 +64,18 @@ in
           libnotify
         ];
       });
+
+      ".local/bin/screenshot" = scriptFile (mkScript {
+        name = "screenshot";
+        runtimeInputs = with pkgs; [
+          coreutils
+          grim
+          libnotify
+          slurp
+          wl-clipboard
+        ];
+      });
+
     };
 
     activation = {

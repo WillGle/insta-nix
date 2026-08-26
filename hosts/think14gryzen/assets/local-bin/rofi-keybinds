@@ -87,8 +87,9 @@ awk '
       if (arg ~ /wpctl set-volume.*\+/) return "Volume +"
       if (arg ~ /brightnessctl.*-/) return "Brightness -"
       if (arg ~ /brightnessctl.*\+/) return "Brightness +"
-      if (arg ~ /grim.*slurp/) return "Screenshot (Area)"
-      if (arg ~ /grim/) return "Screenshot (Full)"
+      if (arg ~ /screenshot region/) return "Screenshot (Area)"
+      if (arg ~ /screenshot clip/) return "Screenshot (Clipboard)"
+      if (arg ~ /screenshot full/) return "Screenshot (Full)"
       return arg
     }
     return arg == "" ? disp : disp " " arg
