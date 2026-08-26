@@ -1,0 +1,50 @@
+# =========================================================================
+# Dunst — rendered from /etc/nixos/theme/templates/dunstrc.template
+#
+# Deliberately colors ONLY. Every geometry, font and decoration key is left
+# out so dunst keeps its own compiled-in defaults: the stock look was what we
+# wanted, the stock palette was not. Adding a key here means overriding an
+# upstream default, so add one only when its default is actually wrong.
+#
+# Reloaded live by theme-apply via `dunstctl reload`, so a wallpaper change
+# repaints notifications together with Waybar and Rofi. Nothing here may name
+# a build-time path: this file is rendered at runtime by sed, which knows the
+# theme placeholders and nothing else.
+# =========================================================================
+
+[global]
+    # Fallback only — all three urgency sections below set their own frame.
+    frame_color = "__SIGNAL_NOTICE__"
+    separator_color = frame
+
+    # Upstream's default is "<b>%s</b>\n%b" — bold alone did not separate the
+    # summary from the body clearly enough. <big> is Pango's relative step
+    # (~1.2x), so the header scales with whatever font size dunst is using
+    # rather than pinning a point size the rest of the config does not set.
+    format = "<big><b>%s</b></big>\n%b"
+
+    # The progress bar carries a *value* (volume, brightness), not a severity
+    # step, so it is the one indicator here allowed a decorative color.
+    highlight = "__ACCENT__"
+
+# -------------------------------------------------------------------------
+# Urgency levels are severity steps, so their frames come from theme.signal
+# and never from the wallpaper-driven decorative palette: a matugen run must
+# not be able to repaint "critical" into whatever hue the wallpaper had.
+# Backgrounds stay on the decorative surface colors — those carry no meaning.
+# -------------------------------------------------------------------------
+
+[urgency_low]
+    background = "__MANTLE__"
+    foreground = "__SUBTEXT__"
+    frame_color = "__SIGNAL_MUTED__"
+
+[urgency_normal]
+    background = "__MANTLE__"
+    foreground = "__TEXT__"
+    frame_color = "__SIGNAL_NOTICE__"
+
+[urgency_critical]
+    background = "__MANTLE__"
+    foreground = "__TEXT__"
+    frame_color = "__SIGNAL_CRITICAL__"
