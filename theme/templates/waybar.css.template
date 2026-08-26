@@ -82,6 +82,7 @@ window#waybar {
 #backlight,
 #idle_inhibitor,
 #custom-systemd_failed,
+#custom-screen_rec,
 tooltip,
 menuitem,
 .popup menuitem {
@@ -108,7 +109,8 @@ menuitem,
 #custom-atomic_note,
 #backlight,
 #idle_inhibitor,
-#custom-systemd_failed {
+#custom-systemd_failed,
+#custom-screen_rec {
   border-radius: 0;
   padding-top: 0;
   padding-bottom: 0;
@@ -143,7 +145,8 @@ menuitem,
 #custom-atomic_note,
 #backlight,
 #idle_inhibitor,
-#custom-systemd_failed {
+#custom-systemd_failed,
+#custom-screen_rec {
   background: alpha(@text, 0.05);
   border-left: 1px solid alpha(@text, 0.05);
 }
@@ -201,6 +204,7 @@ menuitem,
 #backlight:hover,
 #idle_inhibitor:hover,
 #custom-systemd_failed:hover,
+#custom-screen_rec:hover,
 #workspaces button:hover,
 menuitem:hover,
 .popup menuitem:hover {
@@ -349,6 +353,22 @@ menu,
   animation-duration: 0.8s;
   animation-direction: alternate;
   animation-iteration-count: infinite;
+}
+
+/* Recording is a state, so it takes signal-critical and the same blink the
+   failed-units module uses — a bar that is quietly recording your screen is
+   exactly the kind of thing that must not blend in. Idle stays muted. */
+#custom-screen_rec.recording {
+  color: @signal-critical;
+  font-weight: bold;
+  animation-name: blink;
+  animation-duration: 0.8s;
+  animation-direction: alternate;
+  animation-iteration-count: infinite;
+}
+
+#custom-screen_rec.idle {
+  color: @signal-muted;
 }
 
 /* The healthy state is deliberately visible. If it rendered as nothing, a

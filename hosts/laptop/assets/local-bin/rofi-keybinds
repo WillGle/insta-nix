@@ -90,6 +90,8 @@ awk '
       if (arg ~ /screenshot region/) return "Screenshot (Area)"
       if (arg ~ /screenshot clip/) return "Screenshot (Clipboard)"
       if (arg ~ /screenshot full/) return "Screenshot (Full)"
+      if (arg ~ /screen-rec region/) return "Record (Area)"
+      if (arg ~ /screen-rec toggle/) return "Record (Full)"
       return arg
     }
     return arg == "" ? disp : disp " " arg

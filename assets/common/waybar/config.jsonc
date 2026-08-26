@@ -11,7 +11,8 @@
   ],
   "modules-center": [
     "custom/atomic_note",
-    "custom/systemd_failed"
+    "custom/systemd_failed",
+    "custom/screen_rec"
   ],
   "modules-right": [
     "custom/memory_info",
@@ -102,6 +103,20 @@
     "interval": 2,
     "signal": 2,
     "on-click": "$HOME/.local/bin/waybar-power-monitor bmode-toggle",
+    "tooltip": true
+  },
+  // ─── Screen recording ────────────────────────────────────────────
+  // No polling: the state only changes on click, and the script signals the
+  // module (9) itself on both start and stop. The interval is a slow safety
+  // net for the case where wf-recorder dies on its own.
+  "custom/screen_rec": {
+    "exec": "$HOME/.local/bin/screen-rec status",
+    "return-type": "json",
+    "interval": 30,
+    "signal": 9,
+    "on-click": "$HOME/.local/bin/screen-rec toggle",
+    "on-click-right": "$HOME/.local/bin/screen-rec region",
+    "on-click-middle": "setsid -f $HOME/.local/bin/screen-rec audio",
     "tooltip": true
   },
   "custom/atomic_note": {

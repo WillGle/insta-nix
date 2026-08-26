@@ -191,5 +191,6 @@ in
 
   xdg.configFile = {
     "rofi/calendar.rasi".source = ../../hosts/laptop/assets/rofi/calendar.rasi;
+    "rofi/screen-rec.rasi".source = ../../hosts/laptop/assets/rofi/screen-rec.rasi;
   };
 }

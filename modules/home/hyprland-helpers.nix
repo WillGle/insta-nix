@@ -76,6 +76,24 @@ in
         ];
       });
 
+      # Lives here rather than in waybar-helpers because it is a capture tool
+      # first — sibling of screenshot, bound to a key — and a bar module second.
+      ".local/bin/screen-rec" = scriptFile (mkScript {
+        name = "screen-rec";
+        runtimeInputs = with pkgs; [
+          coreutils
+          gnugrep
+          jq
+          libnotify
+          procps
+          slurp
+          wf-recorder
+          wireplumber
+        ];
+        vars = {
+          signalCritical = osConfig.theme.signal.critical;
+        };
+      });
     };
 
     activation = {
