@@ -150,10 +150,6 @@ let
       (toString theme.fonts.rofi.size)
     ]
     [
-      "__NOTIFY_FONT_SIZE__"
-      (toString theme.fonts.notify.size)
-    ]
-    [
       "__MONO_FONT__"
       theme.fonts.mono.family
     ]
@@ -208,6 +204,7 @@ let
   hyprpaperSeed = pkgs.writeText "theme-hyprpaper.conf" (
     renderTheme ../../theme/templates/hyprpaper.conf.template
   );
+  dunstSeed = pkgs.writeText "theme-dunstrc" (renderTheme ../../theme/templates/dunstrc.template);
   paletteSeed = pkgs.writeText "theme-palette.json" (
     builtins.toJSON {
       source = "static-fallback";
@@ -397,7 +394,7 @@ in
   xdg.configFile = {
     "theme/templates".source = ../../theme/templates;
     "theme/static.env".text = ''
-      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v7"}
+      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v8"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
       THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
       THEME_GENERATED_DIR=${lib.escapeShellArg themeGeneratedDir}
@@ -459,6 +456,12 @@ in
     '';
 
     "hypr/hyprpaper.conf".source = generatedLink "hyprpaper.conf";
+
+    # Symlinked into the generated directory rather than written by Home
+    # Manager: theme-apply rewrites the target on every wallpaper change, and a
+    # managed file there would be clobbered — or worse, restored — on the next
+    # activation.
+    "dunst/dunstrc".source = generatedLink "dunstrc";
   };
 
   # Created rather than left to the user: an absent drop directory is what made
@@ -535,6 +538,9 @@ in
         fi
         if [ ! -e "${themeGeneratedDir}/hyprpaper.conf" ]; then
           ${pkgs.coreutils}/bin/cp "${hyprpaperSeed}" "${themeGeneratedDir}/hyprpaper.conf"
+        fi
+        if [ ! -e "${themeGeneratedDir}/dunstrc" ]; then
+          ${pkgs.coreutils}/bin/cp "${dunstSeed}" "${themeGeneratedDir}/dunstrc"
         fi
         if [ ! -e "${themeGeneratedDir}/palette.json" ]; then
           ${pkgs.coreutils}/bin/cp "${paletteSeed}" "${themeGeneratedDir}/palette.json"

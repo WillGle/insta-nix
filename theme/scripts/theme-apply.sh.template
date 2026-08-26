@@ -14,6 +14,7 @@ SYSTEMCTL_BIN="__SYSTEMCTL_BIN__"
 LS_BIN="__LS_BIN__"
 HEAD_BIN="__HEAD_BIN__"
 HYPRCTL_BIN="__HYPRCTL_BIN__"
+DUNSTCTL_BIN="__DUNSTCTL_BIN__"
 SHA256_BIN="__SHA256_BIN__"
 CAT_BIN="__CAT_BIN__"
 OD_BIN="__OD_BIN__"
@@ -122,7 +123,7 @@ fi
 STAGE_DIR="$("$MKTEMP_BIN" -d "$THEME_GENERATED_DIR/.stage.XXXXXX")"
 trap '"$RM_BIN" -rf "$STAGE_DIR"' EXIT INT TERM
 
-GENERATED_OUTPUTS="waybar.css rofi.rasi hyprlock.conf hyprland-decoration.conf nvim-matugen.lua hyprpaper.conf palette.json"
+GENERATED_OUTPUTS="waybar.css rofi.rasi hyprlock.conf hyprland-decoration.conf nvim-matugen.lua hyprpaper.conf dunstrc palette.json"
 
 escape_sed() {
   printf '%s' "$1" | "$SED_BIN" 's/[\/&]/\\&/g'
@@ -324,6 +325,20 @@ verify_signal_palette() {
   done
 }
 
+# Surfaces that carry only part of the signal palette cannot use the check
+# above — it demands all six colors. Dunst maps just muted/notice/critical
+# onto its three urgency levels, so what matters there is the weaker but still
+# decisive property: nothing left unsubstituted. A literal __SIGNAL_MUTED__
+# reaching dunstrc is a parse error at load, i.e. no notifications at all.
+verify_no_placeholder() {
+  local file="$1"
+
+  if "$GREP_BIN" -q '__[A-Z][A-Z_]*__' "$file"; then
+    log "unsubstituted placeholder left in $(basename "$file")"
+    return 1
+  fi
+}
+
 # The third argument names the variable to set when the output changed, or is
 # "-" for outputs no live surface reacts to.
 apply_if_changed() {
@@ -477,23 +492,27 @@ render_template "$THEME_TEMPLATE_DIR/hyprlock.conf.template" "$STAGE_DIR/hyprloc
 render_template "$THEME_TEMPLATE_DIR/hyprland-decoration.conf.template" "$STAGE_DIR/hyprland-decoration.conf"
 render_template "$THEME_TEMPLATE_DIR/nvim-colors.lua.template" "$STAGE_DIR/nvim-matugen.lua"
 render_template "$THEME_TEMPLATE_DIR/hyprpaper.conf.template" "$STAGE_DIR/hyprpaper.conf"
+render_template "$THEME_TEMPLATE_DIR/dunstrc.template" "$STAGE_DIR/dunstrc"
 
 verify_signal_palette "$STAGE_DIR/waybar.css"
+verify_no_placeholder "$STAGE_DIR/dunstrc"
 
 # --- phase 2: commit -------------------------------------------------------
 
-# Only the two surfaces refreshed below need a flag; Rofi, hyprlock, Neovim and
+# Only the three surfaces refreshed below need a flag; Rofi, hyprlock, Neovim and
 # the palette dump are read from disk on their next use. hyprpaper deliberately
 # has no flag: its config text cannot express a same-path content change, so the
 # refresh is driven by the stamp instead.
 waybar_changed=0
 hyprland_changed=0
+dunst_changed=0
 
 apply_if_changed "$STAGE_DIR/waybar.css" "$THEME_GENERATED_DIR/waybar.css" waybar_changed
 apply_if_changed "$STAGE_DIR/rofi.rasi" "$THEME_GENERATED_DIR/rofi.rasi" -
 apply_if_changed "$STAGE_DIR/hyprlock.conf" "$THEME_GENERATED_DIR/hyprlock.conf" -
 apply_if_changed "$STAGE_DIR/hyprland-decoration.conf" "$THEME_GENERATED_DIR/hyprland-decoration.conf" hyprland_changed
 apply_if_changed "$STAGE_DIR/nvim-matugen.lua" "$THEME_GENERATED_DIR/nvim-matugen.lua" -
+apply_if_changed "$STAGE_DIR/dunstrc" "$THEME_GENERATED_DIR/dunstrc" dunst_changed
 apply_if_changed "$STAGE_DIR/hyprpaper.conf" "$THEME_GENERATED_DIR/hyprpaper.conf" -
 apply_if_changed "$PALETTE_TMP" "$THEME_GENERATED_DIR/palette.json" -
 
@@ -522,6 +541,14 @@ fi
 if [ "$hyprland_changed" -eq 1 ]; then
   ensure_hypr_signature
   "$HYPRCTL_BIN" reload config-only >/dev/null 2>&1 || true
+fi
+
+# dunstctl talks to the running daemon over D-Bus and makes it re-read its
+# config search path, which is where ~/.config/dunst/dunstrc -> the generated
+# file sits. No restart, so nothing queued is dropped. When dunst is not up,
+# the command simply fails and the new colors apply the next time it starts.
+if [ "$dunst_changed" -eq 1 ]; then
+  "$DUNSTCTL_BIN" reload >/dev/null 2>&1 || true
 fi
 
 # Deliberately unconditional. The generated hyprpaper.conf only differs when the
