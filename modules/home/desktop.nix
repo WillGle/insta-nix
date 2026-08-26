@@ -150,6 +150,10 @@ let
       (toString theme.fonts.rofi.size)
     ]
     [
+      "__NOTIFY_FONT_SIZE__"
+      (toString theme.fonts.notify.size)
+    ]
+    [
       "__MONO_FONT__"
       theme.fonts.mono.family
     ]
@@ -319,6 +323,10 @@ let
     [
       "__HYPRCTL_BIN__"
       "${pkgs.hyprland}/bin/hyprctl"
+    ]
+    [
+      "__DUNSTCTL_BIN__"
+      "${pkgs.dunst}/bin/dunstctl"
     ]
     [
       "__THEME_STATIC_ENV__"
