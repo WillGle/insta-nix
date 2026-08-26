@@ -257,6 +257,12 @@ in
       rofi-power-menu
       slurp
       sxhkd
+      # Screen recording for the waybar button and Super+R. Picked over
+      # wl-screenrec (which drags in a second ffmpeg, +31 MB) and
+      # gpu-screen-recorder (whose KMS helper needs CAP_SYS_ADMIN): this one
+      # adds 0.2 MB because it reuses the ffmpeg already here, and speaks the
+      # same wlr-screencopy protocol grim does.
+      wf-recorder
       wl-clipboard
       wlr-randr
       xdg-utils

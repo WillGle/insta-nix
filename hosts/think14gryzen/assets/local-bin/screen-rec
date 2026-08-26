@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# screen-rec: one-button screen recording, sibling of the screenshot binds.
+#
+# wf-recorder talks wlr-screencopy — the same protocol grim already uses here,
+# so capture needs no portal, no picker dialog and no session token. Encoding
+# goes through VAAPI on /dev/dri/renderD128; on a laptop the CPU encoder is the
+# difference between recording and watching the fans.
+#
+# Audio is ONE source, chosen ahead of time, not a mix. wf-recorder takes a
+# single device, and building a mixed virtual source out of pw-loopback was
+# tried and abandoned: node.target on the second loopback is ignored, so the
+# microphone ends up routed to the speakers instead of into the virtual node.
+# Middle-clicking the bar module cycles which single source is used.
+set -euo pipefail
+export PATH="$PATH:/run/current-system/sw/bin"
+
+STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/screen-rec"
+REC_PID="$STATE_DIR/rec.pid"
+OUT_FILE="$STATE_DIR/out.path"
+# The chosen source outlives a reboot, so it belongs in the state home rather
+# than the runtime dir the rest of this uses.
+MODE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/screen-rec/audio-mode"
+OUT_DIR="$HOME/Videos"
+
+SEP="<span alpha='30%'>──────────────────────────</span>"
+
+emit() {
+  jq -cn --arg text "$1" --arg tooltip "$2" --arg class "$3" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+notify_error() {
+  notify-send -u critical "Screen recording" "$1"
+}
+
+# Waybar is told to re-run the module rather than polled: the state changes on
+# click, not on a timer.
+refresh_bar() {
+  pkill -RTMIN+9 waybar 2>/dev/null || true
+}
+
+is_recording() {
+  [ -s "$REC_PID" ] && kill -0 "$(cat "$REC_PID")" 2>/dev/null
+}
+
+audio_mode() {
+  local mode
+  mode="$(cat "$MODE_FILE" 2>/dev/null || true)"
+  case "$mode" in
+    app | mic | none) printf '%s' "$mode" ;;
+    *) printf 'app' ;;
+  esac
+}
+
+set_audio_mode() {
+  mkdir -p "$(dirname "$MODE_FILE")"
+  printf '%s\n' "$1" > "$MODE_FILE"
+}
+
+# Rofi, not a blind cycle: three clicks to find out which source you are on is
+# how you discover mid-recording that you picked the wrong one. Deliberately
+# the session's rofi from PATH rather than a pinned build -- every other menu
+# here uses the configured copy with its plugins and generated theme, and a
+# second rofi would be the one that looks different.
+choose_audio_mode() {
+  local current rows choice
+  local args rasi
+  current="$(audio_mode)"
+
+  # The mark travels with the current mode instead of being a fourth column,
+  # so the rows stay short enough for a small menu.
+  rows="$(
+    printf '%s\t%s\n' \
+      "app" " App sound" \
+      "mic" " Microphone" \
+      "none" " No audio" \
+    | while IFS=$'\t' read -r key label; do
+        if [ "$key" = "$current" ]; then
+          printf '%s  ●\n' "$label"
+        else
+          printf '%s\n' "$label"
+        fi
+      done
+  )"
+
+  # -no-custom because with the entry hidden there is no way to see what a
+  # stray keystroke would submit; without it rofi happily returns whatever was
+  # typed blind. The sheet is applied only if present, matching rofi-calendar,
+  # so a missing file degrades to the default menu instead of failing.
+  args=(-dmenu -i -no-custom -p "Record audio"
+    -config "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi")
+  rasi="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/screen-rec.rasi"
+  [ -r "$rasi" ] && args+=(-theme "$rasi")
+
+  choice="$(printf '%s\n' "$rows" | rofi "${args[@]}")" || return 0
+  [ -n "$choice" ] || return 0
+
+  case "$choice" in
+    *App*) set_audio_mode app ;;
+    *Microphone*) set_audio_mode mic ;;
+    *No\ audio*) set_audio_mode none ;;
+    *) return 0 ;;
+  esac
+
+  refresh_bar
+  notify-send "Screen recording" "Audio: $(audio_label)"
+}
+
+audio_label() {
+  case "$(audio_mode)" in
+    app) printf 'app sound' ;;
+    mic) printf 'microphone' ;;
+    *) printf 'muted' ;;
+  esac
+}
+
+audio_icon() {
+  case "$(audio_mode)" in
+    app) printf '' ;;
+    mic) printf '' ;;
+    *) printf '' ;;
+  esac
+}
+
+# wpctl names the default nodes with an at-sign-delimited token, a spelling
+# that collides with replaceVars: it reads at-NAME-at as a placeholder and
+# fails the build on anything left unsubstituted. Assembling the token at
+# runtime keeps both tools happy.
+default_node() {
+  local at="@"
+  wpctl inspect "${at}DEFAULT_AUDIO_${1}${at}" 2>/dev/null \
+    | grep -oP 'node\.name = "\K[^"]+' | head -1 || true
+}
+
+audio_device() {
+  case "$(audio_mode)" in
+    app)
+      local sink
+      sink="$(default_node SINK)"
+      [ -n "$sink" ] && printf '%s.monitor' "$sink"
+      ;;
+    mic) default_node SOURCE ;;
+    *) : ;;
+  esac
+}
+
+stop_recording() {
+  local pid file
+  pid="$(cat "$REC_PID" 2>/dev/null || true)"
+  file="$(cat "$OUT_FILE" 2>/dev/null || true)"
+
+  # SIGINT, not SIGTERM: wf-recorder traps INT to flush the encoder and close
+  # the container. Killed with TERM it leaves an unplayable file behind.
+  [ -n "$pid" ] && kill -INT "$pid" 2>/dev/null || true
+  for _ in $(seq 1 200); do
+    kill -0 "$pid" 2>/dev/null || break
+  done
+
+  rm -f "$REC_PID" "$OUT_FILE"
+  refresh_bar
+
+  if [ -n "$file" ] && [ -s "$file" ]; then
+    notify-send "Screen recording" "$(basename "$file") → ~/Videos"
+  else
+    notify_error "Recording produced no file"
+  fi
+}
+
+start_recording() {
+  local mode="$1"
+  local geometry=""
+
+  if [ "$mode" = "region" ]; then
+    # Cancelling the selection is a normal way to back out, not an error.
+    geometry="$(slurp)" || return 0
+    [ -n "$geometry" ] || return 0
+  fi
+
+  mkdir -p "$OUT_DIR" "$STATE_DIR"
+  local file
+  file="$OUT_DIR/screenrec-$(date +%Y%m%d-%H%M%S).mp4"
+
+  local args=(-c h264_vaapi -d /dev/dri/renderD128 -f "$file")
+  [ -n "$geometry" ] && args+=(-g "$geometry")
+
+  local device
+  device="$(audio_device)"
+  # Joined, not "-a <dev>": wf-recorder declares the audio flag with an
+  # OPTIONAL argument, so getopt never consumes the following argv entry.
+  # Written apart, -a silently means "default device" -- the microphone -- and
+  # the device name lands as a stray positional. It records the wrong source
+  # without ever reporting an error.
+  [ -n "$device" ] && args+=("--audio=$device")
+
+  wf-recorder "${args[@]}" >/dev/null 2>&1 &
+  printf '%s\n' "$!" > "$REC_PID"
+  printf '%s\n' "$file" > "$OUT_FILE"
+  refresh_bar
+  notify-send "Screen recording" "Started${geometry:+ (region)} · $(audio_label)"
+}
+
+case "${1:-toggle}" in
+  status)
+    if is_recording; then
+      emit " REC" \
+        "$(printf "<b><span foreground='@signalCritical@'>RECORDING</span></b>\n%s\n<tt>%s</tt>\n<tt>Audio: %s</tt>\n\n<span size='small' alpha='50%%'>Click: full screen  |  Right click: region  |  Middle click: audio source</span>" \
+          "$SEP" "$(basename "$(cat "$OUT_FILE" 2>/dev/null || echo '?')")" "$(audio_label)")" \
+        "recording"
+    else
+      emit " $(audio_icon)" \
+        "$(printf "<b>SCREEN RECORDING</b>\n%s\n<tt>Idle · audio: %s</tt>\n\n<span size='small' alpha='50%%'>Click: full screen  |  Right click: region  |  Middle click: audio source</span>" \
+          "$SEP" "$(audio_label)")" \
+        "idle"
+    fi
+    ;;
+  toggle)
+    if is_recording; then stop_recording; else start_recording full; fi
+    ;;
+  region)
+    if is_recording; then stop_recording; else start_recording region; fi
+    ;;
+  audio)
+    choose_audio_mode
+    ;;
+  *)
+    notify_error "Unknown mode: $1 (expected toggle, region, audio or status)"
+    exit 1
+    ;;
+esac
