@@ -239,6 +239,11 @@ in
       grim
       hyprlock
       hyprpaper
+      # Already a transitive dependency of half the desktop; listed here purely
+      # so `notify-send` lands on the interactive PATH. The scripts in this repo
+      # do not read it from here — they pin it through writeShellApplication's
+      # runtimeInputs, which is why they kept working while the shell had none.
+      libnotify
       neovim
       recoll
       zed-editor
