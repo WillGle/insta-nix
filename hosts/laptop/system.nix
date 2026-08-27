@@ -110,6 +110,12 @@ in
     NetworkManager-wait-online.enable = false;
   };
 
+  # This laptop shares system RAM with the APU and local LLM workloads. Keep
+  # Nix from running several full-core derivations at once, and bound the
+  # RAM-backed temporary filesystem so builds cannot crowd out the session.
+  nix.settings.max-jobs = lib.mkForce 1;
+  boot.tmp.tmpfsSize = lib.mkForce "25%";
+
   # Newer amdgpu MES/SMU/VCN blobs than the 25.11 snapshot; mkBefore so the
   # unstable copy wins path collisions against the stable default set.
   hardware.firmware = lib.mkBefore [ pkgsUnstable.linux-firmware ];
