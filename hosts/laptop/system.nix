@@ -293,11 +293,11 @@ in
       ripgrep
       ryzen-monitor-ng
       s-tui
-      # lmstudio dropped 2026-08-24: the llm-* belt (llmfit / llm-pull /
+      # GUI model runner dropped 2026-08-24: the llm-* belt (llmfit / llm-pull /
       # llm-list / llm-fit / llm-run) plus pi covers every role it filled, and
       # keeping it would mean a second package needing the scoped unstable
       # RADV override from modules/nixos/llm.nix. Models are untouched —
-      # ~/.lmstudio/models is just the default path the scripts use, and
+      # /mnt/vault/lmstudio-models is the default path the scripts use, and
       # LLM_MODELS_DIR overrides it.
       stressapptest
       sysbench

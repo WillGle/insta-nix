@@ -61,7 +61,7 @@ if [[ "$QUANT" == -* ]]; then
   exit 2
 fi
 
-DEST_ROOT="${LLM_MODELS_DIR:-$HOME/.lmstudio/models}"
+DEST_ROOT="${LLM_MODELS_DIR:-/mnt/vault/lmstudio-models}"
 api_url="https://huggingface.co/api/models/$REPO"
 
 if ! metadata="$(curl -fsSL "$api_url")"; then

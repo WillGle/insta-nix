@@ -18,10 +18,9 @@ CPU), and **declarative** (the tools ship in the host config).
 | **Agentic coding** on a repo | `pi` | via provider `llama-server` (see below) |
 | Engine | llama.cpp Vulkan | tracks nixpkgs-unstable |
 
-Models are plain `.gguf` files under `~/.lmstudio/models/` (LM Studio sees them
-too) — no hidden registry. Since 2026-08-22 that path is a symlink to
-`/mnt/vault/lmstudio-models` (the PCIe 4.0 drive → ~2× faster model loads);
-use the `~/.lmstudio/models/...` path everywhere as before.
+Models are plain `.gguf` files under `/mnt/vault/lmstudio-models/` — no hidden
+registry. `LLM_MODELS_DIR` overrides this default for another disk or host.
+The PCIe 4.0 drive gives ~2× faster model loads.
 
 Measured on this box (gemma-3-4b UD-Q4, performance profile, 2026-08-22 stack
 = kernel 7.2 + Mesa 26.2): **pp512 787 t/s, tg128 33.2 t/s** — decode sits at
@@ -63,14 +62,14 @@ llm-list    # every installed GGUF + size + what llama-server is serving now
 **② (Optional) Check fit before committing to a big model/context:**
 
 ```bash
-llm-fit ~/.lmstudio/models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768
+llm-fit /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768
 #  → fits f16? if not, the lightest KV-cache type that fixes it, or a GTT-raise hint.
 ```
 
 **③ Run (each use) — auto-fits and serves:**
 
 ```bash
-llm-run ~/.lmstudio/models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
+llm-run /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
 #  → picks lightest KV that keeps full GPU offload, -fa on; serves http://127.0.0.1:8080
 #  → append `-- --jinja` whenever an agent/tool-calling client will connect
 ```
@@ -93,7 +92,6 @@ slots); `LLM_HOST=0.0.0.0` only when a container/another device must reach it.
 | **pi** (terminal agent) | provider `llama-server` in `~/.pi/agent/models.json` | **Configured & tested** — see next section |
 | **Zed** | `language_models.openai_compatible` provider "llama-server" → agent panel | **Already configured** in `~/.config/zed/settings.json`; first use asks an API key — type anything |
 | **VSCode** | Continue / Cline / Roo: provider `openai`, `apiBase: http://127.0.0.1:8080/v1` | Works |
-| **LM Studio** | Shares the same GGUF *files* (its own engine, not llama-server) | Works; pick the Vulkan runtime |
 | **Antigravity** | No official BYOK/custom endpoint | Not possible (only ToS-breaking patches) |
 
 Start `llm-run` first; every client above then works against the one server.
@@ -108,7 +106,7 @@ read/grep/edit tools.
 ```bash
 # 1. serve — --jinja is REQUIRED for tool calling (without it the model
 #    chats fine but the agent cannot read/edit files):
-llm-run ~/.lmstudio/models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
+llm-run /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
 
 # 2. agent, inside any repo:
 cd <repo>
@@ -140,10 +138,8 @@ Decode speed ≈ memory-bandwidth ÷ model-size, so:
   **Qwen3-Coder-30B-A3B UD-Q4 ≈ 29 t/s at ctx 32k** — a 30B-class MoE running
   ~3× faster than the 14B dense it replaced. MoE is the way on this hardware.
 
-## LM Studio (secondary GUI)
+## Runtime policy
 
-- **LM Studio** (`lm-studio`): GUI — select the **Vulkan** runtime, keep it updated; it reads the same
-  `~/.lmstudio/models/` files (including ones `llm-pull` fetched).
 - **ollama is gone — keep it that way.** Removed 2026-06-07 (measured ~1.8× slower than
   `llm-run`), it crept back via Zed's agent config and the WisdomTree compose stack, and was
   fully removed host-wide again on 2026-08-22 (user decision: "llm only"). Every consumer now
@@ -155,7 +151,7 @@ Decode speed ≈ memory-bandwidth ÷ model-size, so:
 stochastic (~80% instant-fail odds per attempt) — see
 [`../archive/rocm/README.md`](../archive/rocm/README.md). The working pipeline is:
 **cloud GPU + Unsloth QLoRA → export GGUF → `llm-pull`-style drop into
-`~/.lmstudio/models/` → serve with `llm-run`.**
+`/mnt/vault/lmstudio-models/` → serve with `llm-run`.**
 
 ## Verification
 
