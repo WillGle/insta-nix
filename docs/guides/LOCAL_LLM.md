@@ -11,7 +11,7 @@ CPU), and **declarative** (the tools ship in the host config).
 | Role | Tool | Notes |
 | --- | --- | --- |
 | **Discover** models that fit this hardware | `llmfit` | curated-catalog TUI/CLI, wrapped with `--memory 22G` |
-| **Fetch** a GGUF from HuggingFace | `llm-pull` | prefers Unsloth UD quants; mirrors into llmfit's cache |
+| **Fetch** a GGUF from HuggingFace | `llm-pull` | prefers Unsloth UD quants; mirrors into llmfit's cache and prints detail |
 | **Inventory** what is installed | `llm-list` | ground truth: every GGUF + what's being served |
 | **Fit-check** a local file at a context | `llm-fit` | exact answer from the real engine |
 | **Serve** (auto-sized, OpenAI API) | `llm-run` | lightest KV that keeps full offload, `-fa on` |
@@ -57,7 +57,13 @@ same command). Each pull also drops a flat symlink into
 
 ```bash
 llm-list    # every installed GGUF + size + what llama-server is serving now
+llm-list --detail /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf
+# GGUF metadata + tensor types + per-context GPU fit + llmfit catalog estimate
 ```
+
+The detail view reads GGUF metadata without loading model weights. Its
+throughput/score fields are explicitly catalog estimates; measured throughput
+belongs to the benchmark logs.
 
 **② (Optional) Check fit before committing to a big model/context:**
 

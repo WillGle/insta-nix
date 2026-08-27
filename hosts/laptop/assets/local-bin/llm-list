@@ -1,7 +1,227 @@
 #!/usr/bin/env bash
 # llm-list: every installed GGUF in the shared store, with size, plus what
-# the local llama-server is currently serving (if it is up).
+# the local llama-server is currently serving (if it is up). `--detail` reads
+# GGUF metadata without loading model weights, then runs the real fit helper.
+set -euo pipefail
+export PATH="/run/current-system/sw/bin:${PATH:-}"
+
 ROOT="${LLM_MODELS_DIR:-/mnt/vault/lmstudio-models}"
+
+usage() {
+  cat >&2 <<'EOF'
+usage: llm-list              list all local GGUF files
+       llm-list --detail MODEL  show GGUF metadata and hardware fit
+EOF
+}
+
+metadata_value() {
+  local key="$1" line needle
+  needle="| $key = "
+  line="$(awk -v needle="$needle" '
+    {
+      position = index($0, needle)
+      if (position) {
+        print substr($0, position + length(needle))
+        exit
+      }
+    }
+  ' "$DUMP_FILE")"
+  if [[ "$line" == \'*\' ]]; then
+    line="${line:1:${#line}-2}"
+  fi
+  printf '%s' "$line"
+}
+
+resolve_model() {
+  local query="$1" candidate rel
+  local -a matches=()
+
+  if [ -f "$query" ]; then
+    readlink -f "$query"
+    return 0
+  fi
+  if [ -f "$ROOT/$query" ]; then
+    readlink -f "$ROOT/$query"
+    return 0
+  fi
+  if [ ! -d "$ROOT" ]; then
+    printf 'model store not found: %s\n' "$ROOT" >&2
+    return 2
+  fi
+
+  while IFS= read -r -d '' candidate; do
+    rel="${candidate#"$ROOT"/}"
+    if [ "$rel" = "$query" ] || [ "$(basename "$candidate")" = "$query" ]; then
+      matches+=("$candidate")
+    fi
+  done < <(find -L "$ROOT" -type f -name '*.gguf' -print0)
+
+  if [ "${#matches[@]}" -eq 0 ]; then
+    printf 'model not found: %s\n' "$query" >&2
+    return 2
+  fi
+  if [ "${#matches[@]}" -gt 1 ]; then
+    printf 'model name is ambiguous: %s\n' "$query" >&2
+    printf '  %s\n' "${matches[@]}"
+    return 2
+  fi
+  readlink -f "${matches[0]}"
+}
+
+trim_value() {
+  local value="$1"
+  if [ -n "$value" ]; then
+    printf '%s' "$value"
+  else
+    printf 'unknown'
+  fi
+}
+
+show_fit() {
+  local context="$1" output fitted_context fitted_layers
+  if ! output="$(llama-fit-params -m "$MODEL_FILE" -c "$context" -fa on 2>/dev/null)"; then
+    printf '  %-6s unavailable\n' "${context} ctx:"
+    return 0
+  fi
+  output="${output//$'\n'/ }"
+  if [[ "$output" =~ -c[[:space:]]+([1-9][0-9]*)[[:space:]]+-ngl[[:space:]]+(-?[0-9]+) ]]; then
+    fitted_context="${BASH_REMATCH[1]}"
+    fitted_layers="${BASH_REMATCH[2]}"
+    if [ "$fitted_context" = "$context" ] && [ "$fitted_layers" = '-1' ]; then
+      printf '  %-6s full GPU offload (all layers)\n' "${context} ctx:"
+    elif [ "$fitted_layers" = '-1' ]; then
+      printf '  %-6s full GPU at fitted context %s\n' "${context} ctx:" "$fitted_context"
+    else
+      printf '  %-6s partial offload (fitted ctx=%s, ngl=%s)\n' "${context} ctx:" "$fitted_context" "$fitted_layers"
+    fi
+  else
+    printf '  %-6s unavailable (unexpected fit output)\n' "${context} ctx:"
+  fi
+}
+
+show_catalog_fit() {
+  local base_model_url catalog_model catalog_json relative_path repo_key
+  base_model_url="$(metadata_value 'general.base_model.0.repo_url')"
+  if [[ "$base_model_url" == https://huggingface.co/*/* ]]; then
+    catalog_model="${base_model_url#https://huggingface.co/}"
+  else
+    relative_path="${MODEL_FILE#"$ROOT"/}"
+    repo_key="$(printf '%s\n' "$relative_path" | awk -F/ 'NF >= 2 { print $1 "/" $2 }')"
+    [ -n "$repo_key" ] || return 0
+    catalog_model="$(llmfit --no-dashboard --json list 2>/dev/null \
+      | jq -r --arg repo "$repo_key" '
+          [.. | objects
+           | select((.gguf_sources? // []) | any(.[]; .repo == $repo))
+           | .name] | .[0] // empty
+        ' 2>/dev/null)"
+  fi
+  [ -n "$catalog_model" ] || return 0
+  if ! catalog_json="$(llmfit --no-dashboard --json info "$catalog_model" 2>/dev/null)"; then
+    return 0
+  fi
+  if ! jq -e '.models | length == 1' >/dev/null 2>&1 <<< "$catalog_json"; then
+    return 0
+  fi
+
+  echo
+  echo 'Catalog fit (llmfit estimate; not measured throughput):'
+  jq -r '.models[0] |
+    "  model: \(.name // "unknown")\n" +
+    "  provider/category: \(.provider // "unknown") / \(.category // "unknown")\n" +
+    "  use case: \(.use_case // "unknown")\n" +
+    "  capabilities: \((.capabilities // []) | join(", "))\n" +
+    "  parameters: \(.parameter_count // "unknown") | best quant: \(.best_quant // "unknown")\n" +
+    "  context: \(.context_length // "unknown") | usable now: \(.usable_context // "unknown")\n" +
+    "  fit/run: \(.fit_level // "unknown") / \(.run_mode // "unknown")\n" +
+    "  score: \(.score // "unknown") (quality=\(.score_components.quality // "?") speed=\(.score_components.speed // "?") fit=\(.score_components.fit // "?") context=\(.score_components.context // "?"))\n" +
+    "  estimated speed: \(.estimated_tps // "unknown") tok/s | memory: \(.memory_required_gb // "unknown") GiB\n" +
+    "  runtime/license/released: \(.runtime // "unknown") / \(.license // "unknown") / \(.release_date // "unknown")"' <<< "$catalog_json"
+}
+
+show_detail() {
+  local architecture name size_gib quantized_by repo_url license size_label model_basename
+  local context embedding layers heads kv_heads experts_active experts_total
+  local tensor_count quantization_version chat_template tensor_types
+
+  MODEL_FILE="$(resolve_model "$1")"
+  DUMP_FILE="$(mktemp)"
+  trap 'rm -f -- "$DUMP_FILE"' EXIT
+  if ! gguf-dump "$MODEL_FILE" >"$DUMP_FILE" 2>&1; then
+    printf 'unable to read GGUF metadata: %s\n' "$MODEL_FILE" >&2
+    return 1
+  fi
+
+  architecture="$(metadata_value 'general.architecture')"
+  name="$(metadata_value 'general.name')"
+  size_label="$(metadata_value 'general.size_label')"
+  quantized_by="$(metadata_value 'general.quantized_by')"
+  repo_url="$(metadata_value 'general.base_model.0.repo_url')"
+  [ -n "$repo_url" ] || repo_url="$(metadata_value 'general.repo_url')"
+  license="$(metadata_value 'general.license')"
+  context="$(metadata_value "$architecture.context_length")"
+  embedding="$(metadata_value "$architecture.embedding_length")"
+  layers="$(metadata_value "$architecture.block_count")"
+  heads="$(metadata_value "$architecture.attention.head_count")"
+  kv_heads="$(metadata_value "$architecture.attention.head_count_kv")"
+  experts_active="$(metadata_value "$architecture.expert_used_count")"
+  experts_total="$(metadata_value "$architecture.expert_count")"
+  tensor_count="$(metadata_value 'GGUF.tensor_count')"
+  quantization_version="$(metadata_value 'general.quantization_version')"
+  chat_template="$(metadata_value 'tokenizer.chat_template')"
+  size_gib="$(stat -c '%s' "$MODEL_FILE" | awk '{printf "%.1f GiB", $1/1073741824}')"
+  model_basename="${MODEL_FILE##*/}"
+  quantized="${model_basename%.gguf}"
+  if [[ "$quantized" == *-UD-* ]]; then
+    quantized="UD-${quantized##*-UD-}"
+  else
+    quantized="${quantized##*-}"
+  fi
+  quantized="${quantized%-[0-9][0-9][0-9][0-9][0-9]-of-[0-9][0-9][0-9][0-9][0-9]}"
+  if [[ ! "$quantized" =~ ^(UD-)?(I?Q[0-9][A-Z0-9_+-]*|BF16|F16|F32)$ ]]; then
+    quantized='unknown'
+  fi
+  tensor_types="$(awk -F'|' '
+    $1 ~ /^[[:space:]]*[0-9]+:/ && NF >= 4 {
+      type=$3
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", type)
+      if (type ~ /^[A-Z][A-Z0-9_]+$/) count[type]++
+    }
+    END { for (type in count) print type, count[type] }
+  ' "$DUMP_FILE" | sort | awk 'BEGIN { separator="" } { printf "%s%s=%s", separator, $1, $2; separator=", " } END { print "" }')"
+
+  printf '%s\n' "Model: $(trim_value "$name")"
+  printf 'Path: %s\n' "$MODEL_FILE"
+  printf 'Size: %s | parameters: %s | quant: %s\n' "$size_gib" "$(trim_value "$size_label")" "$quantized"
+  printf 'Architecture: %s | tensors: %s | GGUF quant version: %s\n' "$(trim_value "$architecture")" "$(trim_value "$tensor_count")" "$(trim_value "$quantization_version")"
+  printf 'Quantized by: %s | license: %s\n' "$(trim_value "$quantized_by")" "$(trim_value "$license")"
+  printf 'Source: %s\n' "$(trim_value "$repo_url")"
+  printf 'Context: %s | layers: %s | embedding: %s\n' "$(trim_value "$context")" "$(trim_value "$layers")" "$(trim_value "$embedding")"
+  printf 'Attention heads: %s | KV heads: %s\n' "$(trim_value "$heads")" "$(trim_value "$kv_heads")"
+  if [ -n "$experts_total" ]; then
+    printf 'MoE experts: %s active / %s total\n' "$(trim_value "$experts_active")" "$(trim_value "$experts_total")"
+  else
+    echo 'MoE: dense model'
+  fi
+  printf 'Chat template: %s\n' "$([ -n "$chat_template" ] && echo present || echo absent)"
+  printf 'Tensor types: %s\n' "$(trim_value "$tensor_types")"
+  echo
+  echo 'Hardware fit (llama-fit-params; f16 KV, Flash Attention):'
+  show_fit 4096
+  show_fit 8192
+  show_fit 16384
+  show_fit 32768
+  show_fit 65536
+  show_fit 131072
+  show_catalog_fit
+}
+
+if [ "${1:-}" = '--detail' ]; then
+  [ "$#" -eq 2 ] || { usage; exit 2; }
+  show_detail "$2"
+  exit $?
+fi
+[ "$#" -eq 0 ] || { usage; exit 2; }
+
 printf '%-72s %8s\n' 'MODEL (owner/repo/file)' 'SIZE'
 find -L "$ROOT" -name '*.gguf' ! -name 'mmproj*' -printf '%P\t%s\n' | sort \
   | awk -F'\t' '{ printf "%-72s %7.1fG\n", $1, $2/1073741824 }'

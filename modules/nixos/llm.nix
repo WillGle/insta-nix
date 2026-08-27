@@ -103,6 +103,7 @@ let
         findutils
         gawk
         jq
+        python3Packages.gguf
       ];
     })
     (mkSystemScript {
