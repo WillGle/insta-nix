@@ -53,7 +53,7 @@ User-facing desktop tools are packaged using `writeShellApplication` with pinned
   * `llm-fit`: Model-agnostic GPU VRAM / GTT overflow fit calculator.
   * `llm-run`: Auto-sized, overflow-safe `llama-server` launcher (Vulkan backend).
 * **Power & Battery (`ryzen.nix`):**
-  * `ryzenadj-profile`: Power limit profile switcher (`power-saver`, `balanced`, `performance`).
+  * `ryzenadj-profile`: Single-owner power limit/profile switcher (`power-saver`, `balanced`, `sustained-build`, `performance`).
   * `toggle-battery-reserve`: Toggles Lenovo battery conservation mode.
 * **Desktop & Utilities (`modules/home/`):**
   * `rofi-screen-time`: Interactive app usage dashboard & study session tracker.

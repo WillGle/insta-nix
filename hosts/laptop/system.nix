@@ -91,7 +91,10 @@ in
       HandleLidSwitchExternalPower = "ignore";
       HandleLidSwitchDocked = "ignore";
     };
-    cpupower-gui.enable = true;
+    # AMD Ryzen power is managed only by ryzenadj-profile and
+    # power-profiles-daemon. cpupower-gui is intentionally disabled because
+    # its persisted settings replayed a 3.8 GHz cap after profile changes.
+    cpupower-gui.enable = false;
     openlogi.enable = true;
 
     # scx_lavd was tried here (2026-08-22) and REMOVED: measured -21% prefill
@@ -270,7 +273,6 @@ in
       # CLI utilities
       btop
       chafa
-      cpupower-gui
       curl
       eza
       fastfetch
