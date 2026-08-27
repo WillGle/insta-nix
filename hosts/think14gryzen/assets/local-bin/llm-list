@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # llm-list: every installed GGUF in the shared store, with size, plus what
 # the local llama-server is currently serving (if it is up).
-ROOT="${LLM_MODELS_DIR:-$HOME/.lmstudio/models}"
+ROOT="${LLM_MODELS_DIR:-/mnt/vault/lmstudio-models}"
 printf '%-72s %8s\n' 'MODEL (owner/repo/file)' 'SIZE'
 find -L "$ROOT" -name '*.gguf' ! -name 'mmproj*' -printf '%P\t%s\n' | sort \
   | awk -F'\t' '{ printf "%-72s %7.1fG\n", $1, $2/1073741824 }'
