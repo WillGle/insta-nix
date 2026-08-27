@@ -22,6 +22,8 @@ let
       text = body;
     };
 
+  # RyzenAdj power limits are mW; temperature limits are °C and current
+  # limits are mA. Keep the raw units here because ryzenadj expects them.
   ryzenProfileRows = [
     [ "performance" "performance" "48000" "60000" "64000" "98" "45" "90000" "110000" "0" "max-performance" ]
     [ "sustained-build" "performance" "40000" "45000" "54000" "92" "45" "90000" "110000" "0" "max-performance" ]
