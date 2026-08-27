@@ -80,11 +80,6 @@ in
     # SSD trim.
     fstrim.enable = true;
 
-    # Idle management is off by design: the hypridle config was removed, and
-    # the daemon exits without one, which would surface as a failed unit in
-    # the waybar systemd module rather than as silent inaction.
-    hypridle.enable = false;
-
     # Suspend on lid close when running on battery; keep awake on AC or when docked.
     logind.settings.Login = {
       HandleLidSwitch = "suspend";
@@ -259,7 +254,6 @@ in
       })
       rofi-power-menu
       slurp
-      sxhkd
       # Screen recording for the waybar button and Super+R. Picked over
       # wl-screenrec (which drags in a second ffmpeg, +31 MB) and
       # gpu-screen-recorder (whose KMS helper needs CAP_SYS_ADMIN): this one

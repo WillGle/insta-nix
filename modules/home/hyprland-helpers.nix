@@ -227,21 +227,6 @@ in
         Install.WantedBy = [ "hyprland-session.target" ];
       };
 
-      sxhkd = {
-        Unit = {
-          Description = "Simple X hotkey daemon";
-          ConditionPathExists = "${config.xdg.configHome}/sxhkd/sxhkdrc";
-          After = [ "hyprland-session.target" ];
-          PartOf = [ "hyprland-session.target" ];
-        };
-        Service = {
-          ExecStart = "${pkgs.sxhkd}/bin/sxhkd -c ${config.xdg.configHome}/sxhkd/sxhkdrc";
-          Restart = "on-failure";
-          RestartSec = "2s";
-        };
-        Install.WantedBy = [ "hyprland-session.target" ];
-      };
-
       udiskie = {
         Unit = {
           Description = "Udiskie removable-device tray";

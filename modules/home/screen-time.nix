@@ -179,10 +179,10 @@ in
       };
 
       # The tracker pauses when logind reports the session idle (or hyprlock is
-      # up). Idle management is off by design on this host (see system.nix:
-      # hypridle.enable = false), so nothing ever set IdleHint and screen time
-      # was really "unlocked time" — a 20-minute coffee break counted for
-      # whatever window was focused. swayidle here does exactly one thing:
+      # up). Idle management is off by design on this host: hypridle is not
+      # enabled, so nothing ever set IdleHint and screen time was really
+      # "unlocked time" — a 20-minute coffee break counted for whatever window
+      # was focused. swayidle here does exactly one thing:
       # flag the session idle after 5 minutes without input. No DPMS, no lock,
       # no suspend; hypridle has no equivalent option, which is why it is
       # swayidle. Restarting on failure keeps a compositor hiccup from leaving
