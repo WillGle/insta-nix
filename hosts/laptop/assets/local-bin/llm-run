@@ -42,6 +42,7 @@ KVNAME=f16
 KVARGS=()
 FITTED_CTX=""
 FITTED_NGL=""
+FITTED_OT=""
 
 fit_params
 if ! full_offload_at_requested_context; then
@@ -58,7 +59,11 @@ if ! full_offload_at_requested_context; then
     fi
   fi
 fi
-CMD=("$SERVER" -m "$MODEL" -c "$FITTED_CTX" -ngl "$FITTED_NGL" -fa on "${KVARGS[@]}" -t 8 --host "$HOST" --port "$PORT" "$@")
-echo "llm-run: $(basename "$MODEL") ctx=$CTX KV=$KVNAME ngl=$FITTED_NGL -> http://$HOST:$PORT" >&2
+OTARGS=()
+[ -z "$FITTED_OT" ] || OTARGS=(-ot "$FITTED_OT")
+CMD=("$SERVER" -m "$MODEL" -c "$FITTED_CTX" -ngl "$FITTED_NGL" "${OTARGS[@]}" -fa on "${KVARGS[@]}" -t 8 --host "$HOST" --port "$PORT" "$@")
+OTLABEL=none
+[ -z "$FITTED_OT" ] || OTLABEL=present
+echo "llm-run: $(basename "$MODEL") ctx=$CTX KV=$KVNAME ngl=$FITTED_NGL ot=$OTLABEL -> http://$HOST:$PORT" >&2
 if [ "$DRY" = 1 ]; then printf '%q ' "${CMD[@]}"; echo; exit 0; fi
 exec "${CMD[@]}"

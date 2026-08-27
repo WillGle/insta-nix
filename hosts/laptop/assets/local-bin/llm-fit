@@ -12,6 +12,7 @@ PROG="llm-fit"
 FIT="${LLAMA_FIT_PARAMS:-llama-fit-params}"
 FITTED_CTX=""
 FITTED_NGL=""
+FITTED_OT=""
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
   echo "usage: llm-fit <model.gguf> [context]" >&2
@@ -52,6 +53,7 @@ if [ "$FITTED_CTX" != "$CTX" ]; then
   echo "⚠️  f16 KV OVERFLOWS at context $CTX; fitter reduced context to $FITTED_CTX."
 else
   echo "⚠️  f16 KV OVERFLOWS: only $base layers fit on GPU; the rest spill to CPU (slow)."
+  [ -z "$FITTED_OT" ] || echo "   Fitter also selected tensor-level CPU overrides."
 fi
 
 fit_params --cache-type-k q8_0 --cache-type-v q8_0

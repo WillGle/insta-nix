@@ -78,17 +78,20 @@ trim_value() {
 }
 
 show_fit() {
-  local context="$1" output fitted_context fitted_layers
+  local context="$1" output fitted_context fitted_layers fitted_ot
   if ! output="$(llama-fit-params -m "$MODEL_FILE" -c "$context" -fa on 2>/dev/null)"; then
     printf '  %-6s unavailable\n' "${context} ctx:"
     return 0
   fi
   output="${output//$'\n'/ }"
-  if [[ "$output" =~ -c[[:space:]]+([1-9][0-9]*)[[:space:]]+-ngl[[:space:]]+(-?[0-9]+) ]]; then
+  if [[ "$output" =~ ^[[:space:]]*-c[[:space:]]+([1-9][0-9]*)[[:space:]]+-ngl[[:space:]]+(-?[0-9]+|all|auto)([[:space:]]+-ot[[:space:]]+\"(.*)\")?[[:space:]]*$ ]]; then
     fitted_context="${BASH_REMATCH[1]}"
     fitted_layers="${BASH_REMATCH[2]}"
+    fitted_ot="${BASH_REMATCH[4]:-}"
     if [ "$fitted_context" = "$context" ] && [ "$fitted_layers" = '-1' ]; then
       printf '  %-6s full GPU offload (all layers)\n' "${context} ctx:"
+    elif [ -n "$fitted_ot" ]; then
+      printf '  %-6s tensor-level CPU overrides (ngl=%s)\n' "${context} ctx:" "$fitted_layers"
     elif [ "$fitted_layers" = '-1' ]; then
       printf '  %-6s full GPU at fitted context %s\n' "${context} ctx:" "$fitted_context"
     else
