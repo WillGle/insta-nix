@@ -22,11 +22,31 @@ let
       text = body;
     };
 
+  ryzenProfileRows = [
+    [ "performance" "performance" "48000" "60000" "64000" "98" "45" "90000" "110000" "0" "max-performance" ]
+    [ "sustained-build" "performance" "40000" "45000" "54000" "92" "45" "90000" "110000" "0" "max-performance" ]
+    [ "balanced" "balanced" "28000" "28000" "28000" "85" "-" "-" "-" "1" "none" ]
+    [ "power-saver" "power-saver" "10000" "10000" "10000" "65" "-" "-" "-" "1" "power-saving" ]
+  ];
+
+  ryzenProfileConfig = pkgs.writeText "ryzenadj-profiles.tsv" (
+    lib.concatStringsSep "\n" (
+      [ "# profile ppd_profile stapm_limit slow_limit fast_limit tctl_temp apu_skin_temp vrm_current vrmmax_current scheduler_autogroup ryzenadj_mode" ]
+      ++ map (row: lib.concatStringsSep "\t" row) ryzenProfileRows
+      ++ [ "" ]
+    )
+  );
+
   ryzenScripts = [
     pkgs.ryzenadj
     (mkSystemScript {
       name = "ryzenadj-profile";
-      runtimeInputs = with pkgs; [ coreutils ryzenadj ];
+      runtimeInputs = with pkgs; [
+        coreutils
+        power-profiles-daemon
+        ryzenadj
+        util-linux
+      ];
     })
     (mkSystemScript {
       name = "toggle-battery-reserve";
@@ -36,6 +56,7 @@ let
 in
 {
   environment.systemPackages = ryzenScripts;
+  environment.etc."ryzenadj-profiles.tsv".source = ryzenProfileConfig;
 
   security.sudo.extraRules = [
     {
@@ -71,17 +92,14 @@ in
     };
 
     cpu-default-power-profile = {
-      description = "Set default CPU power profile";
+      description = "Apply the committed CPU power profile to Ryzenadj";
       wantedBy = [ "graphical.target" ];
       wants = [ "power-profiles-daemon.service" ];
       after = [
         "systemd-modules-load.service"
         "power-profiles-daemon.service"
       ];
-      script = ''
-        /run/current-system/sw/bin/powerprofilesctl set power-saver
-        /run/current-system/sw/bin/ryzenadj-profile power-saver
-      '';
+      script = "/run/current-system/sw/bin/ryzenadj-profile --sync";
       serviceConfig = {
         Type = "oneshot";
         StandardOutput = "journal";
@@ -94,20 +112,7 @@ in
     enable = true;
     resumeCommands = ''
       ${pkgs.coreutils}/bin/sleep 2
-      current_profile="$(
-        /run/current-system/sw/bin/powerprofilesctl get 2>/dev/null || echo power-saver
-      )"
-      case "$current_profile" in
-        performance)
-          /run/current-system/sw/bin/ryzenadj-profile performance
-          ;;
-        balanced)
-          /run/current-system/sw/bin/ryzenadj-profile balanced
-          ;;
-        *)
-          /run/current-system/sw/bin/ryzenadj-profile power-saver
-          ;;
-      esac
+      /run/current-system/sw/bin/ryzenadj-profile --sync
     '';
   };
 }

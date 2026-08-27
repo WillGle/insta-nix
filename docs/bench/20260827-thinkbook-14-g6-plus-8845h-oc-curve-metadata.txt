@@ -1,0 +1,17 @@
+started_utc=2026-08-27T10:06:05Z
+host=think14gryzen
+kernel=Linux 7.2.0 #1-NixOS SMP PREEMPT_DYNAMIC Sun Aug 16 21:32:26 UTC 2026 x86_64
+cpu_model=AMD Ryzen 7 8845H w/ Radeon 780M Graphics
+cpu_threads=16
+initial_power_profile=balanced
+ac_online=yes
+sample_interval_s=2
+one_core_seconds=60
+all_core_seconds=480
+cooldown_seconds=120
+thermal_warning_c=95.0
+thermal_abort_c=98.0
+cpu_ppt_w=NA
+gpu_ppt_source=/sys/class/hwmon/hwmon0
+profiles=power-saver balanced performance
+restored_profile=balanced

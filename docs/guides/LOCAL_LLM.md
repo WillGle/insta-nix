@@ -122,8 +122,8 @@ In pi's TUI, `/model` switches between the local model and cloud defaults
 
 ## Max speed checklist
 
-1. Performance power profile (waybar toggle, or `sudo ryzenadj-profile performance`
-   + `powerprofilesctl set performance`) — power-saver caps the APU at 10 W.
+1. Performance power profile (Waybar toggle or `sudo ryzenadj-profile performance`).
+   The coordinator updates PPD and Ryzenadj together; power-saver caps the APU at 10 W.
 2. Plugged into AC.
 3. That's it — `-fa on`, full offload, and KV auto-sizing are already `llm-run` defaults.
 

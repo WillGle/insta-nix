@@ -2,8 +2,8 @@
 set -euo pipefail
 export LC_ALL=C
 # Waybar Memory Info — RAM / swap / pressure, with a top-consumers tooltip.
-# Outputs JSON for a custom module. Refreshes once a second, so every read below
-# is a shell builtin or a single awk pass; nothing loops over processes in bash.
+# Outputs JSON for a custom module. Base RAM/PSI/GPU figures stay live on every
+# refresh; only the expensive per-process RSS+GTT attribution is cached briefly.
 #
 # Why this module does not colour itself by used%: on this APU the iGPU has no
 # VRAM of its own. amdgpu borrows system RAM (GTT, capped by ttm.pages_limit)
@@ -35,6 +35,9 @@ AVAIL_CRIT_GIB=0.5
 # awk each refresh. Skip it while the GPU holds less than this: desktop apps
 # keep tens of MiB there and nothing hides behind that.
 GTT_SCAN_MIN_KB=$((1024 * 1024))
+TOP_PROCS_CACHE_FILE="${XDG_RUNTIME_DIR:-/tmp}/waybar-memory-info.top-procs"
+TOP_PROCS_CACHE_STAMP="${XDG_RUNTIME_DIR:-/tmp}/waybar-memory-info.top-procs.stamp"
+TOP_PROCS_CACHE_SECONDS=5
 
 STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/waybar-memory-info.class"
 
@@ -153,7 +156,28 @@ IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
 # ps does not see GTT — llama-server holding 18 GiB shows a few hundred MiB of
 # RSS — so the DRM fdinfo of every process with a /dev/dri fd is folded in.
 # Only fds pointing at /dev/dri are read (one find), and duplicate fds to the
-# same DRM client are counted once via drm-client-id.
+# same DRM client are counted once via drm-client-id. This is the expensive
+# part of the tooltip, so it is refreshed every few seconds while the base
+# RAM/PSI/GPU figures above remain live on every Waybar tick.
+top_procs=""
+top_cache_valid=0
+top_now=0
+printf -v top_now '%(%s)T' -1
+if [ -r "$TOP_PROCS_CACHE_STAMP" ] && [ -r "$TOP_PROCS_CACHE_FILE" ]; then
+  top_stamp=""
+  IFS= read -r top_stamp < "$TOP_PROCS_CACHE_STAMP" || true
+  case "$top_stamp" in
+    ''|*[!0-9]*) ;;
+    *)
+      if [ "$top_now" -ge "$top_stamp" ] && [ "$((top_now - top_stamp))" -lt "$TOP_PROCS_CACHE_SECONDS" ]; then
+        top_procs="$(< "$TOP_PROCS_CACHE_FILE")"
+        top_cache_valid=1
+      fi
+      ;;
+  esac
+fi
+
+if [ "$top_cache_valid" -eq 0 ]; then
 gtt_by_pid=""
 if (( gtt_used_kb >= GTT_SCAN_MIN_KB )); then
   # shellcheck disable=SC2016  # $1/$2 belong to the awk program, not the shell
@@ -205,6 +229,9 @@ top_procs="$(
     }'
 )"
 [ -n "$top_procs" ] || top_procs="Unavailable"
+printf '%s\n' "$top_procs" > "$TOP_PROCS_CACHE_FILE" 2>/dev/null || true
+printf '%s\n' "$top_now" > "$TOP_PROCS_CACHE_STAMP" 2>/dev/null || true
+fi
 
 # ── one-shot notification on entering critical ───────────────────────────────
 # Nothing here kills anything: the point is a heads-up that arrives while the

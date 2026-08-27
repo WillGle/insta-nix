@@ -1,0 +1,3 @@
+profile	phase	status	elapsed_s	peak_tctl_c	mean_freq_mhz	peak_freq_mhz	peak_apuppt_w	throttle_delta	log
+sustained-build	one-core	PASS	61	80.1	3686.98	4815.78	48.65	0	sustained-build-one-core.log
+sustained-build	all-core	PASS	481	80.0	4289.80	4840.27	53.77	0	sustained-build-all-core.log

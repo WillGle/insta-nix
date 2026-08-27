@@ -2,47 +2,164 @@
 set -euo pipefail
 
 PROFILE="${1:-}"
+PROFILE_STATE_DIR=/run/ryzenadj-profile
+PROFILE_STATE_FILE="$PROFILE_STATE_DIR/active"
+PROFILE_LOCK_FILE="$PROFILE_STATE_DIR/lock"
+PROFILE_CONFIG_FILE=/etc/ryzenadj-profiles.tsv
 
 usage() {
-  echo "Usage: ryzenadj-profile [performance|balanced|power-saver]" >&2
+  echo "Usage: ryzenadj-profile [--sync|performance|sustained-build|balanced|power-saver]" >&2
 }
 
-case "$PROFILE" in
-  performance)
-    # Disable scheduler autogroup for better throughput (desktop interactivity tradeoff accepted)
-    echo 0 > /proc/sys/kernel/sched_autogroup_enabled || true
-    exec /run/current-system/sw/bin/ryzenadj \
-      --stapm-limit=48000 \
-      --fast-limit=64000 \
-      --slow-limit=60000 \
-      --tctl-temp=98 \
-      --apu-skin-temp=45 \
-      --vrm-current=90000 \
-      --vrmmax-current=110000 \
-      --max-performance
-    ;;
+valid_profile() {
+  case "$1" in
+    performance|sustained-build|balanced|power-saver) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
-  balanced)
-    echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
-    exec /run/current-system/sw/bin/ryzenadj \
-      --stapm-limit=28000 \
-      --fast-limit=28000 \
-      --slow-limit=28000 \
-      --tctl-temp=85
-    ;;
+read_state_profile() {
+  local value
+  [ -r "$PROFILE_STATE_FILE" ] || return 1
+  value="$(<"$PROFILE_STATE_FILE")"
+  valid_profile "$value" || return 1
+  printf '%s\n' "$value"
+}
 
-  power-saver)
-    echo 1 > /proc/sys/kernel/sched_autogroup_enabled || true
-    exec /run/current-system/sw/bin/ryzenadj \
-      --stapm-limit=10000 \
-      --fast-limit=10000 \
-      --slow-limit=10000 \
-      --tctl-temp=65 \
-      --power-saving
-    ;;
+read_ppd_profile() {
+  local value
+  value="$(powerprofilesctl get 2>/dev/null)" || return 1
+  valid_profile "$value" || return 1
+  printf '%s\n' "$value"
+}
 
-  *)
-    usage
-    exit 2
-    ;;
-esac
+profile_row() {
+  local wanted="$1"
+  local name ppd stapm slow fast tctl skin vrm vrmmax scheduler mode
+
+  [ -r "$PROFILE_CONFIG_FILE" ] || return 1
+  while IFS=$'\t' read -r name ppd stapm slow fast tctl skin vrm vrmmax scheduler mode; do
+    case "$name" in
+      ''|'#'*) continue ;;
+    esac
+    [ "$name" = "$wanted" ] || continue
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$name" "$ppd" "$stapm" "$slow" "$fast" "$tctl" "$skin" "$vrm" "$vrmmax" "$scheduler" "$mode"
+    return 0
+  done <"$PROFILE_CONFIG_FILE"
+  return 1
+}
+
+ppd_profile_for() {
+  local row name ppd stapm slow fast tctl skin vrm vrmmax scheduler mode
+  row="$(profile_row "$1")" || return 1
+  IFS=$'\t' read -r name ppd stapm slow fast tctl skin vrm vrmmax scheduler mode <<< "$row"
+  printf '%s\n' "$ppd"
+}
+
+set_scheduler_mode() {
+  local row name ppd stapm slow fast tctl skin vrm vrmmax scheduler mode
+  row="$(profile_row "$1")" || return 1
+  IFS=$'\t' read -r name ppd stapm slow fast tctl skin vrm vrmmax scheduler mode <<< "$row"
+  printf '%s\n' "$scheduler" > /proc/sys/kernel/sched_autogroup_enabled
+}
+
+apply_ryzen_settings() {
+  local row name ppd stapm slow fast tctl skin vrm vrmmax scheduler mode
+  local -a args
+
+  row="$(profile_row "$1")" || return 1
+  IFS=$'\t' read -r name ppd stapm slow fast tctl skin vrm vrmmax scheduler mode <<< "$row"
+  args=(
+    "--stapm-limit=$stapm"
+    "--fast-limit=$fast"
+    "--slow-limit=$slow"
+    "--tctl-temp=$tctl"
+  )
+  [ "$skin" = - ] || args+=("--apu-skin-temp=$skin")
+  [ "$vrm" = - ] || args+=("--vrm-current=$vrm")
+  [ "$vrmmax" = - ] || args+=("--vrmmax-current=$vrmmax")
+  case "$mode" in
+    max-performance|power-saving) args+=("--$mode") ;;
+    none) ;;
+    *) return 1 ;;
+  esac
+
+  ryzenadj "${args[@]}"
+}
+
+mark_profile() {
+  local temporary
+  temporary="$(mktemp "$PROFILE_STATE_FILE.XXXXXX")" || return 1
+  if ! {
+    printf '%s\n' "$1" >"$temporary"
+    chmod 0644 "$temporary"
+    mv -f -- "$temporary" "$PROFILE_STATE_FILE"
+  }; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+}
+
+apply_profile() {
+  local profile="$1" ppd_profile current_ppd
+  ppd_profile="$(ppd_profile_for "$profile")"
+
+  # The marker is the commit record. Do not update it until both the PPD
+  # setting and Ryzenadj have succeeded.
+  powerprofilesctl set "$ppd_profile"
+  set_scheduler_mode "$profile"
+  apply_ryzen_settings "$profile"
+  current_ppd="$(read_ppd_profile)"
+  [ "$current_ppd" = "$ppd_profile" ] || {
+    printf 'error: power profile verification failed: expected %s, got %s\n' \
+      "$ppd_profile" "$current_ppd" >&2
+    return 1
+  }
+  mark_profile "$profile"
+}
+
+if [ "$#" -ne 1 ]; then
+  usage
+  exit 2
+fi
+
+mkdir -p -- "$PROFILE_STATE_DIR"
+exec 9>"$PROFILE_LOCK_FILE"
+flock -xn 9 || {
+  printf 'error: another profile transition or benchmark is active\n' >&2
+  exit 1
+}
+
+previous_profile="$(read_state_profile 2>/dev/null || true)"
+if ! valid_profile "$previous_profile"; then
+  previous_profile="$(read_ppd_profile 2>/dev/null || true)"
+fi
+
+if [ "$PROFILE" = --sync ]; then
+  PROFILE="$(read_state_profile 2>/dev/null || true)"
+  if ! valid_profile "$PROFILE"; then
+    PROFILE="$(read_ppd_profile 2>/dev/null || true)"
+  fi
+fi
+
+valid_profile "$PROFILE" || {
+  usage
+  exit 2
+}
+
+if apply_profile "$PROFILE"; then
+  exit 0
+else
+  apply_rc=$?
+fi
+printf 'error: failed to apply profile %s; attempting rollback to %s\n' \
+  "$PROFILE" "${previous_profile:-unknown}" >&2
+if valid_profile "$previous_profile"; then
+  if apply_profile "$previous_profile"; then
+    printf 'rollback_profile=%s\n' "$previous_profile" >&2
+  else
+    printf 'error: profile rollback also failed\n' >&2
+  fi
+fi
+exit "$apply_rc"

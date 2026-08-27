@@ -1,0 +1,7 @@
+profile	phase	status	elapsed_s	peak_tctl_c	mean_freq_mhz	peak_freq_mhz	peak_apuppt_w	throttle_delta	log
+power-saver	one-core	PASS	62	43.2	1810.87	3771.20	7.80	0	power-saver-one-core.log
+power-saver	all-core	PASS	481	42.6	1866.87	3765.05	10.01	0	power-saver-all-core.log
+balanced	one-core	PASS	62	62.6	2619.29	4816.26	17.09	0	balanced-one-core.log
+balanced	all-core	PASS	481	58.6	3302.22	4841.15	23.46	0	balanced-all-core.log
+performance	one-core	PASS	61	68.1	3185.37	4815.79	23.51	0	performance-one-core.log
+performance	all-core	PASS	482	96.6	4505.84	4816.16	62.63	0	performance-all-core.log

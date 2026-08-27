@@ -1,0 +1,5 @@
+cooldown=0s
+profile=sustained-build ppd_profile=performance
+one-core command=taskset --cpu-list 0 stress-ng --cpu 1 --cpu-method matrixprod --verify --timeout 60s --metrics-brief --times
+cooldown=2s
+all-core command=taskset --cpu-list 0-15 stress-ng --cpu 16 --cpu-method matrixprod --verify --timeout 480s --metrics-brief --times
