@@ -6,9 +6,19 @@ if [ "$#" -gt 0 ]; then
   shift
 fi
 
+theme_args=()
+case "$mode" in
+  drun)
+    [ -r "$HOME/.config/rofi/launcher.rasi" ] && theme_args=(-theme "$HOME/.config/rofi/launcher.rasi")
+    ;;
+  window)
+    [ -r "$HOME/.config/rofi/window.rasi" ] && theme_args=(-theme "$HOME/.config/rofi/window.rasi")
+    ;;
+esac
+
 if pgrep -x rofi >/dev/null 2>&1; then
   pkill -x rofi
   exit 0
 fi
 
-exec rofi -show "$mode" -config ~/.config/rofi/config.rasi "$@"
+exec rofi -show "$mode" -config ~/.config/rofi/config.rasi "${theme_args[@]}" "$@"

@@ -1,0 +1,81 @@
+@theme "~/.config/rofi/theme.rasi"
+
+/* The app list gets its own layout: labels need room, while Apps/Windows stay
+   visible as two separate modes instead of sharing one generic grid. */
+
+configuration {
+  sidebar-mode: true;
+  fixed-num-lines: false;
+  icon-theme: "Adwaita";
+  drun-match-fields: "name,generic,comment,categories";
+  drun-use-desktop-cache: true;
+  application-fallback-icon: "application-x-executable";
+}
+
+window {
+  width: 64%;
+  border: 1px;
+  padding: 16px;
+}
+
+mainbox {
+  spacing: 12px;
+  padding: 12px;
+}
+
+sidebar {
+  border: 0px;
+  border-radius: 8px;
+  background-color: @mantle;
+  padding: 6px;
+  spacing: 6px;
+}
+
+button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background-color: transparent;
+  text-color: @subtext;
+}
+
+button selected {
+  background-color: @accent;
+  text-color: @base;
+}
+
+listview {
+  columns: 3;
+  lines: 6;
+  fixed-height: false;
+  spacing: 8px;
+  scrollbar: false;
+  border: 0px;
+  padding: 0px;
+}
+
+element {
+  children: [ element-icon, element-text ];
+  spacing: 10px;
+  padding: 10px 12px;
+  border: 1px;
+  border-radius: 9px;
+  border-color: rgba(255, 255, 255, 0.08);
+  background-color: @mantle;
+  text-color: @text;
+}
+
+element selected {
+  border-color: @accent;
+  background-color: @accent;
+  text-color: @base;
+}
+
+element-icon {
+  size: 1.45em;
+  background-color: transparent;
+}
+
+element-text {
+  font: @mono-font;
+  vertical-align: 0.5;
+}

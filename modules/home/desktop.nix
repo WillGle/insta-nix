@@ -447,7 +447,9 @@ in
     '';
 
     "rofi/config.rasi".source = ../../assets/common/rofi/config.rasi;
+    "rofi/launcher.rasi".source = ../../assets/common/rofi/launcher.rasi;
     "rofi/theme.rasi".source = generatedLink "rofi.rasi";
+    "rofi/window.rasi".source = ../../assets/common/rofi/window.rasi;
 
     "nvim/colors/matugen.lua".source = generatedLink "nvim-matugen.lua";
     "nvim/plugin/matugen.lua".text = ''

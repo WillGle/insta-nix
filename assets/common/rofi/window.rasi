@@ -1,0 +1,76 @@
+@theme "~/.config/rofi/theme.rasi"
+
+/* Window switching is a scan task, so titles stay in one readable column. */
+
+configuration {
+  sidebar-mode: true;
+  fixed-num-lines: false;
+}
+
+window {
+  width: 52%;
+  border: 1px;
+  padding: 16px;
+}
+
+mainbox {
+  spacing: 12px;
+  padding: 12px;
+}
+
+sidebar {
+  border: 0px;
+  border-radius: 8px;
+  background-color: @mantle;
+  padding: 6px;
+  spacing: 6px;
+}
+
+button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background-color: transparent;
+  text-color: @subtext;
+}
+
+button selected {
+  background-color: @accent;
+  text-color: @base;
+}
+
+listview {
+  columns: 1;
+  lines: 8;
+  fixed-height: false;
+  spacing: 6px;
+  scrollbar: false;
+  border: 0px;
+  padding: 0px;
+}
+
+element {
+  children: [ element-icon, element-text ];
+  spacing: 10px;
+  padding: 10px 14px;
+  border: 1px;
+  border-radius: 9px;
+  border-color: rgba(255, 255, 255, 0.08);
+  background-color: @mantle;
+  text-color: @text;
+}
+
+element selected {
+  border-color: @accent;
+  background-color: @accent;
+  text-color: @base;
+}
+
+element-icon {
+  size: 1.2em;
+  background-color: transparent;
+}
+
+element-text {
+  font: @mono-font;
+  vertical-align: 0.5;
+}
