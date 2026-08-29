@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROFILE="${1:-}"
+PROFILE_STATE_DIR=/run/native-power-profile
+PROFILE_STATE_FILE="$PROFILE_STATE_DIR/active"
+PROFILE_LOCK_FILE="$PROFILE_STATE_DIR/lock"
+PROFILE_CONFIG_FILE=/etc/native-power-profiles.tsv
+PLATFORM_PROFILE_FILE=/sys/firmware/acpi/platform_profile
+CPU_POLICY_DIR=/sys/devices/system/cpu/cpufreq
+ROFI_ASKPASS="@rofiAskpass@"
+SUDO_BIN=/run/wrappers/bin/sudo
+
+usage() {
+  echo "Usage: native-power-profile [--sync|--verify|performance|sustained-build|balanced|power-saver]" >&2
+}
+
+valid_profile() {
+  case "$1" in
+    performance|sustained-build|balanced|power-saver) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+valid_argument() {
+  valid_profile "$1" || [ "$1" = --sync ] || [ "$1" = --verify ]
+}
+
+if [ "$#" -ne 1 ] || ! valid_argument "$PROFILE"; then
+  usage
+  exit 2
+fi
+
+# A profile transition changes kernel policy nodes. Keep the credential prompt
+# inside the controller so Waybar and a terminal use the same Rofi flow.
+if [ "$EUID" -ne 0 ]; then
+  export SUDO_ASKPASS="$ROFI_ASKPASS"
+  "$SUDO_BIN" -k
+  exec "$SUDO_BIN" -A -- /run/current-system/sw/bin/native-power-profile "$PROFILE"
+fi
+
+read_state_profile() {
+  local value
+  [ -r "$PROFILE_STATE_FILE" ] || return 1
+  value="$(<"$PROFILE_STATE_FILE")"
+  valid_profile "$value" || return 1
+  printf '%s\n' "$value"
+}
+
+profile_row() {
+  local wanted="$1"
+  local name ppd platform governor epp
+
+  [ -r "$PROFILE_CONFIG_FILE" ] || return 1
+  while IFS=$'\t' read -r name ppd platform governor epp; do
+    case "$name" in
+      ''|'#'*) continue ;;
+    esac
+    [ "$name" = "$wanted" ] || continue
+    printf '%s\t%s\t%s\t%s\t%s\n' "$name" "$ppd" "$platform" "$governor" "$epp"
+    return 0
+  done <"$PROFILE_CONFIG_FILE"
+  return 1
+}
+
+read_profile_fields() {
+  local profile="$1"
+  local row
+
+  row="$(profile_row "$profile")" || return 1
+  IFS=$'\t' read -r _ PROFILE_PPD PROFILE_PLATFORM PROFILE_GOVERNOR PROFILE_EPP <<< "$row"
+}
+
+read_ppd_profile() {
+  powerprofilesctl get 2>/dev/null
+}
+
+epp_matches() {
+  local expected="$1"
+  local policy value count=0
+
+  for policy in "$CPU_POLICY_DIR"/policy*; do
+    [ -r "$policy/energy_performance_preference" ] || continue
+    value="$(<"$policy/energy_performance_preference")"
+    [ "$value" = "$expected" ] || return 1
+    count=$((count + 1))
+  done
+  [ "$count" -gt 0 ]
+}
+
+set_epp() {
+  local expected="$1"
+  local policy
+
+  epp_matches "$expected" && return 0
+  for policy in "$CPU_POLICY_DIR"/policy*; do
+    [ -w "$policy/energy_performance_preference" ] || {
+      printf 'error: cannot write EPP for %s\n' "${policy##*/}" >&2
+      return 1
+    }
+    printf '%s\n' "$expected" >"$policy/energy_performance_preference" || return 1
+  done
+}
+
+verify_profile_state() {
+  local profile="$1"
+  local policy current_ppd current_platform current_governor count=0
+
+  read_profile_fields "$profile" || return 1
+  current_ppd="$(read_ppd_profile)" || {
+    printf 'error: cannot read current power profile\n' >&2
+    return 1
+  }
+  [ "$current_ppd" = "$PROFILE_PPD" ] || {
+    printf 'error: power profile mismatch: expected %s, got %s\n' \
+      "$PROFILE_PPD" "$current_ppd" >&2
+    return 1
+  }
+  current_platform="$(<"$PLATFORM_PROFILE_FILE")" || {
+    printf 'error: cannot read platform profile\n' >&2
+    return 1
+  }
+  [ "$current_platform" = "$PROFILE_PLATFORM" ] || {
+    printf 'error: platform profile mismatch: expected %s, got %s\n' \
+      "$PROFILE_PLATFORM" "$current_platform" >&2
+    return 1
+  }
+  for policy in "$CPU_POLICY_DIR"/policy*; do
+    [ -r "$policy/scaling_governor" ] || continue
+    current_governor="$(<"$policy/scaling_governor")"
+    [ "$current_governor" = "$PROFILE_GOVERNOR" ] || {
+      printf 'error: governor mismatch for %s: expected %s, got %s\n' \
+        "${policy##*/}" "$PROFILE_GOVERNOR" "$current_governor" >&2
+      return 1
+    }
+    count=$((count + 1))
+  done
+  [ "$count" -gt 0 ] || {
+    printf 'error: no CPU policies available for verification\n' >&2
+    return 1
+  }
+  epp_matches "$PROFILE_EPP" || {
+    printf 'error: EPP mismatch: expected %s\n' "$PROFILE_EPP" >&2
+    return 1
+  }
+}
+
+mark_profile() {
+  local temporary
+
+  temporary="$(mktemp "$PROFILE_STATE_FILE.XXXXXX")" || return 1
+  if ! {
+    printf '%s\n' "$1" >"$temporary"
+    chmod 0644 "$temporary"
+    mv -f -- "$temporary" "$PROFILE_STATE_FILE"
+  }; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+}
+
+apply_profile() {
+  local profile="$1"
+
+  read_profile_fields "$profile" || return 1
+  powerprofilesctl set "$PROFILE_PPD" || return 1
+  set_epp "$PROFILE_EPP" || return 1
+  verify_profile_state "$profile" || return 1
+  sleep 3
+  verify_profile_state "$profile" || return 1
+  mark_profile "$profile" || return 1
+  printf 'verified_profile=%s\n' "$profile"
+}
+
+mkdir -p -- "$PROFILE_STATE_DIR"
+exec 9>"$PROFILE_LOCK_FILE"
+
+if [ "$PROFILE" = --verify ]; then
+  flock -sn 9 || {
+    printf 'error: profile transition is active\n' >&2
+    exit 1
+  }
+  PROFILE="$(read_state_profile 2>/dev/null || true)"
+  valid_profile "$PROFILE" || {
+    printf 'error: cannot determine committed profile\n' >&2
+    exit 1
+  }
+  verify_profile_state "$PROFILE"
+  printf 'verified_profile=%s\n' "$PROFILE"
+  exit 0
+fi
+
+flock -xn 9 || {
+  printf 'error: another profile transition is active\n' >&2
+  exit 1
+}
+
+previous_profile="$(read_state_profile 2>/dev/null || true)"
+if ! valid_profile "$previous_profile"; then
+  previous_profile=power-saver
+fi
+
+if [ "$PROFILE" = --sync ]; then
+  PROFILE="$previous_profile"
+fi
+
+if apply_profile "$PROFILE"; then
+  exit 0
+fi
+
+printf 'error: failed to apply native profile %s; attempting rollback to %s\n' \
+  "$PROFILE" "$previous_profile" >&2
+if [ "$PROFILE" != "$previous_profile" ] && apply_profile "$previous_profile"; then
+  printf 'rollback_profile=%s\n' "$previous_profile" >&2
+else
+  printf 'error: native profile rollback also failed\n' >&2
+fi
+exit 1

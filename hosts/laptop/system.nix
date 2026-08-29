@@ -86,7 +86,7 @@ in
       HandleLidSwitchExternalPower = "ignore";
       HandleLidSwitchDocked = "ignore";
     };
-    # AMD Ryzen power is managed only by ryzenadj-profile and
+    # AMD power policy is managed only by native-power-profile and
     # power-profiles-daemon. cpupower-gui is intentionally disabled because
     # its persisted settings replayed a 3.8 GHz cap after profile changes.
     cpupower-gui.enable = false;
