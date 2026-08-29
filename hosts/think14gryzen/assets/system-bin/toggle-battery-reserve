@@ -5,10 +5,12 @@ CMD="${1:-toggle}"
 WAIT_SECONDS=0
 NODE_GLOB="/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode"
 NODE=""
+SUDO_BIN=/run/wrappers/bin/sudo
 
 if [ "$#" -gt 0 ]; then
   shift
 fi
+ORIGINAL_ARGS=("$@")
 
 usage() {
   echo "Usage: toggle-battery-reserve [status|on|off|toggle] [--wait SECONDS]" >&2
@@ -42,6 +44,22 @@ done
 if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
   log "invalid --wait value: $WAIT_SECONDS"
   exit 2
+fi
+
+case "$CMD" in
+  status|on|off|toggle) ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
+
+# Status is readable without elevation. A state change always uses the same
+# Rofi askpass flow as the native CPU profile controller.
+if [ "$CMD" != status ] && [ "$EUID" -ne 0 ]; then
+  export SUDO_ASKPASS="@rofiAskpass@"
+  "$SUDO_BIN" -k
+  exec "$SUDO_BIN" -A -- /run/current-system/sw/bin/toggle-battery-reserve "$CMD" "${ORIGINAL_ARGS[@]}"
 fi
 
 find_node_once() {
