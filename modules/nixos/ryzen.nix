@@ -99,7 +99,6 @@ let
 
   toggleBatteryReserve = mkSystemScript {
     name = "toggle-battery-reserve";
-    vars.rofiAskpass = "${rofiAskpass}/bin/rofi-sudo-askpass";
     runtimeInputs = with pkgs; [ coreutils ];
   };
 
@@ -121,6 +120,10 @@ in
       commands = [
         {
           command = "/run/current-system/sw/bin/native-power-profile";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/run/current-system/sw/bin/toggle-battery-reserve";
           options = [ "NOPASSWD" ];
         }
       ];

@@ -54,12 +54,10 @@ case "$CMD" in
     ;;
 esac
 
-# Status is readable without elevation. A state change always uses the same
-# Rofi askpass flow as the native CPU profile controller.
+# Status is readable without elevation. State changes are deliberately
+# noninteractive; a missing NOPASSWD rule must fail instead of opening askpass.
 if [ "$CMD" != status ] && [ "$EUID" -ne 0 ]; then
-  export SUDO_ASKPASS="@rofiAskpass@"
-  "$SUDO_BIN" -k
-  exec "$SUDO_BIN" -A -- /run/current-system/sw/bin/toggle-battery-reserve "$CMD" "${ORIGINAL_ARGS[@]}"
+  exec "$SUDO_BIN" -n -- /run/current-system/sw/bin/toggle-battery-reserve "$CMD" "${ORIGINAL_ARGS[@]}"
 fi
 
 find_node_once() {
