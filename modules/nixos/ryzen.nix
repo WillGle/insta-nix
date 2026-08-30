@@ -86,6 +86,17 @@ let
     ];
   };
 
+  # Root-only and intentionally isolated from daily profile switching. The
+  # helper talks to ryzen_smu directly and has no service, udev rule, or sudo
+  # grant; the benchmark supplies one interactive sudo timestamp when needed.
+  coCurveControl = mkSystemScript {
+    name = "co-curve-control";
+    runtimeInputs = with pkgs; [
+      coreutils
+      util-linux
+    ];
+  };
+
   toggleBatteryReserve = mkSystemScript {
     name = "toggle-battery-reserve";
     vars.rofiAskpass = "${rofiAskpass}/bin/rofi-sudo-askpass";
@@ -96,6 +107,7 @@ let
     ryzenadjPackage
     rofiAskpass
     nativePowerProfile
+    coCurveControl
     toggleBatteryReserve
   ];
 in

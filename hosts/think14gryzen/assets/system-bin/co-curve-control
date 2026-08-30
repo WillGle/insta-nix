@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DRIVER_DIR=/sys/kernel/ryzen_smu_drv
+RSMU_CMD_FILE="$DRIVER_DIR/rsmu_cmd"
+SMU_ARGS_FILE="$DRIVER_DIR/smu_args"
+CODENAME_FILE="$DRIVER_DIR/codename"
+LOCK_DIR=/run/co-curve-control
+LOCK_FILE="$LOCK_DIR/lock"
+SMU_OK=1
+GET_PER_CORE_CO=0xD5
+SET_ALL_CORE_CO=0x07
+CORE_COUNT=8
+
+COMMAND="${1:-}"
+
+usage() {
+  echo "Usage: co-curve-control [probe|apply-minus-one|reset]" >&2
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+[ "$#" -eq 1 ] || {
+  usage
+  exit 2
+}
+
+case "$COMMAND" in
+  probe|apply-minus-one|reset) ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
+
+[ "$EUID" -eq 0 ] || die 'co-curve-control must run as root'
+
+read_cpu_model() {
+  local line value
+
+  while IFS= read -r line; do
+    case "$line" in
+      model\ name[[:space:]]*:*)
+        value="${line#*:}"
+        value="${value#"${value%%[![:space:]]*}"}"
+        printf '%s\n' "$value"
+        return 0
+        ;;
+    esac
+  done < /proc/cpuinfo
+  return 1
+}
+
+validate_hardware() {
+  local product codename model cpu_dir core_id package_id thread_count=0
+  declare -A core_ids=()
+
+  [ -d "$DRIVER_DIR" ] || die 'ryzen_smu driver is not loaded'
+  [ -r "$RSMU_CMD_FILE" ] && [ -w "$RSMU_CMD_FILE" ] || die 'rsmu_cmd is not writable'
+  [ -r "$SMU_ARGS_FILE" ] && [ -w "$SMU_ARGS_FILE" ] || die 'smu_args is not writable'
+
+  product="$(< /sys/class/dmi/id/product_name)"
+  [ "$product" = 21LF ] || die "unsupported product: $product"
+
+  model="$(read_cpu_model)" || die 'cannot read CPU model'
+  [ "$model" = 'AMD Ryzen 7 8845H w/ Radeon 780M Graphics' ] || \
+    die "unsupported CPU model: $model"
+
+  codename="$(< "$CODENAME_FILE")"
+  codename="${codename#"${codename%%[![:space:]]*}"}"
+  codename="${codename%"${codename##*[![:space:]]}"}"
+  [ "$codename" = 24 ] || die "unsupported SMU codename: $codename"
+
+  for cpu_dir in /sys/devices/system/cpu/cpu[0-9]*; do
+    [ -d "$cpu_dir" ] || continue
+    [ -r "$cpu_dir/topology/core_id" ] || die "missing topology for ${cpu_dir##*/}"
+    [ -r "$cpu_dir/topology/physical_package_id" ] || \
+      die "missing package topology for ${cpu_dir##*/}"
+    core_id="$(< "$cpu_dir/topology/core_id")"
+    package_id="$(< "$cpu_dir/topology/physical_package_id")"
+    core_ids["$package_id:$core_id"]=1
+    thread_count=$((thread_count + 1))
+  done
+
+  [ "$thread_count" -eq 16 ] || die "expected 16 CPU threads, got $thread_count"
+  [ "${#core_ids[@]}" -eq 8 ] || die "expected 8 CPU cores, got ${#core_ids[@]}"
+
+  printf 'hardware=product_%s cpu_8845H codename_%s cores_%s threads_%s\n' \
+    "$product" "$codename" "${#core_ids[@]}" "$thread_count"
+}
+
+write_u32_le() {
+  local path="$1" value="$2" bytes
+
+  printf -v bytes \
+    '\\x%02x\\x%02x\\x%02x\\x%02x' \
+    "$((value & 0xff))" \
+    "$(((value >> 8) & 0xff))" \
+    "$(((value >> 16) & 0xff))" \
+    "$(((value >> 24) & 0xff))"
+  printf '%b' "$bytes" >"$path"
+}
+
+write_smu_args() {
+  local arg0="$1" bytes
+
+  printf -v bytes \
+    '\\x%02x\\x%02x\\x%02x\\x%02x\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00' \
+    "$((arg0 & 0xff))" \
+    "$(((arg0 >> 8) & 0xff))" \
+    "$(((arg0 >> 16) & 0xff))" \
+    "$(((arg0 >> 24) & 0xff))"
+  printf '%b' "$bytes" >"$SMU_ARGS_FILE"
+}
+
+read_u32_le() {
+  local raw value
+
+  raw="$(od -An -tu4 -N4 "$1" 2>/dev/null)" || return 1
+  read -r value _ <<< "$raw"
+  [[ "$value" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\n' "$value"
+}
+
+send_rsmu_command() {
+  local command="$1" arg0="$2" status
+
+  write_smu_args "$arg0"
+  write_u32_le "$RSMU_CMD_FILE" "$command"
+  status="$(read_u32_le "$RSMU_CMD_FILE")" || die "cannot read RSMU response for 0x$(printf '%X' "$command")"
+  [ "$status" -eq "$SMU_OK" ] || die "RSMU command 0x$(printf '%X' "$command") rejected with status 0x$(printf '%X' "$status")"
+}
+
+read_core_co() {
+  local core="$1" raw margin
+
+  send_rsmu_command "$GET_PER_CORE_CO" "$((core << 20))"
+  raw="$(read_u32_le "$SMU_ARGS_FILE")" || die "cannot read CO response for core $core"
+  raw=$((raw & 0xffff))
+  if [ "$raw" -ge 32768 ]; then
+    margin=$((raw - 65536))
+  else
+    margin="$raw"
+  fi
+  printf '%s\n' "$margin"
+}
+
+read_all_cores() {
+  local core value failed=0
+
+  for ((core = 0; core < CORE_COUNT; core++)); do
+    if value="$(read_core_co "$core")"; then
+      printf 'core=%s co=%s\n' "$core" "$value"
+    else
+      printf 'core=%s co=ERROR\n' "$core"
+      failed=1
+    fi
+  done
+  [ "$failed" -eq 0 ]
+}
+
+reset_all_cores() {
+  local attempt
+
+  for attempt in 1 2 3; do
+    printf 'reset_attempt=%s\n' "$attempt"
+    if send_rsmu_command "$SET_ALL_CORE_CO" 0 && read_all_cores | verify_zero_readback; then
+      printf 'reset_readback=all_zero\n'
+      return 0
+    fi
+    [ "$attempt" -lt 3 ] && sleep 1
+  done
+  printf 'reset_readback=FAIL\n' >&2
+  return 1
+}
+
+verify_zero_readback() {
+  local line value count=0 failed=0
+
+  while IFS= read -r line; do
+    value="${line##* co=}"
+    case "$value" in
+      0) count=$((count + 1)) ;;
+      *) failed=1 ;;
+    esac
+  done
+  [ "$count" -eq "$CORE_COUNT" ] && [ "$failed" -eq 0 ]
+}
+
+verify_minus_one_readback() {
+  local line value count=0 failed=0
+
+  while IFS= read -r line; do
+    printf '%s\n' "$line"
+    value="${line##* co=}"
+    case "$value" in
+      -1) count=$((count + 1)) ;;
+      *) failed=1 ;;
+    esac
+  done
+  [ "$count" -eq "$CORE_COUNT" ] && [ "$failed" -eq 0 ]
+}
+
+mkdir -p -- "$LOCK_DIR"
+exec 9>"$LOCK_FILE"
+flock -xn 9 || die 'another CO operation is active'
+validate_hardware
+
+case "$COMMAND" in
+  probe)
+    read_all_cores
+    ;;
+  apply-minus-one)
+    send_rsmu_command "$SET_ALL_CORE_CO" 0xffff
+    read_all_cores | verify_minus_one_readback
+    ;;
+  reset)
+    reset_all_cores
+    ;;
+esac
