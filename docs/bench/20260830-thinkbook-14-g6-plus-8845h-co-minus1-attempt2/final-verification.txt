@@ -1,0 +1,28 @@
+result=FAIL
+failure_stage=apply-minus-one_readback
+apply_readback=core_0_co_0_expected_minus_1
+workload_started=no
+reset_status=PASS
+reset_probe=8_of_8_cores_zero
+final_probe_after_helper_fix=8_of_8_cores_zero
+kernel_fault_filter_matches=none
+sensor_warning_markers=none
+verified_at_utc=2026-08-30T17:59:29Z
+generation=/nix/store/sr715jhvyvpzqir4mrlpn6fvswyz7qf8-nixos-system-think14gryzen-25.11.20260630.b6018f8
+active_profile=sustained-build
+native_profile_verify=PASS
+ppd=balanced
+platform=balanced
+ac_online=yes
+tctl_millic=45875
+
+Final read-only probe:
+hardware=product_21LF cpu_8845H codename_24 cores_8 threads_16
+core=0 co=0
+core=1 co=0
+core=2 co=0
+core=3 co=0
+core=4 co=0
+core=5 co=0
+core=6 co=0
+core=7 co=0

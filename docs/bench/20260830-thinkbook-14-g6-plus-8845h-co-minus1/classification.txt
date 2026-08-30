@@ -1,0 +1,7 @@
+result=FAIL
+failure_stage=hardware_guard_cpu_model_parser
+smu_probe_attempted=no
+co_write_attempted=no
+workload_started=no
+classification=code_preflight_failure
+note=cold_reboot_required metadata was superseded after co-probe-before.log showed the helper stopped before SMU access

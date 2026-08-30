@@ -1,0 +1,11 @@
+sudo -A -v
+/run/current-system/sw/bin/native-power-profile --verify
+/run/current-system/sw/bin/native-power-profile performance
+/run/current-system/sw/bin/native-power-profile --verify
+/run/current-system/sw/bin/native-power-profile --verify
+sudo -n /run/current-system/sw/bin/co-curve-control probe
+sudo -n /run/current-system/sw/bin/co-curve-control apply-minus-one
+sudo -n /run/current-system/sw/bin/co-curve-control reset
+sudo -n /run/current-system/sw/bin/co-curve-control probe
+/run/current-system/sw/bin/native-power-profile sustained-build
+/run/current-system/sw/bin/native-power-profile --verify

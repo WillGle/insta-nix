@@ -1,0 +1,1 @@
+timestamp_utc,phase,elapsed_s,tctl_c,amdgpu_power_w,freq_avg_mhz,freq_max_mhz,freq_min_mhz,policy_max_mhz,hardware_max_mhz,cpu_busy_pct,load1,thermal_throttle_count,kernel_fault

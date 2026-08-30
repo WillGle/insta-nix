@@ -1,0 +1,3 @@
+hardware=product_21LF cpu_8845H codename_24 cores_8 threads_16
+reset_attempt=1
+reset_readback=all_zero
