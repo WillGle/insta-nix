@@ -162,6 +162,10 @@ near-Tjmax characterization is needed, set an explicit policy such as
 `BENCH_CPU_LIMIT_MILLIC=98000` for that one run, stay present, and stop if
 temperature, clock, or system behavior becomes abnormal.
 
+The managed-profile sweep also verifies RyzenAdj limits after each workload.
+`LIMIT_DRIFT` means the marker remained selected but firmware readback no
+longer matched that profile, so the run is not a pass.
+
 For a valid A/B comparison, keep these fixed: AC power, active power profile,
 kernel/Mesa/benchmark versions, model and quantization, thread count, GPU
 device, prompt/generation token counts, and repetitions. Compare the median of

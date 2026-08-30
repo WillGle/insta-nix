@@ -418,9 +418,10 @@ apply_profile() {
 run_phase() {
   local profile="$1" phase="$2" duration="$3" cpus="$4" cpu_workers="$5"
   local log="$output/${profile}-${phase}.log"
+  local readback_log="$output/${profile}-${phase}.readback.log"
   local phase_start_epoch="$(date +%s)" phase_start_seconds="$SECONDS"
   local peak_temp=-1 freq_sum=0 freq_samples=0 peak_freq=0 peak_power=0
-  local throttle_before throttle_after throttle_delta=NA thermal_abort=0 profile_drift=0 rc status elapsed
+  local throttle_before throttle_after throttle_delta=NA thermal_abort=0 profile_drift=0 limit_drift=0 rc status elapsed
   local metrics tctl_raw tctl_c apuppt freq_avg freq_max freq_min policy_max hardware_max busy load1 throttle bottleneck _
   local active_profile
   local previous_total=0 previous_idle=0 next_total next_idle
@@ -478,10 +479,18 @@ run_phase() {
   active_pid=""
   elapsed=$((SECONDS - phase_start_seconds))
   throttle_after="$(read_throttle_count)"
+  printf '%s command=sudo -n /run/current-system/sw/bin/ryzenadj-profile --verify\n' \
+    "$phase" >>"$commands"
+  if ! sudo -n /run/current-system/sw/bin/ryzenadj-profile --verify \
+    >"$readback_log" 2>&1; then
+    limit_drift=1
+  fi
   if [ "$profile_drift" -eq 1 ]; then
     status='PROFILE_DRIFT'
   elif [ "$thermal_abort" -eq 1 ]; then
     status='THERMAL_ABORT'
+  elif [ "$limit_drift" -eq 1 ]; then
+    status='LIMIT_DRIFT'
   elif [ "$rc" -eq 0 ]; then
     if [ "$peak_temp" -ge "$thermal_warning_millic" ]; then
       status='PASS_THERMAL_LIMITED'

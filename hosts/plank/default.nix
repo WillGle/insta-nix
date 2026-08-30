@@ -1,15 +1,9 @@
 { lib, pkgs, ... }:
-let
-  repoRoot = builtins.toString ../..;
-  localPlankModule = "${repoRoot}/.local/remote-install/modules/plank-host-local.nix";
-  hasLocalPlankModule = builtins.pathExists localPlankModule;
-in
 {
   imports = [
     ../../modules/nixos/base.nix
     ../../users/will.nix
-  ]
-  ++ lib.optional hasLocalPlankModule localPlankModule;
+  ];
 
   users.users.will = {
     shell = pkgs.bashInteractive;
@@ -29,14 +23,27 @@ in
   };
 
   services = {
-    # Keep generic installer profile lean.
+    # The shared base includes desktop conveniences; keep this remote bootstrap
+    # target limited to its network and SSH requirements.
     flatpak.enable = lib.mkForce false;
     tailscale.enable = lib.mkForce false;
     ollama.enable = lib.mkForce false;
     blueman.enable = lib.mkForce false;
+    upower.enable = lib.mkForce false;
+    acpid.enable = lib.mkForce false;
+    udisks2.enable = lib.mkForce false;
+    gvfs.enable = lib.mkForce false;
   };
 
-  hardware.bluetooth.enable = lib.mkForce false;
+  hardware = {
+    # Keep standard redistributable firmware, without every firmware blob.
+    enableAllFirmware = lib.mkForce false;
+    enableRedistributableFirmware = lib.mkForce true;
+    logitech.wireless.enable = lib.mkForce false;
+    bluetooth.enable = lib.mkForce false;
+  };
+
+  programs.nix-ld.enable = lib.mkForce false;
 
   boot = {
     loader = {
@@ -80,5 +87,6 @@ in
     "generic-installer"
   ];
 
+  system.stateVersion = "25.11";
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 }

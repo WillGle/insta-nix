@@ -14,6 +14,8 @@ if [ -r "$THEME_STATIC_ENV" ]; then
   . "$THEME_STATIC_ENV"
 fi
 
+THEME_PALETTE_FILE="${THEME_GENERATED_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/theme/generated}/palette.json"
+
 BASE_COLOR="${THEME_STATIC_BASE:-#11140f}"
 TEXT_COLOR="${THEME_STATIC_TEXT:-#e1e4da}"
 SUBTEXT_COLOR="${THEME_STATIC_SUBTEXT:-#c3c8bc}"
@@ -23,6 +25,50 @@ WARNING_COLOR="@signalWarning@"
 ERROR_COLOR="@signalCritical@"
 PURPLE_COLOR="${THEME_STATIC_PURPLE:-#a0cfd1}"
 CYAN_COLOR="${THEME_STATIC_CYAN:-#8fc0ff}"
+
+# The generated Rofi theme follows the current wallpaper, while static.env is
+# the build-time fallback used before the runtime theme has produced a palette.
+# Load decorative colours once so inline Pango markup uses the same palette as
+# the Rasi containers. Signal colours stay pinned above: their meaning must not
+# change with the wallpaper.
+load_runtime_palette() {
+  local values=""
+  local -a palette=()
+
+  [ -r "$THEME_PALETTE_FILE" ] || return 0
+  values="$(
+    jq -er '
+      [
+        .colors.surface.default,
+        .colors.surface_container.default,
+        .colors.on_surface.default,
+        .colors.on_surface_variant.default,
+        .colors.primary.default,
+        .colors.secondary.default,
+        .colors.tertiary.default,
+        .colors.error.default,
+        .palettes.tertiary["70"],
+        .palettes.secondary["70"]
+      ] as $palette
+      | if all($palette[]; type == "string" and test("^#[0-9A-Fa-f]{6}$"))
+        then $palette | @tsv
+        else error("invalid runtime palette")
+        end
+    ' "$THEME_PALETTE_FILE" 2>/dev/null
+  )" || return 0
+
+  IFS=$'\t' read -r -a palette <<< "$values"
+  [ "${#palette[@]}" -eq 10 ] || return 0
+
+  BASE_COLOR="${palette[0]}"
+  TEXT_COLOR="${palette[2]}"
+  SUBTEXT_COLOR="${palette[3]}"
+  ACCENT_COLOR="${palette[4]}"
+  PURPLE_COLOR="${palette[8]}"
+  CYAN_COLOR="${palette[9]}"
+}
+
+load_runtime_palette
 
 trim() {
   local value="${1:-}"

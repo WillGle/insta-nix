@@ -5,7 +5,7 @@
   window-border:    @accent;
   card-bg:          @mantle;
   card-alt:         @base;
-  card-border:      rgba(255, 255, 255, 0.12);
+  card-border:      @outline;
   card-muted:       @subtext;
   list-alt:         @base;
   
@@ -63,19 +63,19 @@ meta-group {
 textbox-title {
   markup:    true;
   text-color: @text;
-  font:      "JetBrainsMono Nerd Font Bold 20";
+  font:      @mono-font-title;
 }
 
 textbox-subtitle {
   markup:    true;
   text-color: @subtext;
-  font:      "JetBrainsMono Nerd Font 12";
+  font:      @mono-font-subtitle;
 }
 
 textbox-meta {
   markup:          true;
   text-color:      @subtext;
-  font:            "JetBrainsMono Nerd Font 10";
+  font:            @mono-font;
   horizontal-align: 1.0;
   line-height: 1.6;
 }
@@ -128,7 +128,7 @@ textbox-insight-title {
   markup:     true;
   expand:     false;
   text-color: @subtext;
-  font:       "JetBrainsMono Nerd Font 11";
+  font:       @mono-font-label;
 }
 
 textbox-card-1-value,
@@ -137,7 +137,7 @@ textbox-card-3-value {
   markup:     true;
   expand:     true;
   text-color: @text;
-  font:       "JetBrainsMono Nerd Font Bold 18";
+  font:       @mono-font-value;
 }
 
 /* Highlighted card value */
@@ -145,7 +145,7 @@ textbox-card-4-value {
   markup:     true;
   expand:     true;
   text-color: @accent;
-  font:       "JetBrainsMono Nerd Font Bold 18";
+  font:       @mono-font-value;
 }
 
 textbox-card-1-sub,
@@ -155,7 +155,7 @@ textbox-card-4-sub {
   markup:     true;
   expand:     false;
   text-color: @subtext;
-  font:       "JetBrainsMono Nerd Font 10";
+  font:       @mono-font;
 }
 
 /* ── Analytics split ─────────────────────────────────────── */
@@ -183,7 +183,7 @@ textbox-primary-body {
   markup:      true;
   expand:      true;
   text-color:  @text;
-  font:        "JetBrainsMono Nerd Font 11";
+  font:        @mono-font-label;
   line-height: 1.6;
 }
 
@@ -215,7 +215,7 @@ textbox-chart-c-body {
   markup:      true;
   expand:      false;
   text-color:  @text;
-  font:        "JetBrainsMono Nerd Font 10";
+  font:        @mono-font;
   line-height: 1.6;
 }
 
@@ -223,7 +223,7 @@ textbox-insight-body {
   markup:      true;
   expand:      true;
   text-color:  @text;
-  font:        "JetBrainsMono Nerd Font 10";
+  font:        @mono-font;
   line-height: 1.6;
 }
 
@@ -242,7 +242,7 @@ note-box {
 textbox-note {
   markup:     true;
   text-color: @subtext;
-  font:       "JetBrainsMono Nerd Font 10";
+  font:       @mono-font;
   line-height: 1.6;
 }
 
@@ -266,7 +266,7 @@ element {
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: @overlay;
   text-color:       @text;
 }
 
@@ -284,6 +284,6 @@ element-icon {
 element-text {
   markup:         true;
   text-color:     inherit;
-  font:           "JetBrainsMono Nerd Font 10";
+  font:           @mono-font;
   vertical-align: 0.0;
 }

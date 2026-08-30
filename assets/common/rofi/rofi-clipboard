@@ -6,15 +6,23 @@ if pgrep -x rofi >/dev/null 2>&1; then
   exit 0
 fi
 
+entries="$(cliphist list)"
 selection="$(
-  cliphist list | rofi -dmenu -i \
+  printf '%s\n' "$entries" | rofi -dmenu -i \
+    -no-custom \
     -p "Clipboard:" \
     -config ~/.config/rofi/config.rasi \
     -theme-str 'window { width: 50%; }' \
     -theme-str 'listview { lines: 12; columns: 1; }' \
     -theme-str 'element { children: [ element-text ]; }' \
     -theme-str 'element-icon { enabled: false; }'
-)"
+)" && rc=0 || rc=$?
+
+case "$rc" in
+  0) ;;
+  1) exit 0 ;;
+  *) exit "$rc" ;;
+esac
 
 if [ -n "$selection" ]; then
   printf '%s\n' "$selection" | cliphist decode | wl-copy

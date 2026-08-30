@@ -19,6 +19,11 @@
   signal-eco: __SIGNAL_ECO__;
   signal-muted: __SIGNAL_MUTED__;
 
+  /* Stable dark-theme surfaces; decorative colours remain wallpaper-derived. */
+  outline: rgba(255, 255, 255, 0.10);
+  outline-soft: rgba(255, 255, 255, 0.08);
+  overlay: rgba(255, 255, 255, 0.05);
+
   background-color: transparent;
   text-color: @text;
   /* Pango points, from theme.fonts.rofi.size — not theme.fonts.ui.size, which
@@ -26,6 +31,11 @@
      about a third too large. */
   font: "__UI_FONT__ __ROFI_FONT_SIZE__";
   mono-font: "__MONO_FONT__ __ROFI_FONT_SIZE__";
+  mono-font-label: "__MONO_FONT__ __ROFI_FONT_LABEL_SIZE__";
+  mono-font-subtitle: "__MONO_FONT__ __ROFI_FONT_SUBTITLE_SIZE__";
+  mono-font-calendar: "__MONO_FONT__ __ROFI_FONT_CALENDAR_SIZE__";
+  mono-font-value: "__MONO_FONT__ Bold __ROFI_FONT_VALUE_SIZE__";
+  mono-font-title: "__MONO_FONT__ Bold __ROFI_FONT_TITLE_SIZE__";
 }
 
 window {

@@ -15,10 +15,6 @@
       TERMINAL = "foot";
     };
 
-    packages = with pkgs; [
-      # Apps moved to system modules for stability.
-    ];
-
     file = {
       ".config/fastfetch/config.jsonc".source = ../../assets/common/fastfetch/config.jsonc;
     };

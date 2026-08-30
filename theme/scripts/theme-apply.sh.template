@@ -294,6 +294,11 @@ render_template() {
     -e "s/__UI_FONT__/$(escape_sed "$THEME_UI_FONT")/g" \
     -e "s/__UI_FONT_SIZE__/$(escape_sed "$THEME_UI_FONT_SIZE")/g" \
     -e "s/__ROFI_FONT_SIZE__/$(escape_sed "$THEME_ROFI_FONT_SIZE")/g" \
+    -e "s/__ROFI_FONT_LABEL_SIZE__/$(escape_sed "$THEME_ROFI_FONT_LABEL_SIZE")/g" \
+    -e "s/__ROFI_FONT_SUBTITLE_SIZE__/$(escape_sed "$THEME_ROFI_FONT_SUBTITLE_SIZE")/g" \
+    -e "s/__ROFI_FONT_CALENDAR_SIZE__/$(escape_sed "$THEME_ROFI_FONT_CALENDAR_SIZE")/g" \
+    -e "s/__ROFI_FONT_VALUE_SIZE__/$(escape_sed "$THEME_ROFI_FONT_VALUE_SIZE")/g" \
+    -e "s/__ROFI_FONT_TITLE_SIZE__/$(escape_sed "$THEME_ROFI_FONT_TITLE_SIZE")/g" \
     -e "s/__MONO_FONT__/$(escape_sed "$THEME_MONO_FONT")/g" \
     -e "s/__LOCK_FONT__/$(escape_sed "$THEME_LOCK_FONT")/g" \
     -e "s/__LOCK_FONT_BOLD__/$(escape_sed "$THEME_LOCK_FONT_BOLD")/g" \

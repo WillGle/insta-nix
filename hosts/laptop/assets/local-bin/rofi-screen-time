@@ -17,6 +17,21 @@ CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
 VIEW="summary"
 TARGET_DATE="$(date +%F)"
 
+palette_stamp() {
+  local digest=""
+  if [ ! -r "$THEME_PALETTE_FILE" ]; then
+    printf 'static\n'
+    return 0
+  fi
+
+  digest="$(sha256sum "$THEME_PALETTE_FILE" 2>/dev/null || true)"
+  [ -n "$digest" ] || {
+    printf 'static\n'
+    return 0
+  }
+  printf '%s\n' "${digest%% *}"
+}
+
 usage() {
   cat <<'EOF'
 Usage: rofi-screen-time [--date YYYY-MM-DD] [--view summary|activity|health|timer]
@@ -37,6 +52,8 @@ default_date_cache_file() {
 
 can_use_default_cache() {
   local today
+  local cached_date=""
+  local cached_palette=""
   today="$(date +%F)"
   # Every view caches now, keyed by name; the popup used to recompute all
   # three non-summary views from scratch on each switch.
@@ -44,7 +61,14 @@ can_use_default_cache() {
   [ -r "$(default_theme_cache_file)" ] || return 1
   [ -r "$(default_rows_cache_file)" ] || return 1
   [ -r "$(default_date_cache_file)" ] || return 1
-  [ "$(cat "$(default_date_cache_file)" 2>/dev/null)" = "$today" ]
+  if ! {
+    read -r cached_date
+    read -r cached_palette
+  } < "$(default_date_cache_file)"; then
+    return 1
+  fi
+  [ "$cached_date" = "$today" ] || return 1
+  [ "$cached_palette" = "$(palette_stamp)" ]
 }
 
 # Seconds a warmed view may be before opening it triggers a background
@@ -80,7 +104,7 @@ write_default_cache() {
 
   printf '%s' "$theme_str" >"$theme_tmp"
   cat "$rows_file" >"$rows_tmp"
-  printf '%s\n' "$today" >"$date_tmp"
+  printf '%s\n%s\n' "$today" "$(palette_stamp)" >"$date_tmp"
 
   mv "$theme_tmp" "$(default_theme_cache_file)"
   mv "$rows_tmp" "$(default_rows_cache_file)"

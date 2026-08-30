@@ -11,7 +11,7 @@ CPU), and **declarative** (the tools ship in the host config).
 | Role | Tool | Notes |
 | --- | --- | --- |
 | **Discover** models that fit this hardware | `llmfit` | curated-catalog TUI/CLI, wrapped with `--memory 22G` |
-| **Fetch** a GGUF from HuggingFace | `llm-pull` | prefers Unsloth UD quants; mirrors into llmfit's cache and prints detail |
+| **Fetch** a GGUF from HuggingFace | `llm-pull` | prefers Unsloth UD quants; mirrors into llmfit's cache |
 | **Inventory** what is installed | `llm-list` | ground truth: every GGUF + what's being served |
 | **Fit-check** a local file at a context | `llm-fit` | exact answer from the real engine |
 | **Serve** (auto-sized, OpenAI API) | `llm-run` | lightest KV that keeps full offload, `-fa on` |
@@ -51,7 +51,9 @@ llm-pull bartowski/<Model>-GGUF Q4_K_M               # repo without UD: name the
 Find repos at huggingface.co (search "`<model> GGUF`"); `unsloth/*` (UD quants)
 then `bartowski/*` are the go-tos. Downloads resume if interrupted (rerun the
 same command). Each pull also drops a flat symlink into
-`~/.cache/llmfit/models/` so llmfit sees it.
+`~/.cache/llmfit/models/` so llmfit sees it. If another repo already owns the
+same filename there, `llm-pull` keeps the existing link and prints a warning;
+the downloaded GGUF remains available from the main model directory.
 
 **①b Inventory anytime:**
 
@@ -62,8 +64,37 @@ llm-list --detail /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruc
 ```
 
 The detail view reads GGUF metadata without loading model weights. Its
-throughput/score fields are explicitly catalog estimates; measured throughput
-belongs to the benchmark logs.
+hardware-fit section comes from `llama-fit-params`. Catalog estimates appear
+only when the GGUF's repository has an exact match in the llmfit catalog;
+measured throughput belongs to the benchmark logs.
+
+A unique filename is enough; the full model path is not required:
+
+```console
+$ llm-list --detail gemma-3-4b-it-Q4_K_M.gguf
+Model: Gemma 3 4b It
+Path: /mnt/vault/lmstudio-models/lmstudio-community/gemma-3-4b-it-GGUF/gemma-3-4b-it-Q4_K_M.gguf
+Size: 2.3 GiB | parameters: 4B | quant: Q4_K_M
+Architecture: gemma3 | tensors: 444 | GGUF quant version: 2
+Quantized by: unknown | license: gemma
+Source: https://huggingface.co/google/gemma-3-4b-pt
+Context: 131072 | layers: 34 | embedding: 2560
+Attention heads: 8 | KV heads: 4
+MoE: dense model
+Chat template: present
+Tensor types: F32=205, Q4_K=204, Q6_K=35
+
+Hardware fit (llama-fit-params; f16 KV, Flash Attention):
+  4096 ctx: full GPU offload (all layers)
+  8192 ctx: full GPU offload (all layers)
+  16384 ctx: full GPU offload (all layers)
+  32768 ctx: full GPU offload (all layers)
+  65536 ctx: full GPU offload (all layers)
+  131072 ctx: full GPU offload (all layers)
+```
+
+If more than one installed model has the same filename, `llm-list` reports the
+matching paths and requires an unambiguous relative or absolute path.
 
 **② (Optional) Check fit before committing to a big model/context:**
 
@@ -126,8 +157,8 @@ In pi's TUI, `/model` switches between the local model and cloud defaults
 
 ## Max speed checklist
 
-1. Performance power profile (Waybar toggle or `sudo ryzenadj-profile performance`).
-   The coordinator updates PPD and Ryzenadj together; power-saver caps the APU at 10 W.
+1. Performance power profile (Waybar toggle or `native-power-profile performance`).
+   The coordinator verifies the Lenovo platform profile and amd-pstate EPP; a manual switch opens Rofi for the required password.
 2. Plugged into AC.
 3. That's it — `-fa on`, full offload, and KV auto-sizing are already `llm-run` defaults.
 

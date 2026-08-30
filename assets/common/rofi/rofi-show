@@ -14,6 +14,9 @@ case "$mode" in
   window)
     [ -r "$HOME/.config/rofi/window.rasi" ] && theme_args=(-theme "$HOME/.config/rofi/window.rasi")
     ;;
+  calc|emoji)
+    [ -r "$HOME/.config/rofi/$mode.rasi" ] && theme_args=(-theme "$HOME/.config/rofi/$mode.rasi")
+    ;;
 esac
 
 if pgrep -x rofi >/dev/null 2>&1; then
