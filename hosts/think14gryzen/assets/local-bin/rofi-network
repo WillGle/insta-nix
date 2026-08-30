@@ -13,8 +13,8 @@ ROFI_COMMON=(
   -dmenu
   -i
   -config "$HOME/.config/rofi/config.rasi"
-  -theme-str 'window { width: 30%; }'
-  -theme-str 'listview { lines: 14; columns: 1; }'
+  -theme-str 'window { width: 42%; }'
+  -theme-str 'listview { lines: 12; columns: 1; }'
 )
 
 NMCLI_CONNECT_TIMEOUT="${NMCLI_CONNECT_TIMEOUT:-20}"
@@ -149,14 +149,14 @@ wifi_network_entries() {
         [ -n "$s" ] || continue
         [ "$active" = "yes" ] && prefix='󰄬' || prefix=' '
         b="${b//$'\x01'/:}"
-        printf '%s  %s  %s  %s%%  %s  %s  %s\n' \
+        printf 'ap:%s\0display\x1f%s  %s  %s  %s%%  %s  %s\n' \
+          "$b" \
           "$prefix" \
           "$(signal_icon "$sig")" \
           "$s" \
           "${sig:-0}" \
           "$(band_label "$freq")" \
-          "$(security_label "$sec")" \
-          "$b"
+          "$(security_label "$sec")"
       done
 }
 
@@ -245,7 +245,7 @@ connect_wired_network() {
       iface="${iface//$'\x01'/:}"
       printf '󰈀  %s  %s\n' "$iface" "$state"
     done <<< "$devices" \
-      | rofi "${ROFI_COMMON[@]}" -p "Connect wired" -mesg "Choose the Ethernet device to bring up." || true
+      | rofi "${ROFI_COMMON[@]}" -no-custom -p "Connect wired" -mesg "Choose the Ethernet device to bring up." || true
   )"
 
   [ -n "$selection" ] || {
@@ -278,7 +278,7 @@ disconnect_wired_network() {
 
 connect_new_network() {
   local iface="$1"
-  local selection bssid ssid password output saved_uuid entries
+  local selection bssid ssid password output saved_uuid
 
   if [ -z "$iface" ]; then
     status_message="No Wi-Fi adapter detected."
@@ -290,14 +290,12 @@ connect_new_network() {
     return 0
   fi
 
-  entries="$(
-    printf '󰖫  Connect to hidden network\n'
-    wifi_network_entries "$iface"
-  )"
-
   selection="$(
-    printf '%s\n' "$entries" \
-      | rofi "${ROFI_COMMON[@]}" -p "Connect new" -mesg "Choose a nearby network or enter a hidden one." || true
+    {
+      printf '󰖫  Connect to hidden network\n'
+      wifi_network_entries "$iface"
+    } \
+      | rofi "${ROFI_COMMON[@]}" -no-custom -p "Connect new" -mesg "Choose a nearby network or the hidden-network option." || true
   )"
 
   [ -n "$selection" ] || {
@@ -342,11 +340,13 @@ connect_new_network() {
     return 0
   fi
 
-  if [[ "$selection" =~ ([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]; then
-    bssid="${BASH_REMATCH[0]}"
+  if [[ "$selection" =~ ^ap:(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2})$ ]]; then
+    bssid="${BASH_REMATCH[1]}"
     connect_ap "$iface" "$bssid"
     return 0
   fi
+
+  status_message="Unsupported selection."
 }
 
 edit_saved_network() {
@@ -371,7 +371,7 @@ edit_saved_network() {
 
   selection="$(
     printf '%s\n' "$entries" \
-      | rofi "${ROFI_COMMON[@]}" -p "Edit saved network" -mesg "Choose a saved Wi-Fi or Ethernet profile to edit." || true
+      | rofi "${ROFI_COMMON[@]}" -no-custom -p "Edit saved network" -mesg "Choose a saved Wi-Fi or Ethernet profile to edit." || true
   )"
 
   [ -n "$selection" ] || {
@@ -591,7 +591,7 @@ main() {
 
   while true; do
     selection="$(
-      build_menu "$iface" | rofi "${ROFI_COMMON[@]}" -p "Network" -mesg "$(build_message "$iface")" || true
+      build_menu "$iface" | rofi "${ROFI_COMMON[@]}" -no-custom -p "Network" -mesg "$(build_message "$iface")" || true
     )"
 
     [ -n "$selection" ] || exit 0
@@ -633,8 +633,8 @@ main() {
         fi
         ;;
       *)
-        if [[ "$selection" =~ ([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]; then
-          bssid="${BASH_REMATCH[0]}"
+        if [[ "$selection" =~ ^ap:(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2})$ ]]; then
+          bssid="${BASH_REMATCH[1]}"
           if [ -n "$iface" ]; then
             connect_ap "$iface" "$bssid"
           else
