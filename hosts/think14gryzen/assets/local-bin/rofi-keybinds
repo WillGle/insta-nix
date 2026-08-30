@@ -2,6 +2,19 @@
 set -euo pipefail
 
 HYPR_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.conf"
+THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
+if [ -r "$THEME_STATIC_ENV" ]; then
+  # shellcheck disable=SC1090
+  . "$THEME_STATIC_ENV"
+fi
+
+ACCENT_COLOR="${THEME_STATIC_ACCENT:-#89b4fa}"
+THEME_PALETTE_FILE="${THEME_GENERATED_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/theme/generated}/palette.json"
+runtime_accent=""
+if [ -r "$THEME_PALETTE_FILE" ]; then
+  runtime_accent="$(jq -er '.colors.primary.default | select(type == "string" and test("^#[0-9A-Fa-f]{6}$"))' "$THEME_PALETTE_FILE" 2>/dev/null || true)"
+  [ -n "$runtime_accent" ] && ACCENT_COLOR="$runtime_accent"
+fi
 
 if [ ! -r "$HYPR_CONF" ]; then
   command -v notify-send >/dev/null 2>&1 && notify-send "Keybindings" "Cannot read hyprland.conf"
@@ -11,16 +24,17 @@ fi
 ROFI_COMMON=(
   -dmenu
   -i
+  -no-custom
   -markup-rows
   -config "$HOME/.config/rofi/config.rasi"
-  -theme-str 'window { width: 90%; }'
-  -theme-str 'listview { columns: 3; lines: 14; spacing: 4px; }'
-  -theme-str 'element { children: [ element-text ]; padding: 4px 8px; }'
-  -theme-str 'element-text { font: "JetBrainsMono Nerd Font Mono 10.5"; }'
+  -theme-str 'window { width: 86%; }'
+  -theme-str 'listview { columns: 3; lines: 13; spacing: 4px; }'
+  -theme-str 'element { children: [ element-text ]; padding: 6px 10px; }'
+  -theme-str 'element-text { font: @mono-font; }'
 )
 
 parsed_list="$(
-awk '
+awk -v accent="$ACCENT_COLOR" '
   function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
   function modname(m) {
     if (m == "$mod" || m == "SUPER" || m == "MOD4") return "Super"
@@ -103,7 +117,7 @@ awk '
   function flush() {
     if (pend_combo == "") return
     s = (pend_sec != "") ? pend_sec : "General"
-    printf "<span foreground=\"#89b4fa\">[%s]</span> <b>%-13s</b> ➔ %s\t|%s\n", esc(s), esc(pend_combo), esc(pend_desc), pend_cmd
+    printf "<span foreground=\"%s\">[%s]</span> <b>%-13s</b> ➔ %s\t|%s\n", accent, esc(s), esc(pend_combo), esc(pend_desc), pend_cmd
     pend_combo = ""
   }
   BEGIN { sec = "Basic" }

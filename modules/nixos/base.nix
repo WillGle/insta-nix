@@ -30,10 +30,6 @@
       "nix-command"
       "flakes"
     ];
-    substituters = lib.mkAfter [ "https://cache.nixos.org" ];
-    trusted-public-keys = lib.mkAfter [
-      "cache.nixos.org-1:6NCHdD59X3yjrwW3CvkxuV2L0GyGq5qF5S727Z6IQkQ="
-    ];
     auto-optimise-store = true;
     max-jobs = "auto";
     cores = 0;
@@ -82,7 +78,6 @@
   networking = {
     networkmanager = {
       enable = true;
-      dns = "systemd-resolved";
       settings = {
         connection = {
           "ipv4.route-metric" = 50;
@@ -136,8 +131,4 @@
     curl
     expat
   ];
-
-  environment.etc."resolv.conf".source = "/run/systemd/resolve/stub-resolv.conf";
-
-  system.stateVersion = "25.11";
 }

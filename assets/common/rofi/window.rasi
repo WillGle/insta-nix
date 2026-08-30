@@ -54,7 +54,7 @@ element {
   padding: 10px 14px;
   border: 1px;
   border-radius: 9px;
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: @outline-soft;
   background-color: @mantle;
   text-color: @text;
 }

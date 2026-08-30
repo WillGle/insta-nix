@@ -14,4 +14,6 @@
     ../../modules/nixos/roles/kubernetes.nix
     ../../modules/nixos/roles/iac.nix
   ];
+
+  system.stateVersion = "25.11";
 }

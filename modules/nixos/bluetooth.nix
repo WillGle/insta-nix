@@ -31,8 +31,9 @@ let
           | sed 's/.*"data":\(.*\)}/\1/'
       }
 
+      # grep returns 1 when no device path matches, which is a normal no-op.
       busctl --no-pager tree org.bluez 2>/dev/null \
-        | grep -oE '/org/bluez/hci[0-9]+/dev_[0-9A-F_]+$' \
+        | { grep -oE '/org/bluez/hci[0-9]+/dev_[0-9A-F_]+$' || [ "$?" -eq 1 ]; } \
         | sort -u \
         | while read -r path; do
             paired=$(prop "$path" Paired)

@@ -178,7 +178,11 @@ collect_candidates() {
 
 cmd_pick() {
   local entry choice
-  local -a rofi_args=(-dmenu -i -format i -p "Wallpaper")
+  local -a rofi_args=(
+    -dmenu -i -no-custom -format i -p "Wallpaper"
+    -theme-str 'window { width: 64%; }'
+    -theme-str 'listview { columns: 3; lines: 5; }'
+  )
   local icons=0
 
   collect_candidates

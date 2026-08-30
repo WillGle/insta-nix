@@ -133,7 +133,9 @@ in
         jq
         procps
       ];
-      vars = screenTimeLibVar // { inherit themeAccent; };
+      vars = screenTimeLibVar // {
+        inherit themeAccent;
+      };
     });
     ".local/bin/waybar-power-monitor" = scriptFile (mkScript {
       name = "waybar-power-monitor";
@@ -171,6 +173,7 @@ in
       runtimeInputs = with pkgs; [
         coreutils
         gawk
+        jq
         rofi
         util-linux
       ];
@@ -182,6 +185,7 @@ in
         coreutils
         gawk
         gnused
+        jq
         libnotify
         procps
         rofi

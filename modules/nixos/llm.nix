@@ -87,7 +87,9 @@ let
     (mkSystemScript {
       name = "llm-fit";
       dir = ../../hosts/think14gryzen/assets/local-bin;
-      vars = { llmLib = "${llmLib}"; };
+      vars = {
+        llmLib = "${llmLib}";
+      };
       excludeShellChecks = [ "SC2034" ];
       runtimeInputs = with pkgs; [
         coreutils
@@ -109,7 +111,9 @@ let
     (mkSystemScript {
       name = "llm-run";
       dir = ../../hosts/think14gryzen/assets/local-bin;
-      vars = { llmLib = "${llmLib}"; };
+      vars = {
+        llmLib = "${llmLib}";
+      };
       excludeShellChecks = [ "SC2034" ];
       runtimeInputs = with pkgs; [ coreutils ];
     })

@@ -4,7 +4,7 @@
    and icons for the menu entries. */
 
 window {
-  width:            32%;
+  width:            36%;
 }
 
 listview {
@@ -13,5 +13,5 @@ listview {
 }
 
 element-text {
-  font:             "JetBrainsMono Nerd Font 11";
+  font:             @mono-font-label;
 }

@@ -161,7 +161,7 @@ in
     "hypr/toggle_touchpad.sh" = scriptFile (mkScript {
       name = "toggle_touchpad.sh";
       dir = ../../hosts/think14gryzen/assets/hypr;
-      vars = { touchpadStateConf = touchpadStateConf; };
+      vars = { inherit touchpadStateConf; };
       runtimeInputs = with pkgs; [
         coreutils
         gnugrep

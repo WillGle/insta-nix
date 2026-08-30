@@ -21,8 +21,8 @@ Use this guide for new remote installs that should boot into the bootstrap insta
 1. Run the required checks.
 
    ```bash
-   nix flake check --no-build --no-write-lock-file path:/etc/nixos
-   nixos-rebuild build --flake path:/etc/nixos#plank
+   nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
+   nixos-rebuild build --flake git+file:///etc/nixos#plank
    ```
 
 2. Prepare the required disk labels on the target.

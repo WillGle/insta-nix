@@ -12,7 +12,7 @@ A modular, multi-host NixOS & Home Manager Flake configuration featuring a perso
 List exported outputs locally:
 
 ```bash
-nix flake show --no-write-lock-file path:/etc/nixos
+nix flake show --no-write-lock-file git+file:///etc/nixos
 ```
 
 ---
@@ -28,7 +28,7 @@ nix flake show --no-write-lock-file path:/etc/nixos
 ├── modules/                   # Reusable feature modules
 │   ├── nixos/                 # System-level NixOS modules
 │   │   ├── base.nix           # Core NixOS defaults
-│   │   ├── llm.nix            # llama.cpp Vulkan stack & LLM tools (llm-run, llm-fit)
+│   │   ├── llm.nix            # llama.cpp Vulkan stack & local LLM tool suite
 │   │   ├── ryzen.nix          # Ryzen laptop power management & battery reserve limit
 │   │   ├── desktop-integration.nix # SDDM, Pipewire low-latency, Fcitx5, XDG portals
 │   │   └── openlogi.nix       # Organization/work tooling
@@ -44,16 +44,23 @@ nix flake show --no-write-lock-file path:/etc/nixos
 
 ---
 
-## App Scripts (`local-bin`)
+## User-facing Scripts
 
-User-facing desktop tools are packaged using `writeShellApplication` with pinned runtime dependencies and deployed via Home Manager:
+Scripts are packaged using `writeShellApplication` with pinned runtime dependencies
+and deployed by their NixOS or Home Manager module:
 
 * **Local LLM Suite (`llm.nix`):**
+  * `llmfit`: Browse catalog models scored against this laptop's memory budget.
   * `llm-pull`: Fetch GGUF models directly from HuggingFace into local model dir.
+  * `llm-list`: List installed GGUFs; `llm-list --detail <file.gguf>` shows metadata and hardware fit.
   * `llm-fit`: Model-agnostic GPU VRAM / GTT overflow fit calculator.
   * `llm-run`: Auto-sized, overflow-safe `llama-server` launcher (Vulkan backend).
+
+See [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md) for the complete
+discover, download, inspect, fit, and serve workflow.
+
 * **Power & Battery (`ryzen.nix`):**
-  * `ryzenadj-profile`: Single-owner power limit/profile switcher (`power-saver`, `balanced`, `sustained-build`, `performance`).
+  * `native-power-profile`: Four Lenovo/amd-pstate profiles (`power-saver`, `balanced`, `sustained-build`, `performance`).
   * `toggle-battery-reserve`: Toggles Lenovo battery conservation mode.
 * **Desktop & Utilities (`modules/home/`):**
   * `rofi-screen-time`: Interactive app usage dashboard & study session tracker.
@@ -68,7 +75,7 @@ User-facing desktop tools are packaged using `writeShellApplication` with pinned
 
 ```bash
 # Validate flake structure
-nix flake check --no-build --no-write-lock-file path:/etc/nixos
+nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
 
 # Test-build system derivation
 nixos-rebuild dry-build --flake /etc/nixos#think14gryzen
@@ -82,7 +89,7 @@ sudo nixos-rebuild switch --flake /etc/nixos#think14gryzen
 To build or deploy the remote bootstrap target:
 
 ```bash
-nixos-rebuild build --flake path:/etc/nixos#plank
+nixos-rebuild build --flake git+file:///etc/nixos#plank
 ```
 
 Follow the detailed guide in [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md) for target disk partition scripts and remote bootstrap workflows.

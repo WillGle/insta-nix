@@ -103,21 +103,16 @@ show_fit() {
 }
 
 show_catalog_fit() {
-  local base_model_url catalog_model catalog_json relative_path repo_key
-  base_model_url="$(metadata_value 'general.base_model.0.repo_url')"
-  if [[ "$base_model_url" == https://huggingface.co/*/* ]]; then
-    catalog_model="${base_model_url#https://huggingface.co/}"
-  else
-    relative_path="${MODEL_FILE#"$ROOT"/}"
-    repo_key="$(printf '%s\n' "$relative_path" | awk -F/ 'NF >= 2 { print $1 "/" $2 }')"
-    [ -n "$repo_key" ] || return 0
-    catalog_model="$(llmfit --no-dashboard --json list 2>/dev/null \
-      | jq -r --arg repo "$repo_key" '
-          [.. | objects
-           | select((.gguf_sources? // []) | any(.[]; .repo == $repo))
-           | .name] | .[0] // empty
-        ' 2>/dev/null)"
-  fi
+  local catalog_model catalog_json relative_path repo_key
+  relative_path="${MODEL_FILE#"$ROOT"/}"
+  repo_key="$(printf '%s\n' "$relative_path" | awk -F/ 'NF >= 2 { print $1 "/" $2 }')"
+  [ -n "$repo_key" ] || return 0
+  catalog_model="$(llmfit --no-dashboard --json list 2>/dev/null \
+    | jq -r --arg repo "$repo_key" '
+        [.. | objects
+         | select((.gguf_sources? // []) | any(.[]; .repo == $repo))
+         | .name] | .[0] // empty
+      ' 2>/dev/null)"
   [ -n "$catalog_model" ] || return 0
   if ! catalog_json="$(llmfit --no-dashboard --json info "$catalog_model" 2>/dev/null)"; then
     return 0

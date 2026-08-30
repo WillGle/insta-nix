@@ -12,6 +12,22 @@ if [ ! -x "$STATS_BIN" ]; then
 fi
 CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
 TARGET_DATE="$(date +%F)"
+THEME_PALETTE_FILE="${XDG_CONFIG_HOME:-${HOME}/.config}/theme/generated/palette.json"
+
+palette_stamp() {
+  local digest=""
+  if [ ! -r "$THEME_PALETTE_FILE" ]; then
+    printf 'static\n'
+    return 0
+  fi
+
+  digest="$(sha256sum "$THEME_PALETTE_FILE" 2>/dev/null || true)"
+  [ -n "$digest" ] || {
+    printf 'static\n'
+    return 0
+  }
+  printf '%s\n' "${digest%% *}"
+}
 
 theme_file() {
   printf '%s/default-%s-theme.rasi\n' "$CACHE_DIR" "$1"
@@ -43,7 +59,7 @@ flock -n 9 || exit 0
 if "$STATS_BIN" --date "$TARGET_DATE" --all-views-dir "$CACHE_DIR"; then
   for view in summary activity health timer; do
     date_tmp="$(mktemp "${CACHE_DIR}/date.XXXXXX")"
-    printf '%s\n' "$TARGET_DATE" >"$date_tmp"
+    printf '%s\n%s\n' "$TARGET_DATE" "$(palette_stamp)" >"$date_tmp"
     mv "$date_tmp" "$(date_file "$view")"
   done
 fi

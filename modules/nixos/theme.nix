@@ -231,11 +231,6 @@ in
             default = themeDefaults.wallpaper.source;
             description = "Default wallpaper asset path.";
           };
-          name = lib.mkOption {
-            type = lib.types.str;
-            default = themeDefaults.wallpaper.name;
-            description = "Wallpaper asset filename in the themed config directory.";
-          };
         };
       };
       default = themeDefaults.wallpaper;
@@ -249,11 +244,6 @@ in
             type = lib.types.bool;
             default = themeDefaults.runtime.enable;
             description = "Enable runtime palette generation.";
-          };
-          cacheDir = lib.mkOption {
-            type = lib.types.str;
-            default = themeDefaults.runtime.cacheDir;
-            description = "User-home-relative cache directory for runtime theme state.";
           };
         };
       };

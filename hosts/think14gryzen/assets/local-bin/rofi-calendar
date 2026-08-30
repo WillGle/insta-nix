@@ -8,8 +8,8 @@ set -euo pipefail
 #   Enter (empty)         today (the middle button is pre-selected)
 #   Esc                   close
 # The searched day is ringed in the accent colour and its weekday is printed
-# under the sheet; today keeps its filled pill. Colours come from the theme at
-# build time (replaceVars), like every other script here.
+# under the sheet; today keeps its filled pill. Runtime palette values follow
+# the generated theme; replaceVars remains the fallback during early startup.
 #
 # Arguments (internal, used when the script re-executes itself):
 #   $1 year  $2 month  $3 focused day or ""  $4 message under the sheet or ""
@@ -18,6 +18,35 @@ ACCENT="@themeAccent@"
 BASE="@themeBase@"
 SUBTEXT="@themeSubtext@"
 RASI="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/calendar.rasi"
+THEME_PALETTE_FILE="${XDG_CONFIG_HOME:-${HOME}/.config}/theme/generated/palette.json"
+
+load_runtime_palette() {
+  local values=""
+  local -a palette=()
+
+  [ -r "$THEME_PALETTE_FILE" ] || return 0
+  values="$(
+    jq -er '
+      [
+        .colors.surface.default,
+        .colors.on_surface_variant.default,
+        .colors.primary.default
+      ] as $palette
+      | if all($palette[]; type == "string" and test("^#[0-9A-Fa-f]{6}$"))
+        then $palette | @tsv
+        else error("invalid runtime palette")
+        end
+    ' "$THEME_PALETTE_FILE" 2>/dev/null
+  )" || return 0
+
+  IFS=$'\t' read -r -a palette <<< "$values"
+  [ "${#palette[@]}" -eq 3 ] || return 0
+  BASE="${palette[0]}"
+  SUBTEXT="${palette[1]}"
+  ACCENT="${palette[2]}"
+}
+
+load_runtime_palette
 
 today_y=$(date +%Y)
 today_m=$(date +%-m)

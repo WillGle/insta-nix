@@ -150,6 +150,26 @@ let
       (toString theme.fonts.rofi.size)
     ]
     [
+      "__ROFI_FONT_LABEL_SIZE__"
+      (toString (theme.fonts.rofi.size + 1))
+    ]
+    [
+      "__ROFI_FONT_SUBTITLE_SIZE__"
+      (toString (theme.fonts.rofi.size + 2))
+    ]
+    [
+      "__ROFI_FONT_CALENDAR_SIZE__"
+      (toString (theme.fonts.rofi.size + 4))
+    ]
+    [
+      "__ROFI_FONT_VALUE_SIZE__"
+      (toString (theme.fonts.rofi.size + 8))
+    ]
+    [
+      "__ROFI_FONT_TITLE_SIZE__"
+      (toString (theme.fonts.rofi.size + 10))
+    ]
+    [
       "__MONO_FONT__"
       theme.fonts.mono.family
     ]
@@ -407,6 +427,11 @@ in
       THEME_UI_FONT=${lib.escapeShellArg theme.fonts.ui.family}
       THEME_UI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.ui.size)}
       THEME_ROFI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.rofi.size)}
+      THEME_ROFI_FONT_LABEL_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 1))}
+      THEME_ROFI_FONT_SUBTITLE_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 2))}
+      THEME_ROFI_FONT_CALENDAR_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 4))}
+      THEME_ROFI_FONT_VALUE_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 8))}
+      THEME_ROFI_FONT_TITLE_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 10))}
       THEME_MONO_FONT=${lib.escapeShellArg theme.fonts.mono.family}
       THEME_LOCK_FONT=${lib.escapeShellArg theme.fonts.lock.family}
       THEME_LOCK_FONT_BOLD=${lib.escapeShellArg theme.fonts.lock.boldFamily}
@@ -447,7 +472,27 @@ in
     '';
 
     "rofi/config.rasi".source = ../../assets/common/rofi/config.rasi;
+    "rofi/calc.rasi".text = ''
+      @theme "~/.config/rofi/theme.rasi"
+
+      window { width: 45%; }
+      listview { columns: 1; lines: 6; }
+    '';
+    "rofi/emoji.rasi".text = ''
+      @theme "~/.config/rofi/theme.rasi"
+
+      window { width: 64%; }
+      listview { columns: 4; lines: 6; }
+      element { padding: 8px 12px; }
+    '';
     "rofi/launcher.rasi".source = ../../assets/common/rofi/launcher.rasi;
+    "rofi/power.rasi".text = ''
+      @theme "~/.config/rofi/theme.rasi"
+
+      window { width: 45%; }
+      listview { columns: 3; lines: 2; }
+      element { padding: 12px 18px; }
+    '';
     "rofi/theme.rasi".source = generatedLink "rofi.rasi";
     "rofi/window.rasi".source = ../../assets/common/rofi/window.rasi;
 

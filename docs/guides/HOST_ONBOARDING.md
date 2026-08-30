@@ -60,8 +60,8 @@ Use this guide when creating a new machine entrypoint or checking which modules 
 Run:
 
 ```bash
-nix flake check --no-build --no-write-lock-file path:/etc/nixos
-nixos-rebuild build --flake path:/etc/nixos#<HostKey>
+nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
+nixos-rebuild build --flake git+file:///etc/nixos#<HostKey>
 ```
 
 ## Related docs

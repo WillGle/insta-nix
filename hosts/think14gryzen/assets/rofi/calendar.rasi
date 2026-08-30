@@ -4,10 +4,8 @@
    the entry is for typing a date to jump to, months move with ←/→ — so the
    calendar sits in a single layer of padding instead of three.
 
-   The sheet is set well above the 10 pt menu size: a 20-column grid at menu
-   size filled barely half the window. The family is spelled out because a
-   rasi font cannot combine @mono-font's family with a different size
-   (study-timer.rasi does the same for its rows). */
+   The sheet uses the shared calendar font token so it stays larger than menu
+   rows without pinning a font family locally. */
 
 window {
   width:            360px;
@@ -52,6 +50,6 @@ message {
 }
 
 textbox {
-  font:             "JetBrainsMono Nerd Font 14";
+  font:             @mono-font-calendar;
   horizontal-align: 0.5;
 }
