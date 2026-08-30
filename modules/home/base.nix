@@ -235,24 +235,69 @@
 
     tmux = {
       enable = true;
-      shortcut = "a"; # Changes prefix key from Ctrl-b to Ctrl-a (popular choice)
+      shortcut = "a"; # Changes prefix key from Ctrl-b to Ctrl-a
       baseIndex = 1; # Start window and pane numbering at 1 (instead of 0)
-      mouse = true; # Enable mouse scrolling and pane selection
+      mouse = true; # Enable mouse scrolling, clicking, and pane selection
       keyMode = "vi"; # Use Vi keybindings in copy mode
       escapeTime = 0; # Removes ESC key delay in Vim/Neovim
 
+      terminal = "tmux-256color";
+
       # Popular Tmux plugins from nixpkgs
       plugins = with pkgs.tmuxPlugins; [
-        catppuccin # Match your setup's color palette
+        {
+          plugin = catppuccin;
+          extraConfig = ''
+            set -g @catppuccin_flavor "mocha"
+            set -g @catppuccin_status_background "default"
+            set -g @catppuccin_window_status_style "rounded"
+            set -g @catppuccin_window_number_position "left"
+            set -g @catppuccin_window_flags "icon"
+            set -g @catppuccin_window_text " #W"
+            set -g @catppuccin_window_current_text " #W"
+            set -g @catppuccin_date_time_icon " "
+            set -g @catppuccin_date_time_text " %H:%M"
+          '';
+        }
         vim-tmux-navigator # Seamless Ctrl+h/j/k/l navigation between Vim & Tmux
         resurrect # Save/restore sessions across reboots (`Prefix + Ctrl-s` / `Prefix + Ctrl-r`)
+        yank # Vi copy mode integration with system clipboard
       ];
 
       # Custom configuration extra lines
       extraConfig = ''
-        # Open new splits in the current working directory
+        # Enable 24-bit True Color support
+        set -as terminal-features ",xterm-256color:RGB"
+        set -ag terminal-overrides ",xterm-256color:RGB"
+
+        # General UI settings
+        set -g status-position bottom
+        set -g status-justify absolute-centre
+        set -g status-interval 5
+        set -g renumber-windows on
+        setw -g monitor-activity on
+        set -g visual-activity off
+
+        # Clean Minimalist Pane Borders
+        set -g pane-border-style "fg=#313244"
+        set -g pane-active-border-style "fg=#89b4fa"
+
+        # Keybindings
+        # Open new splits in current working directory
         bind | split-window -h -c "#{pane_current_path}"
         bind - split-window -v -c "#{pane_current_path}"
+        unbind '"'
+        unbind %
+
+        # Reload configuration
+        bind r source-file ~/.config/tmux/tmux.conf \; display-message "Tmux config reloaded!"
+
+        # Session on the left, windows in the centre, context on the right
+        set -g status-left-length 30
+        set -g status-right-length 50
+        set -g status-left "#{E:@catppuccin_status_session}"
+        set -g status-right "#{E:@catppuccin_status_directory}"
+        set -ag status-right "#{E:@catppuccin_status_date_time}"
       '';
     };
 
