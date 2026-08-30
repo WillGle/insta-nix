@@ -13,6 +13,7 @@ MODE="${1:-pwr}"
 # there is no palette to source and no fallback literal that could drift.
 WARN_DIR="${XDG_RUNTIME_DIR:-/tmp}/waybar-power-monitor"
 CONTROL_WARN_DIR="$WARN_DIR/control"
+PROFILE_TOGGLE_LOCK_FILE="$WARN_DIR/profile-toggle.lock"
 STATE_DIR="$WARN_DIR/state"
 CPU_STAT_FILE="$STATE_DIR/cpu.stat"
 BOARD_W_FILE="$STATE_DIR/board_w"
@@ -721,6 +722,11 @@ get_reserve_state() {
 
 case "$MODE" in
     toggle)
+        mkdir -p "$WARN_DIR"
+        exec 8>"$PROFILE_TOGGLE_LOCK_FILE"
+        # A double-click is one user action. Do not wait for the first native
+        # transition and do not turn the duplicate into a false warning.
+        flock -xn 8 || exit 0
         p="$(get_power_profile)"
         next_profile=""
         case "$p" in
@@ -742,6 +748,7 @@ case "$MODE" in
                 ;;
         esac
         if apply_native_profile "$next_profile"; then
+            clear_control_warn "profile_toggle"
             remember_power_profile "$next_profile"
             pkill -RTMIN+2 -x waybar || pkill -RTMIN+2 -x .waybar-wrapped || true
         else

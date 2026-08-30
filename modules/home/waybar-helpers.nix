@@ -145,6 +145,7 @@ in
         gawk
         gnused
         procps
+        util-linux
       ];
       vars = {
         inherit themeAccent;

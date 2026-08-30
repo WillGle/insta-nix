@@ -8,7 +8,6 @@ PROFILE_LOCK_FILE="$PROFILE_STATE_DIR/lock"
 PROFILE_CONFIG_FILE=/etc/native-power-profiles.tsv
 PLATFORM_PROFILE_FILE=/sys/firmware/acpi/platform_profile
 CPU_POLICY_DIR=/sys/devices/system/cpu/cpufreq
-ROFI_ASKPASS="@rofiAskpass@"
 SUDO_BIN=/run/wrappers/bin/sudo
 
 usage() {
@@ -31,12 +30,10 @@ if [ "$#" -ne 1 ] || ! valid_argument "$PROFILE"; then
   exit 2
 fi
 
-# A profile transition changes kernel policy nodes. Keep the credential prompt
-# inside the controller so Waybar and a terminal use the same Rofi flow.
+# Daily profile switching is deliberately noninteractive. The NOPASSWD rule is
+# the contract; if it is missing, fail immediately instead of opening askpass.
 if [ "$EUID" -ne 0 ]; then
-  export SUDO_ASKPASS="$ROFI_ASKPASS"
-  "$SUDO_BIN" -k
-  exec "$SUDO_BIN" -A -- /run/current-system/sw/bin/native-power-profile "$PROFILE"
+  exec "$SUDO_BIN" -n -- /run/current-system/sw/bin/native-power-profile "$PROFILE"
 fi
 
 read_state_profile() {

@@ -79,7 +79,6 @@ let
 
   nativePowerProfile = mkSystemScript {
     name = "native-power-profile";
-    vars.rofiAskpass = "${rofiAskpass}/bin/rofi-sudo-askpass";
     runtimeInputs = with pkgs; [
       coreutils
       power-profiles-daemon
