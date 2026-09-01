@@ -293,7 +293,7 @@ Apps      $(printf '%13s' "$apps_g") GiB</tt>
 $SEP
 <tt>$top_procs</tt>
 
-<span size='small' alpha='50%'>Click: show/hide disks</span>"
+<span size='small' alpha='65%'>Click: show/hide disks</span>"
 
 jq -cn \
     --arg text "${ICON_MEM} ${used_g}G (${used_pct}%)" \

@@ -587,7 +587,7 @@ render_waybar() {
   mapfile -t order < <(sorted_task_indices)
   local top_task="${TASKS[${order[0]}]}"
   local remaining=$((count - 1))
-  local top_priority display_text tooltip priority i
+  local top_priority display_text tooltip priority tooltip_body i
 
   top_priority="$(task_priority "$top_task")"
   display_text="[$(priority_icon "$top_priority")] $(task_body "$top_task")"
@@ -602,11 +602,15 @@ render_waybar() {
 <tt>"
   for i in "${order[@]}"; do
     priority="$(task_priority "${TASKS[$i]}")"
-    tooltip+="<span foreground='$(priority_bg "$priority")'>$(priority_icon "$priority")</span> $(escape_markup "$(task_body "${TASKS[$i]}")")"$'\n'
+    tooltip_body="$(task_body "${TASKS[$i]}")"
+    if [ "${#tooltip_body}" -gt 68 ]; then
+      tooltip_body="${tooltip_body:0:67}…"
+    fi
+    tooltip+="<span foreground='$(priority_bg "$priority")'>$(priority_icon "$priority")</span> $(escape_markup "$tooltip_body")"$'\n'
   done
   tooltip="${tooltip%$'\n'}</tt>
 
-<span size='small' alpha='50%'>Click: menu · Right: add · Middle: done top</span>"
+<span size='small' alpha='65%'>Click: menu · Right: add · Middle: done top</span>"
 
   jq -cn \
     --arg text "$display_text" \
@@ -661,19 +665,18 @@ rofi_menu() {
 window {
   width: 54%;
   children: [ mainbox ];
-  border-radius: 12px;
-  padding: 14px;
+  padding: 12px;
 }
 
 mainbox {
   children: [ actionbar, inputbar, statusbar, listview ];
-  spacing: 10px;
-  padding: 10px;
+  spacing: 8px;
+  padding: 8px;
 }
 
 statusbar {
   expand: false;
-  padding: 7px 10px;
+  padding: 6px 9px;
   border: 1px;
   border-radius: 8px;
   border-color: @outline;
@@ -691,7 +694,7 @@ textbox-status {
 actionbar {
   expand: false;
   orientation: horizontal;
-  spacing: 6px;
+  spacing: 5px;
   children: [ button-add, button-open, button-clear ];
 }
 
@@ -701,7 +704,7 @@ button {
 
 button-add, button-open, button-clear {
   expand: false;
-  padding: 5px 10px;
+  padding: 5px 9px;
   border-radius: 8px;
   border: 1px;
   background-color: ${SECTION_BG};
@@ -755,7 +758,7 @@ button-clear selected.normal {
 
 inputbar {
   margin: 0;
-  padding: 6px;
+  padding: 5px;
   border: 1px;
   border-radius: 8px;
   border-color: @outline-soft;
@@ -770,20 +773,16 @@ listview {
   columns: 1;
   lines: ${menu_lines};
   fixed-height: false;
-  spacing: 6px;
+  spacing: 5px;
   padding: 0;
 }
 
 element {
-  padding: 7px 10px;
+  padding: 6px 9px;
   border-radius: 8px;
-  spacing: 8px;
+  spacing: 7px;
 }
 
-element selected {
-  background-color: ${ACTION_ADD_BG};
-  text-color: ${ACTION_FG};
-}
 EOF
 
     status=0

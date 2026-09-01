@@ -3,6 +3,8 @@ set -euo pipefail
 export LC_ALL=C
 export PATH="$PATH:/run/current-system/sw/bin"
 
+ROFI_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/network.rasi"
+
 # Shared nmcli query helpers, substituted to a store path at build time so the
 # two callers cannot drift apart again. See the header of that file for the two
 # same-named helpers that deliberately stay private to each caller.
@@ -12,9 +14,9 @@ export PATH="$PATH:/run/current-system/sw/bin"
 ROFI_COMMON=(
   -dmenu
   -i
+  -markup-rows
   -config "$HOME/.config/rofi/config.rasi"
-  -theme-str 'window { width: 42%; }'
-  -theme-str 'listview { lines: 12; columns: 1; }'
+  -theme "$ROFI_THEME"
 )
 
 NMCLI_CONNECT_TIMEOUT="${NMCLI_CONNECT_TIMEOUT:-20}"
@@ -391,6 +393,8 @@ edit_saved_network() {
 append_network_info() {
   local dev="$1"
   local ip_cidr ip prefix netmask broadcast mac gateway dns
+  local route_details=""
+  local device_details=""
 
   ip_cidr="$(current_ip_cidr "$dev")"
   ip="${ip_cidr%/*}"
@@ -401,12 +405,13 @@ append_network_info() {
   gateway="$(current_gateway "$dev")"
   dns="$(current_dns "$dev")"
 
-  lines+=("IP: ${ip:-Unavailable}")
-  [ -n "$netmask" ] && [ "$netmask" != "0.0.0.0" ] && lines+=("Subnet Mask: $netmask")
-  [ -n "$broadcast" ] && lines+=("Broadcast: $broadcast")
-  [ -n "$mac" ] && lines+=("MAC Address: $mac")
-  [ -n "$ip" ] && lines+=("Gateway: ${gateway:-Unavailable}")
-  [ -n "$dns" ] && lines+=("DNS: $dns")
+  lines+=("IP: ${ip:-Unavailable}  •  Gateway: ${gateway:-Unavailable}")
+  [ -n "$netmask" ] && [ "$netmask" != "0.0.0.0" ] && route_details="Subnet: $netmask"
+  [ -n "$broadcast" ] && route_details+="${route_details:+  •  }Broadcast: $broadcast"
+  [ -n "$route_details" ] && lines+=("$route_details")
+  [ -n "$dns" ] && device_details="DNS: $dns"
+  [ -n "$mac" ] && device_details+="${device_details:+  •  }MAC: $mac"
+  [ -n "$device_details" ] && lines+=("$device_details")
 }
 
 build_message() {
@@ -501,25 +506,27 @@ build_menu() {
     wifi_conn="$(active_wifi_connection "$iface")"
   fi
 
+  printf 'section:actions\0display\x1f<b>QUICK ACTIONS</b>\x1factive\x1ftrue\n'
   printf '󰈀  Connect wired network\n'
-  if [ -n "$ethernet" ]; then
-    printf '󰈂  Disconnect wired network\n'
-  fi
   printf '󰖫  Connect new network\n'
 
-  if [ -n "$wifi_conn" ]; then
-    printf '󰤭  Disconnect current network\n'
-  fi
-
   if [ -n "$iface" ] && wifi_enabled; then
+    printf 'section:wifi\0display\x1f<b>NEARBY WI-FI</b>\x1factive\x1ftrue\n'
     wifi_network_entries "$iface"
   fi
 
+  printf 'section:manage\0display\x1f<b>MANAGE</b>\x1factive\x1ftrue\n'
+  if [ -n "$ethernet" ]; then
+    printf '󰈂  Disconnect wired network\0urgent\x1ftrue\n'
+  fi
+  if [ -n "$wifi_conn" ]; then
+    printf '󰤭  Disconnect current network\0urgent\x1ftrue\n'
+  fi
   printf '󰌘  Edit saved network\n'
 
   if [ -n "$iface" ] && wifi_enabled; then
     printf '󰑐  Scan network\n'
-    printf '󰖪  Turn Wi-Fi off\n'
+    printf '󰖪  Turn Wi-Fi off\0urgent\x1ftrue\n'
   else
     printf '󰖩  Turn Wi-Fi on\n'
     if [ -n "$iface" ]; then
@@ -584,20 +591,26 @@ connect_ap() {
 }
 
 main() {
-  local iface selection bssid
+  local iface result selection bssid
+  local selected_row=1
 
   close_existing_rofi
   iface="$(wifi_iface)"
 
   while true; do
-    selection="$(
-      build_menu "$iface" | rofi "${ROFI_COMMON[@]}" -no-custom -p "Network" -mesg "$(build_message "$iface")" || true
+    result="$(
+      build_menu "$iface" | rofi "${ROFI_COMMON[@]}" -no-custom -format 'i:s' -selected-row "$selected_row" -p "Network" -mesg "$(build_message "$iface")" || true
     )"
 
-    [ -n "$selection" ] || exit 0
+    [ -n "$result" ] || exit 0
+    selected_row="${result%%:*}"
+    selection="${result#*:}"
     status_message=""
 
     case "$selection" in
+      section:*)
+        continue
+        ;;
       "󰈀  Connect wired network")
         connect_wired_network
         ;;
