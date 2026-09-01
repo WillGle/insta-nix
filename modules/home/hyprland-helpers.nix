@@ -92,6 +92,7 @@ in
         ];
         vars = {
           signalCritical = osConfig.theme.signal.critical;
+          themeAccent = osConfig.theme.colors.accent;
         };
       });
     };
