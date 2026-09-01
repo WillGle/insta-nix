@@ -478,20 +478,32 @@ in
       window { width: 45%; }
       listview { columns: 1; lines: 6; }
     '';
+    "rofi/clipboard.rasi".source = ../../assets/common/rofi/clipboard.rasi;
     "rofi/emoji.rasi".text = ''
       @theme "~/.config/rofi/theme.rasi"
 
       window { width: 64%; }
       listview { columns: 4; lines: 6; }
-      element { padding: 8px 12px; }
+      element { padding: 7px 10px; }
     '';
     "rofi/launcher.rasi".source = ../../assets/common/rofi/launcher.rasi;
     "rofi/power.rasi".text = ''
       @theme "~/.config/rofi/theme.rasi"
 
-      window { width: 45%; }
-      listview { columns: 3; lines: 2; }
-      element { padding: 12px 18px; }
+      window { width: 24%; }
+      mainbox {
+        children: [ message, listview ];
+        spacing: 5px;
+        padding: 6px;
+      }
+      listview {
+        columns: 2;
+        lines: 3;
+        fixed-height: false;
+        spacing: 4px;
+      }
+      element { padding: 6px 8px; spacing: 6px; }
+      element-icon { size: 1.1em; }
     '';
     "rofi/theme.rasi".source = generatedLink "rofi.rasi";
     "rofi/window.rasi".source = ../../assets/common/rofi/window.rasi;
@@ -634,6 +646,8 @@ in
       polkit-agent = {
         Unit = {
           Description = "Polkit Authentication Agent";
+          After = [ "hyprland-session.target" ];
+          PartOf = [ "hyprland-session.target" ];
           StartLimitBurst = 3;
           StartLimitIntervalSec = "30s";
         };
@@ -644,7 +658,7 @@ in
           RestartPreventExitStatus = [ "SIGABRT" ];
         };
         Install = {
-          WantedBy = [ "default.target" ];
+          WantedBy = [ "hyprland-session.target" ];
         };
       };
     };
