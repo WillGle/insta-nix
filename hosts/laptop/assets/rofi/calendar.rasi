@@ -8,13 +8,13 @@
    rows without pinning a font family locally. */
 
 window {
-  width:            360px;
+  width:            400px;
 }
 
 mainbox {
   children:         [ inputbar, message, listview ];
   spacing:          0;
-  padding:          10px;
+  padding:          8px;
 }
 
 /* The three dmenu rows (◀ · Hôm nay · ▶) become one row of buttons. */
@@ -28,7 +28,7 @@ listview {
 
 element {
   children:         [ element-text ];
-  padding:          6px 8px;
+  padding:          7px 9px;
 }
 
 element-text {
@@ -46,7 +46,7 @@ entry {
 message {
   background-color: transparent;
   margin:           0;
-  padding:          10px 4px;
+  padding:          8px 4px;
 }
 
 textbox {

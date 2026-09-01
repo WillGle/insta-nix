@@ -3,7 +3,7 @@
 * {
   /* Unified colors from system theme variables */
   window-border:    @accent;
-  card-bg:          @mantle;
+  card-bg:          @panel-bg;
   card-alt:         @base;
   card-border:      @outline;
   card-muted:       @subtext;
@@ -18,15 +18,15 @@ window {
   width:            78%;
   height:           82%;
   border:           1px;
-  border-radius:    10px;
+  border-radius:    14px;
   border-color:     @window-border;
-  background-color: @base;
-  padding:          20px;
+  background-color: @window-bg;
+  padding:          16px;
 }
 
 mainbox {
   orientation:      vertical;
-  spacing:          14px;
+  spacing:          10px;
   children:         [ header-box, overview-box, analytics-box, note-box, listview ];
   background-color: transparent;
 }
@@ -38,7 +38,7 @@ inputbar { enabled: false; }
 header-box {
   expand:      false;
   orientation: horizontal;
-  spacing:     12px;
+  spacing:     10px;
   children:    [ title-group, meta-group ];
 }
 
@@ -52,7 +52,7 @@ title-group {
 meta-group {
   orientation:      vertical;
   expand:           false;
-  padding:          12px 18px;
+  padding:          10px 14px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -85,15 +85,15 @@ textbox-meta {
 overview-box {
   expand:      false;
   orientation: horizontal;
-  spacing:     14px;
+  spacing:     10px;
   children:    [ card-1, card-2, card-3, card-4 ];
 }
 
 card-1, card-2, card-3 {
   orientation:      vertical;
   expand:           true;
-  padding:          14px 18px;
-  spacing:          7px;
+  padding:          12px 14px;
+  spacing:          6px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -108,8 +108,8 @@ card-3 { children: [ textbox-card-3-label, textbox-card-3-value, textbox-card-3-
 card-4 {
   orientation:      vertical;
   expand:           true;
-  padding:          14px 18px;
-  spacing:          7px;
+  padding:          12px 14px;
+  spacing:          6px;
   border:           1px;
   border-radius:    8px;
   border-color:     @accent;
@@ -163,15 +163,15 @@ textbox-card-4-sub {
 analytics-box {
   expand:      true;
   orientation: horizontal;
-  spacing:     14px;
+  spacing:     10px;
   children:    [ primary-panel, side-panel ];
 }
 
 primary-panel {
   orientation:      vertical;
   width:            56%;
-  padding:          16px 18px;
-  spacing:          12px;
+  padding:          12px 14px;
+  spacing:          10px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -190,15 +190,15 @@ textbox-primary-body {
 side-panel {
   orientation: vertical;
   expand:      true;
-  spacing:     14px;
+  spacing:     10px;
   children:    [ chart-b, chart-c, insight-box ];
 }
 
 chart-b, chart-c, insight-box {
   orientation:      vertical;
   expand:           false;
-  padding:          16px 18px;
-  spacing:          10px;
+  padding:          12px 14px;
+  spacing:          8px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -231,7 +231,7 @@ textbox-insight-body {
 
 note-box {
   expand:           false;
-  padding:          12px 18px;
+  padding:          10px 14px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
@@ -253,7 +253,7 @@ listview {
   columns:          4;
   lines:            2;
   fixed-height:     true;
-  spacing:          6px;
+  spacing:          5px;
   scrollbar:        false;
   background-color: transparent;
 }
@@ -261,18 +261,13 @@ listview {
 element {
   orientation:      horizontal;
   children:         [ element-icon, element-text ];
-  spacing:          6px;
-  padding:          7px 12px;
+  spacing:          5px;
+  padding:          6px 10px;
   border:           1px;
   border-radius:    8px;
   border-color:     @card-border;
   background-color: @overlay;
   text-color:       @text;
-}
-
-element selected {
-  background-color: @accent;
-  text-color:       @base;
 }
 
 element-icon {
