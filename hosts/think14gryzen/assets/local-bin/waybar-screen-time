@@ -156,8 +156,8 @@ Title:        $(escape_markup "$active_title")"
   fi
   tooltip+="</tt>
 
-<span size='small' alpha='50%'>$(escape_markup "$timer_line")</span>
-<span size='small' alpha='50%'>Click: toggle view · Right: dashboard · Middle: timer</span>"
+<span size='small' alpha='65%'>$(escape_markup "$timer_line")</span>
+<span size='small' alpha='65%'>Click: toggle view · Right: dashboard · Middle: timer</span>"
 
   emit_json "$text" "$tooltip" "$class"
 }

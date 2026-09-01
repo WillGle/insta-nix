@@ -2,4 +2,5 @@
 set -euo pipefail
 
 exec rofi -dmenu -password -p 'System password' \
+  -config "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi" \
   -theme-str 'window { width: 36%; } mainbox { children: [ inputbar ]; }'

@@ -214,12 +214,12 @@ case "${1:-toggle}" in
   status)
     if is_recording; then
       emit "$ICON_REC REC" \
-        "$(printf "<b><span foreground='@signalCritical@'>RECORDING</span></b>\n%s\n<tt>%s</tt>\n<tt>Audio: %s</tt>\n\n<span size='small' alpha='50%%'>Click: full screen  |  Right click: region  |  Middle click: audio source</span>" \
+        "$(printf "<b><span foreground='@signalCritical@'>RECORDING</span></b>\n%s\n<tt>%s</tt>\n<tt>Audio: %s</tt>\n\n<span size='small' alpha='65%%'>Left: full · Right: region · Middle: audio</span>" \
           "$SEP" "$(basename "$(cat "$OUT_FILE" 2>/dev/null || echo '?')")" "$(audio_label)")" \
         "recording"
     else
       emit "$ICON_IDLE $(audio_icon)" \
-        "$(printf "<b>SCREEN RECORDING</b>\n%s\n<tt>Idle · audio: %s</tt>\n\n<span size='small' alpha='50%%'>Click: full screen  |  Right click: region  |  Middle click: audio source</span>" \
+        "$(printf "<b><span foreground='@themeAccent@'>SCREEN RECORDING</span></b>\n%s\n<tt>Idle · audio: %s</tt>\n\n<span size='small' alpha='65%%'>Left: full · Right: region · Middle: audio</span>" \
           "$SEP" "$(audio_label)")" \
         "idle"
     fi

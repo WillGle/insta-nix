@@ -2,6 +2,7 @@
 set -euo pipefail
 
 HYPR_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.conf"
+ROFI_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/keybinds.rasi"
 THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
 if [ -r "$THEME_STATIC_ENV" ]; then
   # shellcheck disable=SC1090
@@ -27,10 +28,7 @@ ROFI_COMMON=(
   -no-custom
   -markup-rows
   -config "$HOME/.config/rofi/config.rasi"
-  -theme-str 'window { width: 86%; }'
-  -theme-str 'listview { columns: 3; lines: 13; spacing: 4px; }'
-  -theme-str 'element { children: [ element-text ]; padding: 6px 10px; }'
-  -theme-str 'element-text { font: @mono-font; }'
+  -theme "$ROFI_THEME"
 )
 
 parsed_list="$(
@@ -117,7 +115,8 @@ awk -v accent="$ACCENT_COLOR" '
   function flush() {
     if (pend_combo == "") return
     s = (pend_sec != "") ? pend_sec : "General"
-    printf "<span foreground=\"%s\">[%s]</span> <b>%-13s</b> ➔ %s\t|%s\n", accent, esc(s), esc(pend_combo), esc(pend_desc), pend_cmd
+    marker = (pend_cmd != "") ? "<span foreground=\"" accent "\">▶</span>" : "<span alpha=\"45%\">•</span>"
+    printf "%s <span foreground=\"%s\">[%s]</span> <b>%-13s</b>  %s\t|%s\n", marker, accent, esc(s), esc(pend_combo), esc(pend_desc), pend_cmd
     pend_combo = ""
   }
   BEGIN { sec = "Basic" }
@@ -153,7 +152,7 @@ awk -v accent="$ACCENT_COLOR" '
 # same line of parsed_list. Looking the row up by its key as a substring
 # picked the first line containing it: "Super+E" (File Manager) hit
 # "Super+Enter" and launched a terminal, "Super+S" hit "Super+Shift+E".
-idx="$(printf "%s\n" "$parsed_list" | cut -d$'\t' -f1 | rofi "${ROFI_COMMON[@]}" -format i -p "⌨ Shorthands" || true)"
+idx="$(printf "%s\n" "$parsed_list" | cut -d$'\t' -f1 | rofi "${ROFI_COMMON[@]}" -format i -p "⌨ Shortcuts" -mesg "Enter runs supported app shortcuts · other rows are reference only" || true)"
 
 if [ -n "$idx" ]; then
   cmd="$(printf "%s\n" "$parsed_list" | sed -n "$((idx + 1))p" | cut -d$'\t' -f2 | sed 's/^|//')"

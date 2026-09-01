@@ -293,7 +293,7 @@ Security:     Unavailable</tt>"
     tooltip+=$'\n\n'"<b><span foreground='$ACCENT'>BLUETOOTH</span></b>
 $SEP
 <tt>Devices:      $escaped_bt_status</tt>"
-    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: network menu · Right: Bluetooth</span>"
+    tooltip+=$'\n\n'"<span size='small' alpha='65%'>Click: network menu · Right: Bluetooth</span>"
     emit_json "$bt_icon 󰈀" "$tooltip" "ethernet"
     exit 0
   fi
@@ -336,7 +336,7 @@ VPN Active:   $vpn_interfaces</tt>"
 $SEP
 <tt>Devices:      $escaped_bt_status</tt>"
 
-    tooltip+=$'\n\n'"<span size='small' alpha='50%'>Click: network menu · Right: Bluetooth</span>"
+    tooltip+=$'\n\n'"<span size='small' alpha='65%'>Click: network menu · Right: Bluetooth</span>"
     if [ -n "$wifi_ap" ]; then
       emit_json "$bt_icon $(signal_icon "$signal")" "$tooltip" "connected"
     else
@@ -355,7 +355,7 @@ Status:       Wi-Fi disabled</tt>
 $SEP
 <tt>Devices:      $escaped_bt_status</tt>
 
-<span size='small' alpha='50%'>Click: network menu · Right: Bluetooth</span>"
+<span size='small' alpha='65%'>Click: network menu · Right: Bluetooth</span>"
     emit_json "$bt_icon 󰖪" "$tooltip" "disabled"
     exit 0
   fi
@@ -369,7 +369,7 @@ Status:       Disconnected</tt>
 $SEP
 <tt>Devices:      $escaped_bt_status</tt>
 
-<span size='small' alpha='50%'>Click: network menu · Right: Bluetooth</span>"
+<span size='small' alpha='65%'>Click: network menu · Right: Bluetooth</span>"
   emit_json "$bt_icon 󰤮" "$tooltip" "disconnected"
 }
 

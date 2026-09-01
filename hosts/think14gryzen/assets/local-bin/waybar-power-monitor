@@ -112,7 +112,9 @@ clear_control_warn() {
 read_node() {
     local value=""
     IFS= read -r value 2>/dev/null < "$1" || [ -n "$value" ] || return 1
-    printf '%s\n' "$value"
+    # Waybar closes the helper pipe during a reload. Treat that EPIPE as a
+    # cancelled sample instead of writing a harmless error to the user log.
+    printf '%s\n' "$value" 2>/dev/null || return 1
 }
 
 # powerprofilesctl is a D-Bus round-trip (~0.1 s of CPU) and both bar modes
@@ -773,10 +775,10 @@ esac
 # The APU tile does not render battery/charging data. Keep its fast CPU/GPU
 # monitor independent of the much larger power-flow collection below.
 warn_count="$(warning_count)"
-health_msg="Sensor health: OK"
+health_msg="Sensors: OK"
 health_cls="healthy"
 if [ "${warn_count:-0}" -gt 0 ]; then
-    health_msg="Sensor health: Degraded (${warn_count} warning marker(s))"
+    health_msg="Sensors: degraded (${warn_count})"
     health_cls="degraded"
 fi
 
@@ -974,7 +976,7 @@ Policy max:   $cpu_policy_max GHz
 Hardware max: $cpu_hardware_max GHz
 Limit check:  $cpu_clock_status</tt>
 
-<span size='small' alpha='50%'>Click: cycle profile · $health_msg</span>"
+<span size='small' alpha='65%'>Click: cycle profile · $health_msg</span>"
 
         printf '{"text":"%s %s°C %s %s°C %sGHz %s%%", "tooltip":"%s", "class":["%s", "normal", "%s"]}\n' \
             "$ICON_GPU" "$t_gpu" "$ICON_CPU" "$t_cpu" "$cpu_freq" "$cpu_util" \
@@ -1077,7 +1079,7 @@ Voltage:      ${volt_v}V  |  Cycles: $cycles</tt>
 $SEP
 <tt>Mode:         ${reserve_label}</tt>
 
-<span size='small' alpha='50%'>Click: toggle reserve · $health_msg</span>"
+<span size='small' alpha='65%'>Click: toggle reserve · $health_msg</span>"
 
         printf '{"text":"%s  %s  %s%%  %s", "tooltip":"%s", "class":["%s", "%s", "power-flow", "%s", "%s"]}\n' \
             "$text_label" "$icon" "$cap" "$p_icon" \
