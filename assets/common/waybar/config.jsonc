@@ -33,7 +33,7 @@
     "format": " {:%a %d %b}",
     "interval": 60,
     "on-click": "setsid -f $HOME/.local/bin/rofi-calendar",
-    "tooltip": false
+    "tooltip-format": "<b><span foreground='#58a6ff'>CALENDAR</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{:%A, %d %B %Y}</tt>\n\n<span size='small' alpha='65%'>Click: open calendar</span>"
   },
   "custom/screen_time": {
     "exec": "$HOME/.local/bin/waybar-screen-time",
@@ -78,7 +78,7 @@
     "format-bluetooth-muted": " 󰖁",
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "scroll-step": 1,
-    "tooltip-format": "<b><span foreground='#58a6ff'>AUDIO DEVICE</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{desc}\nVolume:      {volume}%</tt>",
+    "tooltip-format": "<b><span foreground='#58a6ff'>AUDIO DEVICE</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{desc}\nVolume:      {volume}%</tt>\n\n<span size='small' alpha='65%'>Click: mute · Scroll: volume</span>",
     "format-icons": {
       "headphone": "",
       "hands-free": "",
