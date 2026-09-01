@@ -1,0 +1,32 @@
+@theme "~/.config/rofi/theme.rasi"
+
+window {
+  width: 56%;
+  padding: 12px;
+}
+
+entry {
+  placeholder: "Search clipboard history...";
+}
+
+listview {
+  columns: 1;
+  lines: 11;
+  fixed-height: false;
+  spacing: 5px;
+  scrollbar: false;
+}
+
+element {
+  children: [ element-text ];
+  padding: 7px 10px;
+  border-radius: 8px;
+}
+
+element-icon {
+  enabled: false;
+}
+
+element-text {
+  font: @mono-font;
+}
