@@ -50,7 +50,7 @@
 * {
   border: none;
   border-radius: 0;
-  padding: 0 5px;
+  padding: 0 3px;
   margin: 0;
   font-family: "__UI_FONT__", monospace;
   font-weight: bold;
@@ -61,9 +61,9 @@
 }
 
 window#waybar {
-  background: @base;
+  background: alpha(@base, 0.84);
   border-bottom: 1px solid alpha(@text, 0.1);
-  min-height: 28px;
+  min-height: 32px;
 }
 
 #workspaces button,
@@ -87,8 +87,8 @@ tooltip,
 menuitem,
 .popup menuitem {
   margin: 0;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 9px;
+  padding-right: 9px;
   font-family: "__UI_FONT__", monospace;
   font-weight: bold;
   font-size: __UI_FONT_SIZE__px;
@@ -111,6 +111,7 @@ menuitem,
 #idle_inhibitor,
 #custom-systemd_failed,
 #custom-screen_rec {
+  margin: 3px 0;
   border-radius: 0;
   padding-top: 0;
   padding-bottom: 0;
@@ -120,7 +121,17 @@ menuitem,
   color: @subtext;
 }
 
-#workspaces button.focused {
+#workspaces button.occupied,
+#workspaces button:not(.empty) {
+  border-top: 2px solid @signal-notice;
+}
+
+#workspaces button.empty {
+  border-top: 2px solid transparent;
+  color: @signal-muted;
+}
+
+#workspaces button.active {
   color: @accent;
   background: alpha(@text, 0.05);
   border-bottom: 2px solid @accent;
@@ -149,6 +160,62 @@ menuitem,
 #custom-screen_rec {
   background: alpha(@text, 0.05);
   border-left: 1px solid alpha(@text, 0.05);
+}
+
+/* Keep navigation, status and controls readable as three quiet panels. */
+#workspaces {
+  margin: 3px 6px 3px 4px;
+  padding: 0 2px;
+  background: alpha(@text, 0.05);
+  border-radius: 7px;
+}
+
+#workspaces button {
+  margin: 0;
+  min-width: 28px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 5px;
+}
+
+#custom-screen_time {
+  border-left: none;
+  border-radius: 7px 0 0 7px;
+}
+
+#clock,
+#clock.time,
+#clock.calendar {
+  margin-right: 6px;
+  border-radius: 0 7px 7px 0;
+}
+
+#custom-atomic_note {
+  margin-left: 6px;
+  margin-right: 6px;
+  border-left: none;
+  border-radius: 7px;
+}
+
+#custom-systemd_failed {
+  margin-left: 6px;
+  border-left: none;
+  border-radius: 7px 0 0 7px;
+}
+
+#custom-power_flow {
+  margin-right: 6px;
+  border-radius: 0 7px 7px 0;
+}
+
+#backlight {
+  border-left: none;
+  border-radius: 7px 0 0 7px;
+}
+
+#tray {
+  margin-right: 4px;
+  border-radius: 0 7px 7px 0;
 }
 
 tooltip,

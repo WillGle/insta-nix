@@ -1,0 +1,46 @@
+@theme "~/.config/rofi/theme.rasi"
+
+window {
+  width: 74%;
+  padding: 12px;
+}
+
+mainbox {
+  spacing: 8px;
+  padding: 8px;
+}
+
+entry {
+  placeholder: "Filter shortcuts...";
+}
+
+message {
+  margin: 0 0 4px 0;
+  padding: 7px 10px;
+  border: 1px;
+  border-color: @outline-soft;
+  border-radius: 9px;
+}
+
+textbox {
+  font: @mono-font;
+  text-color: @subtext;
+}
+
+listview {
+  columns: 2;
+  lines: 15;
+  fixed-height: false;
+  spacing: 5px;
+  scrollbar: false;
+}
+
+element {
+  children: [ element-text ];
+  padding: 6px 9px;
+  border-radius: 8px;
+}
+
+element-text {
+  font: @mono-font;
+}
