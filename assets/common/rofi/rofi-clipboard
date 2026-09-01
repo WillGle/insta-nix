@@ -10,12 +10,9 @@ entries="$(cliphist list)"
 selection="$(
   printf '%s\n' "$entries" | rofi -dmenu -i \
     -no-custom \
-    -p "Clipboard:" \
+    -p "Clipboard" \
     -config ~/.config/rofi/config.rasi \
-    -theme-str 'window { width: 50%; }' \
-    -theme-str 'listview { lines: 12; columns: 1; }' \
-    -theme-str 'element { children: [ element-text ]; }' \
-    -theme-str 'element-icon { enabled: false; }'
+    -theme ~/.config/rofi/clipboard.rasi
 )" && rc=0 || rc=$?
 
 case "$rc" in

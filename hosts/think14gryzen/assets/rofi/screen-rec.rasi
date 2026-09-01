@@ -6,13 +6,13 @@
    padding as calendar.rasi. */
 
 window {
-  width:         260px;
+  width:         320px;
 }
 
 mainbox {
   children:      [ listview ];
   spacing:       0;
-  padding:       8px;
+  padding:       6px;
 }
 
 listview {
@@ -23,5 +23,5 @@ listview {
 
 element {
   children:      [ element-text ];
-  padding:       6px 10px;
+  padding:       7px 10px;
 }

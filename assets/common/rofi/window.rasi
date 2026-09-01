@@ -10,24 +10,24 @@ configuration {
 window {
   width: 52%;
   border: 1px;
-  padding: 16px;
+  padding: 12px;
 }
 
 mainbox {
-  spacing: 12px;
-  padding: 12px;
+  spacing: 9px;
+  padding: 9px;
 }
 
 sidebar {
   border: 0px;
   border-radius: 8px;
-  background-color: @mantle;
-  padding: 6px;
-  spacing: 6px;
+  background-color: @panel-bg;
+  padding: 5px;
+  spacing: 5px;
 }
 
 button {
-  padding: 8px 12px;
+  padding: 7px 10px;
   border-radius: 8px;
   background-color: transparent;
   text-color: @subtext;
@@ -36,6 +36,10 @@ button {
 button selected {
   background-color: @accent;
   text-color: @base;
+}
+
+entry {
+  placeholder: "Search windows...";
 }
 
 listview {
@@ -50,19 +54,13 @@ listview {
 
 element {
   children: [ element-icon, element-text ];
-  spacing: 10px;
-  padding: 10px 14px;
+  spacing: 7px;
+  padding: 7px 9px;
   border: 1px;
   border-radius: 9px;
   border-color: @outline-soft;
-  background-color: @mantle;
+  background-color: @panel-bg;
   text-color: @text;
-}
-
-element selected {
-  border-color: @accent;
-  background-color: @accent;
-  text-color: @base;
 }
 
 element-icon {
