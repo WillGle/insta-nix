@@ -107,15 +107,15 @@ llm-fit /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.g
 
 ```bash
 llm-run /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
-#  → picks lightest KV that keeps full GPU offload, -fa on; serves http://127.0.0.1:8080
+#  → picks lightest KV that keeps full GPU offload, -fa on; serves http://127.0.0.1:9007
 #  → append `-- --jinja` whenever an agent/tool-calling client will connect
 ```
 
 **④ Use — point any client at the server:**
 
-- Any OpenAI-compatible client: `base_url = http://127.0.0.1:8080/v1`, API key
+- Any OpenAI-compatible client: `base_url = http://127.0.0.1:9007/v1`, API key
   = anything (llama-server doesn't check one).
-- `curl http://127.0.0.1:8080/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}]}'`
+- `curl http://127.0.0.1:9007/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}]}'`
 - CLI chat: `llama-cli -m <file> -ngl 999 -fa on`
 
 Useful knobs: `LLM_PORT=8081 llm-run …` for a second model on another port;
@@ -128,7 +128,7 @@ slots); `LLM_HOST=0.0.0.0` only when a container/another device must reach it.
 | --- | --- | --- |
 | **pi** (terminal agent) | provider `llama-server` in `~/.pi/agent/models.json` | **Configured & tested** — see next section |
 | **Zed** | `language_models.openai_compatible` provider "llama-server" → agent panel | **Already configured** in `~/.config/zed/settings.json`; first use asks an API key — type anything |
-| **VSCode** | Continue / Cline / Roo: provider `openai`, `apiBase: http://127.0.0.1:8080/v1` | Works |
+| **VSCode** | Continue / Cline / Roo: provider `openai`, `apiBase: http://127.0.0.1:9007/v1` | Works |
 | **Antigravity** | No official BYOK/custom endpoint | Not possible (only ToS-breaking patches) |
 
 Start `llm-run` first; every client above then works against the one server.
@@ -195,7 +195,7 @@ stochastic (~80% instant-fail odds per attempt) — see
 ```bash
 command -v llmfit llm-pull llm-list llm-fit llm-run llama-server pi   # all in /run/current-system/sw/bin
 llm-list                                             # inventory + serving status
-llm-run <model.gguf> 8192 &                          # then: curl http://127.0.0.1:8080/v1/models
+llm-run <model.gguf> 8192 &                          # then: curl http://127.0.0.1:9007/v1/models
 ```
 
 ## Related docs
