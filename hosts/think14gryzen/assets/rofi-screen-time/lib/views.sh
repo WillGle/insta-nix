@@ -209,15 +209,74 @@ render_timeline_chart() {
 
 render_hero_day_strip() {
   local context_json="$1"
-  local slots_json slots_bundle_json
-  slots_json="$(printf '%s' "$context_json" | jq -c '.today.raw.slots_30m // []')"
+  local slots_bundle_json
   slots_bundle_json="$(printf '%s' "$context_json" | jq -c '.today.categories.slots // {}')"
 
-  printf '<span foreground="%s" size="small">00       03       06       09       12       15       18       21       24</span>\n%s\n%s\n%s' \
-    "$SUBTEXT_COLOR" \
-    "$(momentum_sparkline_from_json "$slots_bundle_json")" \
-    "$(kv_markup_raw_value "Activity curve" "$(sparkline_from_json "$slots_json")")" \
-    "$(kv_markup_raw_value "Category mix" "Colored by dominant app type per 30m block")"
+  # GitHub heatmap layout: 4 rows × 12 cells = 48 time slots (each = 30 min).
+  # Each cell is a shade character:
+  #   ░ (BASE_COLOR)          → no activity
+  #   ░ ▒ ▓ █ (category color) → increasing activity intensity
+  # The time label on the left of each row makes alignment exact.
+  #
+  # shade_chars indices: 0=empty  1=low  2=med  3=high  4=max
+  local shade_chars=("░" "░" "▒" "▓" "█")
+  local out="" segment_out="" slot_idx active dominant_cat shade_idx
+  local start_h end_h
+
+  while IFS=$'\t' read -r slot_idx active dominant_cat shade_idx; do
+    # Every 12 slots (= 6 hours) start a new row.
+    if (( slot_idx % 12 == 0 )); then
+      if [ -n "$segment_out" ]; then
+        out+="${segment_out}"$'\n'
+      fi
+      start_h=$(( slot_idx / 2 ))
+      end_h=$(( start_h + 6 ))
+      segment_out="$(printf '<span foreground="%s">%02d─%02d</span>  ' \
+        "$SUBTEXT_COLOR" "$start_h" "$end_h")"
+    fi
+
+    if [ "$active" = "0" ]; then
+      CATEGORY_COLOR="$BASE_COLOR"
+    else
+      set_category_color "$dominant_cat"
+    fi
+    segment_out+="<span foreground=\"${CATEGORY_COLOR}\">${shade_chars[$shade_idx]}</span>"
+  done < <(
+    printf '%s' "$slots_bundle_json" | jq -r '
+      . as $bundle
+      | ([.[] | .[]] | max // 0) as $max
+      | ($bundle | to_entries) as $cats
+      | range(0; 48)
+      | . as $i
+      | ($cats | map({cat: .key, sec: (.value[$i] // 0)})) as $slot
+      | ($slot | map(.sec) | add // 0) as $value
+      | (
+          reduce $slot[] as $c ({cat: "Unknown", sec: 0};
+            if $c.sec > .sec then {cat: $c.cat, sec: $c.sec} else . end
+          ) | .cat
+        ) as $dominant
+      | if $value <= 0 then
+          "\($i)\t0\tUnknown\t0"
+        else
+          # 4-level intensity: ceil(value*4/max), clamped to 1–4.
+          "\($i)\t1\t\($dominant)\t\(
+            if $max <= 0 then 4
+            else (($value * 4 / $max) | ceil | if . < 1 then 1 elif . > 4 then 4 else . end)
+            end
+          )"
+        end
+    '
+  )
+  # Emit the final (18─24) row.
+  out+="${segment_out}"
+
+  printf '%s\n%s\n%s' \
+    "$(printf '<span foreground="%s" size="small">shade = activity level · color = app type · each cell = 30 min</span>' \
+        "$SUBTEXT_COLOR")" \
+    "$out" \
+    "$(printf '<span size="small" foreground="%s">■ <span foreground="%s">Work</span>  ■ <span foreground="%s">Study</span>  ■ <span foreground="%s">Browser</span>  ■ <span foreground="%s">Comm</span>  ■ <span foreground="%s">Leisure</span></span>' \
+        "$SUBTEXT_COLOR" \
+        "$CYAN_COLOR" "$SUCCESS_COLOR" "$PURPLE_COLOR" "$WARNING_COLOR" "$ERROR_COLOR")"
 }
 
 render_transition_bars() {
