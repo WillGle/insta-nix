@@ -10,7 +10,7 @@ export PATH="/run/current-system/sw/bin:${PATH:-}"   # find llama-fit-params/lla
 PROG="llm-run"
 FIT="${LLAMA_FIT_PARAMS:-llama-fit-params}"
 SERVER="${LLAMA_SERVER:-llama-server}"
-HOST="${LLM_HOST:-127.0.0.1}"; PORT="${LLM_PORT:-8080}"
+HOST="${LLM_HOST:-127.0.0.1}"; PORT="${LLM_PORT:-9007}"
 DRY=0; [ "${1:-}" = "--dry-run" ] && { DRY=1; shift; }
 if [ "$#" -eq 0 ]; then
   echo "usage: llm-run [--dry-run] <model.gguf> [context] [-- extra args]" >&2
