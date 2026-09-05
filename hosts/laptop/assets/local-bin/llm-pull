@@ -217,4 +217,4 @@ echo
 echo "done -> $dest/$first"
 echo "next:"
 echo "   llm-fit \"$dest/$first\" 8192     # (optional) check it fits a context"
-echo "   llm-run \"$dest/$first\" 8192     # serve -> http://127.0.0.1:8080"
+echo "   llm-run \"$dest/$first\" 8192     # serve -> http://127.0.0.1:9007"
