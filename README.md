@@ -23,7 +23,19 @@ nix flake show --no-write-lock-file git+file:///etc/nixos
 /etc/nixos/
 ├── flake.nix                  # Flake inputs & nixosConfigurations entrypoint
 ├── hosts/                     # Host-specific configurations & assets
-│   ├── think14gryzen/         # Main host entrypoint (default.nix, system.nix, home.nix)
+│   ├── think14gryzen/         # Main host entrypoint and host-local policy
+│   │   ├── default.nix        # Host composition and state version
+│   │   ├── system.nix         # Host-wide policy and system-module composition
+│   │   ├── hardware.nix       # Generated hardware configuration
+│   │   ├── network.nix        # Host network policy
+│   │   ├── storage.nix        # Host filesystems and swap
+│   │   ├── home.nix           # Host-specific Home Manager additions
+│   │   └── system/            # Coherent host system responsibilities
+│   │       ├── user.nix       # Account, shell, and host user policy
+│   │       ├── graphics.nix   # AMD graphics and firmware stack
+│   │       ├── power.nix      # Power, kernel tuning, and zram
+│   │       ├── gaming.nix     # Steam and Gamemode
+│   │       └── packages.nix   # System packages, fonts, and Blueman integration
 │   └── plank/                 # Remote bootstrap target
 ├── modules/                   # Reusable feature modules
 │   ├── nixos/                 # System-level NixOS modules
