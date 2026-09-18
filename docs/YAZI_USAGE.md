@@ -47,7 +47,7 @@ Your Yazi is supercharged with specialized CLI tools:
 
 ## 4. Tier 2: Intelligent Defaults
 
-Configured via Home Manager in `modules/home/base.nix`:
+Configured via Home Manager in `modules/home/terminal.nix`:
 
 - **Hidden Files**: Automatically shown by default.
 - **Sorting**: Files are sorted by **Modified Time** (`mtime`) by default (newest first).
@@ -65,9 +65,9 @@ Configured via Home Manager in `modules/home/base.nix`:
 
 ### 🪟 Opening Files (`Enter`)
 
-Every media type is routed through `xdg-open`, so the handler comes from the `xdg.mimeApps.defaultApplications` table in `modules/home/base.nix` — images open in **Loupe**, video in **VLC**, audio in **Tauon**. Change the app there and Yazi follows automatically.
+Every media type is routed through `xdg-open`, so the handler comes from the `xdg.mimeApps.defaultApplications` table in `modules/home/xdg-defaults.nix` — images open in **Loupe**, video in **VLC**, audio in **Tauon**. Change the app there and Yazi follows automatically.
 
-Note that Yazi's own default sends `{audio,video}/*` straight to `mpv` instead, bypassing xdg entirely; since `mpv` isn't installed here, `Enter` on a video used to do nothing. The `open.prepend_rules` entry in `base.nix` is what overrides that.
+Note that Yazi's own default sends `{audio,video}/*` straight to `mpv` instead, bypassing xdg entirely; since `mpv` isn't installed here, `Enter` on a video used to do nothing. The `open.prepend_rules` entry in `terminal.nix` is what overrides that.
 
 ### 🎨 Visual Theme
 

@@ -33,14 +33,25 @@ nix flake show --no-write-lock-file git+file:///etc/nixos
 │   │   ├── desktop-integration.nix # SDDM, Pipewire low-latency, Fcitx5, XDG portals
 │   │   └── openlogi.nix       # Organization/work tooling
 │   └── home/                  # User-level Home Manager modules
-│       ├── base.nix           # Shared CLI environment (zsh/fish, git, neovim)
+│       ├── home-baseline.nix  # Home Manager identity and baseline
+│       ├── shell.nix          # Fish, Starship, FZF, Zoxide, Direnv, Fastfetch
+│       ├── terminal.nix       # Foot, Tmux, and Yazi
+│       ├── xdg-defaults.nix   # MIME, XDG user dirs, and terminal dconf
+│       ├── input-method.nix   # Fcitx5 user-session boundary
+│       ├── base.nix           # Compatibility import for shared Home Manager modules
 │       ├── desktop.nix        # Shared desktop environment apps
+│       ├── desktop/waybar.nix # Waybar enablement and session lifecycle
+│       ├── desktop/session-services.nix # User session daemons and agents
 │       ├── screen-time.nix    # Rofi app usage tracker & study timer suite
 │       ├── waybar-helpers.nix # Waybar status monitors (memory, network, power)
 │       └── hyprland-helpers.nix # Hyprland setup, touchpad toggle, & helper scripts
 ├── users/                     # Shared user base definitions
 └── theme/                     # Dynamic desktop color theme engine & templates
 ```
+
+See [`docs/CONFIGURATION_OWNERSHIP.md`](./docs/CONFIGURATION_OWNERSHIP.md) for
+the source-of-truth rules and the list of generated files that must not be
+edited directly.
 
 ---
 

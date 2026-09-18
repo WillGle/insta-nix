@@ -1,6 +1,8 @@
 {
   # Decorative palette. Wallpaper-driven at runtime: matugen overwrites every
   # value below, so nothing here may carry meaning on its own.
+  # Runtime generation is intentionally limited to desktop/session surfaces;
+  # terminal and shell consumers use these values statically until migrated.
   colors = {
     base = "#0d1117";
     mantle = "#161b22";
