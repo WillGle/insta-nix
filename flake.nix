@@ -35,6 +35,8 @@
           users.will.imports = [
             ./modules/home/base.nix
             ./modules/home/desktop.nix
+            ./modules/home/desktop/waybar.nix
+            ./modules/home/desktop/session-services.nix
             homeOverlay
           ];
           extraSpecialArgs = {

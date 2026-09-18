@@ -13,6 +13,13 @@ let
     '';
   });
 
+  bluemanWithoutApplet = pkgs.blueman.overrideAttrs (old: {
+    postFixup = (old.postFixup or "") + ''
+      rm -f "$out/lib/systemd/user/blueman-applet.service"
+      rm -f "$out/etc/xdg/autostart/blueman.desktop"
+    '';
+  });
+
   # Lightworks wrapper that adds the official .desktop file and icon,
   # missing from nixpkgs buildFHSUserEnv by default.
   lightworksWithDesktop = pkgs.symlinkJoin {
@@ -67,8 +74,15 @@ in
   services = {
     xserver = {
       enable = true;
+
       xkb.layout = "us";
       videoDrivers = [ "amdgpu" ];
+
+      excludePackages = with pkgs; [
+        xterm
+      ];
+
+      desktopManager.xterm.enable = false;
     };
 
     # iOS USB multiplexing daemon
@@ -209,6 +223,18 @@ in
 
   security.rtkit.enable = true;
 
+  # NixOS keeps Blueman's package, D-Bus integration, and mechanism service;
+  # Home Manager owns the applet lifecycle for the Hyprland session. The
+  # package's applet unit and XDG autostart entry are removed from the
+  # system package so Home Manager is the only applet lifecycle owner.
+  services.blueman.enable = lib.mkForce false;
+  services.dbus.packages = [ bluemanWithoutApplet ];
+  systemd.packages = [ bluemanWithoutApplet ];
+
+  # User-facing aliases belong to Home Manager. This removes NixOS's default
+  # `ll` alias so it cannot compete with the Fish alias in modules/home/shell.nix.
+  environment.shellAliases.ll = lib.mkForce null;
+
   programs = {
     fish.enable = true;
     wireshark.enable = true;
@@ -229,6 +255,7 @@ in
 
   environment.systemPackages =
     (with pkgs; [
+      bluemanWithoutApplet
       adwaita-icon-theme
       bibata-cursors
       sddm-astronaut
@@ -339,8 +366,8 @@ in
       bluez-tools
       # GTK4 Bluetooth manager, and the only one surfaced in launchers — see
       # hosts/think14gryzen/home.nix, which hides blueman-manager's entry.
-      # blueman-applet stays as the pairing agent (services.blueman in
-      # modules/nixos/base.nix); this replaces only blueman-manager's window,
+      # blueman-applet stays as the pairing agent (the NixOS package and
+      # Home Manager user unit); this replaces only blueman-manager's window,
       # whose pair -> connect -> trust flow is three separate right-click menus
       # where GNOME's panel is one click. That split is not cosmetic:
       # connecting without pairing leaves an unencrypted link that
@@ -418,6 +445,7 @@ in
       lxqt.lxqt-policykit
 
       # Nix audit tools
+      nixd
       deadnix
       nixfmt-rfc-style
       statix

@@ -391,9 +391,6 @@ let
 
 in
 {
-  programs.waybar.systemd.enable = lib.mkForce true;
-  wayland.systemd.target = "hyprland-session.target";
-
   # GTK3 does not read org.gnome.desktop.interface color-scheme — that key only
   # steers GTK4/libadwaita and the xdg-desktop-portal. With no settings.ini on
   # disk, GTK3 resolved gtk-application-prefer-dark-theme to false and every
@@ -458,18 +455,6 @@ in
       text = themeApplyScript;
       executable = true;
     };
-
-    "waybar/config.jsonc" = {
-      source = ../../assets/common/waybar/config.jsonc;
-      onChange = ''
-        if ${pkgs.systemd}/bin/systemctl --user is-active --quiet waybar.service; then
-          ${pkgs.systemd}/bin/systemctl --user reload waybar.service
-        fi
-      '';
-    };
-    "waybar/style.css".text = ''
-      @import url("file://${themeGeneratedDir}/waybar.css");
-    '';
 
     "rofi/config.rasi".source = ../../assets/common/rofi/config.rasi;
     "rofi/calc.rasi".text = ''
@@ -620,47 +605,4 @@ in
     };
   };
 
-  systemd.user = {
-    services = {
-      waybar = {
-        Unit.PartOf = lib.mkForce [ "hyprland-session.target" ];
-        Install.WantedBy = lib.mkForce [ "hyprland-session.target" ];
-      };
-
-      theme-apply = lib.mkIf theme.runtime.enable {
-        Unit = {
-          Description = "Generate runtime theme palette for core Wayland surfaces";
-        };
-        Service = {
-          Type = "oneshot";
-          # Absolute interpreter: the unit starts with an empty PATH, so a
-          # `/usr/bin/env bash` shebang would fail before the script runs.
-          ExecStart = "${pkgs.bash}/bin/bash ${themeApplyPath}";
-          TimeoutStartSec = "120s";
-        };
-        Install = {
-          WantedBy = [ "default.target" ];
-        };
-      };
-
-      polkit-agent = {
-        Unit = {
-          Description = "Polkit Authentication Agent";
-          After = [ "hyprland-session.target" ];
-          PartOf = [ "hyprland-session.target" ];
-          StartLimitBurst = 3;
-          StartLimitIntervalSec = "30s";
-        };
-        Service = {
-          ExecStart = "${pkgs.lxqt.lxqt-policykit}/bin/lxqt-policykit-agent";
-          Restart = "on-failure";
-          RestartSec = "3s";
-          RestartPreventExitStatus = [ "SIGABRT" ];
-        };
-        Install = {
-          WantedBy = [ "hyprland-session.target" ];
-        };
-      };
-    };
-  };
 }

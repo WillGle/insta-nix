@@ -91,8 +91,6 @@
   };
 
   services = {
-    blueman.enable = true;
-
     resolved = {
       enable = true;
       dnssec = "allow-downgrade";
