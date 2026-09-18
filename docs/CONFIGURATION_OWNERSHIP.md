@@ -143,6 +143,18 @@ and Fcitx setup removes competing package launchers where Home Manager owns
 the user-session startup boundary. Do not add another autostart entry, user
 unit, shell hook, or override to work around an ownership conflict.
 
+The current runtime environment follows the same boundary:
+
+- NixOS owns global desktop defaults in the generated session environment,
+  including QT scaling/platform/plugin paths and `XMODIFIERS`.
+- Hyprland owns compositor-session variables and the Hyprland-specific
+  `QT_IM_MODULE` value; it does not repeat NixOS-owned values.
+- Home Manager owns user shell settings such as `TERMINAL` and Fish
+  integrations.
+- uv's installer-generated `~/.local/bin/env` and `env.fish` remain the
+  external PATH entry points for user-local toolchains; Fish universal PATH
+  state remains mutable.
+
 ## Agent write policy
 
 Safe to inspect: everything.
@@ -186,10 +198,10 @@ permission to delete, clean, or overwrite them:
 - Home Manager `.backup` files with unique historical settings remain retained
   for recovery; the legacy-looking Home Manager generation links remain
   unresolved pending rollback verification.
-- `/etc/nixos/scripts/bench/common.sh` still reads the optional historical
-  `/run/ryzenadj-profile/active` marker for benchmark metadata; no active
-  producer remains, and daily power ownership is `native-power-profile` with
-  `/etc/native-power-profiles.tsv`.
+- `/etc/nixos/scripts/bench/common.sh` reads the active native profile from
+  `/run/native-power-profile/active` for benchmark metadata and falls back to
+  PPD metadata when needed; daily power ownership is `native-power-profile`
+  with `/etc/native-power-profiles.tsv`.
 
 ## Module boundaries
 

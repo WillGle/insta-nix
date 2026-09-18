@@ -123,8 +123,8 @@ bench_collect_metadata() {
     ppd_profile="$(powerprofilesctl get 2>/dev/null || true)"
   fi
   profile=""
-  if [ -r /run/ryzenadj-profile/active ]; then
-    profile="$(</run/ryzenadj-profile/active)"
+  if [ -r /run/native-power-profile/active ]; then
+    profile="$(</run/native-power-profile/active)"
   fi
   case "$profile" in
     power-saver|balanced|performance|sustained-build) ;;
