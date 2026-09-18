@@ -183,17 +183,13 @@ missing evidence.
 These items remain unresolved or historical by design. Their presence is not
 permission to delete, clean, or overwrite them:
 
-- `~/.local/share/mimeapps.list` is an empty unmanaged file; populated XDG
-  MIME files are the Home Manager targets above.
-- `~/.config/theme/runtime/` has no current repository consumer; the active
-  runtime pipeline uses `~/.config/theme/generated/`.
-- Timestamped Yazi files, Home Manager `.backup` files, and the disabled
-  `~/.config/systemd/user/cpda-goal-fleet.timer` remain historical/external
-  state until separately verified.
-- `hosts/think14gryzen/assets/system-bin/ryzenadj-profile` refers to the old
-  `/etc/ryzenadj-profiles.tsv` contract. The active module uses
-  `native-power-profile` with `/etc/native-power-profiles.tsv`; the stale
-  asset remains pending an explicit decision.
+- Home Manager `.backup` files with unique historical settings remain retained
+  for recovery; the legacy-looking Home Manager generation links remain
+  unresolved pending rollback verification.
+- `/etc/nixos/scripts/bench/common.sh` still reads the optional historical
+  `/run/ryzenadj-profile/active` marker for benchmark metadata; no active
+  producer remains, and daily power ownership is `native-power-profile` with
+  `/etc/native-power-profiles.tsv`.
 
 ## Module boundaries
 
