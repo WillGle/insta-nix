@@ -1,64 +1,199 @@
 # Configuration ownership
 
-This repository uses NixOS for system scope and Home Manager for the `will`
-user scope. A file under `~/.config` is not an independent source merely
-because it is visible there: if Home Manager links it into `/nix/store`, the
-link and store content are deployment artifacts.
+This is the agent-facing contract for the NixOS and Home Manager
+configuration in this repository. A visible file under `~/.config` is not
+necessarily an independent source: a Home Manager link and its `/nix/store`
+target are deployment artifacts.
 
-## Ownership rules
+## Core invariants
 
-- NixOS owns system packages, system services, hardware, `/etc`, and
-  system-wide environment.
-- Home Manager owns user packages, shell configuration, XDG files, user
-  services, and user-facing application settings.
-- Hyprland owns compositor/session-specific environment variables only.
-- Runtime theme generation owns the generated desktop surfaces listed by the
-  theme pipeline. Foot, Yazi, Tmux, and Starship intentionally use static
-  Home Manager values for now; this is a hybrid theme model.
-- Fcitx5's package and addons are NixOS-owned. Its profile and `conf` files
-  are explicitly user-owned mutable state; Home Manager owns only session
-  startup.
-- On `think14gryzen`, package-provided Blueman and Fcitx XDG autostart entries
-  are filtered out so the Home Manager user units are the only session launchers.
-- `.bashrc`, `.zshrc`, `.profile`, editor settings, and application state not
-  referenced by a module remain external user-owned files until deliberately
-  migrated.
-- `~/.config/fish/fish_variables` is mutable Fish universal state. It currently
-  carries user PATH entries; `shell.nix` reasserts the Cargo path idempotently,
-  so this remains an explicit migration exception rather than a second managed
-  `config.fish` source.
+- ONE RUNTIME PATH → ONE OWNER
+- ONE SEMANTIC SETTING → ONE AUTHORITATIVE CONFIGURATION LAYER
 
-## Deliberately external applications
+A shared directory is a namespace, not an owner. Different producers may own
+different files in `~/.config`, `~/.local/bin`, `~/.config/systemd/user`,
+Fish `functions/`, or Fish `completions/`. Check the individual path and the
+setting it controls.
 
-The following are installed by NixOS where applicable but are configured
-outside this repository. Do not add a second Home Manager settings source
-without first migrating the live settings and checking for secrets:
+## Ownership classification
+
+- **DECLARATIVE** — The canonical source is NixOS or Home Manager. The
+  runtime target is deployment output and is not manually editable.
+- **GENERATED** — A runtime generator creates the output from another
+  canonical source. Manual edits will be overwritten.
+- **MUTABLE** — Application or user runtime state intentionally changes over
+  time. It is not automatically a candidate for Nix management.
+- **EXTERNAL** — Configuration intentionally managed outside this repository.
+  It may be migrated later as a deliberate task.
+- **UNKNOWN** — Ownership has not been established. Inspect it before any
+  mutation.
+
+## Canonical configuration layers
+
+- NixOS sources in `modules/nixos/` and `hosts/*/system.nix` own system
+  packages, services, hardware, `/etc`, and system-wide environment.
+- Home Manager sources in `modules/home/`, host Home Manager files, and their
+  assets own user packages, shell configuration, XDG files, and user services.
+- Hyprland consumes compositor configuration deployed by Home Manager. The
+  canonical source is `modules/home/hyprland-helpers.nix` and the relevant
+  host asset, not the deployed file under `~/.config/hypr/`.
+- Theme option values are defined by `modules/nixos/theme.nix` and
+  `theme/default.nix`. Theme deployment and runtime-generator wiring are in
+  `modules/home/desktop.nix`, `modules/home/desktop/waybar.nix`,
+  `modules/home/desktop/session-services.nix`, `theme/templates/`, and
+  `theme/scripts/`.
+
+Foot, Yazi, Tmux, and Starship intentionally use static Home Manager values
+for now; they are not additional runtime-theme sources.
+
+## Theme hierarchy
+
+These paths have different owners. Do not describe all of `~/.config/theme/`
+as generated state:
+
+```
+~/.config/theme/templates/
+    DECLARATIVE — Home Manager-managed, read-only source-template deployment.
+    Edit /etc/nixos/theme/templates/ instead.
+
+~/.config/theme/static.env
+    DECLARATIVE — Home Manager-managed output from the theme Nix configuration.
+
+~/.config/theme/theme-apply
+    DECLARATIVE — Home Manager-managed executable.
+    Edit the theme Nix wiring or theme/scripts/ instead.
+
+~/.config/theme/generated/*
+    GENERATED — runtime outputs owned by theme-apply/Matugen.
+    Edit the templates or generator pipeline, not these files.
+
+~/.local/state/theme/*
+    MUTABLE — persistent wallpaper, lock, and runtime theme state.
+```
+
+Home Manager also owns consumer links such as `~/.config/rofi/theme.rasi`,
+`~/.config/nvim/colors/matugen.lua`, `~/.config/hypr/hyprpaper.conf`, and
+`~/.config/dunst/dunstrc` when they point into `theme/generated/`. The link is
+declarative; its resolved generated target remains generator-owned.
+
+## Other managed deployment targets
+
+Do not edit these runtime targets directly. Change their canonical Nix or
+asset source instead:
+
+- `~/.config/starship.toml`
+- `~/.config/fish/config.fish`
+- `~/.config/foot/foot.ini`
+- `~/.config/tmux/tmux.conf`
+- `~/.config/yazi/yazi.toml`
+- `~/.config/yazi/theme.toml`
+- `~/.config/waybar/*`
+- managed XDG MIME files
+- Home Manager-managed user units under `~/.config/systemd/user/`
+
+If a target is a symlink into `/nix/store`, do not replace it or convert it
+to a regular file. Never edit `/nix/store` content.
+
+## Mutable state
+
+The following are intentionally mutable unless an ownership redesign is the
+explicit task:
+
+- `~/.config/fcitx5/profile`
+- `~/.config/fcitx5/conf/*`
+- `~/.config/fish/fish_variables`
+- `~/.local/state/theme/*`
+- `~/.local/state/hypr/*`
+- runtime databases and session state
+
+`fish_variables` may contain user PATH entries. `modules/home/shell.nix`
+reasserts the Cargo path idempotently; do not add another declarative PATH
+source or treat this as permission to replace Fish universal state.
+
+Fcitx's package and addons are NixOS-owned, while its profile and `conf/`
+files are mutable. Home Manager owns the Fcitx session-start boundary.
+
+## External configuration
+
+The following application settings intentionally remain outside Home Manager:
 
 - Zed: `~/.config/zed/settings.json`
 - VS Code: `~/.config/Code/User/settings.json`
 - Antigravity: `~/.config/Antigravity IDE/User/settings.json`
-- Pi: `~/.pi/agent/models.json`
+- Pi configuration/state: `~/.pi/agent/`
 
-These files may contain local endpoints, tokens, or application state. The
-local-LLM guide documents the paths, but the files themselves are not committed
-configuration.
+`.bashrc`, `.zshrc`, `.profile`, editor settings, and application state not
+referenced by a module are likewise external unless deliberately migrated.
+These files may contain local endpoints, tokens, or application state. Before
+adding a declarative source, inspect and migrate the current live
+configuration deliberately.
+Pi credentials, session state, and other local state under `~/.pi/agent/`
+remain external and must not be committed.
 
-## Deliberately retained candidates
+## Semantic ownership
 
-The following were not deleted because runtime ownership is not proven from the
-repository alone:
+File ownership alone is insufficient. Several mechanisms can configure the
+same semantic setting or lifecycle, including environment variables, PATH
+entries, aliases, systemd daemon startup, XDG autostart, and shell
+initialization hooks.
 
-- `~/.local/share/mimeapps.list` is an empty unmanaged file; the populated
-  XDG files are the Home Manager links above.
+One semantic setting or lifecycle must have one authoritative configuration
+layer, even when other layers consume it. For example, the current Blueman
+and Fcitx setup removes competing package launchers where Home Manager owns
+the user-session startup boundary. Do not add another autostart entry, user
+unit, shell hook, or override to work around an ownership conflict.
+
+## Agent write policy
+
+Safe to inspect: everything.
+
+Safe to directly modify:
+
+- canonical source files owned by the current task;
+- explicitly mutable or external state when the task specifically requires
+  it.
+
+Do not directly modify:
+
+- generated deployment targets;
+- `/nix/store` content;
+- Home Manager-managed symlinks;
+- runtime-generated outputs when their generator is the real source.
+
+When a conflict is found, fix the owning source or stop for clarification.
+Do not solve it by adding another override or another source of the same
+setting.
+
+## Unknown ownership procedure
+
+Before modifying an unfamiliar runtime path:
+
+1. Inspect whether it is a symlink.
+2. Resolve the symlink target.
+3. Search `/etc/nixos` for the path and application.
+4. Check this document and the relevant module.
+5. Classify the path as DECLARATIVE, GENERATED, MUTABLE, EXTERNAL, or
+   UNKNOWN.
+
+If ownership remains unclear, do not overwrite it. Report the path and the
+missing evidence.
+
+## Deliberately retained unknowns
+
+These items remain unresolved or historical by design. Their presence is not
+permission to delete, clean, or overwrite them:
+
+- `~/.local/share/mimeapps.list` is an empty unmanaged file; populated XDG
+  MIME files are the Home Manager targets above.
 - `~/.config/theme/runtime/` has no current repository consumer; the active
   runtime pipeline uses `~/.config/theme/generated/`.
 - Timestamped Yazi files, Home Manager `.backup` files, and the disabled
   `~/.config/systemd/user/cpda-goal-fleet.timer` remain historical/external
   state until separately verified.
 - `hosts/think14gryzen/assets/system-bin/ryzenadj-profile` refers to the old
-  `/etc/ryzenadj-profiles.tsv` contract; the active module installs and uses
-  `native-power-profile` with `/etc/native-power-profiles.tsv`. It remains in
-  the repository pending an explicit stale-asset decision.
+  `/etc/ryzenadj-profiles.tsv` contract. The active module uses
+  `native-power-profile` with `/etc/native-power-profiles.tsv`; the stale
+  asset remains pending an explicit decision.
 
 ## Module boundaries
 
@@ -68,32 +203,18 @@ repository alone:
 - `modules/home/terminal.nix`: Foot, Tmux, and Yazi.
 - `modules/home/xdg-defaults.nix`: MIME defaults, XDG user directories, and
   terminal dconf settings.
-- `modules/home/desktop.nix`: theme generation and generated desktop files.
-- `modules/home/desktop/waybar.nix`: Waybar enablement and Hyprland-session
-  configuration and lifecycle.
+- `modules/home/desktop.nix`: theme deployment, generator wiring, and links
+  to generated desktop surfaces.
+- `modules/home/desktop/waybar.nix`: Waybar configuration, enablement, and
+  Hyprland-session lifecycle.
 - `modules/home/desktop/session-services.nix`: theme application, Hyprpaper,
   Dunst, Udiskie, Blueman, Cliphist, and the Polkit agent.
 - `modules/home/input-method.nix`: Fcitx5 user-session startup boundary.
 - `modules/home/hyprland-helpers.nix`: compositor configuration and helper
   services other than the input-method boundary.
+- `hosts/think14gryzen/home.nix`: host-specific Home Manager imports plus
+  Blueman desktop-entry and dconf settings.
 
-## Generated targets
-
-Do not edit these directly; change their declarative source instead:
-
-- `~/.config/starship.toml`
-- `~/.config/fish/config.fish`
-- `~/.config/foot/foot.ini`
-- `~/.config/tmux/tmux.conf`
-- `~/.config/yazi/yazi.toml` and `theme.toml`
-- `~/.config/waybar/config.jsonc` and `style.css`
-- `~/.config/mimeapps.list` and `~/.local/share/applications/mimeapps.list`
-- Home Manager-managed user units under `~/.config/systemd/user/`
-- generated theme files under `~/.config/theme/`
-
-The generated theme directory is intentionally mutable runtime state for the
-selected desktop theme pipeline. It is not a place for manual edits.
-
-Waybar's package-provided user unit is a fallback under the per-user profile;
-the Home Manager unit under `~/.config/systemd/user/waybar.service` intentionally
-shadows it so the Hyprland lifecycle is defined in one source.
+The package-provided Waybar user unit is a fallback under the per-user
+profile. The Home Manager unit under `~/.config/systemd/user/waybar.service`
+intentionally shadows it so the Hyprland lifecycle has one active source.
