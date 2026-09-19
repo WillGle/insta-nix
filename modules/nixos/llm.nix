@@ -108,15 +108,6 @@ let
         python3Packages.gguf
       ];
     })
-    (mkSystemScript {
-      name = "llm-run";
-      dir = ../../hosts/think14gryzen/assets/local-bin;
-      vars = {
-        llmLib = "${llmLib}";
-      };
-      excludeShellChecks = [ "SC2034" ];
-      runtimeInputs = with pkgs; [ coreutils ];
-    })
   ];
 in
 {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # llm-pull: download a GGUF from HuggingFace into the local model dir — ollama-like
-# "find + fetch in one command" for the fast llm-run flow. Prefers Unsloth UD quants.
+# "find + fetch in one command" for the local model-management flow. Prefers Unsloth UD quants.
 # Handles sharded GGUFs. Plain files you keep yourself (no hidden registry).
 #
 # Usage: llm-pull [--dry-run] <hf-repo> [quant-substring=UD-Q4_K_XL]
@@ -217,4 +217,3 @@ echo
 echo "done -> $dest/$first"
 echo "next:"
 echo "   llm-fit \"$dest/$first\" 8192     # (optional) check it fits a context"
-echo "   llm-run \"$dest/$first\" 8192     # serve -> http://127.0.0.1:9007"

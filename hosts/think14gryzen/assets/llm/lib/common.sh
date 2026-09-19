@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Shared by llm-fit and llm-run, which otherwise carried byte-identical copies
-# of both functions below.
+# Shared model-fitting helpers.
 #
 # Callers set, before sourcing: PROG (name used in error messages), FIT (the
 # llama-fit-params binary), MODEL, CTX. fit_params sets FITTED_CTX/FITTED_NGL
