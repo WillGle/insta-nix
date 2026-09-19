@@ -61,10 +61,6 @@ nix flake show --no-write-lock-file git+file:///etc/nixos
 └── theme/                     # Dynamic desktop color theme engine & templates
 ```
 
-See [`docs/CONFIGURATION_OWNERSHIP.md`](./docs/CONFIGURATION_OWNERSHIP.md) for
-the source-of-truth rules and the list of generated files that must not be
-edited directly.
-
 ---
 
 ## User-facing Scripts
