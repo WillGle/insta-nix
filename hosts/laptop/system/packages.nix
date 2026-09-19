@@ -120,7 +120,7 @@ in
       ryzen-monitor-ng
       s-tui
       # GUI model runner dropped 2026-08-24: the llm-* belt (llmfit / llm-pull /
-      # llm-list / llm-fit / llm-run) plus pi covers every role it filled, and
+      # llm-list / llm-fit) plus pi covers every role it filled, and
       # keeping it would mean a second package needing the scoped unstable
       # RADV override from modules/nixos/llm.nix. Models are untouched —
       # /mnt/vault/lmstudio-models is the default path the scripts use, and
@@ -333,8 +333,8 @@ in
     ++ [
       pkgsUnstable.antigravity-ide
       pkgsUnstable.antigravity-cli
-      # pi coding agent — drives the local llama-server via the custom
-      # provider in ~/.pi/agent/models.json (and Zed via pi-acp).
+      # pi coding agent — drives the local llama.cpp router via the custom
+      # provider in ~/.pi/agent/models.json (and Zed via pi-harness-acp).
       pkgsUnstable.pi-coding-agent
     ];
 

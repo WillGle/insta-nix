@@ -73,7 +73,6 @@ and deployed by their NixOS or Home Manager module:
   * `llm-pull`: Fetch GGUF models directly from HuggingFace into local model dir.
   * `llm-list`: List installed GGUFs; `llm-list --detail <file.gguf>` shows metadata and hardware fit.
   * `llm-fit`: Model-agnostic GPU VRAM / GTT overflow fit calculator.
-  * `llm-run`: Auto-sized, overflow-safe `llama-server` launcher (Vulkan backend).
 
 See [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md) for the complete
 discover, download, inspect, fit, and serve workflow.

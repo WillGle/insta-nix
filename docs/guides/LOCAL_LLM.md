@@ -14,8 +14,8 @@ CPU), and **declarative** (the tools ship in the host config).
 | **Fetch** a GGUF from HuggingFace | `llm-pull` | prefers Unsloth UD quants; mirrors into llmfit's cache |
 | **Inventory** what is installed | `llm-list` | ground truth: every GGUF + what's being served |
 | **Fit-check** a local file at a context | `llm-fit` | exact answer from the real engine |
-| **Serve** (auto-sized, OpenAI API) | `llm-run` | lightest KV that keeps full offload, `-fa on` |
-| **Agentic coding** on a repo | `pi` | via provider `llama-server` (see below) |
+| **Router endpoint** (OpenAI API) | `http://127.0.0.1:8080/v1` | one persistent llama.cpp router; one resident model |
+| **Agentic coding** on a repo | `pi` | via the native llama.cpp integration (see below) |
 | Engine | llama.cpp Vulkan | tracks nixpkgs-unstable |
 
 Models are plain `.gguf` files under `/mnt/vault/lmstudio-models/` — no hidden
@@ -58,7 +58,7 @@ the downloaded GGUF remains available from the main model directory.
 **①b Inventory anytime:**
 
 ```bash
-llm-list    # every installed GGUF + size + what llama-server is serving now
+llm-list    # every installed GGUF + size + what the router is serving now
 llm-list --detail /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf
 # GGUF metadata + tensor types + per-context GPU fit + llmfit catalog estimate
 ```
@@ -103,35 +103,27 @@ llm-fit /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.g
 #  → fits f16? if not, the lightest KV-cache type that fixes it, or a GTT-raise hint.
 ```
 
-**③ Run (each use) — auto-fits and serves:**
+**③ Use the resident router:**
 
-```bash
-llm-run /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
-#  → picks lightest KV that keeps full GPU offload, -fa on; serves http://127.0.0.1:9007
-#  → append `-- --jinja` whenever an agent/tool-calling client will connect
-```
+The current llama.cpp router is `http://127.0.0.1:8080`. Keep one model
+resident and do not start a second standalone `llama-server` from this repo.
 
-**④ Use — point any client at the server:**
+**④ Use — point any client at the router:**
 
-- Any OpenAI-compatible client: `base_url = http://127.0.0.1:9007/v1`, API key
+- Any OpenAI-compatible client: `base_url = http://127.0.0.1:8080/v1`, API key
   = anything (llama-server doesn't check one).
-- `curl http://127.0.0.1:9007/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}]}'`
-- CLI chat: `llama-cli -m <file> -ngl 999 -fa on`
-
-Useful knobs: `LLM_PORT=8081 llm-run …` for a second model on another port;
-`llm-run <model> 8192 -- -np 4` for 4 parallel slots (context is split across
-slots); `LLM_HOST=0.0.0.0` only when a container/another device must reach it.
+- `curl http://127.0.0.1:8080/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}]}'`
 
 ## Editor / app integration (state as of 2026-08-22)
 
 | App | How | Status |
 | --- | --- | --- |
-| **pi** (terminal agent) | provider `llama-server` in `~/.pi/agent/models.json` | **Configured & tested** — see next section |
-| **Zed** | `language_models.openai_compatible` provider "llama-server" → agent panel | **Already configured** in `~/.config/zed/settings.json`; first use asks an API key — type anything |
-| **VSCode** | Continue / Cline / Roo: provider `openai`, `apiBase: http://127.0.0.1:9007/v1` | Works |
+| **pi** (terminal agent) | native llama.cpp integration in `~/.pi/agent/` | **Configured** — see next section |
+| **Zed** | OpenAI-compatible provider at `http://127.0.0.1:8080/v1`; ACP via `pi-harness-acp` | **Configured** in `~/.config/zed/settings.json` |
+| **VSCode** | Continue / Cline / Roo: provider `openai`, `apiBase: http://127.0.0.1:8080/v1` | Uses the resident router |
 | **Antigravity** | No official BYOK/custom endpoint | Not possible (only ToS-breaking patches) |
 
-Start `llm-run` first; every client above then works against the one server.
+Use the existing router; every client above points at the one server.
 
 ## Coding agent on a repo (pi + Qwen3-Coder)
 
@@ -141,26 +133,25 @@ The resident coding model is **Qwen3-Coder-30B-A3B UD-Q4_K_XL** (16.5G MoE,
 read/grep/edit tools.
 
 ```bash
-# 1. serve — --jinja is REQUIRED for tool calling (without it the model
-#    chats fine but the agent cannot read/edit files):
-llm-run /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768 -- --jinja
+# 1. select qwen3-coder-30b-a3b through Pi's native llama.cpp integration,
+#    using the existing router at http://127.0.0.1:8080
 
 # 2. agent, inside any repo:
 cd <repo>
-pi --provider llama-server --model qwen3-coder-30b-a3b        # interactive TUI
-pi -p --provider llama-server --model qwen3-coder-30b-a3b "…" # one-shot
+pi --model qwen3-coder-30b-a3b        # interactive TUI
+pi -p --model qwen3-coder-30b-a3b "…" # one-shot
 ```
 
-In pi's TUI, `/model` switches between the local model and cloud defaults
-(`~/.pi/agent/models.json` hot-reloads). pi itself ships declaratively
-(`pkgsUnstable.pi-coding-agent`); Zed can also drive it via `pi-acp`.
+In pi's TUI, `/model` switches between the local model and cloud defaults.
+pi itself ships declaratively (`pkgsUnstable.pi-coding-agent`); Zed drives it
+via `pi-harness-acp`.
 
 ## Max speed checklist
 
 1. Performance power profile (Waybar toggle or `native-power-profile performance`).
    The coordinator verifies the Lenovo platform profile and amd-pstate EPP; a manual switch opens Rofi for the required password.
 2. Plugged into AC.
-3. That's it — `-fa on`, full offload, and KV auto-sizing are already `llm-run` defaults.
+3. That's it — the resident router owns serving and model residency.
 
 ## Choosing a model (efficiency on a ~102 GB/s bandwidth-bound iGPU)
 
@@ -178,9 +169,9 @@ Decode speed ≈ memory-bandwidth ÷ model-size, so:
 ## Runtime policy
 
 - **ollama is gone — keep it that way.** Removed 2026-06-07 (measured ~1.8× slower than
-  `llm-run`), it crept back via Zed's agent config and the WisdomTree compose stack, and was
+  the old standalone server), it crept back via Zed's agent config and the WisdomTree compose stack, and was
   fully removed host-wide again on 2026-08-22 (user decision: "llm only"). Every consumer now
-  goes through llama-server's OpenAI API or the shared GGUF files.
+  goes through the resident llama.cpp router's OpenAI API or the shared GGUF files.
 
 ## Fine-tuning / training
 
@@ -188,14 +179,14 @@ Decode speed ≈ memory-bandwidth ÷ model-size, so:
 stochastic (~80% instant-fail odds per attempt) — see
 [`../archive/rocm/README.md`](../archive/rocm/README.md). The working pipeline is:
 **cloud GPU + Unsloth QLoRA → export GGUF → `llm-pull`-style drop into
-`/mnt/vault/lmstudio-models/` → serve with `llm-run`.**
+`/mnt/vault/lmstudio-models/` → use through the resident router.**
 
 ## Verification
 
 ```bash
-command -v llmfit llm-pull llm-list llm-fit llm-run llama-server pi   # all in /run/current-system/sw/bin
-llm-list                                             # inventory + serving status
-llm-run <model.gguf> 8192 &                          # then: curl http://127.0.0.1:9007/v1/models
+command -v llmfit llm-pull llm-list llm-fit llama-server pi
+llm-list                                             # inventory + router status
+curl http://127.0.0.1:8080/v1/models
 ```
 
 ## Related docs
