@@ -5,6 +5,7 @@ set -euo pipefail
 THEME_APPLY_BIN="__THEME_APPLY_BIN__"
 CAT_BIN="__CAT_BIN__"
 CP_BIN="__CP_BIN__"
+FLOCK_BIN="__FLOCK_BIN__"
 FIND_BIN="__FIND_BIN__"
 GREP_BIN="__GREP_BIN__"
 HEAD_BIN="__HEAD_BIN__"
@@ -37,14 +38,14 @@ usage() {
   "$CAT_BIN" <<'EOF'
 usage: wallpaper [command]
 
-  pick          choose an image in Rofi from ~/Pictures/Wallpapers or the
-                wallpaper shipped with the Nix configuration, then apply it
-                (this is also what running `wallpaper` with no argument does)
+  pick          choose an image in Rofi from ~/Pictures/Wallpapers or an
+                optional packaged fallback, then apply it (this is also what
+                running `wallpaper` with no argument does)
                 Put your own images in ~/Pictures/Wallpapers.
   set <image>   use <image> (jpg, jpeg, png or webp) as the wallpaper and
                 regenerate the theme from it
   current       print the wallpaper currently in use
-  reset         go back to the wallpaper shipped with the Nix configuration
+  reset         go back to the packaged fallback, when one is configured
   reapply       re-render and re-apply the current wallpaper
   help          show this message
 
@@ -66,8 +67,23 @@ current_wallpaper() {
   fi
   if [ -n "$stored" ] && [ -r "$stored" ]; then
     printf '%s\n' "$stored"
-  else
+  elif is_supported_image "$THEME_WALLPAPER"; then
     printf '%s\n' "$THEME_WALLPAPER"
+  else
+    log "no wallpaper is selected"
+    return 1
+  fi
+}
+
+# Serialize mutations to the content-addressed store. This is deliberately a
+# different lock from theme-apply's generation lock: cmd_set holds this one
+# while invoking theme-apply, so reusing the same file would deadlock the child.
+lock_wallpaper_state() {
+  "$MKDIR_BIN" -p "$THEME_STATE_DIR"
+  exec 8>>"$THEME_WALLPAPER_LOCK_FILE"
+  if ! "$FLOCK_BIN" -w 60 8; then
+    log "another wallpaper change still holds $THEME_WALLPAPER_LOCK_FILE after 60s"
+    exit 1
   fi
 }
 
@@ -96,6 +112,8 @@ cmd_set() {
     log "unsupported or invalid image (want jpg, jpeg, png or webp): $source"
     exit 1
   fi
+
+  lock_wallpaper_state
 
   ext="${resolved##*.}"
   ext="${ext,,}"
@@ -136,6 +154,13 @@ cmd_set() {
 }
 
 cmd_reset() {
+  if ! is_supported_image "$THEME_WALLPAPER"; then
+    log "no packaged default wallpaper is configured"
+    exit 1
+  fi
+
+  lock_wallpaper_state
+
   # Generate from the wallpaper the current Nix configuration ships. Only once
   # that has succeeded is the user override dropped: theme-apply persisted the
   # default path as a selection, and leaving it there would pin today's store
@@ -149,8 +174,8 @@ cmd_reset() {
   printf '%s\n' "$THEME_WALLPAPER"
 }
 
-# Candidates are the user's own wallpaper directory plus the single image the
-# Nix configuration ships.
+# Candidates are the user's own wallpaper directory plus an optional packaged
+# fallback from the Nix configuration.
 #
 # Earlier this scanned the *directory* holding the shipped wallpaper too. That
 # directory was managed by Home Manager, so listing it advertised a managed path
