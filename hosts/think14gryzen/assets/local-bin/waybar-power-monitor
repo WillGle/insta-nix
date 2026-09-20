@@ -421,7 +421,7 @@ warning_count() {
     local f n=0
     for f in "$WARN_DIR"/*; do
         case "${f##*/}" in
-            ryzenadj_*|profile_toggle|reserve_*) continue ;;
+            profile-toggle.lock|ryzenadj_*|profile_toggle|reserve_*) continue ;;
         esac
         [ -f "$f" ] && n=$((n + 1))
     done
