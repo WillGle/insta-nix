@@ -19,18 +19,12 @@ let
   themeStaticEnv = "${themeRoot}/static.env";
   themeApplyPath = "${themeRoot}/theme-apply";
   wallpaperPath = "${config.home.homeDirectory}/.local/bin/wallpaper";
-  # Reference the Nix store path directly instead of copying the image into a
-  # Home Manager-managed file under ~/.config. That copy was the only reason a
-  # wallpaper change could collide with activation: replace the file in place and
-  # the next switch tries to back it up, and fails outright once a .backup from
-  # an earlier switch is already sitting there. With no managed file, there is
-  # nothing to collide with. Readers only ever open the path, so a store path
-  # serves them identically.
-  # String interpolation, not `toString`: the latter strips the path's string
-  # context, so nothing would record a dependency on the image and a garbage
-  # collection could delete the default wallpaper out from under the running
-  # system. Interpolating keeps the reference.
-  themeWallpaperPath = "${theme.wallpaper.source}";
+  # User-selected wallpapers live outside the Nix store and are resolved from
+  # the XDG state pointer at runtime. A host may still provide an optional
+  # packaged fallback through theme.wallpaper.source.
+  themeWallpaperPath = lib.optionalString (theme.wallpaper.source != null) (
+    toString theme.wallpaper.source
+  );
 
   # Runtime state lives outside the Home Manager generation so a user-selected
   # wallpaper survives rebuilds and is never a read-only store path.
@@ -418,6 +412,7 @@ in
       THEME_STATE_DIR=${lib.escapeShellArg themeStateDir}
       THEME_WALLPAPER_STORE=${lib.escapeShellArg themeWallpaperStore}
       THEME_WALLPAPER_POINTER=${lib.escapeShellArg themeWallpaperPointer}
+      THEME_WALLPAPER_LOCK_FILE=${lib.escapeShellArg "${themeStateDir}/wallpaper.lock"}
       THEME_LOCK_FILE=${lib.escapeShellArg themeLockFile}
       THEME_WALLPAPER=${lib.escapeShellArg themeWallpaperPath}
       THEME_WALLPAPER_DROP_DIR=${lib.escapeShellArg wallpaperDropDir}
