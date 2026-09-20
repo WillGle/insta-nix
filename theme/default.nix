@@ -68,7 +68,9 @@
   };
 
   wallpaper = {
-    source = ./assets/699940446_27093267803673575_2255830419586770226_n.jpg;
+    # User-selected wallpapers live in XDG state; no personal image belongs in
+    # the flake source. A packaged fallback can be supplied by a host if needed.
+    source = null;
   };
 
   runtime = {
