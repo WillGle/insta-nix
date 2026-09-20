@@ -1,124 +1,96 @@
-# Plank Remote Install
+# Hướng dẫn cài đặt từ xa cho Plank (Plank Remote Install)
 
-## Purpose
+Quy trình cài đặt NixOS lên máy đích `plank` qua mạng mà không sử dụng công cụ `disko`. Máy `plank` được thiết kế làm môi trường bootstrap tối giản (không sử dụng Home Manager, `enableHome = false` trong `flake.nix`).
 
-This guide explains how to install `plank` on a remote machine without `disko`.
+## Điều kiện tiên quyết
 
-## When to use
-
-Use this guide for new remote installs that should boot into the bootstrap installer configuration.
-
-## Prerequisites
-
-- You can build `plank` from this repo.
-- The target machine is booted into a NixOS installer environment.
-- You can reach the target over the network.
-- The required Plank SSH public-key seed exists at
+- Biên dịch thành công cấu hình `plank` từ kho lưu trữ này.
+- Máy đích đã khởi động vào môi trường cài đặt NixOS (NixOS installer).
+- Kết nối mạng thông suốt giữa máy điều khiển và máy đích.
+- Tệp seed khóa công khai SSH của Plank tồn tại tại:
   `/etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys`.
 
-## Steps
+## Các bước thực hiện
 
-1. Run the required checks.
+### 1. Kiểm tra cấu hình trên máy điều khiển
+```bash
+nix flake check --no-build --no-write-lock-file path:/etc/nixos
+nixos-rebuild build --flake path:/etc/nixos#plank
+```
 
-   ```bash
-   nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
-   nixos-rebuild build --flake git+file:///etc/nixos#plank
-   ```
+### 2. Phân vùng và gán nhãn đĩa trên máy đích
+Yêu cầu bắt buộc về nhãn phân vùng (labels) khớp với cấu hình trong `hosts/plank/default.nix`:
+- `NIXOS_BOOT` cho phân vùng `/boot` (FAT32)
+- `NIXOS_SWAP` cho phân vùng Swap
+- `NIXOS_ROOT` cho phân vùng `/` (ext4)
 
-2. Prepare the required disk labels on the target.
+Thao tác trên máy đích:
+```bash
+DISK=/dev/nvme0n1
+parted -s "$DISK" -- mklabel gpt
+parted -s "$DISK" -- mkpart ESP fat32 1MiB 1025MiB
+parted -s "$DISK" -- set 1 esp on
+parted -s "$DISK" -- mkpart SWAP linux-swap 1025MiB 17409MiB
+parted -s "$DISK" -- mkpart ROOT ext4 17409MiB 100%
 
-   Required labels:
+mkfs.vfat -F32 -n NIXOS_BOOT "${DISK}p1"
+mkswap -L NIXOS_SWAP "${DISK}p2"
+mkfs.ext4 -L NIXOS_ROOT "${DISK}p3"
 
-   - `NIXOS_BOOT` for `/boot`
-   - `NIXOS_ROOT` for `/`
-   - `NIXOS_SWAP` for swap
+mount /dev/disk/by-label/NIXOS_ROOT /mnt
+mkdir -p /mnt/boot
+mount /dev/disk/by-label/NIXOS_BOOT /mnt/boot
+swapon /dev/disk/by-label/NIXOS_SWAP
+```
 
-   Example:
+### 3. Kiểm tra tệp seed khóa SSH
+Tệp seed là bắt buộc cho lần cài đặt đầu tiên để có thể truy cập SSH sau khi khởi động:
+```bash
+test -s /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
+ssh-keygen -l -f /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
+```
 
-   ```bash
-   DISK=/dev/nvme0n1
-   parted -s "$DISK" -- mklabel gpt
-   parted -s "$DISK" -- mkpart ESP fat32 1MiB 1025MiB
-   parted -s "$DISK" -- set 1 esp on
-   parted -s "$DISK" -- mkpart SWAP linux-swap 1025MiB 17409MiB
-   parted -s "$DISK" -- mkpart ROOT ext4 17409MiB 100%
+### 4. Thực hiện cài đặt
 
-   mkfs.vfat -F32 -n NIXOS_BOOT "${DISK}p1"
-   mkswap -L NIXOS_SWAP "${DISK}p2"
-   mkfs.ext4 -L NIXOS_ROOT "${DISK}p3"
+#### Cách 1: Đồng bộ mã nguồn từ máy điều khiển (Khuyên dùng)
+```bash
+rsync -a --delete /etc/nixos/ root@<ip>:/mnt/etc/nixos/
+ssh root@<ip> 'install -d -m 700 /mnt/etc/plank'
+scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
+  root@<ip>:/mnt/etc/plank/authorized_keys
+ssh root@<ip> '
+  test -s /mnt/etc/plank/authorized_keys &&
+  ssh-keygen -l -f /mnt/etc/plank/authorized_keys &&
+  nixos-install --root /mnt --flake path:/mnt/etc/nixos#plank
+'
+```
 
-   mount /dev/disk/by-label/NIXOS_ROOT /mnt
-   mkdir -p /mnt/boot
-   mount /dev/disk/by-label/NIXOS_BOOT /mnt/boot
-   swapon /dev/disk/by-label/NIXOS_SWAP
-   ```
+#### Cách 2: Kéo mã nguồn từ GitHub
+```bash
+ssh root@<ip> 'install -d -m 700 /mnt/etc/plank'
+scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
+  root@<ip>:/mnt/etc/plank/authorized_keys
+ssh root@<ip> '
+  test -s /mnt/etc/plank/authorized_keys &&
+  ssh-keygen -l -f /mnt/etc/plank/authorized_keys &&
+  nixos-install --root /mnt --flake github:<owner>/<repo>#plank
+'
+```
 
-3. Prepare the required SSH public-key seed and any optional local-private files.
+## Kiểm tra sau khi cài đặt
 
-   The seed is mandatory for the first install:
-
-   - `/etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys`
-
-   Validate it before copying:
-
-   ```bash
-   test -s /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
-   ssh-keygen -l -f /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
-   ```
-
-   Other optional paths:
-
-   - `/etc/nixos/.local/remote-install/keys/plank-authorized_keys`
-   - `/etc/nixos/.local/remote-install/seed/home/<user>/.ssh/authorized_keys`
-   - `/etc/nixos/.local/remote-install/hardware/`
-   - `/etc/nixos/.local/remote-install/runbooks/`
-   - `/etc/nixos/.local/remote-install/modules/plank-host-local.nix`
-
-4. Choose one install method.
-
-   Local clone source:
-
-   ```bash
-   rsync -a --delete /etc/nixos/ root@<ip>:/mnt/etc/nixos/
-   ssh root@<ip> 'install -d -m 700 /mnt/etc/plank'
-   scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
-     root@<ip>:/mnt/etc/plank/authorized_keys
-   ssh root@<ip> '
-     test -s /mnt/etc/plank/authorized_keys &&
-     ssh-keygen -l -f /mnt/etc/plank/authorized_keys &&
-     nixos-install --root /mnt --flake path:/mnt/etc/nixos#plank
-   '
-   ```
-
-   GitHub source:
-
-   ```bash
-   ssh root@<ip> 'install -d -m 700 /mnt/etc/plank'
-   scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
-     root@<ip>:/mnt/etc/plank/authorized_keys
-   ssh root@<ip> '
-     test -s /mnt/etc/plank/authorized_keys &&
-     ssh-keygen -l -f /mnt/etc/plank/authorized_keys &&
-     nixos-install --root /mnt --flake github:<owner>/<repo>#plank
-   '
-   ```
-
-## Verification
-
-Check access:
-
+Kiểm tra kết nối SSH vào máy đích qua cổng tùy chỉnh:
 ```bash
 ssh -p 2222 <user>@<ip>
 ```
 
-Confirm that local-private files are still outside the tracked repo:
-
+Xác nhận các tệp cục bộ nhạy cảm không bị track trong Git trên máy điều khiển:
 ```bash
 git -C /etc/nixos status --ignored --short
 git -C /etc/nixos ls-files | rg -n "remote-install|authorized_keys|\\.local"
 ```
 
-## Related docs
+## Tài liệu liên quan
 
-- [`HOST_ONBOARDING.md`](./HOST_ONBOARDING.md)
-- [`../README.md`](../README.md)
+- [`HOST_ONBOARDING.md`](./HOST_ONBOARDING.md): Quy trình thêm máy mới vào repo.
+- [`../README.md`](../README.md): Tổng quan cấu trúc tài liệu.
