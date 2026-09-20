@@ -1,195 +1,104 @@
-# Local LLM Guide — think14gryzen (Radeon 780M / Vulkan)
+# Hướng dẫn chạy LLM cục bộ — think14gryzen (Radeon 780M / Vulkan)
 
-## Purpose
+Tài liệu thiết lập và quy trình vận hành LLM cục bộ trên chip đồ họa tích hợp Radeon 780M:
+- **Tốc độ tối đa:** Sử dụng backend `llama.cpp` Vulkan (nhanh hơn ~1.8 lần so với engine của Ollama).
+- **Chống tràn bộ nhớ:** Tự động tính toán dung lượng KV-cache để đảm bảo toàn bộ ngữ cảnh nằm trong GPU/GTT, không tràn xuống CPU.
+- **Tính khai báo:** Toàn bộ công cụ và cấu hình GTT 22 GiB (`ttm.pages_limit=5767168`) được tích hợp sẵn trong cấu hình NixOS của máy trạm.
 
-The optimal local-LLM workflow on `think14gryzen`: **fast** (llama.cpp Vulkan, measured ~1.8× the
-bundled-ollama engine), **overflow-safe** (auto KV-cache sizing so context never silently spills to
-CPU), and **declarative** (the tools ship in the host config).
+## 1. Bảng công cụ quản trị
 
-## TL;DR — the tool belt
+| Công cụ | Chức năng | Chi tiết |
+|---|---|---|
+| `llmfit` | Duyệt và tìm mô hình tương thích phần cứng | Giao diện TUI/CLI, tích hợp sẵn tham số `--memory 22G`. |
+| `llm-pull` | Tải file GGUF từ HuggingFace | Tự động ưu tiên bản quant Unsloth UD; liên kết vào cache của `llmfit`. |
+| `llm-list` | Kiểm tra danh sách mô hình đã cài đặt | Hiển thị toàn bộ tệp GGUF, dung lượng và mô hình router đang phục vụ. |
+| `llm-fit` | Đo độ tương thích của mô hình với kích thước ngữ cảnh | Gọi trực tiếp engine `llama-fit-params` để tính toán tràn bộ nhớ. |
+| Router nội bộ | Cung cấp OpenAI API Endpoint (`http://127.0.0.1:8080/v1`) | Chạy tiến trình `llama-server` thường trực; phục vụ một mô hình thường trú. |
+| `pi` | Agent hỗ trợ lập trình trong dự án | Tích hợp native với router llama.cpp. |
 
-| Role | Tool | Notes |
-| --- | --- | --- |
-| **Discover** models that fit this hardware | `llmfit` | curated-catalog TUI/CLI, wrapped with `--memory 22G` |
-| **Fetch** a GGUF from HuggingFace | `llm-pull` | prefers Unsloth UD quants; mirrors into llmfit's cache |
-| **Inventory** what is installed | `llm-list` | ground truth: every GGUF + what's being served |
-| **Fit-check** a local file at a context | `llm-fit` | exact answer from the real engine |
-| **Router endpoint** (OpenAI API) | `http://127.0.0.1:8080/v1` | one persistent llama.cpp router; one resident model |
-| **Agentic coding** on a repo | `pi` | via the native llama.cpp integration (see below) |
-| Engine | llama.cpp Vulkan | tracks nixpkgs-unstable |
+Thư mục lưu trữ mô hình mặc định: `/mnt/vault/lmstudio-models/` (ghi đè bằng biến môi trường `LLM_MODELS_DIR`).
 
-Models are plain `.gguf` files under `/mnt/vault/lmstudio-models/` — no hidden
-registry. `LLM_MODELS_DIR` overrides this default for another disk or host.
-The PCIe 4.0 drive gives ~2× faster model loads.
+## 2. Quy trình vận hành
 
-Measured on this box (gemma-3-4b UD-Q4, performance profile, 2026-08-22 stack
-= kernel 7.2 + Mesa 26.2): **pp512 787 t/s, tg128 33.2 t/s** — decode sits at
-~85% of the LPDDR5 bandwidth ceiling, so bigger gains come from model choice,
-not tuning.
-
-## Flow
-
-**⓪ Discover (when shopping for a model):**
-
+### Bước 1: Tìm kiếm mô hình phù hợp
 ```bash
-llmfit                # TUI: browse models scored against this machine
-llmfit --cli fit -n 10   # or the classic table
+llmfit                # Giao diện TUI trực quan
+llmfit --cli fit -n 10   # Bảng xếp hạng CLI
 ```
 
-The wrapper bakes in `--memory 22G` (autodetect only sees the 4G VRAM carve).
-Trust the fit/score columns, NOT the tok/s estimates (optimistic ~2×). Its
-"installed" badge only matches names in its own catalog — for what is really
-installed, use `llm-list`.
-
-**① Pull a model (once per model).** Prefers Unsloth **UD** quants (better quality-per-byte at the same speed):
-
+### Bước 2: Tải mô hình về máy
+Ưu tiên các bản quant UD (Unsloth Dynamic) để đạt chất lượng cao hơn ở cùng mức băng thông:
 ```bash
-llm-pull unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF   # auto-picks UD-Q4_K_XL
-llm-pull bartowski/<Model>-GGUF Q4_K_M               # repo without UD: name the quant
+llm-pull unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF   # Tự động chọn UD-Q4_K_XL
+llm-pull bartowski/<Model>-GGUF Q4_K_M               # Chỉ định cụ thể tên chuẩn lượng tử
 ```
 
-Find repos at huggingface.co (search "`<model> GGUF`"); `unsloth/*` (UD quants)
-then `bartowski/*` are the go-tos. Downloads resume if interrupted (rerun the
-same command). Each pull also drops a flat symlink into
-`~/.cache/llmfit/models/` so llmfit sees it. If another repo already owns the
-same filename there, `llm-pull` keeps the existing link and prints a warning;
-the downloaded GGUF remains available from the main model directory.
-
-**①b Inventory anytime:**
-
-```bash
-llm-list    # every installed GGUF + size + what the router is serving now
-llm-list --detail /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL.gguf
-# GGUF metadata + tensor types + per-context GPU fit + llmfit catalog estimate
-```
-
-The detail view reads GGUF metadata without loading model weights. Its
-hardware-fit section comes from `llama-fit-params`. Catalog estimates appear
-only when the GGUF's repository has an exact match in the llmfit catalog;
-measured throughput belongs to the benchmark logs.
-
-A unique filename is enough; the full model path is not required:
-
-```console
-$ llm-list --detail gemma-3-4b-it-Q4_K_M.gguf
-Model: Gemma 3 4b It
-Path: /mnt/vault/lmstudio-models/lmstudio-community/gemma-3-4b-it-GGUF/gemma-3-4b-it-Q4_K_M.gguf
-Size: 2.3 GiB | parameters: 4B | quant: Q4_K_M
-Architecture: gemma3 | tensors: 444 | GGUF quant version: 2
-Quantized by: unknown | license: gemma
-Source: https://huggingface.co/google/gemma-3-4b-pt
-Context: 131072 | layers: 34 | embedding: 2560
-Attention heads: 8 | KV heads: 4
-MoE: dense model
-Chat template: present
-Tensor types: F32=205, Q4_K=204, Q6_K=35
-
-Hardware fit (llama-fit-params; f16 KV, Flash Attention):
-  4096 ctx: full GPU offload (all layers)
-  8192 ctx: full GPU offload (all layers)
-  16384 ctx: full GPU offload (all layers)
-  32768 ctx: full GPU offload (all layers)
-  65536 ctx: full GPU offload (all layers)
-  131072 ctx: full GPU offload (all layers)
-```
-
-If more than one installed model has the same filename, `llm-list` reports the
-matching paths and requires an unambiguous relative or absolute path.
-
-**② (Optional) Check fit before committing to a big model/context:**
-
+### Bước 3: Kiểm tra mức tiêu thụ tài nguyên (Fit-check)
 ```bash
 llm-fit /mnt/vault/lmstudio-models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/*.gguf 32768
-#  → fits f16? if not, the lightest KV-cache type that fixes it, or a GTT-raise hint.
 ```
+Lệnh sẽ trả về: Có vừa bộ nhớ với f16 KV cache không; nếu không, đề xuất kiểu nén KV nhẹ nhất (q8, q4).
 
-**③ Use the resident router:**
-
-The current llama.cpp router is `http://127.0.0.1:8080`. Keep one model
-resident and do not start a second standalone `llama-server` from this repo.
-
-**④ Use — point any client at the router:**
-
-- Any OpenAI-compatible client: `base_url = http://127.0.0.1:8080/v1`, API key
-  = anything (llama-server doesn't check one).
-- `curl http://127.0.0.1:8080/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}]}'`
-
-## Editor / app integration (state as of 2026-08-22)
-
-| App | How | Status |
-| --- | --- | --- |
-| **pi** (terminal agent) | native llama.cpp integration in `~/.pi/agent/` | **Configured** — see next section |
-| **Zed** | OpenAI-compatible provider at `http://127.0.0.1:8080/v1`; ACP via `pi-harness-acp` | **Configured** in `~/.config/zed/settings.json` |
-| **VSCode** | Continue / Cline / Roo: provider `openai`, `apiBase: http://127.0.0.1:8080/v1` | Uses the resident router |
-| **Antigravity** | No official BYOK/custom endpoint | Not possible (only ToS-breaking patches) |
-
-Use the existing router; every client above points at the one server.
-
-## Coding agent on a repo (pi + Qwen3-Coder)
-
-The resident coding model is **Qwen3-Coder-30B-A3B UD-Q4_K_XL** (16.5G MoE,
-3.3B active): fits the 22 GiB GTT at **ctx 32768 with f16 KV**, measured
-**~29 t/s** decode — verified reading/reasoning over a real repo via pi's
-read/grep/edit tools.
-
+### Bước 4: Kiểm tra danh mục và metadata
 ```bash
-# 1. select qwen3-coder-30b-a3b through Pi's native llama.cpp integration,
-#    using the existing router at http://127.0.0.1:8080
-
-# 2. agent, inside any repo:
-cd <repo>
-pi --model qwen3-coder-30b-a3b        # interactive TUI
-pi -p --model qwen3-coder-30b-a3b "…" # one-shot
+llm-list                                             # Danh sách tổng quan
+llm-list --detail <ten-file-gguf>                   # Chi tiết layer, tham số, khả năng offload GPU
 ```
 
-In pi's TUI, `/model` switches between the local model and cloud defaults.
-pi itself ships declaratively (`pkgsUnstable.pi-coding-agent`); Zed drives it
-via `pi-harness-acp`.
+### Bước 5: Gọi API qua Router nội bộ
+Router chạy thường trực tại cổng `8080`. Mọi ứng dụng client tương thích OpenAI đều có thể kết nối:
+- `base_url`: `http://127.0.0.1:8080/v1`
+- `api_key`: Giá trị tùy ý (server không kiểm tra key).
 
-## Max speed checklist
+Kiểm tra nhanh qua curl:
+```bash
+curl http://127.0.0.1:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"xin chao"}]}'
+```
 
-1. Performance power profile (Waybar toggle or `native-power-profile performance`).
-   The coordinator verifies the Lenovo platform profile and amd-pstate EPP; a manual switch opens Rofi for the required password.
-2. Plugged into AC.
-3. That's it — the resident router owns serving and model residency.
+## 3. Tích hợp công cụ lập trình
 
-## Choosing a model (efficiency on a ~102 GB/s bandwidth-bound iGPU)
+| Ứng dụng | Cách tích hợp | Trạng thái |
+|---|---|---|
+| **pi** | Tích hợp trực tiếp qua cấu hình `~/.pi/agent/` | Đã cấu hình mô hình `qwen3-coder-30b-a3b` |
+| **Zed** | Cấu hình OpenAI provider và ACP trong `~/.config/zed/settings.json` | Đã cấu hình |
+| **VSCode** | Cấu hình Continue / Cline / Roo trỏ vào endpoint `http://127.0.0.1:8080/v1` | Sử dụng router nội bộ |
 
-Decode speed ≈ memory-bandwidth ÷ model-size, so:
+Chạy agent lập trình trong thư mục dự án:
+```bash
+cd <du-an>
+pi --model qwen3-coder-30b-a3b        # Chế độ tương tác TUI
+pi -p --model qwen3-coder-30b-a3b "nội dung yêu cầu" # Chạy một lần
+```
 
-- **Prefer Unsloth UD quants** when available — same speed, closer to BF16 quality.
-- **Prefer small-active MoE** (e.g. Qwen3-30B-A3B): ~30B knowledge at ~3B speed.
-- **Size to the wall:** 4–8B / small-MoE ≈ snappy (≈15–33 t/s); 14B dense ≈ usable (≈9–10 t/s); 27–32B dense ≈ batch-only.
-- Use `llm-fit` to pick the largest model + context that still fits the **22 GiB GTT**
-  (already raised via `ttm.pages_limit=5767168`).
-- Reference points measured on this box: gemma-3-4b UD-Q4 ≈ 33 t/s;
-  **Qwen3-Coder-30B-A3B UD-Q4 ≈ 29 t/s at ctx 32k** — a 30B-class MoE running
-  ~3× faster than the 14B dense it replaced. MoE is the way on this hardware.
+## 4. Danh mục tối đa tốc độ (Max speed checklist)
 
-## Runtime policy
+1. Chuyển profile nguồn sang `performance`: Chạy `native-power-profile performance` hoặc click nút chuyển trên Waybar.
+2. Cắm sạc AC.
+3. Không can thiệp thủ công vào GTT: Hệ thống đã nạp sẵn `ttm.pages_limit=5767168` (~22 GiB) ở mức kernel.
 
-- **ollama is gone — keep it that way.** Removed 2026-06-07 (measured ~1.8× slower than
-  the old standalone server), it crept back via Zed's agent config and the WisdomTree compose stack, and was
-  fully removed host-wide again on 2026-08-22 (user decision: "llm only"). Every consumer now
-  goes through the resident llama.cpp router's OpenAI API or the shared GGUF files.
+## 5. Nguyên tắc lựa chọn mô hình cho iGPU Radeon 780M
 
-## Fine-tuning / training
+Tốc độ decode bị giới hạn trực tiếp bởi băng thông bộ nhớ LPDDR5 (~102 GB/s):
+`Tốc độ giải mã (t/s) ≈ Băng thông bộ nhớ / Dung lượng mô hình`.
 
-**Not on this GPU.** The 2026-08-22 campaign verdict: PyTorch/ROCm training on gfx1103 is
-stochastic (~80% instant-fail odds per attempt) — see
-[`../archive/rocm/README.md`](../archive/rocm/README.md). The working pipeline is:
-**cloud GPU + Unsloth QLoRA → export GGUF → `llm-pull`-style drop into
-`/mnt/vault/lmstudio-models/` → use through the resident router.**
+- **Ưu tiên kiến trúc MoE kích hoạt ít tham số:** Ví dụ `Qwen3-Coder-30B-A3B` (tổng 30B, kích hoạt 3.3B) đạt tốc độ ~29 t/s ở context 32k, nhanh gấp 3 lần so với mô hình dense 14B cùng chất lượng tri thức.
+- **Ưu tiên chuẩn lượng tử Unsloth UD:** Đạt chất lượng gần mức BF16 nhưng kích thước chỉ tương đương Q4_K_M.
+- **Phân cấp dung lượng:**
+  - Mô hình 4–8B hoặc MoE nhỏ: Tốc độ cao (~15–33 t/s), phù hợp dùng hàng ngày.
+  - Mô hình Dense 14B: Tốc độ trung bình (~9–10 t/s), đáp ứng mức chấp nhận được.
+  - Mô hình Dense 27–32B: Rất chậm, chỉ dùng cho tác vụ xử lý theo lô (batch).
 
-## Verification
+## 6. Chính sách hệ thống
+
+1. **Cấm sử dụng Ollama:** Ollama đã bị loại bỏ hoàn toàn khỏi hệ thống vì chạy chậm hơn ~1.8 lần và gây xung đột cổng. Toàn bộ ứng dụng bắt buộc sử dụng router `llama-server`.
+2. **Cấm huấn luyện/fine-tune trên máy trạm:** Chip đồ họa gfx1103 có tỷ lệ lỗi treo phần cứng (MES hang) ~80% khi chạy ROCm PyTorch. Toàn bộ tác vụ huấn luyện phải thực hiện trên Cloud GPU (Unsloth QLoRA), sau đó xuất file GGUF về máy để suy luận.
+
+## 7. Lệnh kiểm tra hệ thống
 
 ```bash
 command -v llmfit llm-pull llm-list llm-fit llama-server pi
-llm-list                                             # inventory + router status
+llm-list
 curl http://127.0.0.1:8080/v1/models
 ```
-
-## Related docs
-
-- [`../archive/rocm/README.md`](../archive/rocm/README.md) — ROCm is for ML/HIP compute, NOT LLM
-- Local benchmark/method notes: `docs/internal/LLM_BENCHMARK_20260607.md`

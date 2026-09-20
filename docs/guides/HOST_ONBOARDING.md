@@ -1,70 +1,75 @@
-# Host Onboarding
+# Quy trình thêm máy mới (Host Onboarding)
 
-## Purpose
+Hướng dẫn tích hợp cấu hình của một máy trạm mới vào kho lưu trữ NixOS theo kiến trúc hiện tại.
 
-This guide shows how to add a new host to this repository.
+## Điều kiện tiên quyết
 
-## When to use
+- Xác định định danh duy nhất cho máy mới (`<host-id>`).
+- Cấu hình phần cứng hợp lệ tạo bởi `nixos-generate-config`.
 
-Use this guide when creating a new machine entrypoint or checking which modules a host should import.
+## Các bước thực hiện
 
-## Prerequisites
-
-- The new host has a stable host ID.
-- You can generate or copy a valid hardware module.
-
-## Steps
-
-1. Copy the host template.
-
-   ```bash
-   cp -r hosts/_template hosts/<host-id>
-   ```
-
-2. Fill the host files.
-
-   - `hosts/<host-id>/hardware.nix`: generated from `nixos-generate-config`
-   - `hosts/<host-id>/network.nix`: hostname and network settings
-   - `hosts/<host-id>/storage.nix`: host-local filesystems, swap, or automounts
-   - `hosts/<host-id>/system.nix`: host-specific services, packages, and policy
-   - `hosts/<host-id>/home.nix`: host-specific Home Manager additions for desktop hosts
-   - `hosts/<host-id>/assets/`: host-specific scripts and config assets deployed by Home Manager
-
-3. Wire the host entrypoint in `hosts/<host-id>/default.nix`.
-
-   Minimum imports:
-
-   - `../../modules/nixos/base.nix`
-   - `../../users/will.nix`
-   - host-local modules such as `./hardware.nix`, `./storage.nix`, `./network.nix`, and `./system.nix`
-
-4. Import any reusable role modules the host needs.
-
-   Common examples:
-
-   - `../../modules/nixos/roles/iac.nix`
-   - `../../modules/nixos/roles/kubernetes.nix`
-   - `../../modules/nixos/ssh/strict.nix`
-   - `../../modules/nixos/ssh/plank.nix`
-
-5. Add the output to `flake.nix` under `nixosConfigurations`.
-
-   Example key:
-
-   ```nix
-   nixosConfigurations.<host-id>
-   ```
-
-## Verification
-
-Run:
-
+### 1. Sao chép cấu hình mẫu
 ```bash
-nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
-nixos-rebuild build --flake git+file:///etc/nixos#<HostKey>
+cp -r hosts/_template hosts/<host-id>
 ```
 
-## Related docs
+### 2. Cấu hình các tệp thành phần trong `hosts/<host-id>/`
+- `hardware.nix`: Điền thông số phần cứng từ `nixos-generate-config` (hệ điều hành, driver, initrd).
+- `network.nix`: Đặt tên máy (`networking.hostName = "<host-id>";`) và cấu hình tường lửa/mạng.
+- `storage.nix`: Khai báo hệ thống tệp (`fileSystems`), swap (`swapDevices`) và các phân vùng.
+- `system.nix`: Dịch vụ hệ thống, chính sách riêng và các gói phần mềm hệ thống. (Lưu ý: Với máy phức tạp như `think14gryzen`, có thể tách thành thư mục con `system/` gồm `power.nix`, `graphics.nix`, `packages.nix`, v.v.).
+- `home.nix`: Cấu hình Home Manager riêng của máy (bắt buộc nếu bật giao diện người dùng).
+- `assets/`: Chứa các script và tệp cấu hình bổ sung do Home Manager quản lý.
 
-- [`PLANK_REMOTE_INSTALL.md`](./PLANK_REMOTE_INSTALL.md)
-- [`../README.md`](../README.md)
+### 3. Thiết lập điểm nạp chính tại `hosts/<host-id>/default.nix`
+Cấu hình tối thiểu:
+```nix
+{ ... }:
+{
+  imports = [
+    ./hardware.nix
+    ./storage.nix
+    ./network.nix
+    ../../modules/nixos/base.nix
+    ../../users/will.nix
+    ./system.nix
+    # Nạp thêm các module vai trò dùng chung nếu cần:
+    # ../../modules/nixos/roles/kubernetes.nix
+    # ../../modules/nixos/roles/iac.nix
+    # ../../modules/nixos/desktop-integration.nix
+    # ../../modules/nixos/ryzen.nix
+    # ../../modules/nixos/llm.nix
+  ];
+
+  system.stateVersion = "25.11";
+}
+```
+
+*Lưu ý kiến trúc:* Không import module SSH (`strict.nix` hay `plank.nix`) trong `default.nix`. Module SSH được tiêm trực tiếp qua `flake.nix`.
+
+### 4. Khai báo máy trong `flake.nix`
+Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hình máy mới vào mục `nixosConfigurations`:
+
+```nix
+nixosConfigurations.<host-id> = mkHost {
+  hostModule = ./hosts/<host-id>/default.nix;
+  sshModule = ./modules/nixos/ssh/strict.nix; # hoặc ./modules/nixos/ssh/plank.nix
+  enableHome = true;                         # Đặt false nếu là máy chủ/installer không cần Home Manager
+  homeModule = ./hosts/<host-id>/home.nix;   # Bắt buộc nếu enableHome = true; bỏ qua nếu false
+};
+```
+
+## Kiểm tra và Xác minh
+
+Chạy kiểm tra cú pháp flake và biên dịch thử nghiệm cấu hình (dùng tiền tố `path:` để không bắt buộc phải stage tệp vào Git):
+
+```bash
+nix flake check --no-build --no-write-lock-file path:/etc/nixos
+nixos-rebuild build --flake path:/etc/nixos#<host-id>
+```
+
+## Tài liệu liên quan
+
+- [`PLANK_REMOTE_INSTALL.md`](./PLANK_REMOTE_INSTALL.md): Hướng dẫn cài đặt từ xa cho host plank.
+- [`../README.md`](../README.md): Tổng quan cấu trúc tài liệu.
