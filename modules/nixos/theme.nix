@@ -227,9 +227,9 @@ in
       type = lib.types.submodule {
         options = {
           source = lib.mkOption {
-            type = lib.types.path;
+            type = lib.types.nullOr lib.types.path;
             default = themeDefaults.wallpaper.source;
-            description = "Default wallpaper asset path.";
+            description = "Optional packaged wallpaper fallback path.";
           };
         };
       };
