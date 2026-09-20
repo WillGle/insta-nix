@@ -1,113 +1,88 @@
-# Insta-Nix (NixOS Flake Configuration)
+# Insta-Nix
 
-A modular, multi-host NixOS & Home Manager Flake configuration featuring a personal laptop profile (`think14gryzen`) and a remote-install bootstrap target (`plank`).
+Modular NixOS configuration for a personal laptop and a lightweight remote
+bootstrap target.
 
----
+## Outputs
 
-## Flake Outputs
+- `think14gryzen`: Ryzen 780M laptop with Hyprland, Home Manager, local LLM
+  tools, Waybar, and the Rofi utilities.
+- `plank`: Minimal headless/remote-install target. It does not use Home Manager.
 
-* **`think14gryzen`**: Primary personal laptop profile (Ryzen 780M, Hyprland, Home Manager, local LLMs, Waybar, Rofi suite).
-* **`plank`**: Lightweight remote-install & bootstrap target for server or headless deployments.
-
-List exported outputs locally:
+Inspect the available outputs:
 
 ```bash
 nix flake show --no-write-lock-file git+file:///etc/nixos
 ```
 
----
+## Quick start
 
-## Repository Structure
-
-```text
-/etc/nixos/
-├── flake.nix                  # Flake inputs & nixosConfigurations entrypoint
-├── hosts/                     # Host-specific configurations & assets
-│   ├── think14gryzen/         # Main host entrypoint and host-local policy
-│   │   ├── default.nix        # Host composition and state version
-│   │   ├── system.nix         # Host-wide policy and system-module composition
-│   │   ├── hardware.nix       # Generated hardware configuration
-│   │   ├── network.nix        # Host network policy
-│   │   ├── storage.nix        # Host filesystems and swap
-│   │   ├── home.nix           # Host-specific Home Manager additions
-│   │   └── system/            # Coherent host system responsibilities
-│   │       ├── user.nix       # Account, shell, and host user policy
-│   │       ├── graphics.nix   # AMD graphics and firmware stack
-│   │       ├── power.nix      # Power, kernel tuning, and zram
-│   │       ├── gaming.nix     # Steam and Gamemode
-│   │       └── packages.nix   # System packages, fonts, and Blueman integration
-│   └── plank/                 # Remote bootstrap target
-├── modules/                   # Reusable feature modules
-│   ├── nixos/                 # System-level NixOS modules
-│   │   ├── base.nix           # Core NixOS defaults
-│   │   ├── llm.nix            # llama.cpp Vulkan stack & local LLM tool suite
-│   │   ├── ryzen.nix          # Ryzen laptop power management & battery reserve limit
-│   │   ├── desktop-integration.nix # SDDM, Pipewire low-latency, Fcitx5, XDG portals
-│   │   └── openlogi.nix       # Organization/work tooling
-│   └── home/                  # User-level Home Manager modules
-│       ├── home-baseline.nix  # Home Manager identity and baseline
-│       ├── shell.nix          # Fish, Starship, FZF, Zoxide, Direnv, Fastfetch
-│       ├── terminal.nix       # Foot, Tmux, and Yazi
-│       ├── xdg-defaults.nix   # MIME, XDG user dirs, and terminal dconf
-│       ├── input-method.nix   # Fcitx5 user-session boundary
-│       ├── base.nix           # Compatibility import for shared Home Manager modules
-│       ├── desktop.nix        # Shared desktop environment apps
-│       ├── desktop/waybar.nix # Waybar enablement and session lifecycle
-│       ├── desktop/session-services.nix # User session daemons and agents
-│       ├── screen-time.nix    # Rofi app usage tracker & study timer suite
-│       ├── waybar-helpers.nix # Waybar status monitors (memory, network, power)
-│       └── hyprland-helpers.nix # Hyprland setup, touchpad toggle, & helper scripts
-├── users/                     # Shared user base definitions
-└── theme/                     # Dynamic desktop color theme engine & templates
-```
-
----
-
-## User-facing Scripts
-
-Scripts are packaged using `writeShellApplication` with pinned runtime dependencies
-and deployed by their NixOS or Home Manager module:
-
-* **Local LLM Suite (`llm.nix`):**
-  * `llmfit`: Browse catalog models scored against this laptop's memory budget.
-  * `llm-pull`: Fetch GGUF models directly from HuggingFace into local model dir.
-  * `llm-list`: List installed GGUFs; `llm-list --detail <file.gguf>` shows metadata and hardware fit.
-  * `llm-fit`: Model-agnostic GPU VRAM / GTT overflow fit calculator.
-
-See [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md) for the complete
-discover, download, inspect, fit, and serve workflow.
-
-* **Power & Battery (`ryzen.nix`):**
-  * `native-power-profile`: Four Lenovo/amd-pstate profiles (`power-saver`, `balanced`, `sustained-build`, `performance`).
-  * `toggle-battery-reserve`: Toggles Lenovo battery conservation mode.
-* **Desktop & Utilities (`modules/home/`):**
-  * `rofi-screen-time`: Interactive app usage dashboard & study session tracker.
-  * `waybar-*`: Real-time system monitoring scripts for memory, network, and power consumption.
-  * `toggle_touchpad.sh` & `rotate_select.sh`: Hyprland input and monitor workspace scripts.
-
----
-
-## Usage & Deployment
-
-### Build & Apply Configuration
+Validate and build the laptop configuration:
 
 ```bash
-# Validate flake structure
 nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
+nix build --no-link --no-write-lock-file \
+  /etc/nixos#nixosConfigurations.think14gryzen.config.system.build.toplevel
+```
 
-# Test-build system derivation
-nixos-rebuild dry-build --flake /etc/nixos#think14gryzen
+Apply it only after the check and build succeed:
 
-# Apply configuration locally
+```bash
 sudo nixos-rebuild switch --flake /etc/nixos#think14gryzen
 ```
 
-### Remote Bootstrap Target (`plank`)
+After activation, verify the affected system and user services. A successful
+check or build does not prove that the new generation is active.
 
-To build or deploy the remote bootstrap target:
+Build the remote target:
 
 ```bash
 nixos-rebuild build --flake git+file:///etc/nixos#plank
 ```
 
-Follow the detailed guide in [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md) for target disk partition scripts and remote bootstrap workflows.
+## Layout
+
+```text
+/etc/nixos/
+├── flake.nix              # Flake inputs and host outputs
+├── hosts/
+│   ├── _template/         # Template for new hosts
+│   ├── think14gryzen/     # Laptop configuration, assets, and host policy
+│   └── plank/             # Remote bootstrap configuration
+├── modules/
+│   ├── nixos/             # System modules, roles, SSH, LLM, power, and theme
+│   └── home/              # Home Manager shell, desktop, and user services
+├── assets/common/         # Shared static assets
+├── theme/                 # Theme settings, templates, and generators
+├── scripts/bench/         # Hardware and developer benchmarks
+└── docs/                  # Guides and archived notes
+```
+
+Some modules are shared; desktop and LLM helpers currently use assets specific
+to `think14gryzen`. Keep host-specific policy in `hosts/<host>/`.
+
+## Ownership
+
+One runtime path has one canonical owner:
+
+- NixOS owns system packages, services, hardware, `/etc`, and system-wide
+  environment.
+- Home Manager owns user packages, shell/XDG configuration, and user services.
+- Theme templates are source inputs; `~/.config/theme/generated/` is generated
+  runtime output and should not be edited directly.
+- Pi, Zed, VS Code, and other unreferenced application settings remain external
+  user-owned state.
+
+## Main tools
+
+- Local LLM: `llmfit`, `llm-pull`, `llm-list`, and `llm-fit`.
+- Power: `native-power-profile` and `toggle-battery-reserve`.
+- Desktop: `rofi-screen-time`, `waybar-*`, and Hyprland helper scripts.
+
+## Guides
+
+- [`docs/README.md`](./docs/README.md): documentation index.
+- [`docs/guides/HOST_ONBOARDING.md`](./docs/guides/HOST_ONBOARDING.md): add a host.
+- [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md): local LLM workflow.
+- [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md): remote installation.
+- [`docs/guides/HARDWARE_BENCHMARK.md`](./docs/guides/HARDWARE_BENCHMARK.md): repeatable benchmarks.
