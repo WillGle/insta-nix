@@ -286,7 +286,6 @@ in
       pavucontrol
       pkgsUnstable.proton-vpn
       qpwgraph
-      pkgsUnstable.waypaper
 
       # Media tools & codecs
       ffmpeg-full
