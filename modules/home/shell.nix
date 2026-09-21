@@ -39,7 +39,7 @@
         add_newline = false;
         palette = "proxmox";
 
-        format = "[╭─](bold accent) $os$hostname$directory$git_branch$git_status$fill$python$nodejs$cmd_duration\n[╰─](bold accent) $character ";
+        format = "[╭─](bold accent) $os$hostname$directory$nix_shell$git_branch$git_status$fill$python$nodejs$cmd_duration$status\n[╰─](bold accent) $character ";
 
         character = {
           success_symbol = "[❯](bold accent) ";
@@ -51,6 +51,7 @@
           style = "bold accent";
           format = "[$symbol]($style) ";
           symbols.Debian = "";
+          symbols.NixOS = "";
         };
 
         hostname = {
@@ -105,10 +106,21 @@
           format = "[ $symbol $version ]($style)";
         };
 
+        nix_shell = {
+          style = "bold purple";
+        };
+
         cmd_duration = {
           min_time = 1000;
           style = "bold cyan";
           format = "[ 󰅐 $duration ]($style)";
+        };
+
+        status = {
+          disabled = false;
+          format = "[ $symbol$status ]($style) ";
+          style = "bold error";
+          symbol = "✘ ";
         };
 
         palettes.proxmox = {
