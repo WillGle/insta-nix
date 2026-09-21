@@ -1,0 +1,11 @@
+profile	phase	status	exit_code	elapsed_s	peak_cpu_temp_c	peak_gpu_temp_c	peak_apu_power_w	peak_freq_avg_mhz	policy_max_mhz	hardware_max_mhz	log
+performance	one-core	PASS	0	61	66.2	51.0	24.131	3980.47	5137.90	5137.90	one-core.log
+performance	all-core	PASS	0	481	74.2	63.0	53.380	4368.07	5137.90	5137.90	all-core.log
+sustained-build	one-core	PASS	0	61	72.5	57.0	27.185	3998.12	5137.90	5137.90	one-core.log
+sustained-build	all-core	PASS	0	480	78.8	63.0	54.092	4455.92	5137.90	5137.90	all-core.log
+balanced	one-core	PASS	0	61	74.5	59.0	21.336	3755.02	5137.90	5137.90	one-core.log
+balanced	all-core	PASS	0	482	79.8	63.0	54.371	4361.96	5137.90	5137.90	all-core.log
+power-saver	one-core	PASS	0	61	60.9	56.0	11.089	2547.92	3801.00	5137.90	one-core.log
+power-saver	all-core	PASS	0	482	63.6	55.0	29.204	3768.13	3801.00	5137.90	all-core.log
+light-use	one-core	PASS	0	62	50.2	47.0	9.555	2443.48	3200.00	5137.90	one-core.log
+light-use	all-core	PASS	0	480	54.8	49.0	21.877	3194.19	3200.00	5137.90	all-core.log

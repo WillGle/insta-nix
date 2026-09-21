@@ -26,8 +26,9 @@ let
     };
 
   # RyzenAdj remains available for later, isolated Curve Optimizer work. It is
-  # not part of the daily profile controller: the Lenovo platform profile and
-  # amd-pstate EPP are the single active policy path.
+  # not part of the daily profile controller: the Lenovo platform profile,
+  # amd-pstate EPP, and the optional cpufreq policy cap are the active policy
+  # path.
   nativeProfileRows = [
     [
       "performance"
@@ -35,6 +36,7 @@ let
       "performance"
       "performance"
       "performance"
+      "native"
     ]
     [
       "sustained-build"
@@ -42,6 +44,7 @@ let
       "balanced"
       "powersave"
       "balance_performance"
+      "native"
     ]
     [
       "balanced"
@@ -49,6 +52,7 @@ let
       "balanced"
       "powersave"
       "balance_power"
+      "native"
     ]
     [
       "power-saver"
@@ -56,13 +60,22 @@ let
       "low-power"
       "powersave"
       "power"
+      "3801000"
+    ]
+    [
+      "light-use"
+      "power-saver"
+      "low-power"
+      "powersave"
+      "power"
+      "3200000"
     ]
   ];
 
   nativeProfileConfig = pkgs.writeText "native-power-profiles.tsv" (
     lib.concatStringsSep "\n" (
       [
-        "# profile ppd_profile platform_profile governor epp"
+        "# profile ppd_profile platform_profile governor epp max_freq_khz"
       ]
       ++ map (row: lib.concatStringsSep "\t" row) nativeProfileRows
       ++ [ "" ]

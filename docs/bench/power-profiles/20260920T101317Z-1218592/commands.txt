@@ -1,0 +1,6 @@
+performance/apply command=/run/current-system/sw/bin/native-power-profile performance 
+sustained-build/apply command=/run/current-system/sw/bin/native-power-profile sustained-build 
+balanced/apply command=/run/current-system/sw/bin/native-power-profile balanced 
+power-saver/apply command=/run/current-system/sw/bin/native-power-profile power-saver 
+light-use/apply command=/run/current-system/sw/bin/native-power-profile light-use 
+restore_command=/run/current-system/sw/bin/native-power-profile performance

@@ -1,0 +1,3 @@
+performance/apply command=/run/current-system/sw/bin/native-power-profile performance 
+performance/one-core command=setsid taskset --cpu-list 0 stress-ng --cpu 1 --cpu-method matrixprod --verify --timeout 60s --metrics-brief --times 
+restore_command=/run/current-system/sw/bin/native-power-profile performance

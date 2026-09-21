@@ -266,7 +266,7 @@ record_command() {
 
 valid_profile() {
   case "$1" in
-    performance|sustained-build|balanced|power-saver) return 0 ;;
+    performance|sustained-build|balanced|power-saver|light-use) return 0 ;;
     *) return 1 ;;
   esac
 }

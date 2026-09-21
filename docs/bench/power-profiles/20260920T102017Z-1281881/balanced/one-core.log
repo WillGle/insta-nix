@@ -1,0 +1,18 @@
+stress-ng: info:  [1389522] setting to a 1 min run per stressor
+stress-ng: info:  [1389522] dispatching hogs: 1 cpu
+stress-ng: info:  [1389522] note: /proc/sys/kernel/sched_autogroup_enabled is 1 and this can impact scheduling throughput for processes not attached to a tty. Setting this to 0 may improve performance metrics
+stress-ng: info:  [1389522] note: 16 cpus have scaling governors set to powersave and this may impact performance; setting /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor to 'performance' may improve performance
+stress-ng: metrc: [1389522] stressor       bogo ops real time  usr time  sys time   bogo ops/s     bogo ops/s
+stress-ng: metrc: [1389522]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: metrc: [1389522] cpu               89889     60.00     59.81      0.00      1498.08        1502.83
+stress-ng: info:  [1389522] for a 60.00s run time:
+stress-ng: info:  [1389522]     960.07s available CPU time
+stress-ng: info:  [1389522]      59.81s user time   (  6.23%)
+stress-ng: info:  [1389522]       0.00s system time (  0.00%)
+stress-ng: info:  [1389522]      59.81s total time  (  6.23%)
+stress-ng: info:  [1389522] load average: 8.10 14.90 12.12
+stress-ng: info:  [1389522] skipped: 0
+stress-ng: info:  [1389522] passed: 1: cpu (1)
+stress-ng: info:  [1389522] failed: 0
+stress-ng: info:  [1389522] metrics untrustworthy: 0
+stress-ng: info:  [1389522] successful run completed in 1 min

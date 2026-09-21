@@ -1,0 +1,2 @@
+requested_profile=power-saver
+profile_apply=PASS

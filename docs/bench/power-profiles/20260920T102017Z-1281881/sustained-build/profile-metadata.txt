@@ -1,0 +1,8 @@
+requested_profile=sustained-build
+profile_apply=PASS
+last_cooldown_phase=cooldown-before
+last_cooldown_elapsed_s=0
+last_cooldown_phase=cooldown-between
+last_cooldown_elapsed_s=0
+last_cooldown_phase=cooldown-after
+last_cooldown_elapsed_s=2

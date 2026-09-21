@@ -1,0 +1,1449 @@
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Linux version 7.2.6 (nixbld@localhost) (gcc (GCC) 15.3.0, GNU ld (GNU Binutils) 2.46) #1-NixOS SMP PREEMPT_DYNAMIC Mon Sep 14 11:41:11 UTC 2026
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Command line: initrd=\EFI\nixos\rm7frykqrz7mdffx2nkpghfb4m1jf4wb-initrd-linux-7.2.6-initrd.efi init=/nix/store/mmk9nkinnrpz7c9kz2xxln3vlv10v8nn-nixos-system-think14gryzen-25.11.20260630.b6018f8/init amd_pstate=active transparent_hugepage=always ttm.pages_limit=5767168 loglevel=4 lsm=landlock,yama,bpf vt.default_red=0x0d,0xf8,0x3f,0xd2,0x58,0xbc,0x39,0xb1,0x6e,0xf8,0x3f,0xd2,0x58,0xbc,0x39,0xf0 vt.default_grn=0x11,0x51,0xb9,0x99,0xa6,0x8c,0xc5,0xb8,0x76,0x51,0xb9,0x99,0xa6,0x8c,0xc5,0xf6 vt.default_blu=0x17,0x49,0x50,0x22,0xff,0xff,0xcf,0xc0,0x81,0x49,0x50,0x22,0xff,0xff,0xcf,0xfc
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-provided physical RAM map:
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000000000000-0x000000000009efff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000000009f000-0x00000000000bffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x00000000000c0000-0x00000000000fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000000100000-0x0000000009afffff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000009b00000-0x0000000009dfffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000009e00000-0x0000000009efffff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000009f00000-0x0000000009f3bfff]  ACPI NVS
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000009f3c000-0x0000000069b57fff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000069b58000-0x000000006bd57fff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd58000-0x000000006bd60fff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd61000-0x000000006bd63fff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd64000-0x000000006bd6bfff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd6c000-0x000000006bd6cfff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd6d000-0x000000006bd6efff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd6f000-0x000000006bd6ffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd70000-0x000000006bd70fff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd71000-0x000000006bd79fff]  ACPI data
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000006bd7a000-0x0000000077f7efff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000077f7f000-0x000000007a77efff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000007a77f000-0x000000007af7efff]  ACPI NVS
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000007af7f000-0x000000007affefff]  ACPI data
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000007afff000-0x000000007affffff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000007b000000-0x000000007bffffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x000000007c000000-0x000000007d78ffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000007d790000-0x000000007d7effff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x000000007d7f0000-0x000000007d7f4fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x000000007d7f5000-0x000000007fffffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x0000000080000000-0x00000000c02fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x00000000c0300000-0x00000000c03fffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x00000000c0400000-0x00000000dfffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x00000000e0000000-0x00000000efffffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x00000000f0000000-0x00000000febfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x00000000fec00000-0x00000000fec01fff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x00000000fec02000-0x00000000fec0ffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x00000000fec10000-0x00000000fec10fff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x00000000fec11000-0x00000000fec1ffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x00000000fec20000-0x00000000fec20fff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x00000000fec21000-0x00000000fed7ffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x00000000fed80000-0x00000000fed81fff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x00000000fed82000-0x00000000fedfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x00000000fee00000-0x00000000fee00fff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x00000000fee01000-0x00000000feffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x00000000ff000000-0x00000000ffffffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000100000000-0x000000077e2fffff]  System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [gap 0x000000077e300000-0x000000077fffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: BIOS-e820: [mem 0x0000000780000000-0x00000008a01fffff]  device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NX (Execute Disable) protection: active
+2026-09-20T13:41:04+07:00 think14gryzen kernel: APIC: Static calls initialized
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: EFI v2.9 by INSYDE Corp.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: ACPI=0x7affe000 ACPI 2.0=0x7affe014 TPMFinalLog=0x7af3f000 SMBIOS=0x78e75000 SMBIOS 3.0=0x78e72000 MEMATTR=0x7321e018 ESRT=0x749bd898 RNG=0x7af81f18 INITRD=0x6bd7bf98 TPMEventLog=0x6bd71018 
+2026-09-20T13:41:04+07:00 think14gryzen kernel: random: crng init done
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Remove mem63: MMIO range=[0xc0300000-0xc03fffff] (1MB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: remove [mem 0xc0300000-0xc03fffff] device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Remove mem64: MMIO range=[0xe0000000-0xefffffff] (256MB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: remove [mem 0xe0000000-0xefffffff] device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Not removing mem65: MMIO range=[0xfec00000-0xfec01fff] (8KB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Not removing mem66: MMIO range=[0xfec10000-0xfec10fff] (4KB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Not removing mem67: MMIO range=[0xfec20000-0xfec20fff] (4KB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Not removing mem68: MMIO range=[0xfed80000-0xfed81fff] (8KB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Not removing mem69: MMIO range=[0xfee00000-0xfee00fff] (4KB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Remove mem70: MMIO range=[0xff000000-0xffffffff] (16MB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: remove [mem 0xff000000-0xffffffff] device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Remove mem72: MMIO range=[0x880000000-0x8a01fffff] (514MB) from e820 map
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: remove [mem 0x880000000-0x8a01fffff] device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: DMI: SMBIOS 3.6.0 present.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: DMI: LENOVO 21LF/LNVNB161216, BIOS NLCN27WW 05/14/2024
+2026-09-20T13:41:04+07:00 think14gryzen kernel: DMI: Memory slots populated: 4/4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: tsc: Fast TSC calibration using PIT
+2026-09-20T13:41:04+07:00 think14gryzen kernel: tsc: Detected 3793.066 MHz processor
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: update [mem 0x00000000-0x00000fff] System RAM ==> device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: remove [mem 0x000a0000-0x000fffff] System RAM
+2026-09-20T13:41:04+07:00 think14gryzen kernel: last_pfn = 0x77e300 max_arch_pfn = 0x400000000
+2026-09-20T13:41:04+07:00 think14gryzen kernel: MTRR map: 7 entries (3 fixed + 4 variable; max 20), built from 9 variable MTRRs
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WP  UC- WT  
+2026-09-20T13:41:04+07:00 think14gryzen kernel: last_pfn = 0x7b000 max_arch_pfn = 0x400000000
+2026-09-20T13:41:04+07:00 think14gryzen kernel: esrt: Reserving ESRT space from 0x00000000749bd898 to 0x00000000749bd920.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: update [mem 0x749bd000-0x749bdfff] System RAM ==> device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Using GB pages for direct mapping
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Secure boot disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: RAMDISK: [mem 0x607ab000-0x636dafff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Early table checksum verification disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: RSDP 0x000000007AFFE014 000024 (v02 LENOVO)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: XSDT 0x000000007AF9E228 0001DC (v01 LENOVO CB-01    00000001      01000013)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: FACP 0x000000007AFD9000 00010C (v05 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: DSDT 0x000000007AFC7000 00BB4B (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: FACS 0x000000007AEB0000 000040
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: UEFI 0x000000007AF67000 0001CF (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFFC000 000101 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFEF000 00C052 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFED000 001876 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFEC000 000033 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFEB000 000FEC (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFE2000 008416 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFE1000 000471 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: TPM2 0x000000007AFE0000 000034 (v04 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFDF000 000FC1 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFDE000 0005D0 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFDD000 000577 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: MSDM 0x000000007AFDC000 000055 (v03 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: ASF! 0x000000007AFDB000 0000A5 (v32 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: BOOT 0x000000007AFDA000 000028 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: HPET 0x000000007AFD8000 000038 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: APIC 0x000000007AFD7000 000138 (v03 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: MCFG 0x000000007AFD6000 00003C (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SLIC 0x000000007AFD5000 000176 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: VFCT 0x000000007AFC2000 004284 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFC1000 0000F8 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SDEV 0x000000007AFC0000 000144 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFBA000 00547E (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: CRAT 0x000000007AFB9000 000F10 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: CDIT 0x000000007AFB8000 000029 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFB7000 000F8D (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFB6000 00099E (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFB5000 0006C5 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFB3000 0015C8 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFB0000 002A9E (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFA6000 0098F6 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: FPDT 0x000000007AFA5000 000044 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: WSMT 0x000000007AFA3000 000028 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFA1000 001CB1 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: IVRS 0x000000007AFFD000 000198 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFD3000 000C35 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFA0000 00074A (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF9F000 000C22 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AFD4000 00074A (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF9D000 000C22 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF9C000 000684 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF9B000 0004BE (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF9A000 000057 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF98000 00166A (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF97000 0006FC (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF96000 000FF7 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF8C000 009527 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF87000 004FEB (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF86000 00080F (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF85000 000968 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF84000 00008D (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF83000 000501 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: SSDT 0x000000007AF82000 000FF5 (v02 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: BGRT 0x000000007AFA4000 000038 (v01 LENOVO CB-01    00000001 ACPI 00040000)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving FACP table memory at [mem 0x7afd9000-0x7afd910b]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving DSDT table memory at [mem 0x7afc7000-0x7afd2b4a]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving FACS table memory at [mem 0x7aeb0000-0x7aeb003f]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving UEFI table memory at [mem 0x7af67000-0x7af671ce]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7affc000-0x7affc100]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afef000-0x7affb051]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afed000-0x7afee875]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afec000-0x7afec032]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afeb000-0x7afebfeb]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afe2000-0x7afea415]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afe1000-0x7afe1470]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving TPM2 table memory at [mem 0x7afe0000-0x7afe0033]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afdf000-0x7afdffc0]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afde000-0x7afde5cf]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afdd000-0x7afdd576]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving MSDM table memory at [mem 0x7afdc000-0x7afdc054]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving ASF! table memory at [mem 0x7afdb000-0x7afdb0a4]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving BOOT table memory at [mem 0x7afda000-0x7afda027]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving HPET table memory at [mem 0x7afd8000-0x7afd8037]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving APIC table memory at [mem 0x7afd7000-0x7afd7137]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving MCFG table memory at [mem 0x7afd6000-0x7afd603b]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SLIC table memory at [mem 0x7afd5000-0x7afd5175]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving VFCT table memory at [mem 0x7afc2000-0x7afc6283]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afc1000-0x7afc10f7]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SDEV table memory at [mem 0x7afc0000-0x7afc0143]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afba000-0x7afbf47d]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving CRAT table memory at [mem 0x7afb9000-0x7afb9f0f]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving CDIT table memory at [mem 0x7afb8000-0x7afb8028]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afb7000-0x7afb7f8c]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afb6000-0x7afb699d]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afb5000-0x7afb56c4]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afb3000-0x7afb45c7]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afb0000-0x7afb2a9d]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afa6000-0x7afaf8f5]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving FPDT table memory at [mem 0x7afa5000-0x7afa5043]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving WSMT table memory at [mem 0x7afa3000-0x7afa3027]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afa1000-0x7afa2cb0]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving IVRS table memory at [mem 0x7affd000-0x7affd197]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afd3000-0x7afd3c34]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afa0000-0x7afa0749]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af9f000-0x7af9fc21]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7afd4000-0x7afd4749]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af9d000-0x7af9dc21]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af9c000-0x7af9c683]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af9b000-0x7af9b4bd]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af9a000-0x7af9a056]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af98000-0x7af99669]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af97000-0x7af976fb]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af96000-0x7af96ff6]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af8c000-0x7af95526]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af87000-0x7af8bfea]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af86000-0x7af8680e]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af85000-0x7af85967]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af84000-0x7af8408c]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af83000-0x7af83500]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving SSDT table memory at [mem 0x7af82000-0x7af82ff4]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Reserving BGRT table memory at [mem 0x7afa4000-0x7afa4037]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: No NUMA configuration found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Faking a node at [mem 0x0000000000000000-0x000000077e2fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NODE_DATA(0) allocated [mem 0x77e2fa480-0x77e2ffcff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PM-Timer IO Port: 0x408
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x00] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x01] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x02] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x03] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x04] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x05] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x06] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x07] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x08] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x09] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x0a] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x0b] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x0c] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x0d] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x0e] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: LAPIC_NMI (acpi_id[0x0f] high edge lint[0x1])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: IOAPIC[0]: apic_id 33, version 33, address 0xfec00000, GSI 0-23
+2026-09-20T13:41:04+07:00 think14gryzen kernel: IOAPIC[1]: apic_id 34, version 33, address 0xfec01000, GSI 24-55
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 low level)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Using ACPI (MADT) for SMP configuration information
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: HPET id: 0x10228210 base: 0xfed00000
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: update [mem 0x72069000-0x7231bfff] System RAM ==> device reserved
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Max. logical packages:   1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Max. logical nodes:      1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Num. nodes per package:  1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Max. logical dies:       1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Max. dies per package:   1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Max. threads per core:   2
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Num. cores per package:     8
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Num. threads per package:  16
+2026-09-20T13:41:04+07:00 think14gryzen kernel: CPU topo: Allowing 16 present CPUs plus 0 hotplug CPUs
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x00000000-0x00000fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x0009f000-0x000fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x09b00000-0x09dfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x09f00000-0x09f3bfff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x69b58000-0x6bd57fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x6bd61000-0x6bd63fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x6bd6c000-0x6bd6cfff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x6bd6f000-0x6bd6ffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x6bd71000-0x6bd79fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x72069000-0x7231bfff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x749bd000-0x749bdfff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x77f7f000-0x7affefff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: hibernation: Registered nosave memory: [mem 0x7b000000-0xffffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: [gap 0x80000000-0xfebfffff] available for PCI devices
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Booting paravirtualized kernel on bare hardware
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1910969940391419 ns
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Zone ranges:
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   Normal   [mem 0x0000000100000000-0x000000077e2fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   Device   empty
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Movable zone start for each node
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Early memory node ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x0000000000001000-0x000000000009efff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x0000000000100000-0x0000000009afffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x0000000009e00000-0x0000000009efffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x0000000009f3c000-0x0000000069b57fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x000000006bd58000-0x000000006bd60fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x000000006bd64000-0x000000006bd6bfff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x000000006bd6d000-0x000000006bd6efff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x000000006bd70000-0x000000006bd70fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x000000006bd7a000-0x0000000077f7efff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x000000007afff000-0x000000007affffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   node   0: [mem 0x0000000100000000-0x000000077e2fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Initmem setup node 0 [mem 0x0000000000001000-0x000000077e2fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA: 1 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA: 97 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA32: 768 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA32: 60 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA32: 8704 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA32: 3 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA32: 1 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA32: 1 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA32: 9 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone DMA32: 12416 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone Normal: 20480 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: On node 0, zone Normal: 7424 pages in unavailable ranges
+2026-09-20T13:41:04+07:00 think14gryzen kernel: setup_percpu: NR_CPUS:384 nr_cpumask_bits:16 nr_cpu_ids:16 nr_node_ids:1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: percpu: Embedded 99 pages/cpu s282624 r8192 d114688 u524288
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcpu-alloc: s282624 r8192 d114688 u524288 alloc=1*2097152
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcpu-alloc: [0] 00 01 02 03 [0] 04 05 06 07 
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcpu-alloc: [0] 08 09 10 11 [0] 12 13 14 15 
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Kernel command line: initrd=\EFI\nixos\rm7frykqrz7mdffx2nkpghfb4m1jf4wb-initrd-linux-7.2.6-initrd.efi init=/nix/store/mmk9nkinnrpz7c9kz2xxln3vlv10v8nn-nixos-system-think14gryzen-25.11.20260630.b6018f8/init amd_pstate=active transparent_hugepage=always ttm.pages_limit=5767168 loglevel=4 lsm=landlock,yama,bpf vt.default_red=0x0d,0xf8,0x3f,0xd2,0x58,0xbc,0x39,0xb1,0x6e,0xf8,0x3f,0xd2,0x58,0xbc,0x39,0xf0 vt.default_grn=0x11,0x51,0xb9,0x99,0xa6,0x8c,0xc5,0xb8,0x76,0x51,0xb9,0x99,0xa6,0x8c,0xc5,0xf6 vt.default_blu=0x17,0x49,0x50,0x22,0xff,0xff,0xcf,0xc0,0x81,0x49,0x50,0x22,0xff,0xff,0xcf,0xfc
+2026-09-20T13:41:04+07:00 think14gryzen kernel: printk: log buffer data + meta data: 262144 + 1114112 = 1376256 bytes
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Dentry cache hash table entries: 4194304 (order: 13, 33554432 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Inode-cache hash table entries: 2097152 (order: 12, 16777216 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: software IO TLB: area num 16.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Fallback order for Node 0: 0 
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Built 1 zonelists, mobility grouping on.  Total pages: 7290068
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Policy zone: Normal
+2026-09-20T13:41:04+07:00 think14gryzen kernel: mem auto-init: stack:all(zero), heap alloc:on, heap free:off
+2026-09-20T13:41:04+07:00 think14gryzen kernel: SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=16, Nodes=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: allocated 58720256 bytes of page_ext
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ftrace: allocating 49793 entries in 196 pages
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ftrace: allocated 196 pages with 3 groups
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Dynamic Preempt: lazy
+2026-09-20T13:41:04+07:00 think14gryzen kernel: rcu: Preemptible hierarchical RCU implementation.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: rcu:         RCU event tracing is enabled.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: rcu:         RCU restricting CPUs from NR_CPUS=384 to nr_cpu_ids=16.
+2026-09-20T13:41:04+07:00 think14gryzen kernel:         Trampoline variant of Tasks RCU enabled.
+2026-09-20T13:41:04+07:00 think14gryzen kernel:         Rude variant of Tasks RCU enabled.
+2026-09-20T13:41:04+07:00 think14gryzen kernel:         Tracing variant of Tasks RCU enabled.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: rcu: RCU calculated value of scheduler-enlistment delay is 100 jiffies.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=16
+2026-09-20T13:41:04+07:00 think14gryzen kernel: RCU Tasks: Setting shift to 4 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=16.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: RCU Tasks Rude: Setting shift to 4 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=16.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NR_IRQS: 24832, nr_irqs: 1096, preallocated irqs: 16
+2026-09-20T13:41:04+07:00 think14gryzen kernel: rcu: srcu_init: Setting srcu_struct sizes based on contention.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kfence: initialized - using 2097152 bytes for 255 objects at 0x(____ptrval____)-0x(____ptrval____)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Console: colour dummy device 80x25
+2026-09-20T13:41:04+07:00 think14gryzen kernel: printk: legacy console [tty0] enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Core revision 20260408
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clocksource: hpet: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 133484873504 ns
+2026-09-20T13:41:04+07:00 think14gryzen kernel: APIC: Switch to symmetric I/O mode setup
+2026-09-20T13:41:04+07:00 think14gryzen kernel: AMD-Vi: ivrs, add hid:AMDI0020, uid:\_SB.FUR0, rdevid:0xa0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: AMD-Vi: ivrs, add hid:AMDI0020, uid:\_SB.FUR1, rdevid:0xa0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: AMD-Vi: ivrs, add hid:AMDI0020, uid:\_SB.FUR2, rdevid:0xa0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: AMD-Vi: ivrs, add hid:AMDI0020, uid:\_SB.FUR3, rdevid:0xa0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: AMD-Vi: Using global IVHD EFR:0x246577efa2054ada, EFR2:0x0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x2apic: IRQ remapping doesn't support X2APIC mode
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ..TIMER: vector=0x30 apic1=0 pin1=2 apic2=-1 pin2=-1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clocksource: tsc-early: mask: 0xffffffffffffffff max_cycles: 0x6d59829ff4a, max_idle_ns: 881590436533 ns
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Calibrating delay loop (skipped), value calculated using timer frequency.. 7586.13 BogoMIPS (lpj=3793066)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/cpu: User Mode Instruction Prevention (UMIP) activated
+2026-09-20T13:41:04+07:00 think14gryzen kernel: LVT offset 1 assigned for vector 0xf9
+2026-09-20T13:41:04+07:00 think14gryzen kernel: LVT offset 2 assigned for vector 0xf4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Last level iTLB entries: 4KB 512, 2MB 512, 4MB 256
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Last level dTLB entries: 4KB 3072, 2MB 3072, 4MB 1536, 1GB 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: process: using mwait in idle threads
+2026-09-20T13:41:04+07:00 think14gryzen kernel: mitigations: Enabled attack vectors: user_kernel, user_user, guest_host, guest_guest, SMT mitigations: auto
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Speculative Store Bypass: Mitigation: Speculative Store Bypass disabled via prctl
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Transient Scheduler Attacks: Mitigation: Clear CPU buffers
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Spectre V2 : Mitigation: Enhanced / Automatic IBRS
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Spectre V2 : User space: Mitigation: STIBP always-on protection
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Speculative Return Stack Overflow: Mitigation: Safe RET
+2026-09-20T13:41:04+07:00 think14gryzen kernel: VMSCAPE: Mitigation: IBPB before exit to userspace
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Spectre V2 : Enabling IBPB for BPF
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Spectre V2 : mitigation: Enabling conditional Indirect Branch Prediction Barrier
+2026-09-20T13:41:04+07:00 think14gryzen kernel: active return thunk: srso_alias_return_thunk
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x002: 'SSE registers'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x004: 'AVX registers'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x020: 'AVX-512 opmask'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x040: 'AVX-512 Hi256'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x080: 'AVX-512 ZMM_Hi256'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x200: 'Protection Keys User registers'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x800: 'Control-flow User registers'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Supporting XSAVE feature 0x1000: 'Control-flow Kernel registers (KVM only)'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: xstate_offset[2]:  576, xstate_sizes[2]:  256
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: xstate_offset[5]:  832, xstate_sizes[5]:   64
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: xstate_offset[6]:  896, xstate_sizes[6]:  512
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: xstate_offset[7]: 1408, xstate_sizes[7]: 1024
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: xstate_offset[9]: 2432, xstate_sizes[9]:    8
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: xstate_offset[11]: 2440, xstate_sizes[11]:   16
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: xstate_offset[12]: 2456, xstate_sizes[12]:   24
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/fpu: Enabled xstate features 0x1ae7, context size is 2480 bytes, using 'compacted' format.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pid_max: default: 32768 minimum: 301
+2026-09-20T13:41:04+07:00 think14gryzen kernel: landlock: Up and running.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Yama: becoming mindful.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: LSM support for eBPF active
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Mount-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Mountpoint-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: VFS: Finished mounting rootfs on nullfs
+2026-09-20T13:41:04+07:00 think14gryzen kernel: smpboot: CPU0: AMD Ryzen 7 8845H w/ Radeon 780M Graphics (family: 0x19, model: 0x75, stepping: 0x2)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Performance Events: Fam17h+ 16-deep LBR, core perfctr, AMD PMU driver.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... version:                   2
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... bit width:                 48
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... generic counters:          6
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... generic bitmap:            000000000000003f
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... fixed-purpose counters:    0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... fixed-purpose bitmap:      0000000000000000
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... value mask:                0000ffffffffffff
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... max period:                00007fffffffffff
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ... global_ctrl mask:          000000000000003f
+2026-09-20T13:41:04+07:00 think14gryzen kernel: signal: max sigframe size: 3376
+2026-09-20T13:41:04+07:00 think14gryzen kernel: rcu: Hierarchical SRCU implementation.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: rcu:         Max phase no-delay instances is 400.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Timer migration: 2 hierarchy levels; 8 children per group; 2 crossnode level
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NMI watchdog: Enabled. Permanently consumes one hw-PMU counter.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: smp: Bringing up secondary CPUs ...
+2026-09-20T13:41:04+07:00 think14gryzen kernel: smpboot: x86: Booting SMP configuration:
+2026-09-20T13:41:04+07:00 think14gryzen kernel: .... node  #0, CPUs:        #2  #4  #6  #8 #10 #12 #14  #1  #3  #5  #7  #9 #11 #13 #15
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Spectre V2 : Update user space SMT mitigation: STIBP always-on
+2026-09-20T13:41:04+07:00 think14gryzen kernel: smp: Brought up 1 node, 16 CPUs
+2026-09-20T13:41:04+07:00 think14gryzen kernel: smpboot: Total of 16 processors activated (121378.11 BogoMIPS)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Memory: 28273536K/29160272K available (17829K kernel code, 2924K rwdata, 14560K rodata, 3764K init, 4492K bss, 799560K reserved, 0K cma-reserved)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: devtmpfs: initialized
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/mm: Memory block size: 128MB
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PM: Registering ACPI NVS region [mem 0x09f00000-0x09f3bfff] (245760 bytes)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PM: Registering ACPI NVS region [mem 0x7a77f000-0x7af7efff] (8388608 bytes)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: posixtimers hash table entries: 8192 (order: 5, 131072 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: futex hash table entries: 4096 (262144 bytes on 1 NUMA nodes, total 256 KiB, linear).
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: RTC time: 06:40:59, date: 2026-09-20
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NET: Registered PF_NETLINK/PF_ROUTE protocol family
+2026-09-20T13:41:04+07:00 think14gryzen kernel: DMA: preallocated 4096 KiB GFP_KERNEL pool for atomic allocations
+2026-09-20T13:41:04+07:00 think14gryzen kernel: DMA: preallocated 4096 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+2026-09-20T13:41:04+07:00 think14gryzen kernel: DMA: preallocated 4096 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+2026-09-20T13:41:04+07:00 think14gryzen kernel: audit: initializing netlink subsys (disabled)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: audit: type=2000 audit(1789886459.159:1): state=initialized audit_enabled=0 res=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: thermal_sys: Registered thermal governor 'fair_share'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: thermal_sys: Registered thermal governor 'bang_bang'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: thermal_sys: Registered thermal governor 'step_wise'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: thermal_sys: Registered thermal governor 'user_space'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: thermal_sys: Registered thermal governor 'power_allocator'
+2026-09-20T13:41:04+07:00 think14gryzen kernel: cpuidle: using governor menu
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Simple Boot Flag at 0x44 set to 0x80
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Freeing SMP alternatives memory: 48K
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efi: Freeing EFI boot services memory: 113412K
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpiphp: ACPI Hot Plug PCI Controller Driver version: 0.5
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI: ECAM [mem 0xe0000000-0xefffffff] (base 0xe0000000) for domain 0000 [bus 00-ff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI: Using configuration type 1 for base access
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kprobes: kprobe jump-optimization is enabled. All kprobes are optimized if possible.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: HugeTLB: registered 1.00 GiB page size, pre-allocated 0 pages
+2026-09-20T13:41:04+07:00 think14gryzen kernel: HugeTLB: 16380 KiB vmemmap can be freed for a 1.00 GiB page
+2026-09-20T13:41:04+07:00 think14gryzen kernel: HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+2026-09-20T13:41:04+07:00 think14gryzen kernel: HugeTLB: 28 KiB vmemmap can be freed for a 2.00 MiB page
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Added _OSI(Module Device)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Added _OSI(Processor Device)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Added _OSI(Processor Aggregator Device)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI BIOS Error (bug): Failure creating named object [\_SB.PCI0.GPP6.WLAN._DSM], AE_ALREADY_EXISTS (20260408/dswload2-326)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: fbcon: Taking over console
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI Error: AE_ALREADY_EXISTS, During name lookup/catalog (20260408/psobject-220)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Skipping parse of AML opcode: Method (0x0014)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: 38 ACPI AML tables successfully acquired and loaded
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_: platform _OSC: OS support mask [002e7eff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_: platform _OSC: OS control mask [002e7e7f]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: USB4 _OSC: OS supports USB3+ DisplayPort+ PCIe+ XDomain+
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: USB4 _OSC: OS controls USB3+ DisplayPort+ PCIe+ XDomain+
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: EC: EC started
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: EC: interrupt blocked
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: EC: EC_CMD/EC_SC=0x66, EC_DATA=0x62
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.LPC0.EC0_: Boot DSDT EC used to handle transactions
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Interpreter enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PM: (supports S0 S4 S5)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Using IOAPIC for interrupt routing
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI: Ignoring E820 reservations for host bridge windows
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: Enabled 3 GPEs in block 00 to 1F
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GPP1.P0NV: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GPP6.PWSR: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GPP8.P0NV: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP11.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP11.SWUS.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP12.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP12.SWUS.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP17.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP17.VGA_.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP17.ACP_.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP17.AZAL.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP17.HDAU.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP17.XHC0.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP17.XHC1.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP19.XHC2.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP19.NHI0.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP19.XHC3.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP19.NHI1.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.GP19.XHC4.PWRS: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PRWL: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PRWB: New power resource
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-ff])
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0A08:00: _OSC: OS supports [ExtendedConfig ASPM ClockPM Segments MSI HPX-Type3]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0A08:00: _OSC: platform does not support [AER]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0A08:00: _OSC: OS now controls [PCIeHotplug PME PCIeCapability LTR]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI host bridge to bus 0000:00
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [io  0x0000-0x0cf7 window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [io  0x0d00-0xffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0x000a0000-0x000bffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0x000c0000-0x000cffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0x000d0000-0x000effff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0x80000000-0x98ffffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0xf0000000-0xfec00000 window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0xfed45000-0xfed814ff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0xfed81900-0xfed81fff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0xfedc0000-0xfedc0fff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0xfedc6000-0xfedc6fff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [mem 0x8a0200000-0x833fffffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: root bus resource [bus 00-ff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:00.0: [1022:14e8] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:00.2: [1022:14e9] type 00 class 0x080600 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.0: [1022:14ea] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.2: [1022:14ed] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.2: PCI bridge to [bus 01]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.2:   bridge window [mem 0x98f00000-0x98ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.2: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3: [1022:14ee] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3: PCI bridge to [bus 02]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3:   bridge window [io  0x6000-0x6fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3:   bridge window [mem 0x98e00000-0x98efffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3: removing 2.5GT/s downstream link speed restriction
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.0: [1022:14ea] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1: [1022:14ee] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1: PCI bridge to [bus 03]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1:   bridge window [mem 0x98d00000-0x98dfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1: removing 2.5GT/s downstream link speed restriction
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.2: [1022:14ee] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.2: PCI bridge to [bus 04]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.2:   bridge window [mem 0x98c00000-0x98cfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.2: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.4: [1022:14ee] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.4: PCI bridge to [bus 05]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.4:   bridge window [mem 0x98b00000-0x98bfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.4: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:03.0: [1022:14ea] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.0: [1022:14ea] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1: [1022:14ef] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1: PCI bridge to [bus 06-64]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1:   bridge window [io  0x2000-0x5fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1:   bridge window [mem 0x80000000-0x97ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1:   bridge window [mem 0x7000000000-0x7fffffffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.0: [1022:14ea] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1: [1022:14eb] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1: PCI bridge to [bus 65]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1:   bridge window [io  0x1000-0x1fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1:   bridge window [mem 0x98000000-0x986fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1:   bridge window [mem 0x8000000000-0x80107fffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2: [1022:14eb] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2: PCI bridge to [bus 66]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2:   bridge window [mem 0x98a00000-0x98afffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2:   bridge window [mem 0x8010800000-0x80108fffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3: [1022:14eb] type 01 class 0x060400 PCIe Root Port
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3: PCI bridge to [bus 67]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3:   bridge window [mem 0x98700000-0x989fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:14.0: [1022:790b] type 00 class 0x0c0500 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:14.3: [1022:790e] type 00 class 0x060100 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.0: [1022:14f0] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.1: [1022:14f1] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.2: [1022:14f2] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.3: [1022:14f3] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.4: [1022:14f4] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.5: [1022:14f5] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.6: [1022:14f6] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.7: [1022:14f7] type 00 class 0x060000 conventional PCI endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:01:00.0: [1e49:1073] type 00 class 0x010802 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:01:00.0: BAR 0 [mem 0x98f00000-0x98f03fff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.2: PCI bridge to [bus 01]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:02:00.0: [10ec:8168] type 00 class 0x020000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:02:00.0: BAR 0 [io  0x6000-0x60ff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:02:00.0: BAR 2 [mem 0x98e04000-0x98e04fff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:02:00.0: BAR 4 [mem 0x98e00000-0x98e03fff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:02:00.0: supports D1 D2
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:02:00.0: PME# supported from D0 D1 D2 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3: PCI bridge to [bus 02]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:03:00.0: [10ec:522a] type 00 class 0xff0000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:03:00.0: BAR 0 [mem 0x98d00000-0x98d00fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:03:00.0: supports D1 D2
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:03:00.0: PME# supported from D1 D2 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1: PCI bridge to [bus 03]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:04:00.0: [8086:2725] type 00 class 0x028000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:04:00.0: BAR 0 [mem 0x98c00000-0x98c03fff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:04:00.0: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.2: PCI bridge to [bus 04]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:05:00.0: [2646:500f] type 00 class 0x010802 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:05:00.0: BAR 0 [mem 0x98b00000-0x98b03fff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.4: PCI bridge to [bus 05]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1: PCI bridge to [bus 06-64]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: [1002:1900] type 00 class 0x030000 PCIe Legacy Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: BAR 0 [mem 0x8000000000-0x800fffffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: BAR 2 [mem 0x98000000-0x981fffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: BAR 4 [io  0x1000-0x10ff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: BAR 5 [mem 0x98600000-0x9867ffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: PME# supported from D1 D2 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.1: [1002:1640] type 00 class 0x040300 PCIe Legacy Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.1: BAR 0 [mem 0x986c8000-0x986cbfff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.1: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.1: PME# supported from D1 D2 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.2: [1022:15c7] type 00 class 0x108000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.2: BAR 2 [mem 0x98500000-0x985fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.2: BAR 5 [mem 0x986ce000-0x986cffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.2: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.3: [1022:15b9] type 00 class 0x0c0330 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.3: BAR 0 [mem 0x98200000-0x982fffff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.3: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.3: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.4: [1022:15ba] type 00 class 0x0c0330 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.4: BAR 0 [mem 0x98300000-0x983fffff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.4: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.4: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.5: [1022:15e2] type 00 class 0x048000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.5: BAR 0 [mem 0x98680000-0x986bffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.5: BAR 2 [mem 0x8010000000-0x80107fffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.5: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.5: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.6: [1022:15e3] type 00 class 0x040300 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.6: BAR 0 [mem 0x986c0000-0x986c7fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.6: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.6: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.7: [1022:164a] type 00 class 0x118000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.7: BAR 2 [mem 0x98400000-0x984fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.7: BAR 5 [mem 0x986cc000-0x986cdfff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.7: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1: PCI bridge to [bus 65]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.0: [1022:14ec] type 00 class 0x130000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.0: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.0: PME# supported from D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.1: [1022:1502] type 00 class 0x118000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.1: BAR 0 [mem 0x98a00000-0x98a7ffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.1: BAR 1 [mem 0x98ac0000-0x98ac1fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.1: BAR 2 [mem 0x8010800000-0x801083ffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.1: BAR 4 [mem 0x98a80000-0x98abffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.1: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2: PCI bridge to [bus 66]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.0: [1022:14ec] type 00 class 0x130000 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.0: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.3: [1022:15c0] type 00 class 0x0c0330 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.3: BAR 0 [mem 0x98700000-0x987fffff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.3: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.3: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.4: [1022:15c1] type 00 class 0x0c0330 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.4: BAR 0 [mem 0x98800000-0x988fffff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.4: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.4: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.6: [1022:1669] type 00 class 0x0c0340 PCIe Endpoint
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.6: BAR 0 [mem 0x98900000-0x9897ffff 64bit]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.6: Max Payload Size set to 128 (was 256, max 256)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.6: enabling Extended Tags
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.6: PME# supported from D0 D3hot D3cold
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3: PCI bridge to [bus 67]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKA configured for IRQ 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKA disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKB configured for IRQ 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKB disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKC configured for IRQ 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKC disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKD configured for IRQ 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKD disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKE configured for IRQ 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKE disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKF configured for IRQ 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKF disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKG configured for IRQ 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKG disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKH configured for IRQ 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: PCI: Interrupt link LNKH disabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Low-power S0 idle used by default for system suspend
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: EC: interrupt unblocked
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: EC: event unblocked
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: EC: EC_CMD/EC_SC=0x66, EC_DATA=0x62
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: EC: GPE=0xb
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.LPC0.EC0_: Boot DSDT EC initialization complete
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: \_SB_.PCI0.LPC0.EC0_: EC: Used to handle transactions and events
+2026-09-20T13:41:04+07:00 think14gryzen kernel: iommu: Default domain type: Translated
+2026-09-20T13:41:04+07:00 think14gryzen kernel: iommu: DMA domain TLB invalidation policy: lazy mode
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: bus type USB registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usbcore: registered new interface driver usbfs
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usbcore: registered new interface driver hub
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usbcore: registered new device driver usb
+2026-09-20T13:41:04+07:00 think14gryzen kernel: efivars: Registered efivars operations
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NetLabel: Initializing
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NetLabel:  domain hash size = 128
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NetLabel:  protocols = UNLABELED CIPSOv4 CALIPSO
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NetLabel:  unlabeled traffic allowed by default
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI: Using ACPI for IRQ routing
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI: pci_cache_line_size set to 64 bytes
+2026-09-20T13:41:04+07:00 think14gryzen kernel: resource: Expanded resource Reserved due to conflict with PCI Bus 0000:00
+2026-09-20T13:41:04+07:00 think14gryzen kernel: resource: Expanded resource Reserved due to conflict with PCI Bus 0000:00
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x0009f000-0x0009ffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x09b00000-0x0bffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x09f00000-0x0bffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x69b58000-0x6bffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x6bd61000-0x6bffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x6bd6c000-0x6bffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x6bd6f000-0x6bffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x6bd71000-0x6bffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x72069000-0x73ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x749bd000-0x77ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x77f7f000-0x77ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x7b000000-0x7bffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: e820: register RAM buffer resource [mem 0x77e300000-0x77fffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: vgaarb: setting as boot VGA device
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: vgaarb: bridge control possible
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: vgaarb: VGA device added: decodes=io+mem,owns=none,locks=none
+2026-09-20T13:41:04+07:00 think14gryzen kernel: vgaarb: loaded
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hpet0: at MMIO 0xfed00000, IRQs 2, 8, 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hpet0: 3 comparators, 32-bit 14.318180 MHz counter
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clocksource: Switched to clocksource tsc-early
+2026-09-20T13:41:04+07:00 think14gryzen kernel: VFS: Disk quotas dquot_6.6.0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: VFS: Dquot-cache hash table entries: 512 (4096 bytes)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:00: Could not reserve [mem 0xfec00000-0xfec01fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:00: Reserved [mem 0xfee00000-0xfee00fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x0010-0x001f]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x0072-0x0073]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x0080]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x00b0-0x00b1]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x0092]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0400-0x04cf]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x04d0-0x04d1]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x04d6]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0c00-0x0c01]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0c14]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0c50-0x0c52]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0c6c]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0c6f]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0cd0-0x0cdb]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x004e-0x004f]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x0062]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x0066]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x0068]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Skipped [io  0x006c]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0700-0x0707]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0x0d00-0x0d07]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C02:01: Reserved [io  0xfd60-0xfd63]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C01:00: Could not reserve [mem 0x000e0000-0x000fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: acpi PNP0C01:00: Could not reserve [mem 0xfe000000-0xffffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pnp: PnP ACPI init
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pnp: PnP ACPI: found 1 devices
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clocksource: acpi_pm: mask: 0xffffff max_cycles: 0xffffff, max_idle_ns: 2085701024 ns
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NET: Registered PF_INET protocol family
+2026-09-20T13:41:04+07:00 think14gryzen kernel: IP idents hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: tcp_listen_portaddr_hash hash table entries: 16384 (order: 6, 262144 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: TCP established hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: TCP bind hash table entries: 65536 (order: 9, 2097152 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: TCP: Hash tables configured (established 262144 bind 65536)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: MPTCP token hash table entries: 32768 (order: 8, 786432 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: UDP hash table entries: 16384 (order: 8, 1048576 bytes, linear)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NET: Registered PF_UNIX/PF_LOCAL protocol family
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NET: Registered PF_XDP protocol family
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.2: PCI bridge to [bus 01]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.2:   bridge window [mem 0x98f00000-0x98ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3: PCI bridge to [bus 02]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3:   bridge window [io  0x6000-0x6fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3:   bridge window [mem 0x98e00000-0x98efffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1: PCI bridge to [bus 03]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1:   bridge window [mem 0x98d00000-0x98dfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.2: PCI bridge to [bus 04]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.2:   bridge window [mem 0x98c00000-0x98cfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.4: PCI bridge to [bus 05]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.4:   bridge window [mem 0x98b00000-0x98bfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1: PCI bridge to [bus 06-64]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1:   bridge window [io  0x2000-0x5fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1:   bridge window [mem 0x80000000-0x97ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1:   bridge window [mem 0x7000000000-0x7fffffffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1: PCI bridge to [bus 65]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1:   bridge window [io  0x1000-0x1fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1:   bridge window [mem 0x98000000-0x986fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1:   bridge window [mem 0x8000000000-0x80107fffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2: PCI bridge to [bus 66]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2:   bridge window [mem 0x98a00000-0x98afffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2:   bridge window [mem 0x8010800000-0x80108fffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3: PCI bridge to [bus 67]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3:   bridge window [mem 0x98700000-0x989fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 4 [io  0x0000-0x0cf7 window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 5 [io  0x0d00-0xffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 6 [mem 0x000a0000-0x000bffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 7 [mem 0x000c0000-0x000cffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 8 [mem 0x000d0000-0x000effff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 9 [mem 0x80000000-0x98ffffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 10 [mem 0xf0000000-0xfec00000 window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 11 [mem 0xfed45000-0xfed814ff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 12 [mem 0xfed81900-0xfed81fff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 13 [mem 0xfedc0000-0xfedc0fff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 14 [mem 0xfedc6000-0xfedc6fff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:00: resource 15 [mem 0x8a0200000-0x833fffffff window]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:01: resource 1 [mem 0x98f00000-0x98ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:02: resource 0 [io  0x6000-0x6fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:02: resource 1 [mem 0x98e00000-0x98efffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:03: resource 1 [mem 0x98d00000-0x98dfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:04: resource 1 [mem 0x98c00000-0x98cfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:05: resource 1 [mem 0x98b00000-0x98bfffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:06: resource 0 [io  0x2000-0x5fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:06: resource 1 [mem 0x80000000-0x97ffffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:06: resource 2 [mem 0x7000000000-0x7fffffffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:65: resource 0 [io  0x1000-0x1fff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:65: resource 1 [mem 0x98000000-0x986fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:65: resource 2 [mem 0x8000000000-0x80107fffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:66: resource 1 [mem 0x98a00000-0x98afffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:66: resource 2 [mem 0x8010800000-0x80108fffff 64bit pref]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci_bus 0000:67: resource 1 [mem 0x98700000-0x989fffff]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.1: D0 power state depends on 0000:65:00.0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI: CLS 64 bytes, default 64
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:00.2: AMD-Vi: IOMMU performance counters supported
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Trying to unpack rootfs image as initramfs...
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.0: Adding to iommu group 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.2: Adding to iommu group 1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:01.3: Adding to iommu group 2
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.0: Adding to iommu group 3
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.1: Adding to iommu group 4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.2: Adding to iommu group 5
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:02.4: Adding to iommu group 6
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:03.0: Adding to iommu group 7
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.0: Adding to iommu group 8
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:04.1: Adding to iommu group 8
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.0: Adding to iommu group 9
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.1: Adding to iommu group 10
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.2: Adding to iommu group 11
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:08.3: Adding to iommu group 12
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:14.0: Adding to iommu group 13
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:14.3: Adding to iommu group 13
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.0: Adding to iommu group 14
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.1: Adding to iommu group 14
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.2: Adding to iommu group 14
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.3: Adding to iommu group 14
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.4: Adding to iommu group 14
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.5: Adding to iommu group 14
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.6: Adding to iommu group 14
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:00:18.7: Adding to iommu group 14
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:01:00.0: Adding to iommu group 15
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:02:00.0: Adding to iommu group 16
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:03:00.0: Adding to iommu group 17
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:04:00.0: Adding to iommu group 18
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:05:00.0: Adding to iommu group 19
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.0: Adding to iommu group 20
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.1: Adding to iommu group 21
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.2: Adding to iommu group 22
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.3: Adding to iommu group 23
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.4: Adding to iommu group 24
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.5: Adding to iommu group 25
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.6: Adding to iommu group 26
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:65:00.7: Adding to iommu group 27
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.0: Adding to iommu group 28
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:66:00.1: Adding to iommu group 29
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.0: Adding to iommu group 30
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.3: Adding to iommu group 31
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.4: Adding to iommu group 32
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pci 0000:67:00.6: Adding to iommu group 33
+2026-09-20T13:41:04+07:00 think14gryzen kernel: AMD-Vi: Extended features (0x246577efa2054ada, 0x0): PPR NX GT IA GA PC
+2026-09-20T13:41:04+07:00 think14gryzen kernel: AMD-Vi: Interrupt remapping enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PCI-DMA: Using software bounce buffering for IO (SWIOTLB)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: software IO TLB: mapped [mem 0x000000006e069000-0x0000000072069000] (64MB)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: LVT offset 0 assigned for vector 0x400
+2026-09-20T13:41:04+07:00 think14gryzen kernel: perf: AMD IBS detected (0x00000bff)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: perf/amd_iommu: Detected AMD IOMMU #0 (2 banks, 4 counters/bank).
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Initialise system trusted keyrings
+2026-09-20T13:41:04+07:00 think14gryzen kernel: workingset: timestamp_bits=40 (anon: 35) max_order=23 bucket_order=0 (anon: 0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Key type asymmetric registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Asymmetric key parser 'x509' registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Block layer SCSI generic (bsg) driver version 0.4 loaded (major 248)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: io scheduler mq-deadline registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: io scheduler kyber registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:01.2: PME: Signaling with IRQ 30
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:01.3: PME: Signaling with IRQ 31
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:02.1: PME: Signaling with IRQ 32
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:02.2: PME: Signaling with IRQ 33
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:02.4: PME: Signaling with IRQ 34
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:04.1: PME: Signaling with IRQ 35
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:04.1: pciehp: Slot #0 AttnBtn- PwrCtrl- MRL- AttnInd- PwrInd- HotPlug+ Surprise+ Interlock- NoCompl+ IbPresDis- LLActRep+
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:08.1: PME: Signaling with IRQ 36
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:08.2: PME: Signaling with IRQ 37
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pcieport 0000:00:08.3: PME: Signaling with IRQ 38
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Monitor-Mwait will be used to enter C-1 state
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Estimated ratio of average max frequency by base frequency (times 1024): 1204
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: tpm_crb_acpi MSFT0101:00: Disabling hwrng
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: bus type drm_connector registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usbcore: registered new interface driver usbserial_generic
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usbserial: USB Serial support registered for generic
+2026-09-20T13:41:04+07:00 think14gryzen kernel: simple-framebuffer simple-framebuffer.0: [drm] Registered 1 planes with drm panic
+2026-09-20T13:41:04+07:00 think14gryzen kernel: [drm] Initialized simpledrm 1.0.0 for simple-framebuffer.0 on minor 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Console: switching to colour frame buffer device 192x60
+2026-09-20T13:41:04+07:00 think14gryzen kernel: simple-framebuffer simple-framebuffer.0: [drm] fb0: simpledrmdrmfb frame buffer device
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pstore: Using crash dump compression: deflate
+2026-09-20T13:41:04+07:00 think14gryzen kernel: pstore: Registered efi_pstore as persistent store backend
+2026-09-20T13:41:04+07:00 think14gryzen kernel: drop_monitor: Initializing network drop monitor service
+2026-09-20T13:41:04+07:00 think14gryzen kernel: NET: Registered PF_INET6 protocol family
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Segment Routing with IPv6
+2026-09-20T13:41:04+07:00 think14gryzen kernel: In-situ OAM (IOAM) with IPv6
+2026-09-20T13:41:04+07:00 think14gryzen kernel: AGESA: AGESA!V9 PhoenixPI-FP8-FP7 1.1.0.2c
+2026-09-20T13:41:04+07:00 think14gryzen kernel: microcode: Current revision: 0x0a705208
+2026-09-20T13:41:04+07:00 think14gryzen kernel: microcode: Updated early from: 0x0a705205
+2026-09-20T13:41:04+07:00 think14gryzen kernel: resctrl: L3 allocation detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: resctrl: MB allocation detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: resctrl: SMBA allocation detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: resctrl: L3 monitoring detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: IPI shorthand broadcast: enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: sched_clock: Marking stable (680286051, 1472862)->(707828510, -26069597)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Freeing initrd memory: 48320K
+2026-09-20T13:41:04+07:00 think14gryzen kernel: registered taskstats version 1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Loading compiled-in X.509 certificates
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Demotion targets for Node 0: null
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Key type .fscrypt registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Key type fscrypt-provisioning registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ima: Allocated hash algorithm: sha1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ima: No architecture policies found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM:   Magic number: 10:289:671
+2026-09-20T13:41:04+07:00 think14gryzen kernel: RAS: Correctable Errors collector initialized.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clk: Disabling unused clocks
+2026-09-20T13:41:04+07:00 think14gryzen kernel: PM: genpd: Disabling unused power domains
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Freeing unused decrypted memory: 2028K
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Freeing unused kernel image (initmem) memory: 3764K
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Write protecting the kernel read-only data: 34816k
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Freeing unused kernel image (text/rodata gap) memory: 600K
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Freeing unused kernel image (rodata/data gap) memory: 1824K
+2026-09-20T13:41:04+07:00 think14gryzen kernel: x86/mm: Checked W+X mappings: passed, no W+X pages found.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Run /init as init process
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   with arguments:
+2026-09-20T13:41:04+07:00 think14gryzen kernel:     /init
+2026-09-20T13:41:04+07:00 think14gryzen kernel:   with environment:
+2026-09-20T13:41:04+07:00 think14gryzen kernel:     HOME=/
+2026-09-20T13:41:04+07:00 think14gryzen kernel:     TERM=linux
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:40:59 UTC 2026] loading module amdgpu...
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: video: Video Device [VGA] (multi-head: yes  rom: no  post: no)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: input: Video Bus as /devices/pci0000:00/0000:00:08.1/acpi.video_bus.0/input/input0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: tsc: Refined TSC clocksource calibration: 3792.876 MHz
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clocksource: tsc: mask: 0xffffffffffffffff max_cycles: 0x6d581b92771, max_idle_ns: 881590605997 ns
+2026-09-20T13:41:04+07:00 think14gryzen kernel: clocksource: Switched to clocksource tsc
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu: Virtual CRAT table created for CPU
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu: Topology: Add CPU node
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: initializing kernel modesetting (IP DISCOVERY 0x1002:0x1900 0x17AA:0x3801 0xCC).
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: register mmio base: 0x98600000
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: register mmio size: 524288
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 0 <common_v1_0_0> (soc21_common)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 1 <gmc_v11_0_0> (gmc_v11_0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 2 <ih_v6_0_0> (ih_v6_0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 3 <psp_v13_0_4> (psp)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 4 <smu_v13_0_0> (smu)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 5 <dce_v1_0_0> (dm)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 6 <gfx_v11_0_0> (gfx_v11_0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 7 <sdma_v6_0_0> (sdma_v6_0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 8 <vcn_v4_0_0> (vcn_v4_0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 9 <jpeg_v4_0_0> (jpeg_v4_0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: detected ip block number 10 <mes_v11_0_0> (mes_v11_0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: Fetched VBIOS from VFCT
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] ATOM BIOS: 113-PHXGENERIC-001, build: 00077464, ver: 022.012.000.027.000001, 2023/09/15
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Console: switching to colour dummy device 80x25
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: vgaarb: deactivate vga console
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: Trusted Memory Zone (TMZ) feature enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: vm size is 262144 GB, 4 levels, block size is 9-bit, fragment size is 9-bit
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: VRAM: 4096M 0x0000008000000000 - 0x00000080FFFFFFFF (4096M used)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: GART: 512M 0x00007FFF00000000 - 0x00007FFF1FFFFFFF
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] Detected VRAM RAM=4096M, BAR=4096M
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] RAM width 128bits LPDDR5
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0:  4096M of VRAM memory ready
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0:  22528M of GTT memory ready.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] GART: num cpu pages 131072, num gpu pages 131072
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] PCIE GART of 512M enabled (table at 0x0000008001700000).
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] Loading DMUB firmware via PSP: version=0x08006100
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [VCN instance 0] Found VCN firmware Version ENC: 1.24 DEC: 9 VEP: 0 Revision: 34
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: MES: vmid_mask_mmhub 0x0000ff00, vmid_mask_gfxhub 0x0000ff00
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: MES: gfx_hqd_mask 0x00000002, compute_hqd_mask 0x0000000c, sdma_hqd_mask 0x000000fc
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: reserve 0x4000000 from 0x80f8000000 for PSP TMR
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: RAS: optional ras ta ucode is not available
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: RAP: optional rap ta ucode is not available
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: SECUREDISPLAY: optional securedisplay ta ucode is not available
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: smu driver if version = 0x00000008, smu fw if version = 0x00000008, smu fw program = 0, smu fw version = 0x004c5300 (76.83.0)
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: SMU is initialized successfully!
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] Display Core v3.2.384 initialized on DCN 3.1.4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] DP-HDMI FRL PCON supported
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] DMUB hardware initialized: version=0x08006100
+2026-09-20T13:41:04+07:00 think14gryzen kernel: workqueue: name exceeds WQ_NAME_LEN. Truncating to: hdmi_frl_status_polling_workque
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] eDP-1: PSR support 0, DC PSR ver 0, sink PSR ver 3 DPCD caps 0x3a su_y_granularity 4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] HDMI-A-1: PSR support 0, DC PSR ver -1, sink PSR ver 0 DPCD caps 0x0 su_y_granularity 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] DP-1: PSR support 0, DC PSR ver -1, sink PSR ver 0 DPCD caps 0x0 su_y_granularity 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] DP-2: PSR support 0, DC PSR ver -1, sink PSR ver 0 DPCD caps 0x0 su_y_granularity 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] DP-3: PSR support 0, DC PSR ver -1, sink PSR ver 0 DPCD caps 0x0 su_y_granularity 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] DP-4: PSR support 0, DC PSR ver -1, sink PSR ver 0 DPCD caps 0x0 su_y_granularity 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] DP-5: PSR support 0, DC PSR ver -1, sink PSR ver 0 DPCD caps 0x0 su_y_granularity 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] DP-6: PSR support 0, DC PSR ver -1, sink PSR ver 0 DPCD caps 0x0 su_y_granularity 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kfd kfd: Allocated 3969056 bytes on gart
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kfd kfd: Total number of KFD nodes to be created: 1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu: Virtual CRAT table created for GPU
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu: Topology: Add GPU node [0x1002:0x1900]
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kfd kfd: added device 1002:1900
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: SE 1, SH per SE 2, CU per SH 6, active_cu_number 12
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring gfx_0.0.0 uses VM inv eng 0 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring comp_1.0.0 uses VM inv eng 1 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring comp_1.1.0 uses VM inv eng 4 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring comp_1.2.0 uses VM inv eng 6 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring comp_1.3.0 uses VM inv eng 7 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring comp_1.0.1 uses VM inv eng 8 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring comp_1.1.1 uses VM inv eng 9 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring comp_1.2.1 uses VM inv eng 10 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring comp_1.3.1 uses VM inv eng 11 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring sdma0 uses VM inv eng 12 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring vcn_unified_0 uses VM inv eng 0 on hub 8
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring jpeg_dec uses VM inv eng 1 on hub 8
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: ring mes_kiq_3.1.0 uses VM inv eng 13 on hub 0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: Runtime PM not available
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] Using custom brightness curve
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] Registered 4 planes with drm panic
+2026-09-20T13:41:04+07:00 think14gryzen kernel: [drm] Initialized amdgpu 3.64.0 for 0000:65:00.0 on minor 1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: fbcon: amdgpudrmfb (fb0) is primary device
+2026-09-20T13:41:04+07:00 think14gryzen kernel: [drm] pre_validate_dsc:1746 MST_DSC dsc precompute is not needed
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Console: switching to colour frame buffer device 192x60
+2026-09-20T13:41:04+07:00 think14gryzen kernel: amdgpu 0000:65:00.0: [drm] fb0: amdgpudrmfb frame buffer device
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] loading module dm_mod...
+2026-09-20T13:41:04+07:00 think14gryzen kernel: device-mapper: core: CONFIG_IMA_DISABLE_HTABLE is disabled. Duplicate IMA measurements will not be recorded in the IMA log.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: device-mapper: ioctl: 4.50.0-ioctl (2025-04-28) initialised: dm-devel@lists.linux.dev
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] running udev...
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] Starting systemd-udevd version 258.7
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Key type psk registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: i8042: PNP: PS/2 Controller [PNP0303:KBC0] at 0x60,0x64 irq 1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: i8042: PNP: PS/2 appears to have AUX port disabled, if this is incorrect please boot with i8042.nopnp
+2026-09-20T13:41:04+07:00 think14gryzen kernel: serio: i8042 KBD port at 0x60,0x64 irq 1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.3: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.3: new USB bus registered, assigned bus number 1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.3: hcc params 0x0128ffc5 hci version 0x120 quirks 0x0000000200000010
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme 0000:05:00.0: platform quirk: setting simple suspend
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme 0000:01:00.0: platform quirk: setting simple suspend
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme0: pci function 0000:05:00.0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme1: pci function 0000:01:00.0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.3: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.3: new USB bus registered, assigned bus number 2
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.3: Host supports USB 3.1 Enhanced SuperSpeed
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.02
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb1: Product: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb1: Manufacturer: Linux 7.2.6 xhci-hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb1: SerialNumber: 0000:65:00.3
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 1-0:1.0: USB hub found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 1-0:1.0: 5 ports detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb2: We don't know the algorithms for LPM for this host, disabling LPM.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.02
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb2: Product: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb2: Manufacturer: Linux 7.2.6 xhci-hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb2: SerialNumber: 0000:65:00.3
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 2-0:1.0: USB hub found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 2-0:1.0: 2 ports detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.4: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.4: new USB bus registered, assigned bus number 3
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.4: hcc params 0x0110ffc5 hci version 0x120 quirks 0x0000000200000010
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.4: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.4: new USB bus registered, assigned bus number 4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:65:00.4: Host supports USB 3.1 Enhanced SuperSpeed
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb3: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.02
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb3: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb3: Product: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb3: Manufacturer: Linux 7.2.6 xhci-hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb3: SerialNumber: 0000:65:00.4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 3-0:1.0: USB hub found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 3-0:1.0: 1 port detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb4: We don't know the algorithms for LPM for this host, disabling LPM.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb4: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.02
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb4: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb4: Product: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb4: Manufacturer: Linux 7.2.6 xhci-hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb4: SerialNumber: 0000:65:00.4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 4-0:1.0: USB hub found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 4-0:1.0: 1 port detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.3: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.3: new USB bus registered, assigned bus number 5
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme1: D3 entry latency set to 10 seconds
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.3: hcc params 0x0110ffc5 hci version 0x120 quirks 0x0000000200000010
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.3: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.3: new USB bus registered, assigned bus number 6
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.3: Host supports USB 3.1 Enhanced SuperSpeed
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb5: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.02
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb5: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb5: Product: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb5: Manufacturer: Linux 7.2.6 xhci-hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb5: SerialNumber: 0000:67:00.3
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 5-0:1.0: USB hub found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 5-0:1.0: 1 port detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb6: We don't know the algorithms for LPM for this host, disabling LPM.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb6: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.02
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb6: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb6: Product: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb6: Manufacturer: Linux 7.2.6 xhci-hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb6: SerialNumber: 0000:67:00.3
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 6-0:1.0: USB hub found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 6-0:1.0: 1 port detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.4: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.4: new USB bus registered, assigned bus number 7
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.4: hcc params 0x0110ffc5 hci version 0x120 quirks 0x0000000200000010
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.4: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.4: new USB bus registered, assigned bus number 8
+2026-09-20T13:41:04+07:00 think14gryzen kernel: xhci_hcd 0000:67:00.4: Host supports USB 3.1 Enhanced SuperSpeed
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb7: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 7.02
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb7: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb7: Product: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb7: Manufacturer: Linux 7.2.6 xhci-hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb7: SerialNumber: 0000:67:00.4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 7-0:1.0: USB hub found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 7-0:1.0: 1 port detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme0: passthrough uses implicit buffer lengths
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb8: We don't know the algorithms for LPM for this host, disabling LPM.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb8: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 7.02
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb8: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb8: Product: xHCI Host Controller
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb8: Manufacturer: Linux 7.2.6 xhci-hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb usb8: SerialNumber: 0000:67:00.4
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ACPI: bus type thunderbolt registered
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 8-0:1.0: USB hub found
+2026-09-20T13:41:04+07:00 think14gryzen kernel: hub 8-0:1.0: 1 port detected
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme0: allocated 64 MiB host memory buffer (1 segment).
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme1: passthrough uses implicit buffer lengths
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme1: allocated 64 MiB host memory buffer (1 segment).
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme0: 8/0/0 default/read/poll queues
+2026-09-20T13:41:04+07:00 think14gryzen kernel:  nvme0n1: p1 p2
+2026-09-20T13:41:04+07:00 think14gryzen kernel: nvme nvme1: 16/0/0 default/read/poll queues
+2026-09-20T13:41:04+07:00 think14gryzen kernel:  nvme1n1: p1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input1
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] starting device mapper and LVM...
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] checking /dev/disk/by-uuid/c601dcc2-af9b-4b76-9f3e-fd19124b6bb6...
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] fsck (busybox 1.36.1)
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] [fsck.ext4 (1) -- /mnt-root/] fsck.ext4 -a /dev/disk/by-uuid/c601dcc2-af9b-4b76-9f3e-fd19124b6bb6
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] /dev/disk/by-uuid/c601dcc2-af9b-4b76-9f3e-fd19124b6bb6: clean, 3037562/30466048 files, 77994516/121833985 blocks
+2026-09-20T13:41:04+07:00 think14gryzen stage-1-init: [Sun Sep 20 06:41:03 UTC 2026] mounting /dev/disk/by-uuid/c601dcc2-af9b-4b76-9f3e-fd19124b6bb6 on /...
+2026-09-20T13:41:04+07:00 think14gryzen kernel: EXT4-fs (nvme0n1p2): mounted filesystem c601dcc2-af9b-4b76-9f3e-fd19124b6bb6 r/w with ordered data mode. Quota mode: none.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 1-5: new full-speed USB device number 2 using xhci_hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 3-1: new high-speed USB device number 2 using xhci_hcd
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 3-1: New USB device found, idVendor=30c9, idProduct=00c2, bcdDevice=10.17
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 1-5: New USB device found, idVendor=8087, idProduct=0032, bcdDevice= 0.00
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 1-5: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 3-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 3-1: Product: Integrated RGB Camera
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 3-1: Manufacturer: 8SSC21M05461V1SR45K0R23
+2026-09-20T13:41:04+07:00 think14gryzen kernel: usb 3-1: SerialNumber: 01.00.00
+2026-09-20T13:41:04+07:00 think14gryzen kernel: EXT4-fs (nvme0n1p2): re-mounted c601dcc2-af9b-4b76-9f3e-fd19124b6bb6.
+2026-09-20T13:41:04+07:00 think14gryzen unknown: booting system configuration /nix/store/mmk9nkinnrpz7c9kz2xxln3vlv10v8nn-nixos-system-think14gryzen-25.11.20260630.b6018f8
+2026-09-20T13:41:04+07:00 think14gryzen stage-2-init: running activation script...
+2026-09-20T13:41:04+07:00 think14gryzen stage-2-init: setting up /etc...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Inserted module 'autofs4'
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: systemd 258.7 running in system mode (+PAM +AUDIT -SELINUX +APPARMOR +IMA +IPE +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN -IPTC +KMOD +LIBCRYPTSETUP +LIBCRYPTSETUP_PLUGINS +LIBFDISK +PCRE2 +PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD +BPF_FRAMEWORK -BTF -XKBCOMMON +UTMP -SYSVINIT +LIBARCHIVE)
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Detected architecture x86-64.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Hostname set to <think14gryzen>.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: bpf-restrict-fs: LSM BPF program attached
+2026-09-20T13:41:04+07:00 think14gryzen kernel: zram: Added device: zram0
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Queued start job for default target Graphical Interface.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Created slice Slice /system/modprobe.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Created slice Slice /system/systemd-fsck.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Created slice Slice /system/systemd-zram-setup.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Created slice User and Session Slice.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Started Dispatch Password Requests to Console Directory Watch.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Expecting device /dev/disk/by-uuid/704E-66A5...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Expecting device /dev/disk/by-uuid/86292ded-a2fe-4f4c-bd5a-ab9afdb1e369...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Expecting device /dev/zram0...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Reached target Local Encrypted Volumes.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Reached target Login Prompts.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Reached target Virtual Machines and Containers.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Reached target Path Units.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Reached target Remote File Systems.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Reached target Slice Units.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Listening on Process Core Dump Socket.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Listening on Credential Encryption/Decryption.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Listening on Journal Audit Socket.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Listening on Journal Socket (/dev/log).
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Listening on Journal Sockets.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Listening on Userspace Out-Of-Memory (OOM) Killer Socket.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Make TPM PCR Policy skipped, unmet condition check ConditionSecurity=measured-uki
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Listening on udev Control Socket.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Listening on udev Kernel Socket.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounting Huge Pages File System...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounting POSIX Message Queue File System...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounting Kernel Debug File System...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounting Kernel Trace File System...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Create List of Static Device Nodes...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Load Kernel Module configfs skipped, unmet condition check ConditionKernelModuleLoaded=!configfs
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounting Kernel Configuration File System...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Load Kernel Module drm skipped, unmet condition check ConditionKernelModuleLoaded=!drm
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Load Kernel Module efi_pstore skipped, unmet condition check ConditionKernelModuleLoaded=!efi_pstore
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Load Kernel Module fuse...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: File System Check on Root Device skipped, unmet condition check ConditionPathIsReadWrite=!/
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Clear Stale Hibernate Storage Info skipped, unmet condition check ConditionPathExists=/sys/firmware/efi/efivars/HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Journal Service...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Load Kernel Modules...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Remount Root and Kernel File Systems...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Early TPM SRK Setup skipped, unmet condition check ConditionSecurity=measured-uki
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Coldplug All udev Devices...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Finished Create List of Static Device Nodes.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounted Huge Pages File System.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounted POSIX Message Queue File System.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounted Kernel Debug File System.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounted Kernel Trace File System.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounted Kernel Configuration File System.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Create Static Device Nodes in /dev gracefully...
+2026-09-20T13:41:04+07:00 think14gryzen kernel: fuse: init (API version 7.45)
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: modprobe@fuse.service: Deactivated successfully.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Finished Load Kernel Module fuse.
+2026-09-20T13:41:04+07:00 think14gryzen systemd-journald[637]: Collecting audit messages is enabled.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounting FUSE Control File System...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Mounted FUSE Control File System.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: EXT4-fs (nvme0n1p2): re-mounted c601dcc2-af9b-4b76-9f3e-fd19124b6bb6.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Finished Remount Root and Kernel File Systems.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Platform Persistent Storage Archival skipped, unmet condition check ConditionDirectoryNotEmpty=/sys/fs/pstore
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Load/Save OS Random Seed...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Network Time Synchronization...
+2026-09-20T13:41:04+07:00 think14gryzen kernel: bridge: filtering via arp/ip/ip6tables is no longer available by default. Update your scripts to load br_netfilter if you need this.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: TPM SRK Setup skipped, unmet condition check ConditionSecurity=measured-uki
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Finished Create Static Device Nodes in /dev gracefully.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Bridge firewalling registered
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Create Static Device Nodes in /dev...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Finished Load/Save OS Random Seed.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: First Boot Complete skipped, unmet condition check ConditionFirstBoot=yes
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Finished Create Static Device Nodes in /dev.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Reached target Preparation for Local File Systems.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Starting Rule-based Manager for Device Events and Files...
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Started Network Time Synchronization.
+2026-09-20T13:41:04+07:00 think14gryzen systemd[1]: Started Journal Service.
+2026-09-20T13:41:04+07:00 think14gryzen systemd-journald[637]: Received client request to flush runtime journal.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ccp 0000:65:00.2: tee enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ccp 0000:65:00.2: psp enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kvm_amd: TSC scaling supported
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kvm_amd: Nested Virtualization enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kvm_amd: Nested Paging enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kvm_amd: LBR virtualization supported
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kvm_amd: [Firmware Bug]: Cannot enable x2AVIC, AVIC is unsupported
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kvm_amd: Virtual GIF supported
+2026-09-20T13:41:04+07:00 think14gryzen kernel: kvm_amd: Virtual NMI enabled
+2026-09-20T13:41:04+07:00 think14gryzen kernel: loop: module loaded
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ryzen_smu: loading out-of-tree module taints kernel.
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ryzen_smu: loading version: 0.1.7
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ryzen_smu: CPUID: family 0x19, model 0x75, stepping 0x2, package 0x1
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ryzen_smu: Family Codename: Hawk Point
+2026-09-20T13:41:04+07:00 think14gryzen kernel: ryzen_smu: SMU v76.83.0
+2026-09-20T13:41:04+07:00 think14gryzen kernel: Adding 10485756k swap on /var/lib/swapfile.  Priority:-1 extents:214 across:136355836k SS
+2026-09-20T13:41:05+07:00 think14gryzen kernel: zram0: detected capacity change from 0 to 21112712
+2026-09-20T13:41:05+07:00 think14gryzen kernel: piix4_smbus 0000:00:14.0: SMBus Host Controller at 0xb00, revision 0
+2026-09-20T13:41:05+07:00 think14gryzen kernel: piix4_smbus 0000:00:14.0: Using register 0x02 for SMBus port selection
+2026-09-20T13:41:05+07:00 think14gryzen kernel: piix4_smbus 0000:00:14.0: Auxiliary SMBus Host Controller at 0xb20
+2026-09-20T13:41:05+07:00 think14gryzen kernel: i2c i2c-21: Successfully instantiated SPD at 0x50
+2026-09-20T13:41:05+07:00 think14gryzen kernel: i2c i2c-21: Successfully instantiated SPD at 0x51
+2026-09-20T13:41:05+07:00 think14gryzen kernel: hid: raw HID events driver (C) Jiri Kosina
+2026-09-20T13:41:05+07:00 think14gryzen kernel: i2c i2c-21: Successfully instantiated SPD at 0x52
+2026-09-20T13:41:05+07:00 think14gryzen kernel: i2c i2c-21: Successfully instantiated SPD at 0x53
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: Power Button as /devices/platform/PNP0C0C:00/input/input2
+2026-09-20T13:41:05+07:00 think14gryzen kernel: ACPI: button: Power Button [PWRB]
+2026-09-20T13:41:05+07:00 think14gryzen kernel: acpi-fan PNP0C0B:00: Using Microsoft fan extensions
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: Lid Switch as /devices/pci0000:00/0000:00:14.3/PNP0C0D:00/input/input3
+2026-09-20T13:41:05+07:00 think14gryzen kernel: ACPI: button: Lid Switch [LID0]
+2026-09-20T13:41:05+07:00 think14gryzen kernel: rtc_cmos PNP0B00:00: RTC can wake from S4
+2026-09-20T13:41:05+07:00 think14gryzen kernel: rtc_cmos PNP0B00:00: registered as rtc0
+2026-09-20T13:41:05+07:00 think14gryzen kernel: rtc_cmos PNP0B00:00: setting system clock to 2026-09-20T06:41:05 UTC (1789886465)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: rtc_cmos PNP0B00:00: alarms up to one month, 114 bytes nvram
+2026-09-20T13:41:05+07:00 think14gryzen kernel: ACPI: AC: AC Adapter [ACAD] (off-line)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: acpi LNXTHERM:00: registered as thermal_zone0
+2026-09-20T13:41:05+07:00 think14gryzen kernel: ACPI: thermal: Thermal Zone [TZ01] (42 C)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: mc: Linux media interface: v0.10
+2026-09-20T13:41:05+07:00 think14gryzen kernel: RAPL PMU: API unit is 2^-32 Joules, 2 fixed counters, 163840 ms ovfl timer
+2026-09-20T13:41:05+07:00 think14gryzen kernel: RAPL PMU: hw unit of domain package 2^-16 Joules
+2026-09-20T13:41:05+07:00 think14gryzen kernel: RAPL PMU: hw unit of domain core 2^-16 Joules
+2026-09-20T13:41:05+07:00 think14gryzen kernel: ACPI: battery: new hook: Ideapad Battery Extension
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: Ideapad extra buttons as /devices/pci0000:00/0000:00:14.3/PNP0C09:00/VPC2004:00/input/input4
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Adding 10556352k swap on /dev/zram0.  Priority:100 extents:1 across:10556352k SSDsc
+2026-09-20T13:41:05+07:00 think14gryzen kernel: ACPI: battery: Slot [BAT1] (battery present)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: sp5100_tco: SP5100/SB800 TCO WatchDog Timer Driver
+2026-09-20T13:41:05+07:00 think14gryzen kernel: sp5100-tco sp5100-tco: Using 0xfeb00000 for watchdog MMIO address
+2026-09-20T13:41:05+07:00 think14gryzen kernel: sp5100-tco sp5100-tco: initialized. heartbeat=60 sec (nowayout=0)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: lenovo_wmi_other DC2A8805-3A8C-41BA-A6F7-092E0089CD3B-21: bound 362A3AFE-3D96-4665-8530-96DAD5BB300E-14 (ops lwmi_cd_component_ops [lenovo_wmi_capdata])
+2026-09-20T13:41:05+07:00 think14gryzen kernel: lenovo_wmi_other DC2A8805-3A8C-41BA-A6F7-092E0089CD3B-21: bound 7A8F5407-CB67-4D6E-B547-39B3BE018154-15 (ops lwmi_cd_component_ops [lenovo_wmi_capdata])
+2026-09-20T13:41:05+07:00 think14gryzen kernel: lenovo_wmi_other DC2A8805-3A8C-41BA-A6F7-092E0089CD3B-21: fan reporting/tuning is unsupported on this device
+2026-09-20T13:41:05+07:00 think14gryzen kernel: videodev: Linux video capture interface: v2.00
+2026-09-20T13:41:05+07:00 think14gryzen kernel: intel_rapl_common: Found RAPL domain package
+2026-09-20T13:41:05+07:00 think14gryzen kernel: intel_rapl_common: Found RAPL domain core
+2026-09-20T13:41:05+07:00 think14gryzen kernel: amd_atl: AMD Address Translation Library initialized
+2026-09-20T13:41:05+07:00 think14gryzen kernel: amdxdna 0000:66:00.1: [drm] Load firmware amdnpu/1502_00/npu_7.sbin
+2026-09-20T13:41:05+07:00 think14gryzen kernel: r8169 0000:02:00.0 eth0: RTL8168h/8111h, 40:c2:ba:62:49:4f, XID 541, IRQ 117
+2026-09-20T13:41:05+07:00 think14gryzen kernel: r8169 0000:02:00.0 eth0: jumbo features [frames: 9194 bytes, tx checksumming: ko]
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_intel 0000:65:00.1: Handle vga_switcheroo audio client
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: Core ver 2.22
+2026-09-20T13:41:05+07:00 think14gryzen kernel: NET: Registered PF_BLUETOOTH protocol family
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: HCI device and connection manager initialized
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: HCI socket layer initialized
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: L2CAP socket layer initialized
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: SCO socket layer initialized
+2026-09-20T13:41:05+07:00 think14gryzen kernel: hid-generic 0018:048D:5003.0001: hidraw0: I2C HID v1.00 Device [IDEA5003:00 048D:5003] on i2c-IDEA5003:00
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: CIRQ1080:00 0488:1054 Mouse as /devices/platform/AMDI0010:00/i2c-0/i2c-CIRQ1080:00/0018:0488:1054.0002/input/input5
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: CIRQ1080:00 0488:1054 Touchpad as /devices/platform/AMDI0010:00/i2c-0/i2c-CIRQ1080:00/0018:0488:1054.0002/input/input6
+2026-09-20T13:41:05+07:00 think14gryzen kernel: hid-generic 0018:0488:1054.0002: input,hidraw1: I2C HID v1.00 Mouse [CIRQ1080:00 0488:1054] on i2c-CIRQ1080:00
+2026-09-20T13:41:05+07:00 think14gryzen kernel: cfg80211: Loading compiled-in X.509 certificates for regulatory database
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_intel 0000:65:00.1: bound 0000:65:00.0 (ops amdgpu_dm_audio_component_bind_ops [amdgpu])
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: HD-Audio Generic HDMI/DP,pcm=3 as /devices/pci0000:00/0000:00:08.1/0000:65:00.1/sound/card0/input8
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: HD-Audio Generic HDMI/DP,pcm=7 as /devices/pci0000:00/0000:00:08.1/0000:65:00.1/sound/card0/input9
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: HD-Audio Generic HDMI/DP,pcm=8 as /devices/pci0000:00/0000:00:08.1/0000:65:00.1/sound/card0/input10
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_codec_alc269 hdaudioC1D0: ALC257: picked fixup  for PCI SSID 17aa:0000
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_codec_alc269 hdaudioC1D0: autoconfig for ALC257: line_outs=1 (0x14/0x0/0x0/0x0/0x0) type:speaker
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_codec_alc269 hdaudioC1D0:    speaker_outs=0 (0x0/0x0/0x0/0x0/0x0)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_codec_alc269 hdaudioC1D0:    hp_outs=1 (0x21/0x0/0x0/0x0/0x0)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_codec_alc269 hdaudioC1D0:    mono: mono_out=0x0
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_codec_alc269 hdaudioC1D0:    inputs:
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_codec_alc269 hdaudioC1D0:      Internal Mic=0x12
+2026-09-20T13:41:05+07:00 think14gryzen kernel: snd_hda_codec_alc269 hdaudioC1D0:      Mic=0x19
+2026-09-20T13:41:05+07:00 think14gryzen kernel: uvcvideo 3-1:1.0: Found UVC 1.50 device Integrated RGB Camera (30c9:00c2)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: r8169 0000:02:00.0 enp2s0: renamed from eth0
+2026-09-20T13:41:05+07:00 think14gryzen kernel: usbcore: registered new interface driver btusb
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: Device revision is 0
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: Secure boot is enabled
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: OTP lock is enabled
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: API lock is enabled
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: Debug lock is disabled
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: Minimum firmware build 1 week 10 2014
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: Bootloader timestamp 2019.40 buildtype 1 build 38
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: No dsm support to set reset delay
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: Found device firmware: intel/ibt-0041-0041.sfi
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: Boot Address: 0x100800
+2026-09-20T13:41:05+07:00 think14gryzen kernel: Bluetooth: hci0: Firmware Version: 202-5.26
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: CIRQ1080:00 0488:1054 Mouse as /devices/platform/AMDI0010:00/i2c-0/i2c-CIRQ1080:00/0018:0488:1054.0002/input/input12
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: CIRQ1080:00 0488:1054 Touchpad as /devices/platform/AMDI0010:00/i2c-0/i2c-CIRQ1080:00/0018:0488:1054.0002/input/input13
+2026-09-20T13:41:05+07:00 think14gryzen kernel: hid-multitouch 0018:0488:1054.0002: input,hidraw1: I2C HID v1.00 Mouse [CIRQ1080:00 0488:1054] on i2c-CIRQ1080:00
+2026-09-20T13:41:05+07:00 think14gryzen kernel: mousedev: PS/2 mouse device common for all mice
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: HDA Digital PCBeep as /devices/pci0000:00/0000:00:08.1/0000:65:00.6/sound/card1/input11
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: HD-Audio Generic Mic as /devices/pci0000:00/0000:00:08.1/0000:65:00.6/sound/card1/input15
+2026-09-20T13:41:05+07:00 think14gryzen kernel: input: HD-Audio Generic Headphone as /devices/pci0000:00/0000:00:08.1/0000:65:00.6/sound/card1/input16
+2026-09-20T13:41:05+07:00 think14gryzen kernel: [drm] Initialized amdxdna_accel_driver 0.10.0 for 0000:66:00.1 on minor 0
+2026-09-20T13:41:05+07:00 think14gryzen kernel: uvcvideo 3-1:1.2: Found UVC 1.50 device Integrated RGB Camera (30c9:00c2)
+2026-09-20T13:41:05+07:00 think14gryzen kernel: usbcore: registered new interface driver uvcvideo
+2026-09-20T13:41:05+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: Detected crf-id 0x400410, cnv-id 0x400410 wfpm id 0x80000000
+2026-09-20T13:41:05+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: PCI dev 2725/0024, rev=0x420, rfid=0x10d000
+2026-09-20T13:41:05+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: Detected Intel(R) Wi-Fi 6E AX210 160MHz
+2026-09-20T13:41:05+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: loaded firmware version 89.d2579d43.0 ty-a0-gf-a0-89.ucode op_mode iwlmvm
+2026-09-20T13:41:05+07:00 think14gryzen kernel: pps_core: LinuxPPS API ver. 1 registered
+2026-09-20T13:41:05+07:00 think14gryzen kernel: pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+2026-09-20T13:41:05+07:00 think14gryzen kernel: EDAC MC: Ver: 3.0.0
+2026-09-20T13:41:05+07:00 think14gryzen kernel: PTP clock support registered
+2026-09-20T13:41:05+07:00 think14gryzen kernel: MCE: In-kernel MCE decoding enabled.
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_UMAC_PD_NOTIFICATION: 0x20
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_LMAC2_PD_NOTIFICATION: 0x1f
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_AUTH_KEY_0: 0x90
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: CNVI_SCU_SEQ_DATA_DW9: 0x0
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: Detected RF GF, rfid=0x10d000
+2026-09-20T13:41:06+07:00 think14gryzen kernel: EXT4-fs (nvme1n1p1): mounted filesystem 86292ded-a2fe-4f4c-bd5a-ab9afdb1e369 r/w with ordered data mode. Quota mode: none.
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: base HW address: 20:bd:1d:78:96:d7
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0 wlp4s0: renamed from wlan0
+2026-09-20T13:41:06+07:00 think14gryzen kernel: ideapad_acpi VPC2004:00: conservation_mode attribute has been deprecated, see charge_types.
+2026-09-20T13:41:06+07:00 think14gryzen kernel: Bluetooth: BNEP (Ethernet Emulation) ver 1.3
+2026-09-20T13:41:06+07:00 think14gryzen kernel: Bluetooth: BNEP socket layer initialized
+2026-09-20T13:41:06+07:00 think14gryzen kernel: Generic FE-GE Realtek PHY r8169-0-200:00: attached PHY driver (mii_bus:phy_addr=r8169-0-200:00, irq=MAC)
+2026-09-20T13:41:06+07:00 think14gryzen kernel: r8169 0000:02:00.0 enp2s0: Link is Down
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_UMAC_PD_NOTIFICATION: 0x20
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_LMAC2_PD_NOTIFICATION: 0x1f
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_AUTH_KEY_0: 0x90
+2026-09-20T13:41:06+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: CNVI_SCU_SEQ_DATA_DW9: 0x0
+2026-09-20T13:41:06+07:00 think14gryzen kernel: Bluetooth: hci0: Waiting for firmware download to complete
+2026-09-20T13:41:06+07:00 think14gryzen kernel: Bluetooth: hci0: Firmware loaded in 1150399 usecs
+2026-09-20T13:41:06+07:00 think14gryzen kernel: Bluetooth: hci0: Waiting for device to boot
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: hci0: Device booted in 27289 usecs
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: hci0: Found Intel DDC parameters: intel/ibt-0041-0041.ddc
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: hci0: Applying Intel DDC parameters completed
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: hci0: Firmware timestamp 2026.5 buildtype 1 build 82122
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: hci0: Firmware SHA1: 0x2925677d
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: hci0: Fseq status: Success (0x00)
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: hci0: Fseq executed: 00.00.02.41
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: hci0: Fseq BT Top: 00.00.02.41
+2026-09-20T13:41:07+07:00 think14gryzen kernel: Bluetooth: MGMT ver 1.23
+2026-09-20T13:41:07+07:00 think14gryzen kernel: NET: Registered PF_ALG protocol family
+2026-09-20T13:41:07+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_UMAC_PD_NOTIFICATION: 0x20
+2026-09-20T13:41:07+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_LMAC2_PD_NOTIFICATION: 0x1f
+2026-09-20T13:41:07+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: WFPM_AUTH_KEY_0: 0x90
+2026-09-20T13:41:07+07:00 think14gryzen kernel: iwlwifi 0000:04:00.0: CNVI_SCU_SEQ_DATA_DW9: 0x0
+2026-09-20T13:41:07+07:00 think14gryzen kernel: NET: Registered PF_PACKET protocol family
+2026-09-20T13:41:08+07:00 think14gryzen kernel: Initializing XFRM netlink socket
+2026-09-20T13:41:08+07:00 think14gryzen kernel: tun: Universal TUN/TAP device driver, 1.6
+2026-09-20T13:41:10+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:2c:b1 (local address=20:bd:1d:78:96:d7)
+2026-09-20T13:41:10+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:2c:b1 (try 1/3)
+2026-09-20T13:41:10+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T13:41:10+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:2c:b1 (try 1/3)
+2026-09-20T13:41:10+07:00 think14gryzen kernel: wlp4s0: RX AssocResp from 18:14:54:25:2c:b1 (capab=0x1511 status=0 aid=15)
+2026-09-20T13:41:10+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T13:41:10+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:2c:b1
+2026-09-20T13:41:10+07:00 think14gryzen kernel: hid-generic 0020:1022:0001.0003: hidraw2: SENSOR HUB HID v0.00 Device [hid-amdsfh 1022:0001] on pcie_mp2_amd
+2026-09-20T13:41:10+07:00 think14gryzen kernel: hid-sensor-hub 0020:1022:0001.0003: hidraw2: SENSOR HUB HID v0.00 Device [hid-amdsfh 1022:0001] on pcie_mp2_amd
+2026-09-20T13:41:10+07:00 think14gryzen kernel: hid-sensor-hub 0020:1022:0001.0003: Event data for report 4 was too short (18 vs 14)
+2026-09-20T13:41:14+07:00 think14gryzen kernel: input: MCHOSE G3 A Mouse as /devices/virtual/misc/uhid/0005:2717:32B0.0004/input/input17
+2026-09-20T13:41:14+07:00 think14gryzen kernel: input: MCHOSE G3 A Consumer Control as /devices/virtual/misc/uhid/0005:2717:32B0.0004/input/input18
+2026-09-20T13:41:14+07:00 think14gryzen kernel: input: MCHOSE G3 A Keyboard as /devices/virtual/misc/uhid/0005:2717:32B0.0004/input/input19
+2026-09-20T13:41:14+07:00 think14gryzen kernel: hid-generic 0005:2717:32B0.0004: input,hidraw3: BLUETOOTH HID v24.10 Mouse [MCHOSE G3 A] on 20:bd:1d:78:96:db
+2026-09-20T13:41:28+07:00 think14gryzen kernel: block nvme0n1: No UUID available providing old NGUID
+2026-09-20T13:41:28+07:00 think14gryzen systemd-journald[637]: Time jumped backwards, rotating.
+2026-09-20T13:41:28+07:00 think14gryzen kernel: Bluetooth: RFCOMM TTY layer initialized
+2026-09-20T13:41:28+07:00 think14gryzen kernel: Bluetooth: RFCOMM socket layer initialized
+2026-09-20T13:41:28+07:00 think14gryzen kernel: Bluetooth: RFCOMM ver 1.11
+2026-09-20T13:41:32+07:00 think14gryzen kernel: warning: `ThreadPoolForeg' uses wireless extensions which will stop working for Wi-Fi 7 hardware; use nl80211
+2026-09-20T13:59:02+07:00 think14gryzen kernel: clocksource: Watchdog remote CPU 6 read timed out
+2026-09-20T14:46:56+07:00 think14gryzen kernel: wlp4s0: disconnect from AP 18:14:54:25:2c:b1 for new auth to 18:14:54:25:26:b1
+2026-09-20T14:46:56+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:26:b1 (local address=20:bd:1d:78:96:d7)
+2026-09-20T14:46:56+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:26:b1 (try 1/3)
+2026-09-20T14:46:56+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T14:46:56+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:26:b1 (try 1/3)
+2026-09-20T14:46:56+07:00 think14gryzen kernel: wlp4s0: RX ReassocResp from 18:14:54:25:26:b1 (capab=0x1511 status=0 aid=11)
+2026-09-20T14:46:56+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T14:46:56+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:26:b1
+2026-09-20T14:51:59+07:00 think14gryzen kernel: wlp4s0: disconnect from AP 18:14:54:25:26:b1 for new auth to 18:14:54:25:2c:b1
+2026-09-20T14:51:59+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:2c:b1 (local address=20:bd:1d:78:96:d7)
+2026-09-20T14:51:59+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:2c:b1 (try 1/3)
+2026-09-20T14:52:00+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:2c:b1 (try 2/3)
+2026-09-20T14:52:00+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T14:52:00+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:2c:b1 (try 1/3)
+2026-09-20T14:52:00+07:00 think14gryzen kernel: wlp4s0: RX ReassocResp from 18:14:54:25:2c:b1 (capab=0x1511 status=0 aid=5)
+2026-09-20T14:52:00+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T14:52:00+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:2c:b1
+2026-09-20T15:13:05+07:00 think14gryzen kernel: perf: interrupt took too long (2506 > 2500), lowering kernel.perf_event_max_sample_rate to 79000
+2026-09-20T16:25:50+07:00 think14gryzen kernel: perf: interrupt took too long (3234 > 3132), lowering kernel.perf_event_max_sample_rate to 61000
+2026-09-20T16:28:03+07:00 think14gryzen kernel: wlp4s0: disconnect from AP 18:14:54:25:2c:b1 for new auth to 18:14:54:25:26:b1
+2026-09-20T16:28:03+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:26:b1 (local address=20:bd:1d:78:96:d7)
+2026-09-20T16:28:03+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:26:b1 (try 1/3)
+2026-09-20T16:28:03+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T16:28:03+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:26:b1 (try 1/3)
+2026-09-20T16:28:03+07:00 think14gryzen kernel: wlp4s0: RX ReassocResp from 18:14:54:25:26:b1 (capab=0x1511 status=0 aid=7)
+2026-09-20T16:28:03+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T16:28:03+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:26:b1
+2026-09-20T16:28:13+07:00 think14gryzen kernel: wlp4s0: deauthenticating from 18:14:54:25:26:b1 by local choice (Reason: 3=DEAUTH_LEAVING)
+2026-09-20T16:28:16+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:2b:61 (local address=20:bd:1d:78:96:d7)
+2026-09-20T16:28:16+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:2b:61 (try 1/3)
+2026-09-20T16:28:16+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T16:28:16+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:2b:61 (try 1/3)
+2026-09-20T16:28:16+07:00 think14gryzen kernel: wlp4s0: RX AssocResp from 18:14:54:25:2b:61 (capab=0x1511 status=0 aid=6)
+2026-09-20T16:28:16+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T16:28:16+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:2b:61
+2026-09-20T16:33:19+07:00 think14gryzen kernel: wlp4s0: disconnect from AP 18:14:54:25:2b:61 for new auth to 18:14:54:25:2c:b1
+2026-09-20T16:33:19+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:2c:b1 (local address=20:bd:1d:78:96:d7)
+2026-09-20T16:33:19+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:2c:b1 (try 1/3)
+2026-09-20T16:33:19+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T16:33:19+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:2c:b1 (try 1/3)
+2026-09-20T16:33:19+07:00 think14gryzen kernel: wlp4s0: RX ReassocResp from 18:14:54:25:2c:b1 (capab=0x1511 status=0 aid=3)
+2026-09-20T16:33:19+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T16:33:19+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:2c:b1
+2026-09-20T16:50:46+07:00 think14gryzen kernel: input: MCHOSE G3 A Mouse as /devices/virtual/misc/uhid/0005:2717:32B0.0005/input/input20
+2026-09-20T16:50:46+07:00 think14gryzen kernel: input: MCHOSE G3 A Consumer Control as /devices/virtual/misc/uhid/0005:2717:32B0.0005/input/input21
+2026-09-20T16:50:46+07:00 think14gryzen kernel: input: MCHOSE G3 A Keyboard as /devices/virtual/misc/uhid/0005:2717:32B0.0005/input/input22
+2026-09-20T16:50:46+07:00 think14gryzen kernel: hid-generic 0005:2717:32B0.0005: input,hidraw3: BLUETOOTH HID v24.10 Mouse [MCHOSE G3 A] on 20:bd:1d:78:96:db
+2026-09-20T16:53:33+07:00 think14gryzen kernel: wlp4s0: disconnect from AP 18:14:54:25:2c:b1 for new auth to 18:14:54:25:26:b1
+2026-09-20T16:53:33+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:26:b1 (local address=20:bd:1d:78:96:d7)
+2026-09-20T16:53:33+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:26:b1 (try 1/3)
+2026-09-20T16:53:33+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T16:53:33+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:26:b1 (try 1/3)
+2026-09-20T16:53:33+07:00 think14gryzen kernel: wlp4s0: RX ReassocResp from 18:14:54:25:26:b1 (capab=0x1511 status=0 aid=7)
+2026-09-20T16:53:33+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T16:53:33+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:26:b1
+2026-09-20T17:04:24+07:00 think14gryzen kernel: wlp4s0: disconnect from AP 18:14:54:25:26:b1 for new auth to 18:14:54:25:2c:a9
+2026-09-20T17:04:24+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:2c:a9 (local address=20:bd:1d:78:96:d7)
+2026-09-20T17:04:24+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:2c:a9 (try 1/3)
+2026-09-20T17:04:24+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T17:04:24+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:2c:a9 (try 1/3)
+2026-09-20T17:04:24+07:00 think14gryzen kernel: wlp4s0: RX ReassocResp from 18:14:54:25:2c:a9 (capab=0x1431 status=0 aid=6)
+2026-09-20T17:04:24+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T17:04:24+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:2c:a9
+2026-09-20T17:04:57+07:00 think14gryzen kernel: wlp4s0: disconnect from AP 18:14:54:25:2c:a9 for new auth to 18:14:54:25:2c:b1
+2026-09-20T17:04:58+07:00 think14gryzen kernel: wlp4s0: authenticate with 18:14:54:25:2c:b1 (local address=20:bd:1d:78:96:d7)
+2026-09-20T17:04:58+07:00 think14gryzen kernel: wlp4s0: send auth to 18:14:54:25:2c:b1 (try 1/3)
+2026-09-20T17:04:58+07:00 think14gryzen kernel: wlp4s0: authenticated
+2026-09-20T17:04:58+07:00 think14gryzen kernel: wlp4s0: associate with 18:14:54:25:2c:b1 (try 1/3)
+2026-09-20T17:04:58+07:00 think14gryzen kernel: wlp4s0: RX ReassocResp from 18:14:54:25:2c:b1 (capab=0x1511 status=0 aid=3)
+2026-09-20T17:04:58+07:00 think14gryzen kernel: wlp4s0: associated
+2026-09-20T17:04:58+07:00 think14gryzen kernel: wlp4s0: Limiting TX power to 30 (30 - 0) dBm as advertised by 18:14:54:25:2c:b1
+2026-09-20T17:10:01+07:00 think14gryzen kernel: input: MCHOSE G3 A Mouse as /devices/virtual/misc/uhid/0005:2717:32B0.0006/input/input23
+2026-09-20T17:10:01+07:00 think14gryzen kernel: input: MCHOSE G3 A Consumer Control as /devices/virtual/misc/uhid/0005:2717:32B0.0006/input/input24
+2026-09-20T17:10:01+07:00 think14gryzen kernel: input: MCHOSE G3 A Keyboard as /devices/virtual/misc/uhid/0005:2717:32B0.0006/input/input25
+2026-09-20T17:10:01+07:00 think14gryzen kernel: hid-generic 0005:2717:32B0.0006: input,hidraw3: BLUETOOTH HID v24.10 Mouse [MCHOSE G3 A] on 20:bd:1d:78:96:db

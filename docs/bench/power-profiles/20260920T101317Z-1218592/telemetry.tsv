@@ -1,0 +1,6 @@
+timestamp_utc	profile	phase	elapsed_s	cpu_temp_c	gpu_temp_c	amdgpu_power_w	freq_avg_mhz	policy_max_mhz	hardware_max_mhz	load1	thermal_throttle_count
+2026-09-20T10:13:22Z	performance	cooldown-before	0	43.2	41.0	10.311	2534.55	3200.00	5137.90	12.15	NA
+2026-09-20T10:13:26Z	sustained-build	cooldown-before	0	43.1	40.0	9.685	2237.25	3200.00	5137.90	12.54	NA
+2026-09-20T10:13:30Z	balanced	cooldown-before	0	43.0	40.0	8.802	2407.20	3200.00	5137.90	12.54	NA
+2026-09-20T10:13:34Z	power-saver	cooldown-before	0	42.8	40.0	8.790	2271.76	3801.00	5137.90	12.73	NA
+2026-09-20T10:13:38Z	light-use	cooldown-before	0	42.8	40.0	9.712	2909.22	3200.00	5137.90	12.76	NA

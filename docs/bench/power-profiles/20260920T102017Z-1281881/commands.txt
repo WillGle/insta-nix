@@ -1,0 +1,16 @@
+performance/apply command=/run/current-system/sw/bin/native-power-profile performance 
+performance/one-core command=setsid taskset --cpu-list 0 stress-ng --cpu 1 --cpu-method matrixprod --verify --timeout 60s --metrics-brief --times 
+performance/all-core command=setsid taskset --cpu-list 0-15 stress-ng --cpu 16 --cpu-method matrixprod --verify --timeout 480s --metrics-brief --times 
+sustained-build/apply command=/run/current-system/sw/bin/native-power-profile sustained-build 
+sustained-build/one-core command=setsid taskset --cpu-list 0 stress-ng --cpu 1 --cpu-method matrixprod --verify --timeout 60s --metrics-brief --times 
+sustained-build/all-core command=setsid taskset --cpu-list 0-15 stress-ng --cpu 16 --cpu-method matrixprod --verify --timeout 480s --metrics-brief --times 
+balanced/apply command=/run/current-system/sw/bin/native-power-profile balanced 
+balanced/one-core command=setsid taskset --cpu-list 0 stress-ng --cpu 1 --cpu-method matrixprod --verify --timeout 60s --metrics-brief --times 
+balanced/all-core command=setsid taskset --cpu-list 0-15 stress-ng --cpu 16 --cpu-method matrixprod --verify --timeout 480s --metrics-brief --times 
+power-saver/apply command=/run/current-system/sw/bin/native-power-profile power-saver 
+power-saver/one-core command=setsid taskset --cpu-list 0 stress-ng --cpu 1 --cpu-method matrixprod --verify --timeout 60s --metrics-brief --times 
+power-saver/all-core command=setsid taskset --cpu-list 0-15 stress-ng --cpu 16 --cpu-method matrixprod --verify --timeout 480s --metrics-brief --times 
+light-use/apply command=/run/current-system/sw/bin/native-power-profile light-use 
+light-use/one-core command=setsid taskset --cpu-list 0 stress-ng --cpu 1 --cpu-method matrixprod --verify --timeout 60s --metrics-brief --times 
+light-use/all-core command=setsid taskset --cpu-list 0-15 stress-ng --cpu 16 --cpu-method matrixprod --verify --timeout 480s --metrics-brief --times 
+restore_command=/run/current-system/sw/bin/native-power-profile performance
