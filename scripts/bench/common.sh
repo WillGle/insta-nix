@@ -127,7 +127,7 @@ bench_collect_metadata() {
     profile="$(</run/native-power-profile/active)"
   fi
   case "$profile" in
-    power-saver|balanced|performance|sustained-build) ;;
+    power-saver|balanced|performance|sustained-build|light-use) ;;
     *) profile="$ppd_profile" ;;
   esac
 

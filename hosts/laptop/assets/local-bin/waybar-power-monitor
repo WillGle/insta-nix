@@ -40,8 +40,10 @@ ICON_BAT_40=$(printf "\uf243")
 ICON_BAT_20=$(printf "\uf244")
 ICON_PLUG=$(printf "\uf1e6")
 ICON_PERF=$(printf "\uf0e7")     # Bolt
+ICON_BUILD=$(printf "\uf1b3")    # Cubes
 ICON_BALANCED=$(printf "\uf24e") # Scales
 ICON_SAVER=$(printf "\uf06c")   # Leaf
+ICON_LIGHT=$(printf "\uf186")   # Moon
 
 ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
@@ -142,7 +144,7 @@ get_power_profile() {
     local line stamp profile now override
     if override="$(read_node "$PROFILE_OVERRIDE_FILE" 2>/dev/null || true)"; then
         case "$override" in
-            performance|sustained-build|balanced|power-saver)
+            performance|sustained-build|balanced|power-saver|light-use)
                 printf '%s\n' "$override"
                 return 0
                 ;;
@@ -433,10 +435,10 @@ warning_count() {
 #   profile -> platform profile | EPP
 profile_policy() {
     local wanted="$1"
-    local name ppd platform governor epp
+    local name ppd platform governor epp max_freq
 
     [ -r "$PROFILE_CONFIG_FILE" ] || return 1
-    while IFS=$'\t' read -r name ppd platform governor epp; do
+    while IFS=$'\t' read -r name ppd platform governor epp max_freq; do
         case "$name" in
             ''|'#'*) continue ;;
         esac
@@ -742,6 +744,9 @@ case "$MODE" in
                 next_profile=power-saver
                 ;;
             power-saver)
+                next_profile=light-use
+                ;;
+            light-use)
                 next_profile=performance
                 ;;
             *)
@@ -941,11 +946,12 @@ case "$MODE" in
         profile=$(get_power_profile)
 
         case "$profile" in
-            performance)     active_marker_perf=" ◀" ; active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;;
-            sustained-build) active_marker_perf="" ;   active_marker_build=" ◀" ; active_marker_bal="" ;   active_marker_sav="" ;;
-            balanced)        active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal=" ◀" ; active_marker_sav="" ;;
-            power-saver)     active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav=" ◀" ;;
-            *)               active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;;
+            performance)     active_marker_perf=" ◀" ; active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;   active_marker_light="" ;;
+            sustained-build) active_marker_perf="" ;   active_marker_build=" ◀" ; active_marker_bal="" ;   active_marker_sav="" ;   active_marker_light="" ;;
+            balanced)        active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal=" ◀" ; active_marker_sav="" ;   active_marker_light="" ;;
+            power-saver)     active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav=" ◀" ; active_marker_light="" ;;
+            light-use)       active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;   active_marker_light=" ◀" ;;
+            *)               active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;   active_marker_light="" ;;
         esac
 
         # Classes
@@ -966,7 +972,8 @@ $SEP
 <tt>$(cheat_sheet_line "Performance" performance "$active_marker_perf")
 $(cheat_sheet_line "Build" sustained-build "$active_marker_build")
 $(cheat_sheet_line "Balanced" balanced "$active_marker_bal")
-$(cheat_sheet_line "Power Saver" power-saver "$active_marker_sav")</tt>
+$(cheat_sheet_line "Power Saver" power-saver "$active_marker_sav")
+$(cheat_sheet_line "Light Use" light-use "$active_marker_light")</tt>
 
 <b><span foreground='$ACCENT'>CLOCK</span></b>
 $SEP
@@ -1043,11 +1050,12 @@ Limit check:  $cpu_clock_status</tt>
 
         # Power profile cheat-sheet
         case "$profile" in
-            performance)     active_marker_perf=" ◀" ; active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;   prof_cls="prof-perf" ;   p_icon="<span foreground='$color_perf'>$ICON_PERF</span>" ;;
-            sustained-build) active_marker_perf="" ;   active_marker_build=" ◀" ; active_marker_bal="" ;   active_marker_sav="" ;   prof_cls="prof-normal" ; p_icon="<span foreground='$color_bal'>$ICON_CPU</span>" ;;
-            balanced)        active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal=" ◀" ; active_marker_sav="" ;   prof_cls="prof-normal" ; p_icon="<span foreground='$color_bal'>$ICON_BALANCED</span>" ;;
-            power-saver)     active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav=" ◀" ; prof_cls="prof-saver" ;  p_icon="<span foreground='$color_saver'>$ICON_SAVER</span>" ;;
-            *)               active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;   prof_cls="prof-normal" ; p_icon="?" ;;
+            performance)     active_marker_perf=" ◀" ; active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;   active_marker_light="" ;   prof_cls="prof-perf" ;   p_icon="<span foreground='$color_perf'>$ICON_PERF</span>" ;;
+            sustained-build) active_marker_perf="" ;   active_marker_build=" ◀" ; active_marker_bal="" ;   active_marker_sav="" ;   active_marker_light="" ;   prof_cls="prof-normal" ; p_icon="<span foreground='$color_bal'>$ICON_BUILD</span>" ;;
+            balanced)        active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal=" ◀" ; active_marker_sav="" ;   active_marker_light="" ;   prof_cls="prof-normal" ; p_icon="<span foreground='$color_bal'>$ICON_BALANCED</span>" ;;
+            power-saver)     active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav=" ◀" ; active_marker_light="" ;   prof_cls="prof-saver" ;  p_icon="<span foreground='$color_saver'>$ICON_SAVER</span>" ;;
+            light-use)       active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;   active_marker_light=" ◀" ;   prof_cls="prof-saver" ;  p_icon="<span foreground='$color_saver'>$ICON_LIGHT</span>" ;;
+            *)               active_marker_perf="" ;   active_marker_build="" ;   active_marker_bal="" ;   active_marker_sav="" ;   active_marker_light="" ;   prof_cls="prof-normal" ; p_icon="?" ;;
         esac
 
         # The PPT label comes from sysfs, so its width is only known at runtime;

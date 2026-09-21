@@ -11,12 +11,12 @@ CPU_POLICY_DIR=/sys/devices/system/cpu/cpufreq
 SUDO_BIN=/run/wrappers/bin/sudo
 
 usage() {
-  echo "Usage: native-power-profile [--sync|--verify|performance|sustained-build|balanced|power-saver]" >&2
+  echo "Usage: native-power-profile [--sync|--verify|performance|sustained-build|balanced|power-saver|light-use]" >&2
 }
 
 valid_profile() {
   case "$1" in
-    performance|sustained-build|balanced|power-saver) return 0 ;;
+    performance|sustained-build|balanced|power-saver|light-use) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -46,15 +46,16 @@ read_state_profile() {
 
 profile_row() {
   local wanted="$1"
-  local name ppd platform governor epp
+  local name ppd platform governor epp max_freq
 
   [ -r "$PROFILE_CONFIG_FILE" ] || return 1
-  while IFS=$'\t' read -r name ppd platform governor epp; do
+  while IFS=$'\t' read -r name ppd platform governor epp max_freq; do
     case "$name" in
       ''|'#'*) continue ;;
     esac
     [ "$name" = "$wanted" ] || continue
-    printf '%s\t%s\t%s\t%s\t%s\n' "$name" "$ppd" "$platform" "$governor" "$epp"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$name" "$ppd" "$platform" "$governor" "$epp" "$max_freq"
     return 0
   done <"$PROFILE_CONFIG_FILE"
   return 1
@@ -65,7 +66,7 @@ read_profile_fields() {
   local row
 
   row="$(profile_row "$profile")" || return 1
-  IFS=$'\t' read -r _ PROFILE_PPD PROFILE_PLATFORM PROFILE_GOVERNOR PROFILE_EPP <<< "$row"
+  IFS=$'\t' read -r _ PROFILE_PPD PROFILE_PLATFORM PROFILE_GOVERNOR PROFILE_EPP PROFILE_MAX_FREQ <<< "$row"
 }
 
 read_ppd_profile() {
@@ -97,6 +98,89 @@ set_epp() {
     }
     printf '%s\n' "$expected" >"$policy/energy_performance_preference" || return 1
   done
+}
+
+valid_max_freq() {
+  case "$1" in
+    native) return 0 ;;
+    ''|*[!0-9]*) return 1 ;;
+    *) [ "$1" -gt 0 ] ;;
+  esac
+}
+
+hardware_max_freq() {
+  local policy="$1"
+  local name value
+
+  for name in amd_pstate_max_freq cpuinfo_max_freq; do
+    [ -r "$policy/$name" ] || continue
+    value="$(<"$policy/$name")"
+    case "$value" in
+      ''|*[!0-9]*) continue ;;
+      *) printf '%s\n' "$value"; return 0 ;;
+    esac
+  done
+  return 1
+}
+
+set_policy_max() {
+  local expected="$1"
+  local policy hardware_max
+
+  if [ "$expected" = native ]; then
+    for policy in "$CPU_POLICY_DIR"/policy*; do
+      [ -d "$policy" ] || continue
+      [ -w "$policy/scaling_max_freq" ] || {
+        printf 'error: cannot write policy max for %s\n' "${policy##*/}" >&2
+        return 1
+      }
+      hardware_max="$(hardware_max_freq "$policy")" || {
+        printf 'error: cannot read hardware max for %s\n' "${policy##*/}" >&2
+        return 1
+      }
+      printf '%s\n' "$hardware_max" >"$policy/scaling_max_freq" || return 1
+    done
+    return 0
+  fi
+  valid_max_freq "$expected" || {
+    printf 'error: invalid policy max frequency: %s\n' "$expected" >&2
+    return 1
+  }
+  for policy in "$CPU_POLICY_DIR"/policy*; do
+    [ -d "$policy" ] || continue
+    [ -w "$policy/scaling_max_freq" ] || {
+      printf 'error: cannot write policy max for %s\n' "${policy##*/}" >&2
+      return 1
+    }
+    hardware_max="$(hardware_max_freq "$policy")" || {
+      printf 'error: cannot read hardware max for %s\n' "${policy##*/}" >&2
+      return 1
+    }
+    [ "$expected" -le "$hardware_max" ] || {
+      printf 'error: policy max %s exceeds hardware max %s for %s\n' \
+        "$expected" "$hardware_max" "${policy##*/}" >&2
+      return 1
+    }
+    printf '%s\n' "$expected" >"$policy/scaling_max_freq" || return 1
+  done
+}
+
+policy_max_matches() {
+  local expected="$1"
+  local policy value hardware_max count=0
+
+  for policy in "$CPU_POLICY_DIR"/policy*; do
+    [ -r "$policy/scaling_max_freq" ] || continue
+    value="$(<"$policy/scaling_max_freq")"
+    if [ "$expected" = native ]; then
+      hardware_max="$(hardware_max_freq "$policy")" || return 1
+      [ "$value" = "$hardware_max" ] || return 1
+    else
+      [ "$value" = "$expected" ] || return 1
+    fi
+    count=$((count + 1))
+  done
+  [ "$count" -gt 0 ]
 }
 
 verify_profile_state() {
@@ -140,6 +224,10 @@ verify_profile_state() {
     printf 'error: EPP mismatch: expected %s\n' "$PROFILE_EPP" >&2
     return 1
   }
+  policy_max_matches "$PROFILE_MAX_FREQ" || {
+    printf 'error: policy max mismatch: expected %s\n' "$PROFILE_MAX_FREQ" >&2
+    return 1
+  }
 }
 
 mark_profile() {
@@ -162,6 +250,7 @@ apply_profile() {
   read_profile_fields "$profile" || return 1
   powerprofilesctl set "$PROFILE_PPD" || return 1
   set_epp "$PROFILE_EPP" || return 1
+  set_policy_max "$PROFILE_MAX_FREQ" || return 1
   verify_profile_state "$profile" || return 1
   sleep 3
   verify_profile_state "$profile" || return 1

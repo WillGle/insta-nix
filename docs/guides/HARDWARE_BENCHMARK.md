@@ -50,6 +50,21 @@ bash scripts/bench/oc-curve.sh --profile sustained-build
 
 Lưu ý: Không bấm chuyển profile trên Waybar khi đang chạy script đo kiểm để tránh làm sai lệch trạng thái ghi nhận tại `/run/native-power-profile/active`.
 
+### So sánh toàn bộ native power profiles
+Để so sánh các preset hiện tại, bao gồm `sustained-build` và `light-use`, dùng runner riêng. Runner này không ghi RyzenAdj/Curve Optimizer, yêu cầu AC, tự dừng ở giới hạn nhiệt cứng và khôi phục profile ban đầu:
+
+```bash
+cd /etc/nixos
+bash scripts/bench/power-profiles.sh
+```
+
+Kết quả mặc định lưu trong `docs/bench/power-profiles/<timestamp>-<pid>/`. Có thể rút ngắn một lượt kiểm tra trước khi chạy full run:
+
+```bash
+bash scripts/bench/power-profiles.sh \
+  --one-core-seconds 30 --all-core-seconds 180 --cooldown-seconds 60
+```
+
 ### Đo kiểm ổ cứng lưu trữ
 Script yêu cầu một tệp có sẵn với dung lượng tối thiểu bằng tham số `--size`. Không chạy trên block device trực tiếp:
 
