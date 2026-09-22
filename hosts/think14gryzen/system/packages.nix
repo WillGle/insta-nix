@@ -186,6 +186,7 @@ in
       # Shell & version control
       bash
       git
+      gh
 
       # Networking — packet capture & protocol analysis
       tcpdump
