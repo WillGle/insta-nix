@@ -169,6 +169,8 @@ in
       zstd
 
       # Filesystem
+      terraform
+      ansible
       dosfstools
       exfatprogs
       ntfs3g
