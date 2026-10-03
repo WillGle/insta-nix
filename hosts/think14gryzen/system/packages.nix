@@ -40,19 +40,6 @@ let
       '')
     ];
   };
-
-  # Patch the upstream Pi build before Nix packages its rebuilt native bundle.
-  piHarnessCatalogPatch = pkgsUnstable.fetchFromGitHub {
-    owner = "WillGle";
-    repo = "pi-harness";
-    rev = "be0f4524cadf2839db4f9dbbada453ee8c025a92";
-    hash = "sha256-Ag9rwKRzkrPHBvGodziywg0sNCYdz301pYddxUJjLhU=";
-  };
-  piCodingAgentWithCatalogDrain = pkgsUnstable.pi-coding-agent.overrideAttrs (old: {
-    postBuild = (old.postBuild or "") + ''
-      ${pkgsUnstable.nodejs}/bin/node ${piHarnessCatalogPatch}/packages/pi-harness-acp/runtime/apply-catalog-drain.mjs "$PWD"
-    '';
-  });
 in
 {
   # NixOS keeps Blueman's package, D-Bus integration, and mechanism service;
@@ -274,7 +261,6 @@ in
       pkgsUnstable.libreoffice-stable
       wpsoffice
       pkgsUnstable.xournalpp
-      pkgsUnstable.zotero
       pkgsUnstable.vscode
       pkgsUnstable.calibre
 
@@ -348,9 +334,6 @@ in
     ++ [
       pkgsUnstable.antigravity-ide
       pkgsUnstable.antigravity-cli
-      # pi coding agent — drives the local llama.cpp router via the custom
-      # provider in ~/.pi/agent/models.json (and Zed via pi-harness-acp).
-      piCodingAgentWithCatalogDrain
     ];
 
   fonts = {
