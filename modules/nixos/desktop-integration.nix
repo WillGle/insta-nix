@@ -145,6 +145,11 @@ in
     ];
   };
 
+  qt = {
+    enable = true;
+    style = "adwaita-dark";
+  };
+
   environment.sessionVariables = {
     QT_QPA_PLATFORM = "wayland;xcb";
     QT_FONT_DPI = "144";
