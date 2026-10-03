@@ -59,9 +59,6 @@ in
       bibata-cursors
       sddm-astronaut
 
-      # Wayland & Qt helpers
-      qt5.qtwayland
-      qt6.qtwayland
       xorg.xcbutilcursor
       brightnessctl
       cliphist
