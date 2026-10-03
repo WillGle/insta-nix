@@ -4,3 +4,4 @@ result
 local-private/
 secrets-local/
 docs/internal/
+.agents
