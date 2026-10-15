@@ -5,6 +5,8 @@
   ...
 }:
 let
+  antigravityIde = pkgsUnstable.callPackage ../../../pkgs/antigravity-ide.nix { };
+
   bluemanWithoutApplet = pkgs.blueman.overrideAttrs (old: {
     postFixup = (old.postFixup or "") + ''
       rm -f "$out/lib/systemd/user/blueman-applet.service"
@@ -57,9 +59,6 @@ in
       bluemanWithoutApplet
       adwaita-icon-theme
       bibata-cursors
-      sddm-astronaut
-
-      xorg.xcbutilcursor
       brightnessctl
       cliphist
       dunst
@@ -189,7 +188,6 @@ in
 
       # Networking — packet capture & protocol analysis
       tcpdump
-      wireshark
       termshark
       ngrep
       tcpflow
@@ -329,7 +327,7 @@ in
       mangohud
     ])
     ++ [
-      pkgsUnstable.antigravity-ide
+      antigravityIde
       pkgsUnstable.antigravity-cli
     ];
 

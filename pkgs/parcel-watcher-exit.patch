@@ -1,0 +1,16 @@
+--- a/src/DirTree.cc
++++ b/src/DirTree.cc
+@@ -1,8 +1,11 @@
+ #include "DirTree.hh"
+ #include <inttypes.h>
+ 
+-static std::mutex mDirCacheMutex;
+-static std::unordered_map<std::string, std::weak_ptr<DirTree>> dirTreeCache;
++// Backend exit handlers can release DirTrees after this translation unit's
++// statics would be destroyed. Keep the cache and its lock alive until exit.
++// https://github.com/parcel-bundler/watcher/issues/258
++static std::mutex &mDirCacheMutex = *new std::mutex;
++static auto &dirTreeCache = *new std::unordered_map<std::string, std::weak_ptr<DirTree>>;
+ 
+ struct DirTreeDeleter {
+   void operator()(DirTree *tree) {

@@ -11,7 +11,8 @@
     };
     Service = {
       ExecStart = "${osConfig.i18n.inputMethod.package}/bin/fcitx5 -r";
-      Restart = "on-failure";
+      # Tray Restart exits successfully; systemd must relaunch the addon wrapper.
+      Restart = "always";
       RestartSec = "2s";
     };
     Install.WantedBy = [ "hyprland-session.target" ];

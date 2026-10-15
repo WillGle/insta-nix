@@ -5,6 +5,10 @@
   ...
 }:
 let
+  sddmTheme = pkgs.sddm-astronaut.override {
+    themeConfig.Background = "/var/lib/sddm-wallpaper/background.jpg";
+  };
+
   # Home Manager owns Fcitx's Hyprland-session startup. Keep the NixOS package
   # and addons, but remove the package's competing XDG autostart launcher.
   fcitx5WithAddons = pkgs.qt6Packages.fcitx5-with-addons.override {
@@ -25,13 +29,12 @@ in
       sddm = {
         enable = true;
         wayland.enable = true;
-        theme = "sddm-astronaut-theme";
+        theme = "${sddmTheme}/share/sddm/themes/sddm-astronaut-theme";
         extraPackages = with pkgs; [
           kdePackages.qtmultimedia
           kdePackages.qtsvg
           kdePackages.qtvirtualkeyboard
           kdePackages.qt5compat
-          sddm-astronaut
         ];
       };
       defaultSession = "hyprland";
@@ -115,6 +118,17 @@ in
       };
     };
   };
+
+  # Keep the personal image out of the flake/store and readable before login.
+  # Seed once: desktop wallpaper changes must not replace the login wallpaper.
+  system.activationScripts.sddmWallpaper.text = ''
+    if [ ! -e /var/lib/sddm-wallpaper/background.jpg ]; then
+      install -d -m 0755 /var/lib/sddm-wallpaper
+      install -m 0644 \
+        /home/will/.local/state/theme/wallpapers/4f3784341b72235528f6b54bf3355c0165122ff86f008f82bead99586b0f2f9e.jpg \
+        /var/lib/sddm-wallpaper/background.jpg
+    fi
+  '';
 
   i18n.inputMethod = {
     enable = true;
