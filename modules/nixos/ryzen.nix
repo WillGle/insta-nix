@@ -68,7 +68,7 @@ let
       "low-power"
       "powersave"
       "power"
-      "3200000"
+      "3000000"
     ]
   ];
 
