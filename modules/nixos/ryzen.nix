@@ -68,7 +68,7 @@ let
       "low-power"
       "powersave"
       "power"
-      "3000000"
+      "2800000"
     ]
   ];
 
@@ -86,7 +86,11 @@ let
     name = "rofi-sudo-askpass";
     runtimeInputs = [ pkgs.rofi ];
     text = lib.concatStringsSep "\n" (
-      lib.drop 1 (lib.splitString "\n" (builtins.readFile ../../hosts/think14gryzen/assets/system-bin/rofi-sudo-askpass))
+      lib.drop 1 (
+        lib.splitString "\n" (
+          builtins.readFile ../../hosts/think14gryzen/assets/system-bin/rofi-sudo-askpass
+        )
+      )
     );
   };
 
