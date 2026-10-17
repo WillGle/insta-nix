@@ -115,8 +115,8 @@ fi
 
 # ── one awk pass turns the raw figures into every displayed number ───────────
 # The last three fields say which signal tripped: 0 normal, 1 warning,
-# 2 critical, one each for Available, PSI and the swapfile. The module class is
-# the worst of the three, and the tooltip marks the offending line.
+# 2 critical, one each for Available and PSI. Swapfile use is shown separately
+# in the tooltip, but it must not keep the module red after pressure clears.
 IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
   vram_g vram_tot_g vram_pct gtt_tot_g gtt_pct \
   zram_used_g zram_size_g zram_pct file_used_g file_size_g file_pct psi_pct \
@@ -132,8 +132,10 @@ IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
       avail_g = gib(avail)
       sa = avail_g < av_crit ? 2 : (avail_g < av_warn ? 1 : 0)
       sp = psi + 0 >= psi_crit ? 2 : (psi + 0 >= psi_warn ? 1 : 0)
+      # Swapfile pages can remain allocated after pressure has cleared. Keep
+      # the tooltip marker, but do not let residual usage keep the module red.
       ss = fu > 0 ? 2 : 0
-      worst = sa; if (sp > worst) worst = sp; if (ss > worst) worst = ss
+      worst = sa; if (sp > worst) worst = sp
       cls = worst == 2 ? "critical" : (worst == 1 ? "warning" : "normal")
       # Apps = Used minus what the GPU borrowed (GTT, shown in the GPU block)
       # and what zram compressed pages physically occupy: RSS + kernel.
