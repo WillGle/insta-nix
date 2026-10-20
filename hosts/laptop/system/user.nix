@@ -26,6 +26,6 @@
   programs.fish.enable = true;
 
   # User-facing aliases belong to Home Manager. This removes NixOS's default
-  # `ll` alias so it cannot compete with the Fish alias in modules/home/shell.nix.
+  # `ll` alias so it cannot compete with the Fish alias in modules/home/shell/default.nix.
   environment.shellAliases.ll = lib.mkForce null;
 }

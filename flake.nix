@@ -32,13 +32,7 @@
           useGlobalPkgs = true;
           useUserPackages = true;
           backupFileExtension = "backup";
-          users.will.imports = [
-            ./modules/home/base.nix
-            ./modules/home/desktop.nix
-            ./modules/home/desktop/waybar.nix
-            ./modules/home/desktop/session-services.nix
-            homeOverlay
-          ];
+          users.will.imports = [ homeOverlay ];
           extraSpecialArgs = {
             inherit inputs;
             inherit pkgsUnstable;

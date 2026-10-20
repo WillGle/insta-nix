@@ -27,7 +27,7 @@ in
 
   xdg.configFile = {
     "waybar/config.jsonc" = {
-      source = ../../../assets/common/waybar/config.jsonc;
+      source = ./assets/config.jsonc;
       onChange = ''
         if ${pkgs.systemd}/bin/systemctl --user is-active --quiet waybar.service; then
           ${pkgs.systemd}/bin/systemctl --user reload waybar.service

@@ -1,10 +1,15 @@
 { ... }:
 {
   imports = [
-    ../../modules/home/input-method.nix
-    ../../modules/home/screen-time.nix
-    ../../modules/home/waybar-helpers.nix
-    ../../modules/home/hyprland-helpers.nix
+    ../../users/will/home.nix
+    ../../modules/home/theme/default.nix
+    ../../modules/home/waybar/default.nix
+    ../../modules/home/theme/session-services.nix
+    ../../modules/home/rofi/default.nix
+    ../../modules/home/hyprland/input-method.nix
+    ./home/screen-time.nix
+    ./home/waybar.nix
+    ./home/hyprland.nix
   ];
 
   # blueman-applet stays: it is the pairing agent. Its manager window is the

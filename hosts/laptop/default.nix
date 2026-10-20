@@ -9,7 +9,7 @@
     ../../modules/nixos/llm.nix
     ../../modules/nixos/ryzen.nix
     ../../modules/nixos/desktop-integration.nix
-    ../../users/will.nix
+    ../../users/will/default.nix
     ./system.nix
     ../../modules/nixos/roles/kubernetes.nix
     ../../modules/nixos/roles/iac.nix
