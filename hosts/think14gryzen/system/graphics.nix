@@ -25,7 +25,7 @@
     # losing GPU acceleration entirely ("undefined symbol:
     # amdgpu_va_manager_query_sw_info" -> EGL init fails -> --use-gl=disabled).
     # The 26.2 throughput win is preserved where it is actually safe: scoped
-    # to llama.cpp in modules/nixos/llm.nix, which is built from pkgsUnstable
+    # to llama.cpp in hosts/think14gryzen/system/llm.nix, which is built from pkgsUnstable
     # and therefore already carries the matching libdrm.
     extraPackages = with pkgs; [
       vulkan-loader

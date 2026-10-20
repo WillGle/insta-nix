@@ -43,7 +43,6 @@
       mkHost =
         {
           hostModule,
-          sshModule,
           enableHome ? false,
           homeModule ? null,
         }:
@@ -55,7 +54,6 @@
           };
           modules = [
             hostModule
-            sshModule
           ]
           ++ lib.optionals enableHome [
             home-manager.nixosModules.home-manager
@@ -69,12 +67,10 @@
           hostModule = ./hosts/think14gryzen/default.nix;
           enableHome = true;
           homeModule = ./hosts/think14gryzen/home.nix;
-          sshModule = ./modules/nixos/ssh/strict.nix;
         };
 
         plank = mkHost {
           hostModule = ./hosts/plank/default.nix;
-          sshModule = ./modules/nixos/ssh/plank.nix;
         };
       };
     };

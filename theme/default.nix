@@ -21,7 +21,7 @@
   # border-bottom). They are deliberately kept out of `colors` so the runtime
   # theme generator can never reach them: matugen flattens every semantic role
   # onto Material tone 80, which collapses hue *and* luminance and destroys the
-  # warning ladder. See modules/nixos/theme.nix for the uniqueness assertion.
+  # warning ladder. See modules/nixos/desktop/theme.nix for the uniqueness assertion.
   #
   # Values are chosen to separate on hue AND luminance, because a 2px indicator
   # line carries most of its weight through brightness contrast:

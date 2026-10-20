@@ -10,7 +10,7 @@ let
   mkSystemScript =
     {
       name,
-      dir ? ../../hosts/think14gryzen/assets/system-bin,
+      dir ? ../assets/system-bin,
       runtimeInputs ? [ ],
       vars ? { },
       excludeShellChecks ? [ ],
@@ -86,11 +86,7 @@ let
     name = "rofi-sudo-askpass";
     runtimeInputs = [ pkgs.rofi ];
     text = lib.concatStringsSep "\n" (
-      lib.drop 1 (
-        lib.splitString "\n" (
-          builtins.readFile ../../hosts/think14gryzen/assets/system-bin/rofi-sudo-askpass
-        )
-      )
+      lib.drop 1 (lib.splitString "\n" (builtins.readFile ../assets/system-bin/rofi-sudo-askpass))
     );
   };
 

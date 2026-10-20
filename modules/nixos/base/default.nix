@@ -1,12 +1,9 @@
 {
-  lib,
-  pkgs,
   ...
 }:
 {
   imports = [
-    ./bluetooth.nix
-    ./theme.nix
+    ../desktop/theme.nix
   ];
 
   # Locale / Time
@@ -56,25 +53,6 @@
 
   nixpkgs.config.allowUnfree = true;
 
-  # Shared hardware connectivity defaults
-  hardware = {
-    enableAllFirmware = true;
-    logitech.wireless.enable = true;
-    bluetooth = {
-      enable = true;
-      powerOnBoot = true;
-      settings = {
-        General = {
-          Experimental = true;
-          FastConnectable = true;
-        };
-        Policy = {
-          AutoEnable = true;
-        };
-      };
-    };
-  };
-
   networking = {
     networkmanager = {
       enable = true;
@@ -108,25 +86,9 @@
 
     # Shared system services across hosts.
     dbus.enable = true;
-    flatpak.enable = true;
-    upower.enable = true;
     udev.enable = true;
-    acpid.enable = true;
-    udisks2.enable = true;
-    gvfs.enable = true;
-    tailscale.enable = true;
   };
 
   security.polkit.enable = true;
-  programs.nix-ld.enable = true;
-  programs.nix-ld.libraries = with pkgs; [
-    stdenv.cc.cc
-    zlib
-    fuse3
-    icu
-    nss
-    openssl
-    curl
-    expat
-  ];
+
 }

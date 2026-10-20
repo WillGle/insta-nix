@@ -118,7 +118,7 @@ in
       # GUI model runner dropped 2026-08-24: the llm-* belt (llmfit / llm-pull /
       # llm-list / llm-fit) plus pi covers every role it filled, and
       # keeping it would mean a second package needing the scoped unstable
-      # RADV override from modules/nixos/llm.nix. Models are untouched —
+      # RADV override from hosts/think14gryzen/system/llm.nix. Models are untouched —
       # /mnt/vault/lmstudio-models is the default path the scripts use, and
       # LLM_MODELS_DIR overrides it.
       stressapptest
@@ -136,7 +136,7 @@ in
       # local training. The 2026-08-22 verdict (docs/archive/rocm/README.md)
       # closed that lane: gfx1103 is not a supported ROCm target, training on
       # it is stochastic, and it moved to cloud GPUs; llama.cpp runs on Vulkan
-      # (modules/nixos/llm.nix). Nothing on this host linked against those
+      # (hosts/think14gryzen/system/llm.nix). Nothing on this host linked against those
       # libraries afterwards, so they were removed 2026-08-25. Re-adding is a
       # line here, cache-served. OpenCL (clr/clr.icd) stays in extraPackages.
       rocmPackages.rocminfo
@@ -169,7 +169,7 @@ in
       # where GNOME's panel is one click. That split is not cosmetic:
       # connecting without pairing leaves an unencrypted link that
       # HID-over-GATT cannot use, and trusting it persists the dead entry.
-      # modules/nixos/bluetooth.nix sweeps up whatever still slips through.
+      # modules/nixos/hardware/bluetooth.nix sweeps up whatever still slips through.
       #
       # Unstable, not stable, as a mitigation rather than a proven fix. Stable's
       # 0.6.5 hangs on startup often but not always: the process reaches "store

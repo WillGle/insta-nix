@@ -47,7 +47,7 @@ let
   mkSystemScript =
     {
       name,
-      dir ? ../../hosts/think14gryzen/assets/system-bin,
+      dir ? ../assets/system-bin,
       runtimeInputs ? [ ],
       vars ? { },
       excludeShellChecks ? [ ],
@@ -62,7 +62,7 @@ let
       text = body;
     };
 
-  llmLib = ../../hosts/think14gryzen/assets/llm/lib/common.sh;
+  llmLib = ../assets/llm/lib/common.sh;
 
   # llmfit from unstable (not in 25.11), wrapped with the GTT ceiling: its
   # autodetect only sees the 4G VRAM carve and would hide most models.
@@ -75,7 +75,7 @@ let
     llmfitWrapped
     (mkSystemScript {
       name = "llm-pull";
-      dir = ../../hosts/think14gryzen/assets/local-bin;
+      dir = ../assets/local-bin;
       runtimeInputs = with pkgs; [
         coreutils
         curl
@@ -86,7 +86,7 @@ let
     })
     (mkSystemScript {
       name = "llm-fit";
-      dir = ../../hosts/think14gryzen/assets/local-bin;
+      dir = ../assets/local-bin;
       vars = {
         llmLib = "${llmLib}";
       };
@@ -98,7 +98,7 @@ let
     })
     (mkSystemScript {
       name = "llm-list";
-      dir = ../../hosts/think14gryzen/assets/local-bin;
+      dir = ../assets/local-bin;
       runtimeInputs = with pkgs; [
         coreutils
         curl

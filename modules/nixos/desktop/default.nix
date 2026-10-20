@@ -25,6 +25,11 @@ let
 in
 {
   services = {
+    flatpak.enable = true;
+    upower.enable = true;
+    acpid.enable = true;
+    udisks2.enable = true;
+    gvfs.enable = true;
     displayManager = {
       sddm = {
         enable = true;
@@ -119,17 +124,6 @@ in
     };
   };
 
-  # Keep the personal image out of the flake/store and readable before login.
-  # Seed once: desktop wallpaper changes must not replace the login wallpaper.
-  system.activationScripts.sddmWallpaper.text = ''
-    if [ ! -e /var/lib/sddm-wallpaper/background.jpg ]; then
-      install -d -m 0755 /var/lib/sddm-wallpaper
-      install -m 0644 \
-        /home/will/.local/state/theme/wallpapers/4f3784341b72235528f6b54bf3355c0165122ff86f008f82bead99586b0f2f9e.jpg \
-        /var/lib/sddm-wallpaper/background.jpg
-    fi
-  '';
-
   i18n.inputMethod = {
     enable = true;
     type = "fcitx5";
@@ -170,4 +164,15 @@ in
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
   };
+  programs.nix-ld.enable = true;
+  programs.nix-ld.libraries = with pkgs; [
+    stdenv.cc.cc
+    zlib
+    fuse3
+    icu
+    nss
+    openssl
+    curl
+    expat
+  ];
 }
