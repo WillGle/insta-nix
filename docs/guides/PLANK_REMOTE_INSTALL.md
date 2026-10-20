@@ -14,12 +14,13 @@ Quy trình cài đặt NixOS lên máy đích `plank` qua mạng mà không sử
 
 ### 1. Kiểm tra cấu hình trên máy điều khiển
 ```bash
-nix flake check --no-build --no-write-lock-file path:/etc/nixos
-nixos-rebuild build --flake path:/etc/nixos#plank
+nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
+nix build --no-link --no-write-lock-file \
+  git+file:///etc/nixos#nixosConfigurations.plank.config.system.build.toplevel
 ```
 
 ### 2. Phân vùng và gán nhãn đĩa trên máy đích
-Yêu cầu bắt buộc về nhãn phân vùng (labels) khớp với cấu hình trong `hosts/plank/default.nix`:
+Yêu cầu bắt buộc về nhãn phân vùng (labels) khớp với cấu hình trong `hosts/plank/storage.nix`:
 - `NIXOS_BOOT` cho phân vùng `/boot` (FAT32)
 - `NIXOS_SWAP` cho phân vùng Swap
 - `NIXOS_ROOT` cho phân vùng `/` (ext4)
@@ -53,8 +54,15 @@ ssh-keygen -l -f /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
 ### 4. Thực hiện cài đặt
 
 #### Cách 1: Đồng bộ mã nguồn từ máy điều khiển (Khuyên dùng)
+
+Commit các thay đổi cấu hình đã kiểm tra trước khi xuất: `git archive HEAD`
+chỉ gửi nội dung commit hiện tại, không gửi tệp ignore, state hay thông tin
+xác thực. Dùng thư mục đích mới hoặc rỗng để tránh giữ nguồn cũ. Tiền tố
+`path:` bên dưới chỉ áp dụng cho cây nguồn đã xuất này.
+
 ```bash
-rsync -a --delete /etc/nixos/ root@<ip>:/mnt/etc/nixos/
+git -C /etc/nixos archive HEAD | \
+  ssh root@<ip> 'mkdir -p /mnt/etc/nixos && tar -x -C /mnt/etc/nixos'
 ssh root@<ip> 'install -d -m 700 /mnt/etc/plank'
 scp /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys \
   root@<ip>:/mnt/etc/plank/authorized_keys
