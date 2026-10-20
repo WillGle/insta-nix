@@ -2,7 +2,7 @@
 {
   imports = [
     ../../modules/nixos/base.nix
-    ../../users/will.nix
+    ../../users/will/default.nix
   ];
 
   users.users.will = {

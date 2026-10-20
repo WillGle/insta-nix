@@ -13,7 +13,7 @@ let
   mkScript =
     {
       name,
-      dir ? ../../hosts/think14gryzen/assets/local-bin,
+      dir ? ../assets/local-bin,
       runtimeInputs ? [ ],
       vars ? { },
       excludeShellChecks ? [ ],
@@ -33,13 +33,13 @@ let
     executable = true;
   };
 
-  networkLib = ../../hosts/think14gryzen/assets/network/lib/common.sh;
+  networkLib = ../assets/network/lib/common.sh;
 
   rofiScreenTimeLib = pkgs.runCommand "rofi-screen-time-lib" { } ''
-    cp -r ${../../hosts/think14gryzen/assets/rofi-screen-time} "$out"
+    cp -r ${../assets/rofi-screen-time} "$out"
     chmod -R u+w "$out"
     cp ${
-      pkgs.replaceVars ../../hosts/think14gryzen/assets/rofi-screen-time/lib/common.sh {
+      pkgs.replaceVars ../assets/rofi-screen-time/lib/common.sh {
         signalOk = signal.ok;
         signalWarning = signal.warning;
         signalCritical = signal.critical;
@@ -195,9 +195,9 @@ in
   };
 
   xdg.configFile = {
-    "rofi/calendar.rasi".source = ../../hosts/think14gryzen/assets/rofi/calendar.rasi;
-    "rofi/keybinds.rasi".source = ../../hosts/think14gryzen/assets/rofi/keybinds.rasi;
-    "rofi/network.rasi".source = ../../hosts/think14gryzen/assets/rofi/network.rasi;
-    "rofi/screen-rec.rasi".source = ../../hosts/think14gryzen/assets/rofi/screen-rec.rasi;
+    "rofi/calendar.rasi".source = ../assets/rofi/calendar.rasi;
+    "rofi/keybinds.rasi".source = ../assets/rofi/keybinds.rasi;
+    "rofi/network.rasi".source = ../assets/rofi/network.rasi;
+    "rofi/screen-rec.rasi".source = ../assets/rofi/screen-rec.rasi;
   };
 }

@@ -1,6 +1,12 @@
-{ ... }:
+_:
 
 {
+  imports = [
+    ../../modules/home/shell/default.nix
+    ../../modules/home/terminal/default.nix
+    ../../modules/home/xdg.nix
+  ];
+
   home = {
     username = "will";
     homeDirectory = "/home/will";

@@ -32,7 +32,7 @@ let
   mkScript =
     {
       name,
-      dir ? ../../hosts/think14gryzen/assets/local-bin,
+      dir ? ../assets/local-bin,
       runtimeInputs ? [ ],
       vars ? { },
       excludeShellChecks ? [ ],
@@ -110,15 +110,15 @@ in
   };
 
   xdg.configFile = {
-    "hypr/hyprland.conf".text = renderHostConfig ../../hosts/think14gryzen/assets/hypr/hyprland.conf;
+    "hypr/hyprland.conf".text = renderHostConfig ../assets/hypr/hyprland.conf;
     "hypr/toggle_waybar.sh" = scriptFile (mkScript {
       name = "toggle_waybar.sh";
-      dir = ../../hosts/think14gryzen/assets/hypr;
+      dir = ../assets/hypr;
       runtimeInputs = with pkgs; [ systemd ];
     });
     "hypr/rotate_select.sh" = scriptFile (mkScript {
       name = "rotate_select.sh";
-      dir = ../../hosts/think14gryzen/assets/hypr;
+      dir = ../assets/hypr;
       runtimeInputs = with pkgs; [
         gawk
         hyprland
@@ -129,7 +129,7 @@ in
     });
     "hypr/toggle_touchpad.sh" = scriptFile (mkScript {
       name = "toggle_touchpad.sh";
-      dir = ../../hosts/think14gryzen/assets/hypr;
+      dir = ../assets/hypr;
       vars = { inherit touchpadStateConf; };
       runtimeInputs = with pkgs; [
         coreutils

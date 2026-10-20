@@ -203,22 +203,24 @@ let
 
   renderTheme = file: replaceMany commonReplacements file;
   waybarSeed = pkgs.writeText "theme-waybar.css" (
-    renderTheme ../../theme/templates/waybar.css.template
+    renderTheme ../../../theme/templates/waybar.css.template
   );
-  rofiSeed = pkgs.writeText "theme-rofi.rasi" (renderTheme ../../theme/templates/rofi.rasi.template);
+  rofiSeed = pkgs.writeText "theme-rofi.rasi" (
+    renderTheme ../../../theme/templates/rofi.rasi.template
+  );
   hyprlockSeed = pkgs.writeText "theme-hyprlock.conf" (
-    renderTheme ../../theme/templates/hyprlock.conf.template
+    renderTheme ../../../theme/templates/hyprlock.conf.template
   );
   hyprlandSeed = pkgs.writeText "theme-hyprland-decoration.conf" (
-    renderTheme ../../theme/templates/hyprland-decoration.conf.template
+    renderTheme ../../../theme/templates/hyprland-decoration.conf.template
   );
   nvimSeed = pkgs.writeText "theme-nvim-matugen.lua" (
-    renderTheme ../../theme/templates/nvim-colors.lua.template
+    renderTheme ../../../theme/templates/nvim-colors.lua.template
   );
   hyprpaperSeed = pkgs.writeText "theme-hyprpaper.conf" (
-    renderTheme ../../theme/templates/hyprpaper.conf.template
+    renderTheme ../../../theme/templates/hyprpaper.conf.template
   );
-  dunstSeed = pkgs.writeText "theme-dunstrc" (renderTheme ../../theme/templates/dunstrc.template);
+  dunstSeed = pkgs.writeText "theme-dunstrc" (renderTheme ../../../theme/templates/dunstrc.template);
   paletteSeed = pkgs.writeText "theme-palette.json" (
     builtins.toJSON {
       source = "static-fallback";
@@ -360,18 +362,13 @@ let
     # have had to be added to the other.
     [
       "__IS_SUPPORTED_IMAGE__"
-      (builtins.readFile ../../theme/scripts/lib/is-supported-image.sh)
+      (builtins.readFile ../../../theme/scripts/lib/is-supported-image.sh)
     ]
   ];
 
-  # writeShellApplication supplies its own shebang and `set -euo pipefail`;
-  # drop the asset's first line so the output has exactly one of each.
-  rofiScriptBody =
-    path: lib.concatStringsSep "\n" (lib.drop 1 (lib.splitString "\n" (builtins.readFile path)));
-
-  themeApplyScript = replaceMany themeBinReplacements ../../theme/scripts/theme-apply.sh.template;
-  wallpaperScript = replaceMany themeBinReplacements ../../theme/scripts/wallpaper.sh.template;
-  setAsWallpaperScript = replaceMany themeBinReplacements ../../theme/scripts/set-as-wallpaper.sh.template;
+  themeApplyScript = replaceMany themeBinReplacements ../../../theme/scripts/theme-apply.sh.template;
+  wallpaperScript = replaceMany themeBinReplacements ../../../theme/scripts/wallpaper.sh.template;
+  setAsWallpaperScript = replaceMany themeBinReplacements ../../../theme/scripts/set-as-wallpaper.sh.template;
 
   themeLockScript = replaceMany (
     commonReplacements
@@ -381,7 +378,7 @@ let
         "${pkgs.hyprlock}/bin/hyprlock"
       ]
     ]
-  ) ../../theme/scripts/theme-lock.sh.template;
+  ) ../../../theme/scripts/theme-lock.sh.template;
 
 in
 {
@@ -403,7 +400,7 @@ in
   };
 
   xdg.configFile = {
-    "theme/templates".source = ../../theme/templates;
+    "theme/templates".source = ../../../theme/templates;
     "theme/static.env".text = ''
       THEME_GENERATOR_VERSION=${lib.escapeShellArg "v8"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
@@ -451,43 +448,6 @@ in
       executable = true;
     };
 
-    "rofi/config.rasi".source = ../../assets/common/rofi/config.rasi;
-    "rofi/calc.rasi".text = ''
-      @theme "~/.config/rofi/theme.rasi"
-
-      window { width: 45%; }
-      listview { columns: 1; lines: 6; }
-    '';
-    "rofi/clipboard.rasi".source = ../../assets/common/rofi/clipboard.rasi;
-    "rofi/emoji.rasi".text = ''
-      @theme "~/.config/rofi/theme.rasi"
-
-      window { width: 64%; }
-      listview { columns: 4; lines: 6; }
-      element { padding: 7px 10px; }
-    '';
-    "rofi/launcher.rasi".source = ../../assets/common/rofi/launcher.rasi;
-    "rofi/power.rasi".text = ''
-      @theme "~/.config/rofi/theme.rasi"
-
-      window { width: 24%; }
-      mainbox {
-        children: [ message, listview ];
-        spacing: 5px;
-        padding: 6px;
-      }
-      listview {
-        columns: 2;
-        lines: 3;
-        fixed-height: false;
-        spacing: 4px;
-      }
-      element { padding: 6px 8px; spacing: 6px; }
-      element-icon { size: 1.1em; }
-    '';
-    "rofi/theme.rasi".source = generatedLink "rofi.rasi";
-    "rofi/window.rasi".source = ../../assets/common/rofi/window.rasi;
-
     "nvim/colors/matugen.lua".source = generatedLink "nvim-matugen.lua";
     "nvim/plugin/matugen.lua".text = ''
       vim.opt.termguicolors = true
@@ -515,33 +475,6 @@ in
     file = {
       ".local/bin/theme-lock" = {
         text = themeLockScript;
-        executable = true;
-      };
-      # Packaged rather than copied, so these two get the same build-time
-      # shellcheck as every other script in this config. rofi itself is left off
-      # runtimeInputs on purpose -- see the note on __ROFI_BIN__ above.
-      ".local/bin/rofi-show" = {
-        source = lib.getExe (
-          pkgs.writeShellApplication {
-            name = "rofi-show";
-            runtimeInputs = with pkgs; [ procps ];
-            text = rofiScriptBody ../../assets/common/rofi/rofi-show;
-          }
-        );
-        executable = true;
-      };
-      ".local/bin/rofi-clipboard" = {
-        source = lib.getExe (
-          pkgs.writeShellApplication {
-            name = "rofi-clipboard";
-            runtimeInputs = with pkgs; [
-              cliphist
-              procps
-              wl-clipboard
-            ];
-            text = rofiScriptBody ../../assets/common/rofi/rofi-clipboard;
-          }
-        );
         executable = true;
       };
       ".local/bin/wallpaper" = {

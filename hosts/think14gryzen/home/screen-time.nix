@@ -13,7 +13,7 @@ let
   mkScript =
     {
       name,
-      dir ? ../../hosts/think14gryzen/assets/local-bin,
+      dir ? ../assets/local-bin,
       runtimeInputs ? [ ],
       vars ? { },
       excludeShellChecks ? [ ],
@@ -34,10 +34,10 @@ let
   };
 
   rofiScreenTimeLib = pkgs.runCommand "rofi-screen-time-lib" { } ''
-    cp -r ${../../hosts/think14gryzen/assets/rofi-screen-time} "$out"
+    cp -r ${../assets/rofi-screen-time} "$out"
     chmod -R u+w "$out"
     cp ${
-      pkgs.replaceVars ../../hosts/think14gryzen/assets/rofi-screen-time/lib/common.sh {
+      pkgs.replaceVars ../assets/rofi-screen-time/lib/common.sh {
         signalOk = signal.ok;
         signalWarning = signal.warning;
         signalCritical = signal.critical;
@@ -156,8 +156,8 @@ in
   };
 
   xdg.configFile = {
-    "rofi/screen-time.rasi".source = ../../hosts/think14gryzen/assets/rofi/screen-time.rasi;
-    "rofi/study-timer.rasi".source = ../../hosts/think14gryzen/assets/rofi/study-timer.rasi;
+    "rofi/screen-time.rasi".source = ../assets/rofi/screen-time.rasi;
+    "rofi/study-timer.rasi".source = ../assets/rofi/study-timer.rasi;
   };
 
   systemd.user = {

@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 {
   home = {
@@ -7,7 +7,7 @@
     };
 
     file = {
-      ".config/fastfetch/config.jsonc".source = ../../assets/common/fastfetch/config.jsonc;
+      ".config/fastfetch/config.jsonc".source = ./assets/fastfetch/config.jsonc;
     };
   };
 
