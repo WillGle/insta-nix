@@ -2,6 +2,7 @@
 
 {
   environment.systemPackages = with pkgs; [
+    terraform
     ansible
     docker-compose
     opentofu

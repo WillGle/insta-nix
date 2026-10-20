@@ -11,16 +11,8 @@ let
 
   # Home Manager owns Fcitx's Hyprland-session startup. Keep the NixOS package
   # and addons, but remove the package's competing XDG autostart launcher.
-  fcitx5WithAddons = pkgs.qt6Packages.fcitx5-with-addons.override {
-    addons = config.i18n.inputMethod.fcitx5.addons;
-  };
-
-  fcitx5WithoutAutostart = pkgs.symlinkJoin {
-    name = "fcitx5-with-addons-without-autostart";
-    paths = [ fcitx5WithAddons ];
-    postBuild = ''
-      rm -f "$out/etc/xdg/autostart/org.fcitx.Fcitx5.desktop"
-    '';
+  fcitx5WithoutAutostart = pkgs.callPackage ../../../pkgs/fcitx5 {
+    inherit (config.i18n.inputMethod.fcitx5) addons;
   };
 in
 {

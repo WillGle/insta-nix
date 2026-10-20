@@ -1,4 +1,10 @@
-{ antigravity-ide, stdenv, fetchurl, nodejs_22, lib }:
+{
+  antigravity-ide,
+  stdenv,
+  fetchurl,
+  nodejs_22,
+  lib,
+}:
 let
   nodeAddonApi = fetchurl {
     url = "https://registry.npmjs.org/node-addon-api/-/node-addon-api-7.1.1.tgz";

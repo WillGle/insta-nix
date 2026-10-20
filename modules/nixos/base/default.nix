@@ -1,7 +1,4 @@
-{
-  ...
-}:
-{
+_: {
   imports = [
     ../desktop/theme.nix
   ];
