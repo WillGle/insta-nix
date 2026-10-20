@@ -14,7 +14,19 @@
 
   # Ryzen laptop host policy and desktop integration.
 
+  # Keep the personal image out of the flake/store and readable before login.
+  # Seed once: desktop wallpaper changes must not replace the login wallpaper.
+  system.activationScripts.sddmWallpaper.text = ''
+    if [ ! -e /var/lib/sddm-wallpaper/background.jpg ]; then
+      install -d -m 0755 /var/lib/sddm-wallpaper
+      install -m 0644 \
+        /home/will/.local/state/theme/wallpapers/4f3784341b72235528f6b54bf3355c0165122ff86f008f82bead99586b0f2f9e.jpg \
+        /var/lib/sddm-wallpaper/background.jpg
+    fi
+  '';
+
   services = {
+    tailscale.enable = true;
     xserver = {
       enable = true;
 

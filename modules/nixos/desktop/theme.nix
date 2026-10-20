@@ -4,7 +4,7 @@
   ...
 }:
 let
-  themeDefaults = import ../../theme/default.nix;
+  themeDefaults = import ../../../theme/default.nix;
   hexColor = lib.types.strMatching "^#[0-9a-fA-F]{6}$";
 in
 {
