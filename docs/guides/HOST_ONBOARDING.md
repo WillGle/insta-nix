@@ -19,7 +19,7 @@ cp -r hosts/_template hosts/<host-id>
 - `network.nix`: Đặt tên máy (`networking.hostName = "<host-id>";`) và cấu hình tường lửa/mạng.
 - `storage.nix`: Khai báo hệ thống tệp (`fileSystems`), swap (`swapDevices`) và các phân vùng.
 - `system.nix`: Dịch vụ hệ thống, chính sách riêng và các gói phần mềm hệ thống. (Lưu ý: Với máy phức tạp như `think14gryzen`, có thể tách thành thư mục con `system/` gồm `power.nix`, `graphics.nix`, `packages.nix`, v.v.).
-- `home.nix`: Cấu hình Home Manager riêng của máy (bắt buộc nếu bật giao diện người dùng).
+- `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu `enableHome = true`). Nạp `../../users/will/home.nix` và chọn các module giao diện cần dùng; bật Home Manager không tự bật desktop.
 - `assets/`: Chứa các script và tệp cấu hình bổ sung do Home Manager quản lý.
 
 ### 3. Thiết lập điểm nạp chính tại `hosts/<host-id>/default.nix`
@@ -31,22 +31,26 @@ Cấu hình tối thiểu:
     ./hardware.nix
     ./storage.nix
     ./network.nix
-    ../../modules/nixos/base.nix
-    ../../users/will.nix
+    ../../modules/nixos/base/default.nix
+    ../../users/will/default.nix
+    ../../modules/nixos/services/ssh/strict.nix
     ./system.nix
     # Nạp thêm các module vai trò dùng chung nếu cần:
-    # ../../modules/nixos/roles/kubernetes.nix
-    # ../../modules/nixos/roles/iac.nix
-    # ../../modules/nixos/desktop-integration.nix
-    # ../../modules/nixos/ryzen.nix
-    # ../../modules/nixos/llm.nix
+    # ../../modules/nixos/development/kubernetes.nix
+    # ../../modules/nixos/development/iac.nix
+    # ../../modules/nixos/desktop/default.nix
+    # ../../modules/nixos/hardware/desktop.nix
+    # ../../users/will/packages.nix
   ];
 
   system.stateVersion = "25.11";
 }
 ```
 
-*Lưu ý kiến trúc:* Không import module SSH (`strict.nix` hay `plank.nix`) trong `default.nix`. Module SSH được tiêm trực tiếp qua `flake.nix`.
+*Lưu ý kiến trúc:* Host chọn chính sách SSH trong `default.nix`: dùng
+`modules/nixos/services/ssh/strict.nix` hoặc `plank.nix`. Baseline dùng chung
+không bật desktop; host chọn desktop và phần cứng cần thiết. Không dùng module
+LLM/native-power riêng của laptop cho máy khác nếu chưa kiểm tra phụ thuộc.
 
 ### 4. Khai báo máy trong `flake.nix`
 Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hình máy mới vào mục `nixosConfigurations`:
@@ -54,7 +58,6 @@ Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hì
 ```nix
 nixosConfigurations.<host-id> = mkHost {
   hostModule = ./hosts/<host-id>/default.nix;
-  sshModule = ./modules/nixos/ssh/strict.nix; # hoặc ./modules/nixos/ssh/plank.nix
   enableHome = true;                         # Đặt false nếu là máy chủ/installer không cần Home Manager
   homeModule = ./hosts/<host-id>/home.nix;   # Bắt buộc nếu enableHome = true; bỏ qua nếu false
 };
@@ -62,11 +65,17 @@ nixosConfigurations.<host-id> = mkHost {
 
 ## Kiểm tra và Xác minh
 
-Chạy kiểm tra cú pháp flake và biên dịch thử nghiệm cấu hình (dùng tiền tố `path:` để không bắt buộc phải stage tệp vào Git):
+Thêm các tệp nguồn host mới vào Git bằng `git add <các-đường-dẫn-nguồn>` trước
+khi kiểm tra; flake Git không nhìn thấy tệp chưa được track. Chỉ thêm nguồn cấu
+hình dự định quản lý, không thêm state cục bộ hay thông tin xác thực. Tránh
+`path:/etc/nixos` vì nó có thể đưa cả tệp bị ignore vào Nix store.
+
+Chạy kiểm tra flake và biên dịch thử nghiệm cấu hình:
 
 ```bash
-nix flake check --no-build --no-write-lock-file path:/etc/nixos
-nixos-rebuild build --flake path:/etc/nixos#<host-id>
+nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
+nix build --no-link --no-write-lock-file \
+  git+file:///etc/nixos#nixosConfigurations.<host-id>.config.system.build.toplevel
 ```
 
 ## Tài liệu liên quan

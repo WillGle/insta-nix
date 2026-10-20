@@ -39,11 +39,11 @@ and preserve the selected package outputs and runtime configuration.
 paths, enabled services, system/user unit contents, boot/storage settings,
 and laptop Home Manager package paths, managed target names and contents.
 
-- [ ] Export tracked source into a disposable baseline directory; copy the
+- [x] Export tracked source into a disposable baseline directory; copy the
   existing dirty lockfile over the exported lock. Exclude local ignored policy.
-- [ ] Evaluate both baseline hosts with `--no-write-lock-file` and save the
+- [x] Evaluate both baseline hosts with `--no-write-lock-file` and save the
   records above. Save the current generation path and lockfile checksum.
-- [ ] Run baseline formatting, Statix, Deadnix, and flake evaluation; record
+- [x] Run baseline formatting, Statix, Deadnix, and flake evaluation; record
   existing findings rather than treating them as regressions.
 
 Expected: baseline records for both hosts, existing lint findings recorded,
@@ -75,16 +75,16 @@ and no repository-source edits.
 imports. Host `home.nix` owns desktop and helper imports. Flake Home Manager
 wiring imports only the selected host Home Manager entrypoint.
 
-- [ ] Perform the moves and preserve asset bytes and comments.
-- [ ] Move Rofi-specific declarations from theme deployment into
+- [x] Perform the moves and preserve asset bytes and comments.
+- [x] Move Rofi-specific declarations from theme deployment into
   `modules/home/rofi/default.nix`; the theme module retains generated links
   and shared theme substitutions. Keep their runtime target names unchanged.
-- [ ] Update the flake, host Home Manager entrypoint, and account imports;
+- [x] Update the flake, host Home Manager entrypoint, and account imports;
   remove obsolete `modules/home/base.nix` after replacing every consumer.
-- [ ] Evaluate both hosts and compare Home Manager target names, contents,
+- [x] Evaluate both hosts and compare Home Manager target names, contents,
   package paths, and user units against Task 1. Explain any source-path-only
   difference; fix any semantic difference before proceeding.
-- [ ] Commit the verified Home Manager reorganization using explicit paths.
+- [x] Commit the verified Home Manager reorganization using explicit paths.
 
 ## Task 3: Reorganize system modules and host selection
 
@@ -99,22 +99,22 @@ Modify both host entrypoints, laptop system imports, the flake, and template.
 desktop/hardware features and Tailscale. Laptop native-power and LLM modules
 reference their sibling host assets. SSH policy is selected by each host.
 
-- [ ] Move files and update relative imports and source paths. Put the SDDM
+- [x] Move files and update relative imports and source paths. Put the SDDM
   image activation script in `hosts/think14gryzen/system.nix` unchanged.
-- [ ] Move current desktop service selections and nix-ld configuration from
+- [x] Move current desktop service selections and nix-ld configuration from
   shared base into the desktop module, and hardware selections into
   `modules/nixos/hardware/desktop.nix`. Preserve all current values.
-- [ ] Retain theme option availability for both hosts by importing the theme
+- [x] Retain theme option availability for both hosts by importing the theme
   option definitions from the baseline; do not enable desktop services there.
-- [ ] Split Plank's boot hardware, storage, and network into its named host
+- [x] Split Plank's boot hardware, storage, and network into its named host
   files. Remove redundant disabling overrides only when baseline comparison
   confirms the same evaluated values. Preserve firmware, SSH, sudo, and users.
-- [ ] Update the template imports and make SSH selection host-owned;
+- [x] Update the template imports and make SSH selection host-owned;
   simplify the flake helper accordingly without changing named outputs.
-- [ ] Compare both hosts' service/unit, kernel, firmware, boot, storage,
+- [x] Compare both hosts' service/unit, kernel, firmware, boot, storage,
   networking, environment, account, and power settings against Task 1.
-- [ ] Verify no shared module refers directly to laptop assets or its image.
-- [ ] Commit the verified system reorganization using explicit paths.
+- [x] Verify no shared module refers directly to laptop assets or its image.
+- [x] Commit the verified system reorganization using explicit paths.
 
 ## Task 4: Give custom packages and application lists explicit owners
 
@@ -128,17 +128,17 @@ input-method integration, and `modules/nixos/development/iac.nix`.
 derivation via `callPackage`. `users/will/packages.nix` remains a NixOS
 module using `environment.systemPackages`, preserving global availability.
 
-- [ ] Extract the existing custom package definitions without changing
+- [x] Extract the existing custom package definitions without changing
   derivation names, inputs, flags, patch checks, desktop entries, or filtering.
-- [ ] Move browser, office/productivity, editor, and media application
+- [x] Move browser, office/productivity, editor, and media application
   selections into `users/will/packages.nix`. Keep device/system/session tools,
   codecs, fonts, and integration packages with their existing system owner.
-- [ ] Put Terraform in IaC and remove the repeated host Ansible declaration;
+- [x] Put Terraform in IaC and remove the repeated host Ansible declaration;
   preserve both Terraform and OpenTofu and all other selected tools.
-- [ ] Compare unique system and Home Manager package paths for each host;
+- [x] Compare unique system and Home Manager package paths for each host;
   inspect any derivation difference before accepting it. Verify custom
   package build definitions and session autostart filtering remain intact.
-- [ ] Commit the verified package reorganization using explicit paths.
+- [x] Commit the verified package reorganization using explicit paths.
 
 ## Task 5: Update guidance and verify the complete source tree
 
@@ -149,19 +149,55 @@ local `AGENTS.md` references without committing it. Preserve archived evidence.
 files, including moved files; exclude `.agents/`, `.local/`, local policy,
 credentials, and internal documents. Final records use Task 1's schema.
 
-- [ ] Update active path examples and explain feature/package ownership.
+- [x] Update active path examples and explain feature/package ownership.
   Replace onboarding `path:/etc/nixos` commands with Git-source commands and
   instruct users to add intended new host source files before validation.
-- [ ] Format changed Nix files and resolve the baseline lint findings in
+- [x] Format changed Nix files and resolve the baseline lint findings in
   files touched by the reorganization. Run `nixfmt --check`, `statix check`,
   `deadnix --fail`, and `git diff --check`.
-- [ ] Run final flake checks and compare both exported configurations against
+- [x] Run final flake checks and compare both exported configurations against
   Task 1. Inspect the complete diff for changed commands, service semantics,
   lost packages, and stale active references. Confirm the lock checksum.
-- [ ] Build both `nixosConfigurations.<host>.config.system.build.toplevel`
+- [x] Build both `nixosConfigurations.<host>.config.system.build.toplevel`
   outputs with `--no-link --no-write-lock-file`. State any external failure
   accurately; do not switch as part of this task.
-- [ ] Obtain a final read-only review of the complete change if the selected
+- [x] Obtain a final read-only review of the complete change if the selected
   execution method includes a reviewer; resolve confirmed in-scope issues.
-- [ ] Commit verified final documentation/source corrections with explicit
+- [x] Commit verified final documentation/source corrections with explicit
   paths. Report commit hashes, validation, and activation status separately.
+
+
+## Execution results — 2026-10-20
+
+Source reorganization is implemented. Full laptop build and aggregate-output
+verification remain blocked by an unchanged upstream dependency failure.
+Checked boxes record completed actions, including failed build attempts; they
+do not mean every acceptance gate passed.
+
+- Commits: `d34bc3c` (Home Manager), `c04d84e` (system/host ownership),
+  `632086b` (custom packages and personal application selection).
+- Formatter, Statix, Deadnix, whitespace checks, and both-host flake evaluation
+  pass with the existing lockfile.
+- Exact unique system package paths are preserved: 319 on the laptop and 83 on
+  Plank. The laptop retains 18 Home Manager packages, 107 managed paths, and
+  12 user services. Thirteen moved source paths have byte-identical contents.
+- Plank's complete recorded configuration matches the baseline exactly, and
+  its full toplevel build succeeds.
+- Laptop baseline and reorganized full builds both fail in the same pinned
+  `pyopenjtalk-plus-0.4.1-post9` derivation, a Calibre dependency through
+  `piper-tts`. `tests/test_frontend.py:775` expects `must be str` but receives
+  `Expected str, got int`: 1 failed, 1678 passed, 16 skipped. No dependency
+  change or test bypass was introduced.
+- Eight laptop aggregate source/trigger values differ after package lists were
+  regrouped. Their package inputs and unique buildEnv output/priority metadata
+  are identical. Actual merged files and collision winners could not be
+  compared because Calibre cannot build. Full behavioral equivalence of these
+  aggregates remains unverified; hash normalization is not accepted as proof.
+- One independent read-only review found no confirmed source regression;
+  aggregate-output acceptance remains conditional on that verification.
+- The pre-existing dirty `flake.lock` keeps the exact checksum recorded above
+  and is excluded from these commits. No switch or push was performed.
+- Execution stayed in the approved checkout with a disposable Git baseline;
+  verification used existing tools and temporary comparisons, without a new
+  test suite. External settings, mutable state, Pi, and archived documentation
+  remain outside this change.

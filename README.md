@@ -22,13 +22,13 @@ Validate and build the laptop configuration:
 ```bash
 nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
 nix build --no-link --no-write-lock-file \
-  /etc/nixos#nixosConfigurations.think14gryzen.config.system.build.toplevel
+  git+file:///etc/nixos#nixosConfigurations.think14gryzen.config.system.build.toplevel
 ```
 
 Apply it only after the check and build succeed:
 
 ```bash
-sudo nixos-rebuild switch --flake /etc/nixos#think14gryzen
+sudo nixos-rebuild switch --flake git+file:///etc/nixos#think14gryzen
 ```
 
 After activation, verify the affected system and user services. A successful
@@ -50,16 +50,28 @@ nixos-rebuild build --flake git+file:///etc/nixos#plank
 │   ├── think14gryzen/     # Laptop configuration, assets, and host policy
 │   └── plank/             # Remote bootstrap configuration
 ├── modules/
-│   ├── nixos/             # System modules, roles, SSH, LLM, power, and theme
-│   └── home/              # Home Manager shell, desktop, and user services
-├── assets/common/         # Shared static assets
+│   ├── nixos/             # Shared base, desktop, hardware, services, development
+│   └── home/              # Shared Home Manager modules and adjacent assets
+├── users/will/            # Account, Home Manager baseline, personal applications
+├── pkgs/                  # Custom packages and their patches
 ├── theme/                 # Theme settings, templates, and generators
 ├── scripts/bench/         # Hardware and developer benchmarks
 └── docs/                  # Guides and archived notes
 ```
 
-Some modules are shared; desktop and LLM helpers currently use assets specific
-to `think14gryzen`. Keep host-specific policy in `hosts/<host>/`.
+Each host selects its shared features in `hosts/<host>/default.nix`. The shared
+base is headless. Laptop LLM, power, and desktop helpers live under
+`hosts/think14gryzen/system/` and `home/`; shared static assets live beside
+their consuming Home Manager module.
+
+`users/will/packages.nix` owns personal application selection and still installs
+these applications into the system profile. Home Manager packages retain their
+existing user scope. Custom package definitions and patches live together in
+`pkgs/<package>/`.
+
+Git flake commands include tracked working-tree changes. Add intended new source
+files with `git add <paths>` before validation so Nix can see them. Keep local
+state and credentials outside the Git source.
 
 ## Ownership
 
