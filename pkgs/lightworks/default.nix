@@ -1,12 +1,15 @@
 { pkgs }:
 
+let
+  lightworks = pkgs.callPackage ./package.nix { };
+in
 # Lightworks wrapper that adds the official .desktop file and icon,
 # missing from nixpkgs buildFHSUserEnv by default.
 pkgs.symlinkJoin {
   name = "lightworks-with-desktop";
   paths = [
-    pkgs.lightworks
-    (pkgs.runCommand "lightworks-desktop" { lw = pkgs.lightworks; } ''
+    lightworks
+    (pkgs.runCommand "lightworks-desktop" { lw = lightworks; } ''
               mkdir -p $out/share/applications $out/share/icons/hicolor/512x512/apps
               rootfs=$(grep -o '/nix/store/[^" ]*-fhsenv-rootfs' $lw/bin/lightworks | head -n1)
               if [ -n "$rootfs" ] && [ -f "$rootfs/usr/share/lightworks/Icons/App.png" ]; then
