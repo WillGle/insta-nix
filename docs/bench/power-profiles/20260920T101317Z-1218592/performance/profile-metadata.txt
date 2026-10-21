@@ -1,2 +1,0 @@
-requested_profile=performance
-profile_apply=PASS

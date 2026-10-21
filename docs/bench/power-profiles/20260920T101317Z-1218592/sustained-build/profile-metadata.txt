@@ -1,2 +1,0 @@
-requested_profile=sustained-build
-profile_apply=PASS
