@@ -1,6 +1,11 @@
 # Hướng dẫn đo kiểm phần cứng (Hardware Benchmark)
 
-Các kịch bản đo kiểm chuẩn hoạt động độc lập với hệ thống quản lý nguồn. Kịch bản ghi nhận profile và nhiệt độ thực tế nhưng không tự ý can thiệp vào giới hạn công suất, governor CPU hay thiết lập scheduler. Ngoại lệ duy nhất là `oc-curve.sh` sẽ tạm thời chuyển đổi giữa các profile chuẩn của `native-power-profile` để đo A/B rồi khôi phục lại profile ban đầu.
+Các bài đo CPU, RAM, GPU, lưu trữ và LLM ghi nhận profile và nhiệt độ nhưng
+không thay đổi policy nguồn. `power-profiles.sh` (và stage 1 của `roadmap.sh`)
+tạm chuyển native power profile rồi khôi phục profile ban đầu.
+`oc-curve.sh` là bài thử riêng có ghi Curve Optimizer −1 vào phần cứng,
+kiểm tra readback và reset trước khi khôi phục profile; không dùng nó làm
+benchmark baseline thông thường.
 
 ## 1. Các bài đo tiêu chuẩn
 
@@ -14,6 +19,10 @@ Các kịch bản đo kiểm chuẩn hoạt động độc lập với hệ th�
 | Độ ổn định nhiệt | `stress-ng` | Đạt/Không đạt, biến thiên nhiệt | Dùng để kiểm tra độ ổn định nhiệt độ lâu dài, không dùng làm điểm hiệu năng. |
 
 Lưu ý: Không dùng chỉ số bogo-ops/s của `stress-ng` để so sánh hiệu năng. Đánh giá bài test này dựa trên khả năng hoàn thành, nhiệt độ tối đa và lỗi phát sinh trong kernel log.
+
+Monitor từ chối chạy nếu thiếu cảm biến CPU, và yêu cầu cảm biến GPU cho bài
+GPU/LLM. Mất cảm biến đang được theo dõi sẽ dừng workload với
+`SENSOR_READ_FAIL`. Không coi nhiệt độ `NA` là đã kiểm tra bảo vệ nhiệt.
 
 ## 2. Lệnh thực thi bộ đo kiểm
 
@@ -30,6 +39,35 @@ bash scripts/bench/llm.sh \
   --model /mnt/vault/lmstudio-models/unsloth/gemma-3-4b-it-GGUF/gemma-3-4b-it-UD-Q4_K_XL.gguf
 ```
 
+### Bộ đo theo lộ trình tối ưu năm bước
+
+`roadmap.sh` gom các bài đo trên thành năm stage, tạo một thư mục kết quả
+chung và tiếp tục sang stage kế tiếp nếu một bài đo thất bại. Stage 1 tạm
+thời chuyển qua các native power profile rồi khôi phục profile ban đầu; các
+stage còn lại không sửa cấu hình NixOS.
+
+```bash
+cd /etc/nixos
+bash scripts/bench/roadmap.sh --quick --all
+
+# Chạy đầy đủ, kèm benchmark LLM:
+bash scripts/bench/roadmap.sh --all \
+  --model /mnt/vault/lmstudio-models/unsloth/gemma-3-4b-it-GGUF/gemma-3-4b-it-UD-Q4_K_XL.gguf
+
+# Chỉ chạy một stage:
+bash scripts/bench/roadmap.sh --step 2 --output /tmp/think14gryzen-roadmap-cpu
+```
+
+`--quick` dùng các lượt ngắn để kiểm tra nhanh; kết quả chính nằm trong
+`summary.tsv`, còn metadata, lệnh đã chạy và log riêng của từng workload nằm
+trong cùng thư mục output. Stage 4 được đánh dấu `SKIP` nếu không cung cấp
+`--model`.
+
+Roadmap giữ nguyên các cảnh báo `PASS_THERMAL_*`; benchmark con thiếu phép
+đo được đánh dấu `PARTIAL` và trả exit code 3. LLM không truyền model vẫn là
+`SKIP` tùy chọn. Khi dừng roadmap, wrapper gửi tín hiệu cho benchmark con và
+đợi cleanup/khôi phục profile trước khi thoát.
+
 ### Kiểm tra tải nặng kéo dài (Stress test)
 Cắm sạc AC trước khi chạy. Thời gian mặc định 10 phút; nên chạy 30 phút để kiểm tra giới hạn nhiệt:
 
@@ -38,15 +76,28 @@ bash scripts/bench/stress-long.sh --mode combined --duration 1800
 bash scripts/bench/gpu.sh --long --duration 1800 --skip-vulkan
 ```
 
-### Quét đường đặc tính công suất CPU (Power curve)
-Đo xung nhịp boost 1 nhân và xung nhịp duy trì toàn nhân trên các profile của `native-power-profile` (`power-saver`, `balanced`, `performance`):
+`stress-long.sh` lưu kernel journal trước/sau lượt chạy, chỉ kiểm tra các bản
+ghi mới để tìm lỗi phần cứng, kernel, OOM và GPU timeout/reset. Nếu không đọc
+được journal, bài kiểm tra journal là `SKIP` và exit code tổng là 3; không
+được kết luận máy không có lỗi kernel. Bộ lọc chỉ bao phủ các mẫu lỗi đã định
+nghĩa, không thay thế việc xem log gốc. `gpu.sh --long` chỉ PASS khi hoàn tất
+thời gian yêu cầu; bị ngắt sớm không được tính là hoàn tất.
+
+### Thử Curve Optimizer −1 (tách biệt với baseline)
+
+`oc-curve.sh` áp CO −1 trên tám core của Hawk Point ở profile `performance`,
+chạy CPU0 trong 60 giây rồi 16 luồng trong 480 giây. Script yêu cầu đúng
+phần cứng, AC, CPU dưới 70°C, quyền sudo và readback CO ban đầu bằng 0.
+Script kiểm tra/reset CO khi thoát. Nếu reset không được xác minh, phải dừng
+sử dụng và cold reboot theo cảnh báo của script. Bài này có thay đổi phần
+cứng tạm thời; chỉ chạy khi chủ động thử CO.
 
 ```bash
 bash scripts/bench/oc-curve.sh
-
-# Đo riêng cấu hình sustained-build (giữ profile performance nhưng áp mức trần nhiệt/watt thấp hơn qua Ryzenadj):
-bash scripts/bench/oc-curve.sh --profile sustained-build
 ```
+
+Script chỉ nhận `--output` và `--help`, không có tùy chọn `--profile`.
+Để so sánh profile mà không ghi CO, dùng `power-profiles.sh` bên dưới.
 
 Lưu ý: Không bấm chuyển profile trên Waybar khi đang chạy script đo kiểm để tránh làm sai lệch trạng thái ghi nhận tại `/run/native-power-profile/active`.
 
@@ -58,7 +109,7 @@ cd /etc/nixos
 bash scripts/bench/power-profiles.sh
 ```
 
-Kết quả mặc định lưu trong `docs/bench/power-profiles/<timestamp>-<pid>/`. Có thể rút ngắn một lượt kiểm tra trước khi chạy full run:
+Kết quả mặc định lưu trong `docs/internal/bench/power-profiles/<timestamp>-<pid>/`. Có thể rút ngắn một lượt kiểm tra trước khi chạy full run:
 
 ```bash
 bash scripts/bench/power-profiles.sh \
@@ -80,6 +131,11 @@ Có hai kịch bản phục vụ so sánh thời gian build mã nguồn:
 
 - `scripts/bench/dev-build.sh`: Đo trên dự án thực tế của người dùng. Phân tách rõ các giai đoạn: build lạnh (cold), build ấm (warm), build tăng tiến (incremental) và no-op. Hỗ trợ chạy trên 1 luồng, 50% luồng và 100% luồng.
 - `scripts/bench/pts-developer.sh`: Ủy quyền cho Phoronix Test Suite (chạy các profile như `build-linux-kernel`, `build-llvm`, `build-gcc` hoặc bộ `programmer`).
+
+PTS interactive yêu cầu terminal và tiện ích `script`; prompt/input được
+truyền qua terminal, transcript lưu tại `pts.log`. Chạy không có terminal
+thì dùng `--batch`. Build benchmark chuẩn hóa đường dẫn output thành tuyệt
+đối; nếu không lấy được thời gian, kết quả là `TIMING_FAIL`, không phải PASS.
 
 Xem chi tiết tham số:
 ```bash
@@ -110,7 +166,9 @@ Cấu hình máy trạm tại thời điểm kiểm thử chuẩn (Kernel 7.2, M
 - **Ngưỡng ngắt an toàn:**
   - Script hiệu năng ghi nhận trạng thái `PASS_THERMAL_LIMITED` và tự động ngắt khẩn cấp ở `98°C`.
   - Script kiểm tra độ ổn định tự động ngắt ở ngưỡng cảnh báo `95°C`.
-- **Lỗi trôi giới hạn (`LIMIT_DRIFT`):** Nếu sau khi chạy xong, vi mã firmware tự động đặt lại thông số khác với profile của Ryzenadj, bài test được tính là không đạt (fail).
+- **Trôi profile (`PROFILE_DRIFT`):** Runner power profiles/CO kiểm tra tên
+  profile trong `/run/native-power-profile/active`. Đây không phải readback
+  giới hạn RyzenAdj và không chứng minh firmware giữ nguyên mọi thông số.
 
 ## 6. Điều kiện bắt buộc cho so sánh A/B
 
