@@ -208,6 +208,7 @@ bench_init_run() {
   fi
 
   mkdir -p -- "$RUN_DIR" || bench_die "cannot create output directory: $RUN_DIR"
+  RUN_DIR="$(cd -- "$RUN_DIR" && pwd -P)" || bench_die 'cannot resolve output directory'
   RUN_SUMMARY="$RUN_DIR/summary.tsv"
   RUN_TELEMETRY="$RUN_DIR/telemetry.tsv"
   RUN_METADATA="$RUN_DIR/metadata.txt"
@@ -257,9 +258,28 @@ bench_run_monitored() {
   local aborted=0
   local thermal_warned=0
   local thermal_warning_logged=0
+  local sensor_failure=0 started=$SECONDS
+  local require_gpu="${BENCH_REQUIRE_GPU_TEMP:-0}"
+
+  cpu="$(bench_cpu_temp_raw 2>/dev/null || true)"
+  gpu="$(bench_gpu_temp_raw 2>/dev/null || true)"
+  # Once a GPU sensor is present, losing it must also fail CPU-only runs.
+  [[ "$gpu" =~ ^[0-9]+$ ]] && require_gpu=1
+  if ! [[ "$cpu" =~ ^[0-9]+$ ]] || \
+    { [ "$require_gpu" -eq 1 ] && ! [[ "$gpu" =~ ^[0-9]+$ ]]; }; then
+    printf 'sensor_failure=required temperature unavailable\n' >"$log"
+    printf '%s\tSENSOR_READ_FAIL\t1\tNA\tNA\t%s\n' "$workload" "$(basename "$log")" >>"$RUN_SUMMARY"
+    BENCH_FAILURES=$((BENCH_FAILURES + 1))
+    printf '%s: SENSOR_READ_FAIL\n' "$workload"
+    return 0
+  fi
 
   bench_record_command "$workload" "$@"
-  if command -v setsid >/dev/null 2>&1; then
+  if [ "${BENCH_INTERACTIVE:-0}" -eq 1 ]; then
+    bench_need_command setsid
+    printf 'interactive output is recorded by the command in pts.log\n' >"$log"
+    setsid -- "$@" </dev/tty >/dev/tty 2>&1 &
+  elif command -v setsid >/dev/null 2>&1; then
     setsid -- "$@" >"$log" 2>&1 &
   else
     "$@" >"$log" 2>&1 &
@@ -270,6 +290,10 @@ bench_run_monitored() {
   while :; do
     cpu="$(bench_cpu_temp_raw 2>/dev/null || true)"
     gpu="$(bench_gpu_temp_raw 2>/dev/null || true)"
+    if ! [[ "$cpu" =~ ^[0-9]+$ ]] || \
+      { [ "$require_gpu" -eq 1 ] && ! [[ "$gpu" =~ ^[0-9]+$ ]]; }; then
+      sensor_failure=1
+    fi
     if [[ "$cpu" =~ ^[0-9]+$ ]] && [ "$cpu" -gt "$max_cpu" ]; then
       max_cpu="$cpu"
     fi
@@ -317,8 +341,12 @@ bench_run_monitored() {
         aborted=1
         reason="gpu hard temperature limit reached $(bench_temp_c_from_raw "$gpu") C"
       fi
-      if [ "$aborted" -eq 1 ]; then
-        printf 'thermal_abort=%s\n' "$reason" >>"$log"
+      if [ "$aborted" -eq 1 ] || [ "$sensor_failure" -eq 1 ]; then
+        if [ "$sensor_failure" -eq 1 ]; then
+          printf 'sensor_failure=required temperature unavailable\n' >>"$log"
+        else
+          printf 'thermal_abort=%s\n' "$reason" >>"$log"
+        fi
         kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
         for _ in 1 2 3 4 5; do
           kill -0 "$pid" 2>/dev/null || break
@@ -337,11 +365,17 @@ bench_run_monitored() {
   fi
   BENCH_ACTIVE_PID=''
 
-  if [ "$aborted" -eq 1 ]; then
+  if [ "$sensor_failure" -eq 1 ]; then
+    status='SENSOR_READ_FAIL'
+    BENCH_FAILURES=$((BENCH_FAILURES + 1))
+  elif [ "$aborted" -eq 1 ]; then
     status='THERMAL_ABORT'
     BENCH_FAILURES=$((BENCH_FAILURES + 1))
   elif [ "$rc" -eq 0 ] || bench_exit_code_allowed "$rc"; then
-    if [ "$thermal_warned" -eq 1 ]; then
+    if [ $((SECONDS - started)) -lt "${BENCH_MIN_DURATION_SECONDS:-0}" ]; then
+      status='INCOMPLETE'
+      BENCH_FAILURES=$((BENCH_FAILURES + 1))
+    elif [ "$thermal_warned" -eq 1 ]; then
       status='PASS_THERMAL_LIMITED'
     else
       status='PASS'
