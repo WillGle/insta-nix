@@ -68,17 +68,17 @@ _: {
   services = {
     resolved = {
       enable = true;
-      dnssec = "allow-downgrade";
-      dnsovertls = "opportunistic";
-      llmnr = "false";
-      fallbackDns = [
-        "1.1.1.1"
-        "8.8.8.8"
-      ];
-      extraConfig = ''
-        DNS=1.1.1.1 1.0.0.1 8.8.8.8 8.8.4.4
-        MulticastDNS=no
-      '';
+      settings.Resolve = {
+        DNSSEC = "allow-downgrade";
+        DNSOverTLS = "opportunistic";
+        LLMNR = false;
+        FallbackDNS = [
+          "1.1.1.1"
+          "8.8.8.8"
+        ];
+        DNS = "1.1.1.1 1.0.0.1 8.8.8.8 8.8.4.4";
+        MulticastDNS = false;
+      };
     };
 
     # Shared system services across hosts.

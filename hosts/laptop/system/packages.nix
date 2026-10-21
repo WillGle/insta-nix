@@ -202,7 +202,7 @@ in
     # Nix audit tools
     nixd
     deadnix
-    nixfmt-rfc-style
+    nixfmt
     statix
 
     # Media tools & codecs
@@ -226,7 +226,7 @@ in
     libmad
     libogg
     libvorbis
-    opusTools
+    opus-tools
     libdvdcss
     libdvdread
     libdvdnav
