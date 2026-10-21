@@ -22,10 +22,10 @@ in
     # Office & productivity
     gsimplecal
     pkgsUnstable.libreoffice-stable
+    pkgsUnstable.obsidian
     wpsoffice
     pkgsUnstable.xournalpp
     pkgsUnstable.vscode
-    pkgsUnstable.calibre
 
     # Media apps
     pkgsUnstable.darktable
