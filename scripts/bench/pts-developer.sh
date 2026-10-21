@@ -148,6 +148,12 @@ case "$mode" in
   *) bench_die "unsupported mode: $mode" ;;
 esac
 
+if [ "$mode" = interactive ]; then
+  bench_need_command script
+  [ -t 0 ] && [ -t 1 ] || bench_die 'interactive mode requires a terminal; use --batch otherwise'
+  BENCH_INTERACTIVE=1
+fi
+
 bench_init_run pts-developer "$output"
 bench_record_metadata benchmark 'phoronix-test-suite developer workload'
 bench_record_metadata pts_version "$(
@@ -203,7 +209,7 @@ if command -v script >/dev/null 2>&1; then
   bench_run_monitored "$workload" script --quiet --flush --return \
     --command "$pts_shell_command" "$pts_log"
 else
-  printf 'warning: util-linux script is unavailable; interactive prompts use the current terminal without a PTY log\n' >&2
+  printf 'warning: util-linux script is unavailable; batch output is recorded in the workload log\n' >&2
   bench_run_monitored "$workload" "${pts_exec[@]}"
 fi
 pts_rc="$(awk -F '\t' -v workload="$workload" \

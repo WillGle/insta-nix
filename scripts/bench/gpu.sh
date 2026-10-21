@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/common.sh"
 
 BENCH_THERMAL_MODE="${BENCH_THERMAL_MODE:-record}"
+BENCH_REQUIRE_GPU_TEMP=1
 repetitions=3
 duration=600
 long_run=0
@@ -78,11 +79,13 @@ bench_record_metadata long_run "$long_run"
 bench_record_metadata duration_seconds "$duration"
 
 if [ "$long_run" -eq 1 ]; then
-  BENCH_ALLOWED_EXIT_CODES='124 143'
+  BENCH_ALLOWED_EXIT_CODES=124
+  BENCH_MIN_DURATION_SECONDS="$duration"
   bench_run_monitored \
     glmark2-long \
     timeout --signal=TERM --kill-after=10s "${duration}s" glmark2 --off-screen --run-forever
   unset BENCH_ALLOWED_EXIT_CODES
+  unset BENCH_MIN_DURATION_SECONDS
 else
   for rep in $(seq 1 "$repetitions"); do
     bench_run_monitored "glmark2-r${rep}" glmark2 --off-screen

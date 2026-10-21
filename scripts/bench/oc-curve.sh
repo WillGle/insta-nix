@@ -71,7 +71,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ -z "$output" ]; then
-  output="docs/bench/$(date -u +%Y%m%d)-thinkbook-14-g6-plus-8845h-co-minus1"
+  output="docs/internal/bench/$(date -u +%Y%m%d)-thinkbook-14-g6-plus-8845h-co-minus1"
 fi
 
 need_command() {

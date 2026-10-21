@@ -106,7 +106,7 @@ done
 
 if [ -z "$output" ]; then
   repo_root="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
-  output="$repo_root/docs/bench/power-profiles/$(date -u +%Y%m%dT%H%M%SZ)-$BASHPID"
+  output="$repo_root/docs/internal/bench/power-profiles/$(date -u +%Y%m%dT%H%M%SZ)-$BASHPID"
 fi
 
 for command_name in awk date flock nproc setsid stress-ng taskset; do
@@ -485,6 +485,8 @@ cooldown_profile() {
     sample_once "$profile" "$phase" "$phase_log" "$elapsed"
     temp_raw="$current_cpu_raw"
     if [ "$thermal_abort" -eq 1 ] || [ "$sensor_failure" -eq 1 ] || [ "$profile_drift" -eq 1 ]; then
+      BENCH_FAILURES=$((BENCH_FAILURES + 1))
+      write_phase_summary "$profile" "$phase" COOLDOWN_FAIL 1 "$elapsed" "$(basename "$phase_log")"
       return 1
     fi
     if [[ "$temp_raw" =~ ^[0-9]+$ ]] && [ "$temp_raw" -lt 70000 ]; then
@@ -495,6 +497,8 @@ cooldown_profile() {
     sleep "$SAMPLE_INTERVAL"
   done
   printf 'cooldown_status=TIMEOUT\n' >>"$phase_log"
+  BENCH_FAILURES=$((BENCH_FAILURES + 1))
+  write_phase_summary "$profile" "$phase" COOLDOWN_TIMEOUT 1 "$((SECONDS - started))" "$(basename "$phase_log")"
   return 1
 }
 

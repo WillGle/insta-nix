@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/common.sh"
 
 BENCH_THERMAL_MODE="${BENCH_THERMAL_MODE:-record}"
+BENCH_REQUIRE_GPU_TEMP=1
 model=''
 repetitions=3
 prompt_tokens=512

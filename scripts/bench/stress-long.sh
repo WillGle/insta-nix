@@ -105,5 +105,27 @@ case "$mode" in
     ;;
 esac
 
+journal_cursor=''
+if command -v journalctl >/dev/null 2>&1 && \
+  journalctl -k -b --no-pager --show-cursor >"$RUN_DIR/kernel-journal-before.log" \
+    2>"$RUN_DIR/kernel-journal-before.error.log"; then
+  journal_cursor="$(sed -n 's/^-- cursor: //p' "$RUN_DIR/kernel-journal-before.log" | tail -1)"
+fi
+
 bench_run_monitored "stress-ng-$mode" "${stress_args[@]}"
+
+if [ -z "$journal_cursor" ] || \
+  ! journalctl -k -b --no-pager --after-cursor "$journal_cursor" \
+    >"$RUN_DIR/kernel-journal.log" 2>"$RUN_DIR/kernel-journal.error.log"; then
+  bench_record_metadata kernel_journal_status UNAVAILABLE
+  bench_record_skip kernel-journal 'kernel journal could not be checked; stability verification is incomplete'
+elif grep -Eiq 'hardware error|machine check|BUG:|Oops:|watchdog:.*(lockup|stuck)|Out of memory:|oom-kill:|amdgpu.*(GPU reset|GPU fault|ring.*timeout|VM_L2_PROTECTION_FAULT)|smu.*(timeout|reject|fail)' \
+  "$RUN_DIR/kernel-journal.log"; then
+  bench_record_metadata kernel_journal_status FAIL
+  printf 'kernel-journal\tKERNEL_FAULT\t1\tNA\tNA\tkernel-journal.log\n' >>"$RUN_SUMMARY"
+  BENCH_FAILURES=$((BENCH_FAILURES + 1))
+else
+  bench_record_metadata kernel_journal_status PASS
+  printf 'kernel-journal\tPASS\t0\tNA\tNA\tkernel-journal.log\n' >>"$RUN_SUMMARY"
+fi
 bench_finish

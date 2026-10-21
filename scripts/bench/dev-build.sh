@@ -221,6 +221,13 @@ dev_run_build() {
     dev_record_result "$stage" "$threads" "$repetition" "$seconds" \
       "${status:-FAIL}" "$workload"
   else
+    if [ "$status" = PASS ] || [ "$status" = PASS_THERMAL_LIMITED ]; then
+      status=TIMING_FAIL
+      BENCH_FAILURES=$((BENCH_FAILURES + 1))
+      awk -F '\t' -v OFS='\t' -v workload="$workload" \
+        '$1 == workload { $2 = "TIMING_FAIL" } { print }' "$RUN_SUMMARY" \
+        >"$RUN_SUMMARY.tmp" && mv -- "$RUN_SUMMARY.tmp" "$RUN_SUMMARY"
+    fi
     dev_record_result "$stage" "$threads" "$repetition" NA \
       "${status:-FAIL}" "$workload"
   fi
