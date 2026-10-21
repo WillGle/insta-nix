@@ -9,8 +9,9 @@ export PATH="$PATH:/run/current-system/sw/bin"
 choose_row() {
   local prompt="$1"
   rofi -dmenu -i -no-custom -p "$prompt" -config ~/.config/rofi/config.rasi \
-    -theme-str 'window { width: 48%; }' \
-    -theme-str 'listview { columns: 1; lines: 8; }'
+    -theme-str 'window { width: 480px; }' \
+    -theme-str 'listview { columns: 1; lines: 8; }' \
+    -theme-str 'element { children: [ element-text ]; }'
 }
 
 notify_error() {
