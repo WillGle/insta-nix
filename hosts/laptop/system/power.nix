@@ -2,15 +2,6 @@
   pkgsUnstable,
   ...
 }:
-let
-  # ryzen-smu upstream still calls cpuid_eax()/cpuid_ebx() bare; kernel >= 7.x
-  # moved those helpers out of the headers smu.c pulls in transitively.
-  ryzenSmuFixed = pkgsUnstable.linuxPackages_latest.ryzen-smu.overrideAttrs (old: {
-    postPatch = (old.postPatch or "") + ''
-      sed -i '1i #include <asm/cpuid/api.h>' smu.c
-    '';
-  });
-in
 {
   services = {
     # Power daemon (pick one).
@@ -42,7 +33,7 @@ in
     # (per-core EPP boost), and sched_ext maturity over the old 6.12 LTS pin.
     # The pin existed for ryzen-smu, which builds against 7.2 since 2026-04.
     kernelPackages = pkgsUnstable.linuxPackages_latest;
-    extraModulePackages = [ ryzenSmuFixed ];
+    extraModulePackages = [ pkgsUnstable.linuxPackages_latest.ryzen-smu ];
 
     initrd.kernelModules = [ "amdgpu" ];
     blacklistedKernelModules = [ "lenovo_wmi_gamezone" ];
