@@ -90,6 +90,13 @@ One runtime path has one canonical owner:
 - Local LLM: `llmfit`, `llm-pull`, `llm-list`, and `llm-fit`.
 - Power: `native-power-profile` and `toggle-battery-reserve`.
 - Desktop: `rofi-screen-time`, `waybar-*`, and Hyprland helper scripts.
+- Wallpaper: Nautilus **Set as Background**, `wallpaper pick`, or `wallpaper set <image>`.
+  The GTK Wallpaper portal writes `~/.config/background`; Home Manager's
+  `wallpaper-portal.path` detects each replacement and calls `wallpaper set`.
+  Matugen generates the palette, and Hyprpaper displays the image. The selected
+  image is copied to `~/.local/state/theme/wallpapers/` and survives rebuilds.
+  `theme/scripts/` and `theme/templates/` own this flow; the former Nautilus
+  **Scripts > Set as Wallpaper** entry is retired. SDDM keeps its separate image.
 
 ## Guides
 

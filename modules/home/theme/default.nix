@@ -310,10 +310,6 @@ let
       "${pkgs.coreutils}/bin/timeout"
     ]
     [
-      "__SLEEP_BIN__"
-      "${pkgs.coreutils}/bin/sleep"
-    ]
-    [
       "__CMP_BIN__"
       "${pkgs.diffutils}/bin/cmp"
     ]
@@ -368,7 +364,7 @@ let
 
   themeApplyScript = replaceMany themeBinReplacements ../../../theme/scripts/theme-apply.sh.template;
   wallpaperScript = replaceMany themeBinReplacements ../../../theme/scripts/wallpaper.sh.template;
-  setAsWallpaperScript = replaceMany themeBinReplacements ../../../theme/scripts/set-as-wallpaper.sh.template;
+  wallpaperPortalScript = replaceMany themeBinReplacements ../../../theme/scripts/wallpaper-portal.sh.template;
 
   themeLockScript = replaceMany (
     commonReplacements
@@ -402,7 +398,7 @@ in
   xdg.configFile = {
     "theme/templates".source = ../../../theme/templates;
     "theme/static.env".text = ''
-      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v8"}
+      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v9"}
       THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
       THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
       THEME_GENERATED_DIR=${lib.escapeShellArg themeGeneratedDir}
@@ -447,6 +443,10 @@ in
       text = themeApplyScript;
       executable = true;
     };
+    "theme/wallpaper-portal" = {
+      text = wallpaperPortalScript;
+      executable = true;
+    };
 
     "nvim/colors/matugen.lua".source = generatedLink "nvim-matugen.lua";
     "nvim/plugin/matugen.lua".text = ''
@@ -479,13 +479,6 @@ in
       };
       ".local/bin/wallpaper" = {
         text = wallpaperScript;
-        executable = true;
-      };
-      # Nautilus derives the menu label from the filename, hence the spaces.
-      # Declared here rather than left as a loose file in ~/.local/share so it is
-      # versioned with the tool it delegates to and cannot drift out of step.
-      ".local/share/nautilus/scripts/Set as Wallpaper" = {
-        text = setAsWallpaperScript;
         executable = true;
       };
     };
