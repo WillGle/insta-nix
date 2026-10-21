@@ -22,7 +22,6 @@ TR_BIN="__TR_BIN__"
 GREP_BIN="__GREP_BIN__"
 FLOCK_BIN="__FLOCK_BIN__"
 TIMEOUT_BIN="__TIMEOUT_BIN__"
-SLEEP_BIN="__SLEEP_BIN__"
 
 STATIC_ENV="__THEME_STATIC_ENV__"
 
@@ -172,28 +171,31 @@ set_dynamic_palette() {
   local palette_tmp="$1"
   local base mantle text subtext accent success warning error purple cyan
 
-  if ! "$TIMEOUT_BIN" 45 "$MATUGEN_BIN" image "$WALLPAPER" -m dark -j hex -q > "$palette_tmp"; then
+  # Matugen 4 prompts for a source color unless an index is supplied. Only ask
+  # it for data: this script owns rendering, wallpaper updates and live reloads.
+  if ! "$TIMEOUT_BIN" 45 "$MATUGEN_BIN" image "$WALLPAPER" \
+    --source-color-index 0 --dry-run -m dark -j hex -q > "$palette_tmp"; then
     return 1
   fi
 
-  base="$("$JQ_BIN" -r '.colors.surface.default' "$palette_tmp")"
-  mantle="$("$JQ_BIN" -r '.colors.surface_container.default' "$palette_tmp")"
-  text="$("$JQ_BIN" -r '.colors.on_surface.default' "$palette_tmp")"
-  subtext="$("$JQ_BIN" -r '.colors.on_surface_variant.default' "$palette_tmp")"
-  accent="$("$JQ_BIN" -r '.colors.primary.default' "$palette_tmp")"
-  success="$("$JQ_BIN" -r '.colors.secondary.default' "$palette_tmp")"
-  warning="$("$JQ_BIN" -r '.colors.tertiary.default' "$palette_tmp")"
-  error="$("$JQ_BIN" -r '.colors.error.default' "$palette_tmp")"
+  base="$("$JQ_BIN" -r '.colors.surface.default.color' "$palette_tmp")"
+  mantle="$("$JQ_BIN" -r '.colors.surface_container.default.color' "$palette_tmp")"
+  text="$("$JQ_BIN" -r '.colors.on_surface.default.color' "$palette_tmp")"
+  subtext="$("$JQ_BIN" -r '.colors.on_surface_variant.default.color' "$palette_tmp")"
+  accent="$("$JQ_BIN" -r '.colors.primary.default.color' "$palette_tmp")"
+  success="$("$JQ_BIN" -r '.colors.secondary.default.color' "$palette_tmp")"
+  warning="$("$JQ_BIN" -r '.colors.tertiary.default.color' "$palette_tmp")"
+  error="$("$JQ_BIN" -r '.colors.error.default.color' "$palette_tmp")"
   # Secondary accents come from tone 70 of the same tonal palettes their
   # primary siblings use: `.colors.<role>.default` is tone 80 for every role in
   # dark mode, so reusing it here made purple identical to warning and cyan
   # identical to success. Tone 70 keeps the hue and buys ~16 points of
   # luminance separation, still far above the AAA threshold against the base.
-  purple="$("$JQ_BIN" -r '.palettes.tertiary."70"' "$palette_tmp")"
-  cyan="$("$JQ_BIN" -r '.palettes.secondary."70"' "$palette_tmp")"
+  purple="$("$JQ_BIN" -r '.palettes.tertiary."70".color' "$palette_tmp")"
+  cyan="$("$JQ_BIN" -r '.palettes.secondary."70".color' "$palette_tmp")"
 
   for value in "$base" "$mantle" "$text" "$subtext" "$accent" "$success" "$warning" "$error" "$purple" "$cyan"; do
-    if [ -z "$value" ] || [ "$value" = "null" ]; then
+    if [[ ! "$value" =~ ^#[[:xdigit:]]{6}$ ]]; then
       return 1
     fi
   done
@@ -395,42 +397,11 @@ sync_hyprpaper() {
   ensure_hypr_signature
   [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || return 0
 
-  # hyprpaper caches decoded images keyed by path, and `preload` on an
-  # already-loaded path is a no-op. When a wallpaper is replaced in place — same
-  # filename, new bytes — every consumer that reads the file at use time picks up
-  # the change while hyprpaper keeps showing the stale pixels. Dropping the entry
-  # first forces a genuine re-read.
-  #
-  # `wallpaper pick` stores images under their content digest, so it never lands
-  # here; this covers a file swapped underneath us by other means.
-  "$HYPRCTL_BIN" hyprpaper unload "$WALLPAPER" >/dev/null 2>&1 || true
-
-  if ! "$HYPRCTL_BIN" hyprpaper preload "$WALLPAPER" >/dev/null 2>&1; then
-    log "hyprpaper refused to preload $WALLPAPER; the desktop may now be blank"
+  # Hyprpaper 0.8 uses a single request; preload/unload/listloaded were removed.
+  if ! "$HYPRCTL_BIN" hyprpaper wallpaper ",$WALLPAPER,cover"; then
+    log "hyprpaper refused to display $WALLPAPER"
     return 1
   fi
-
-  # `grep -x -F` still matches the whole line literally, but without -q it drains
-  # hyprctl's output instead of closing the pipe early: under `set -o pipefail` a
-  # short read would surface as a 141 exit status from the pipeline.
-  for _ in 1 2 3 4 5; do
-    if "$HYPRCTL_BIN" hyprpaper listloaded 2>/dev/null | "$GREP_BIN" -xF "$WALLPAPER" >/dev/null; then
-      break
-    fi
-    "$SLEEP_BIN" 0.2
-  done
-
-  if ! "$HYPRCTL_BIN" hyprpaper listloaded 2>/dev/null | "$GREP_BIN" -xF "$WALLPAPER" >/dev/null; then
-    log "hyprpaper did not confirm preload of $WALLPAPER"
-    return 1
-  fi
-
-  if ! "$HYPRCTL_BIN" hyprpaper wallpaper ",$WALLPAPER" >/dev/null 2>&1; then
-    log "hyprpaper accepted the preload but refused to display $WALLPAPER"
-    return 1
-  fi
-
-  "$HYPRCTL_BIN" hyprpaper unload unused >/dev/null 2>&1 || true
 }
 
 # --- resolve the wallpaper -------------------------------------------------

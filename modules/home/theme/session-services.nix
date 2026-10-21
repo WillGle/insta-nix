@@ -10,6 +10,20 @@ let
 in
 {
   systemd.user.services = {
+    wallpaper-portal = lib.mkIf osConfig.theme.runtime.enable {
+      Unit = {
+        Description = "Apply GTK Wallpaper portal selections through Matugen";
+        After = [ "hyprland-session.target" ];
+        PartOf = [ "hyprland-session.target" ];
+        ConditionPathExists = "${config.xdg.configHome}/background";
+      };
+      Service = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.bash}/bin/bash ${config.xdg.configHome}/theme/wallpaper-portal ${config.xdg.configHome}/background";
+        TimeoutStartSec = "180s";
+      };
+    };
+
     theme-apply = lib.mkIf osConfig.theme.runtime.enable {
       Unit = {
         Description = "Generate runtime theme palette for core Wayland surfaces";
@@ -114,5 +128,20 @@ in
       };
       Install.WantedBy = [ "hyprland-session.target" ];
     };
+  };
+
+  # Watch the file, not picture-uri: GTK keeps the URI unchanged when replacing
+  # the image. PathChanged also catches atomic replacements of the same file.
+  systemd.user.paths.wallpaper-portal = lib.mkIf osConfig.theme.runtime.enable {
+    Unit = {
+      Description = "Watch GTK Wallpaper portal image changes";
+      After = [ "hyprland-session.target" ];
+      PartOf = [ "hyprland-session.target" ];
+    };
+    Path = {
+      PathChanged = "${config.xdg.configHome}/background";
+      Unit = "wallpaper-portal.service";
+    };
+    Install.WantedBy = [ "hyprland-session.target" ];
   };
 }

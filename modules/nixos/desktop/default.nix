@@ -145,6 +145,7 @@ in
       "hyprland"
       "gtk"
     ];
+    config.common."org.freedesktop.impl.portal.Wallpaper" = [ "gtk" ];
   };
 
   qt = {

@@ -1,4 +1,7 @@
 splash = false
 ipc = on
-preload = __WALLPAPER_PATH__
-wallpaper = ,__WALLPAPER_PATH__
+wallpaper {
+    monitor =
+    path = __WALLPAPER_PATH__
+    fit_mode = cover
+}

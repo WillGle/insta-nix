@@ -1,0 +1,33 @@
+#!__BASH_BIN__
+# shellcheck shell=bash
+set -euo pipefail
+
+WALLPAPER_BIN="__WALLPAPER_BIN__"
+CP_BIN="__CP_BIN__"
+MV_BIN="__MV_BIN__"
+MKTEMP_BIN="__MKTEMP_BIN__"
+RM_BIN="__RM_BIN__"
+OD_BIN="__OD_BIN__"
+TR_BIN="__TR_BIN__"
+NOTIFY_BIN="__NOTIFY_SEND_BIN__"
+
+__IS_SUPPORTED_IMAGE__
+
+[ "$#" -eq 1 ] || exit 2
+
+# GTK's Wallpaper portal overwrites one extensionless file for every selection.
+# Snapshot it before generation, and recover the extension from the image bytes.
+tmp="$("$MKTEMP_BIN" -d "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/wallpaper-portal.XXXXXX")"
+trap '"$RM_BIN" -rf "$tmp"' EXIT
+"$CP_BIN" -- "$1" "$tmp/image"
+
+if ! ext="$(image_extension "$tmp/image")"; then
+  "$NOTIFY_BIN" -u critical "Wallpaper" "Unsupported image: use JPEG, PNG or WebP" || true
+  exit 1
+fi
+"$MV_BIN" "$tmp/image" "$tmp/image.$ext"
+
+if ! "$WALLPAPER_BIN" set "$tmp/image.$ext"; then
+  "$NOTIFY_BIN" -u critical "Wallpaper" "Could not apply wallpaper; see wallpaper-portal.service logs" || true
+  exit 1
+fi
