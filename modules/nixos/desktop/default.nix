@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  pkgsUnstable,
   ...
 }:
 let
@@ -11,7 +12,8 @@ let
 
   # Home Manager owns Fcitx's Hyprland-session startup. Keep the NixOS package
   # and addons, but remove the package's competing XDG autostart launcher.
-  fcitx5WithoutAutostart = pkgs.callPackage ../../../pkgs/fcitx5 {
+  # Keep the core and all addons on the same package set for ABI compatibility.
+  fcitx5WithoutAutostart = pkgsUnstable.callPackage ../../../pkgs/fcitx5 {
     inherit (config.i18n.inputMethod.fcitx5) addons;
   };
 in
@@ -120,7 +122,7 @@ in
     enable = true;
     type = "fcitx5";
     fcitx5 = {
-      addons = with pkgs; [
+      addons = with pkgsUnstable; [
         fcitx5-bamboo
         fcitx5-gtk
         kdePackages.fcitx5-qt
