@@ -21,7 +21,7 @@ let
   # Steam, CS2, VA-API decode, and Chromium's GPU stack. Mesa's driver .so
   # files declare no libdrm dependency and borrow those symbols from whatever
   # process loads them; 26.2 needs libdrm 2.4.134 and every nixpkgs-25.11
-  # program ships 2.4.129. See the note in hosts/think14gryzen/system.nix.
+  # program shipped 2.4.129. See the note in hosts/think14gryzen/system/graphics.nix.
   #
   # THIS IS SAFE ONLY WHILE llamaCppVulkan COMES FROM pkgsUnstable — that is
   # what puts libdrm 2.4.134 in the process so RADV 26.2 can resolve against
@@ -35,7 +35,7 @@ let
     nativeBuildInputs = [ pkgs.makeWrapper ];
     # VK_DRIVER_FILES replaces the ICD search path rather than extending it.
     # That is intentional here: this box has exactly one GPU, and pinning the
-    # list keeps llama.cpp off the system's 25.2 RADV.
+    # list keeps llama.cpp off the system's stable RADV.
     postBuild = ''
       for bin in "$out"/bin/*; do
         [ -f "$bin" ] || continue

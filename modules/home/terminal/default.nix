@@ -16,7 +16,7 @@
           pad = "15x15";
         };
 
-        colors = {
+        colors-dark = {
           alpha = 0.99;
           background = lib.removePrefix "#" osConfig.theme.colors.base;
           foreground = lib.removePrefix "#" osConfig.theme.colors.text;
@@ -35,6 +35,7 @@
     yazi = {
       enable = true;
       enableFishIntegration = true;
+      shellWrapperName = "yy";
       settings = {
         mgr = {
           show_hidden = true;

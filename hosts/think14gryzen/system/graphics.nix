@@ -14,12 +14,12 @@
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
-    # Mesa stays on stable (the nixpkgs-25.11 default) for the whole system.
+    # Mesa stays on stable (26.1.x on NixOS 26.05) for the whole system.
     # ba72b36 moved it to unstable 26.2 for llama.cpp throughput; that broke
     # four separate things because Mesa's driver .so files declare NO libdrm
     # dependency — no RPATH, no DT_NEEDED — and resolve those symbols from
     # whichever process dlopens them. Mesa 26.2 wants libdrm 2.4.134 while
-    # every nixpkgs-25.11 application ships 2.4.129, so serving 26.2
+    # every nixpkgs-25.11 application shipped 2.4.129, so serving 26.2
     # system-wide meant: Steam's i686 client dead on GLX, CS2 SIGSEGV in
     # RADV, VA-API decode dead (libva ABI), and Chromium/Brave silently
     # losing GPU acceleration entirely ("undefined symbol:
@@ -32,7 +32,7 @@
       vulkan-tools
       vulkan-validation-layers
       # libva must match the Mesa that provides the VA driver; both are stable
-      # now, so these stay stable too. Mixing them is what killed hardware
+      # from the same release, so these stay stable too. Mixing them killed hardware
       # video decode (stable libva 2.22 looks for __vaDriverInit_1_22, unstable
       # Mesa 26.2 exports only __vaDriverInit_1_24).
       libva

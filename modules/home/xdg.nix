@@ -11,6 +11,7 @@
 
     userDirs = {
       enable = true;
+      setSessionVariables = true;
       desktop = "${config.home.homeDirectory}/Desktop";
       download = "${config.home.homeDirectory}/Downloads";
       templates = "${config.home.homeDirectory}/Templates";
