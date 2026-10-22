@@ -1,7 +1,6 @@
 @theme "~/.config/rofi/theme.rasi"
 
-/* The app list gets its own layout: labels need room, while Apps/Windows stay
-   visible as two separate modes instead of sharing one generic grid. */
+/* Give labels room and keep Apps/Windows visible as separate modes. */
 
 configuration {
   sidebar-mode: true;

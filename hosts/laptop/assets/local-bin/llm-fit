@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # llm-fit: does <model> at <context> fit the GPU (GTT) without overflow?
-# Model-agnostic: uses llama.cpp's own llama-fit-params (reads the GGUF metadata +
-# live device memory), so it works for ANY model you load, not a baked example.
-# Output: FIT verdict + the lightest KV-cache type that keeps full GPU offload,
-# or a GTT-raise / smaller-context / smaller-model suggestion if nothing fits.
+# Use llama-fit-params with GGUF metadata and live device memory.
+# Report the lightest KV-cache type for full GPU offload, or suggest a smaller
+# context/model or a higher GTT limit.
 #
 # Usage: llm-fit <model.gguf> [context=8192]
 set -euo pipefail

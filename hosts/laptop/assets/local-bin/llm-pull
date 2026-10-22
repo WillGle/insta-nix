@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# llm-pull: download a GGUF from HuggingFace into the local model dir — ollama-like
-# "find + fetch in one command" for the local model-management flow. Prefers Unsloth UD quants.
-# Handles sharded GGUFs. Plain files you keep yourself (no hidden registry).
+# Download GGUFs from HuggingFace, preferring Unsloth UD quants.
+# Supports sharded models stored as plain files.
 #
 # Usage: llm-pull [--dry-run] <hf-repo> [quant-substring=UD-Q4_K_XL]
 #   llm-pull unsloth/gemma-3-12b-it-GGUF
@@ -196,9 +195,7 @@ for ((index = ${#publish[@]} - 1; index >= 0; index--)); do
   mv -- "$dest/$file.$revision.part" "$dest/$file"
 done
 
-# Mirror into llmfit's flat cache dir: llmfit only lists *.gguf directly in
-# there (no recursive search), so nested owner/repo layouts are invisible
-# to it without these links.
+# Link into llmfit’s flat cache because it does not search nested directories.
 LLMFIT_CACHE="${LLMFIT_CACHE:-$HOME/.cache/llmfit/models}"
 mkdir -p "$LLMFIT_CACHE"
 for file in "${todo[@]}"; do

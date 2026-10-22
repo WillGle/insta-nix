@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Substituted at build time, like the network lib: the path needs no runtime
-# resolver, cannot dangle before home-manager has linked, and always matches
-# the libraries this build of the script was checked against.
+# Use build-time library paths to avoid runtime link resolution.
 SCREEN_TIME_LIB_DIR="@screenTimeLib@/lib"
 # shellcheck source=/dev/null
 . "$SCREEN_TIME_LIB_DIR/common.sh"
@@ -55,8 +53,6 @@ can_use_default_cache() {
   local cached_date=""
   local cached_palette=""
   today="$(date +%F)"
-  # Every view caches now, keyed by name; the popup used to recompute all
-  # three non-summary views from scratch on each switch.
   [ "$TARGET_DATE" = "$today" ] || return 1
   [ -r "$(default_theme_cache_file)" ] || return 1
   [ -r "$(default_rows_cache_file)" ] || return 1
@@ -71,9 +67,7 @@ can_use_default_cache() {
   [ "$cached_palette" = "$(palette_stamp)" ]
 }
 
-# Seconds a warmed view may be before opening it triggers a background
-# re-warm. Every open and every view switch used to spawn a full warm (~10 s
-# of CPU) even when the cache was seconds old.
+# Minimum cache age before opening a view triggers a background refresh.
 CACHE_STALE_SECONDS=120
 
 refresh_default_cache_async() {
@@ -180,8 +174,7 @@ while :; do
     exit 0
   fi
 
-  # Rofi rows contain a NUL separator before metadata. Bash strips NUL bytes
-  # during command substitution, so read the token with a byte-safe tool.
+  # Bash strips NUL bytes in substitutions; read Rofi metadata byte-safely.
   selection="$(
     perl -ne '
       BEGIN { $target = shift @ARGV }

@@ -1,11 +1,7 @@
 @theme "~/.config/rofi/theme.rasi"
 
-/* rofi-calendar: a month sheet over a date search box. The list is removed —
-   the entry is for typing a date to jump to, months move with ←/→ — so the
-   calendar sits in a single layer of padding instead of three.
-
-   The sheet uses the shared calendar font token so it stays larger than menu
-   rows without pinning a font family locally. */
+/* Type a date to jump; use ←/→ to change months.
+   Use the shared calendar font to keep the sheet larger than menu rows. */
 
 window {
   width:            400px;
@@ -17,7 +13,7 @@ mainbox {
   padding:          8px;
 }
 
-/* The three dmenu rows (◀ · Hôm nay · ▶) become one row of buttons. */
+/* Show the three navigation choices as buttons. */
 listview {
   columns:          3;
   lines:            1;

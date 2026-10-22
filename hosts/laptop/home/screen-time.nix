@@ -178,15 +178,8 @@ in
         };
       };
 
-      # The tracker pauses when logind reports the session idle (or hyprlock is
-      # up). Idle management is off by design on this host: hypridle is not
-      # enabled, so nothing ever set IdleHint and screen time was really
-      # "unlocked time" — a 20-minute coffee break counted for whatever window
-      # was focused. swayidle here does exactly one thing:
-      # flag the session idle after 5 minutes without input. No DPMS, no lock,
-      # no suspend; hypridle has no equivalent option, which is why it is
-      # swayidle. Restarting on failure keeps a compositor hiccup from leaving
-      # the tracker blind for the rest of the session.
+      # swayidle supplies IdleHint so the tracker excludes time without input.
+      # hypridle lacks idlehint support; leave display, lock, and suspend unchanged.
       rofi-screen-time-idlehint = {
         Unit = {
           Description = "Mark the session idle for the screen-time tracker";
@@ -230,10 +223,8 @@ in
         };
         Timer = {
           OnActiveSec = "20s";
-          # A warm costs ~10 s of CPU (four views rendered by bash+jq). At 2 m
-          # that was ~9% of a core all day for a popup opened a few times a
-          # day; the popup now refreshes a stale cache itself on open, so the
-          # timer only has to keep it from going cold.
+          # Cache rendering costs about 10 CPU seconds; the popup refreshes stale
+          # data on open, so frequent background refreshes waste CPU.
           OnUnitActiveSec = "5m";
           Unit = "rofi-screen-time-cache.service";
         };

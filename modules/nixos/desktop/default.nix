@@ -10,9 +10,8 @@ let
     themeConfig.Background = "/var/lib/sddm-wallpaper/background.jpg";
   };
 
-  # Home Manager owns Fcitx's Hyprland-session startup. Keep the NixOS package
-  # and addons, but remove the package's competing XDG autostart launcher.
-  # Keep the core and all addons on the same package set for ABI compatibility.
+  # Home Manager starts Fcitx; remove the competing XDG autostart launcher.
+  # Keep core and addons on one package set for ABI compatibility.
   fcitx5WithoutAutostart = pkgsUnstable.callPackage ../../../pkgs/fcitx5 {
     inherit (config.i18n.inputMethod.fcitx5) addons;
   };
@@ -47,56 +46,11 @@ in
       alsa.enable = true;
       alsa.support32Bit = true;
       jack.enable = false;
-      extraConfig.pipewire."92-low-latency" = {
-        "context.properties" = {
-          "default.clock.rate" = 48000;
-          "default.clock.allowed-rates" = [
-            44100
-            48000
-            88200
-            96000
-            176400
-            192000
-          ];
-          "default.clock.quantum" = 1024;
-          "default.clock.min-quantum" = 32;
-          "default.clock.max-quantum" = 8192;
-        };
-      };
+      # Use upstream defaults for clocks, buffers, codecs, and device profiles.
       wireplumber = {
         enable = true;
         extraConfig = {
-          "10-policy" = {
-            "wireplumber.settings" = {
-              "device.restore-default-node" = true;
-              "node.restore-default-node" = true;
-            };
-          };
           "11-bluetooth-policy" = {
-            "wireplumber.settings" = {
-              "bluetooth.autoswitch-to-headset-profile" = true;
-            };
-            "monitor.bluez.properties" = {
-              "bluez5.enable-sbc-xq" = true;
-              "bluez5.enable-msbc" = true;
-              "bluez5.enable-hw-volume" = true;
-              "bluez5.codecs" = [
-                "sbc"
-                "sbc_xq"
-                "aac"
-                "ldac"
-                "aptx"
-                "aptx_hd"
-              ];
-              "bluez5.roles" = [
-                "a2dp_sink"
-                "a2dp_source"
-                "headset_head_unit"
-                "headset_audio_gateway"
-                "bap_sink"
-                "bap_source"
-              ];
-            };
             "monitor.bluez.rules" = [
               {
                 matches = [
@@ -106,8 +60,22 @@ in
                 ];
                 actions = {
                   update-props = {
-                    "priority.driver" = 5000;
-                    "priority.session" = 5000;
+                    # Complete playback connections when only another profile is up.
+                    "bluez5.auto-connect" = [ "a2dp_sink" ];
+                  };
+                };
+              }
+              {
+                matches = [
+                  {
+                    "node.name" = "~bluez_output.*";
+                  }
+                ];
+                actions = {
+                  update-props = {
+                    # Prefer Bluetooth playback without promoting sink monitors
+                    # above physical microphones (source priorities start at 2000).
+                    "priority.session" = 1500;
                   };
                 };
               }

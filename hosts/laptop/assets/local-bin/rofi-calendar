@@ -7,9 +7,7 @@ set -euo pipefail
 #   ◀ · Hôm nay · ▶       the same three as mouse buttons under the sheet
 #   Enter (empty)         today (the middle button is pre-selected)
 #   Esc                   close
-# The searched day is ringed in the accent colour and its weekday is printed
-# under the sheet; today keeps its filled pill. Runtime palette values follow
-# the generated theme; replaceVars remains the fallback during early startup.
+# Runtime colours follow the generated theme, with replaceVars as fallback.
 #
 # Arguments (internal, used when the script re-executes itself):
 #   $1 year  $2 month  $3 focused day or ""  $4 message under the sheet or ""
@@ -90,9 +88,7 @@ parse_query() {
   printf '%s %s %s\n' "$y" "$m" "${d:-}"
 }
 
-# cal in the Vietnamese locale prints "Tháng 8 2026" and T2…CN, matching the
-# rest of the UI; -m starts the week on Monday. Every line is padded to the
-# 20-column grid so the textbox can centre them as one block.
+# Use Vietnamese labels and Monday-first weeks; pad to a 20-column grid.
 sheet="$(
   LC_ALL=vi_VN.UTF-8 cal -m "$month" "$year" | LC_ALL=C.UTF-8 awk \
     -v ty="$today_y" -v tm="$today_m" -v td="$today_d" -v cy="$year" -v cm="$month" \
@@ -102,10 +98,7 @@ sheet="$(
       title = trim($0)
       # Centre by hand: the markup around the title would defeat %-20s.
       pad = int((20 - length(title)) / 2)
-      # No size/line_height attributes anywhere in the sheet: rofi sizes the
-      # message box from the line count at the base font, so anything that
-      # makes a line taller is drawn past the box and clipped (rows 24–31
-      # vanished with line_height=1.4). Spacing comes from the 14 pt font.
+      # Taller markup is clipped by rofi; use the base font for spacing.
       printf "%*s<span foreground=\"%s\"><b>%s</b></span>\n", pad, "", accent, title
       next
     }
@@ -140,12 +133,8 @@ note_line=""
 # Short enough to stay on one line under the 20-column grid.
 hint="<span size=\"x-small\" alpha=\"50%\">← → tháng · Ctrl+t hôm nay · Esc</span>"
 
-# One row of mouse buttons under the sheet. They are ordinary dmenu rows laid
-# out in three columns by calendar.rasi; "Hôm nay" is pre-selected (-select,
-# which matches by text; -selected-row left the first row selected) so Enter
-# on an empty box goes to today. A typed date matches none of them (no digits in
-# the labels, and matching is plain substring), so Enter then returns the text.
-# Labels short enough for a third of the window each at the menu font.
+# Three mouse buttons share a row. Preselect today for Enter on empty input;
+# typed dates match no label and are returned as text.
 BTN_PREV="◀  Trước"
 BTN_TODAY="Hôm nay"
 BTN_NEXT="Sau  ▶"
@@ -159,8 +148,7 @@ rofi_args=(
   -p "Lịch"
   -mesg "$sheet$note_line
 $hint"
-  # Left/Right normally move the cursor in the entry; a date is a few
-  # characters, so the arrows are worth more as month navigation.
+  # Reserve Left/Right for month navigation.
   -kb-move-char-back ""
   -kb-move-char-forward ""
   -kb-custom-1 "Left"
@@ -171,8 +159,7 @@ $hint"
 
 # Exit codes: 10/11/12 for the custom keys; 0 with the typed text on Enter;
 # 1 on Esc. Enter on an empty box closes.
-# The status of a command substitution is the status of the assignment, so it
-# can be caught here; catching it inside the $(…) would be lost to the subshell.
+# Catch the assignment status here; a handler inside $(…) stays in its subshell.
 query="$(printf '%s\n%s\n%s\n' "$BTN_PREV" "$BTN_TODAY" "$BTN_NEXT" | rofi "${rofi_args[@]}")" && rc=0 || rc=$?
 prev_m=$((month - 1)); prev_y=$year
 [ "$prev_m" -lt 1 ] && { prev_m=12; prev_y=$((year - 1)); }

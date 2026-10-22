@@ -12,7 +12,6 @@
     ./system/packages.nix
   ];
 
-  # Ryzen laptop host policy and desktop integration.
 
   # Keep the personal image out of the flake/store and readable before login.
   # Seed once: desktop wallpaper changes must not replace the login wallpaper.
@@ -39,18 +38,14 @@
       desktopManager.xterm.enable = false;
     };
 
-    # iOS USB multiplexing daemon
     usbmuxd.enable = true;
 
-    # SSD trim.
     fstrim.enable = true;
 
     openlogi.enable = true;
 
-    # scx_lavd was tried here (2026-08-22) and REMOVED: measured -21% prefill
-    # and relative jittery decode (27.9-31.9 vs a stable 33.2 t/s) on llama.cpp
-    # Vulkan — latency-first scheduling starves the GPU submission thread.
-    # EEVDF default wins for this box's throughput-first priorities.
+    # Keep EEVDF: scx_lavd reduced llama.cpp Vulkan prefill by 21%
+    # and made decode less consistent.
 
     udev.extraRules = ''
       # FiiO DAC (JadeAudio JA11 / SNOWSKY Melody) for WebHID access
@@ -59,15 +54,12 @@
   };
 
   systemd.services = {
-    # Drop the ~5.4s boot blocker on the critical chain: docker is the only
-    # consumer of network-online.target and brings up its own docker0 bridge,
-    # so waiting for full connectivity before graphical.target buys nothing.
+    # Docker is the only network-online consumer and creates its own bridge;
+    # avoid delaying graphical startup for connectivity.
     NetworkManager-wait-online.enable = false;
   };
 
-  # This laptop shares system RAM with the APU and local LLM workloads. Keep
-  # Nix from running several full-core derivations at once, and bound the
-  # RAM-backed temporary filesystem so builds cannot crowd out the session.
+  # Limit parallel builds and tmpfs use to leave RAM for the APU and LLMs.
   nix.settings.max-jobs = lib.mkForce 1;
   boot.tmp.tmpfsSize = lib.mkForce "25%";
 

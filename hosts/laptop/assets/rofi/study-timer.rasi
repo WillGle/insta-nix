@@ -1,8 +1,5 @@
 @theme "~/.config/rofi/theme.rasi"
 
-/* Study Timer specializes the global theme with a specific window width 
-   and icons for the menu entries. */
-
 window {
   width:            36%;
 }

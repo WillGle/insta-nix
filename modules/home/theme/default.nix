@@ -9,25 +9,19 @@ let
   inherit (osConfig) theme;
   inherit (osConfig.theme) signal;
   themeRoot = "${config.xdg.configHome}/theme";
-  # User-supplied wallpapers live here. It must exist and be obvious, otherwise
-  # the picker has nothing to offer but Home Manager's own directory and users
-  # are taught to drop files into a managed path — which then clobbers on the
-  # next activation.
+  # Keep personal wallpapers outside Home Manager-managed paths.
   wallpaperDropDir = "${config.home.homeDirectory}/Pictures/Wallpapers";
   themeGeneratedDir = "${themeRoot}/generated";
   themeTemplatesDir = "${themeRoot}/templates";
   themeStaticEnv = "${themeRoot}/static.env";
   themeApplyPath = "${themeRoot}/theme-apply";
   wallpaperPath = "${config.home.homeDirectory}/.local/bin/wallpaper";
-  # User-selected wallpapers live outside the Nix store and are resolved from
-  # the XDG state pointer at runtime. A host may still provide an optional
-  # packaged fallback through theme.wallpaper.source.
+  # Resolve user wallpapers from XDG state; hosts may provide a store fallback.
   themeWallpaperPath = lib.optionalString (theme.wallpaper.source != null) (
     toString theme.wallpaper.source
   );
 
-  # Runtime state lives outside the Home Manager generation so a user-selected
-  # wallpaper survives rebuilds and is never a read-only store path.
+  # Keep wallpaper state outside Home Manager generations so it survives rebuilds.
   themeStateDir = "${config.xdg.stateHome}/theme";
   themeWallpaperStore = "${themeStateDir}/wallpapers";
   themeWallpaperPointer = "${themeStateDir}/wallpaper.path";
@@ -105,8 +99,7 @@ let
       "__PURPLE_STRIP__"
       (strip theme.colors.purple)
     ]
-    # Signal palette: fed from theme.signal, never from theme.colors, so the
-    # runtime generator has no path to these values.
+    # Keep signal colors separate from runtime-generated decorative colors.
     [
       "__SIGNAL_OK__"
       signal.ok
@@ -257,10 +250,7 @@ let
       "__SORT_BIN__"
       "${pkgs.coreutils}/bin/sort"
     ]
-    # Deliberately the session's rofi rather than a pinned bare build: the
-    # configured copy carries plugins from system.nix's rofi.override, and every
-    # other rofi caller in this config relies on that. Pinning pkgs.rofi here
-    # made the wallpaper picker the one script running a different rofi.
+    # Use session rofi for its configured plugins.
     [
       "__ROFI_BIN__"
       "rofi"
@@ -353,9 +343,7 @@ let
       "__NOTIFY_SEND_BIN__"
       "${pkgs.libnotify}/bin/notify-send"
     ]
-    # Spliced into both theme-apply and wallpaper, which each carried an
-    # identical copy of the magic-byte table -- a format added to one would
-    # have had to be added to the other.
+    # Share image detection between theme-apply and wallpaper.
     [
       "__IS_SUPPORTED_IMAGE__"
       (builtins.readFile ../../../theme/scripts/lib/is-supported-image.sh)
@@ -378,18 +366,8 @@ let
 
 in
 {
-  # GTK3 does not read org.gnome.desktop.interface color-scheme — that key only
-  # steers GTK4/libadwaita and the xdg-desktop-portal. With no settings.ini on
-  # disk, GTK3 resolved gtk-application-prefer-dark-theme to false and every
-  # GTK3 app rendered light against this dark desktop; blueman is simply where
-  # it was most obvious. Declare it once so the whole GTK3 surface follows,
-  # rather than per-app GTK_THEME overrides wedged into .desktop files that Nix
-  # regenerates anyway. GTK4 is set too so the two toolkits cannot drift.
-  # GTK4 is deliberately left out. libadwaita reads AdwStyleManager:color-scheme,
-  # which already resolves to prefer-dark through the portal, and warns on every
-  # single startup when this key is set instead:
-  #   Adwaita-WARNING: Using GtkSettings:gtk-application-prefer-dark-theme with
-  #   libadwaita is unsupported.
+  # GTK3 ignores the portal color-scheme and needs this setting.
+  # GTK4/libadwaita follows the portal and warns if this key is set.
   gtk = {
     enable = true;
     gtk3.extraConfig."gtk-application-prefer-dark-theme" = true;
@@ -456,17 +434,11 @@ in
 
     "hypr/hyprpaper.conf".source = generatedLink "hyprpaper.conf";
 
-    # Symlinked into the generated directory rather than written by Home
-    # Manager: theme-apply rewrites the target on every wallpaper change, and a
-    # managed file there would be clobbered — or worse, restored — on the next
-    # activation.
+    # Link to theme-apply output so Home Manager cannot overwrite runtime changes.
     "dunst/dunstrc".source = generatedLink "dunstrc";
   };
 
-  # Created rather than left to the user: an absent drop directory is what made
-  # the picker fall back to Home Manager's own asset directory in the first
-  # place. It must not be a managed file, so an activation script rather than
-  # home.file.
+  # Create a writable wallpaper directory without making it Home Manager-owned.
   home.activation.wallpaperDropDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     run mkdir -p ${lib.escapeShellArg wallpaperDropDir}
   '';
@@ -512,8 +484,7 @@ in
         fi
       '';
 
-      # Runs after the seed has populated the generated directory and after
-      # reloadSystemd, so a reload can never race the generation it triggers.
+      # Wait for seeding and systemd reload before applying the theme.
       themeApplyTrigger = lib.mkIf theme.runtime.enable (
         lib.hm.dag.entryAfter [ "themeGeneratedSeed" "reloadSystemd" ] ''
           # theme-apply stages every output and only commits once the whole

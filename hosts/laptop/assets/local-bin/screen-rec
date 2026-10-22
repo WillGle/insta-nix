@@ -1,34 +1,20 @@
 #!/usr/bin/env bash
-# screen-rec: one-button screen recording, sibling of the screenshot binds.
-#
-# wf-recorder talks wlr-screencopy — the same protocol grim already uses here,
-# so capture needs no portal, no picker dialog and no session token. Encoding
-# goes through VAAPI on /dev/dri/renderD128; on a laptop the CPU encoder is the
-# difference between recording and watching the fans.
-#
-# Audio is ONE source, chosen ahead of time, not a mix. wf-recorder takes a
-# single device, and building a mixed virtual source out of pw-loopback was
-# tried and abandoned: node.target on the second loopback is ignored, so the
-# microphone ends up routed to the speakers instead of into the virtual node.
-# Middle-clicking the bar module cycles which single source is used.
+# Record through wlr-screencopy with VAAPI to keep CPU use low.
+# wf-recorder accepts one audio source. Avoid pw-loopback mixing: an ignored
+# node.target can route the microphone to the speakers.
 set -euo pipefail
 export PATH="$PATH:/run/current-system/sw/bin"
 
 STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/screen-rec"
 REC_PID="$STATE_DIR/rec.pid"
 OUT_FILE="$STATE_DIR/out.path"
-# The chosen source outlives a reboot, so it belongs in the state home rather
-# than the runtime dir the rest of this uses.
+# Persist the audio choice across reboots.
 MODE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/screen-rec/audio-mode"
 OUT_DIR="$HOME/Videos"
 
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
-# Written as \U escapes, not literal glyphs. Pasted Nerd Font characters live
-# in a private use area and did not survive editing this file; the module then
-# rendered as a blank space on the bar, which is indistinguishable from having
-# no button at all. Codepoints are Material Design Icons, the f0001-f1af0
-# block the installed FiraCode Nerd Font covers.
+# Use escapes to preserve private-use glyphs covered by FiraCode Nerd Font.
 ICON_IDLE="$(printf '\U000f0567')"  # nf-md-video
 ICON_REC="$(printf '\U000f044a')"   # nf-md-record
 ICON_APP="$(printf '\U000f057e')"   # nf-md-volume_high
@@ -44,8 +30,7 @@ notify_error() {
   notify-send -u critical "Screen recording" "$1"
 }
 
-# Waybar is told to re-run the module rather than polled: the state changes on
-# click, not on a timer.
+# Refresh on clicks because state changes only through actions.
 refresh_bar() {
   pkill -RTMIN+9 waybar 2>/dev/null || true
 }
@@ -68,18 +53,13 @@ set_audio_mode() {
   printf '%s\n' "$1" > "$MODE_FILE"
 }
 
-# Rofi, not a blind cycle: three clicks to find out which source you are on is
-# how you discover mid-recording that you picked the wrong one. Deliberately
-# the session's rofi from PATH rather than a pinned build -- every other menu
-# here uses the configured copy with its plugins and generated theme, and a
-# second rofi would be the one that looks different.
+# Use the session rofi from PATH to retain its configured plugins and theme.
 choose_audio_mode() {
   local current rows choice
   local args rasi
   current="$(audio_mode)"
 
-  # The mark travels with the current mode instead of being a fourth column,
-  # so the rows stay short enough for a small menu.
+  # Mark the current mode inline to keep rows short.
   rows="$(
     printf '%s\t%s\n' \
       "app" "$ICON_APP  App sound" \
@@ -94,10 +74,8 @@ choose_audio_mode() {
       done
   )"
 
-  # -no-custom because with the entry hidden there is no way to see what a
-  # stray keystroke would submit; without it rofi happily returns whatever was
-  # typed blind. The sheet is applied only if present, matching rofi-calendar,
-  # so a missing file degrades to the default menu instead of failing.
+  # Prevent blind custom input while the entry is hidden.
+  # Apply the theme only when present, falling back to the default menu.
   args=(-dmenu -i -no-custom -p "Record audio"
     -config "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi")
   rasi="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/screen-rec.rasi"
@@ -133,10 +111,7 @@ audio_icon() {
   esac
 }
 
-# wpctl names the default nodes with an at-sign-delimited token, a spelling
-# that collides with replaceVars: it reads at-NAME-at as a placeholder and
-# fails the build on anything left unsubstituted. Assembling the token at
-# runtime keeps both tools happy.
+# Assemble wpctl default-node tokens at runtime to avoid replaceVars matching.
 default_node() {
   local at="@"
   wpctl inspect "${at}DEFAULT_AUDIO_${1}${at}" 2>/dev/null \
@@ -160,8 +135,7 @@ stop_recording() {
   pid="$(cat "$REC_PID" 2>/dev/null || true)"
   file="$(cat "$OUT_FILE" 2>/dev/null || true)"
 
-  # SIGINT, not SIGTERM: wf-recorder traps INT to flush the encoder and close
-  # the container. Killed with TERM it leaves an unplayable file behind.
+  # SIGINT flushes the encoder and container; SIGTERM leaves an unplayable file.
   [ -n "$pid" ] && kill -INT "$pid" 2>/dev/null || true
   for _ in $(seq 1 200); do
     kill -0 "$pid" 2>/dev/null || break
@@ -182,7 +156,7 @@ start_recording() {
   local geometry=""
 
   if [ "$mode" = "region" ]; then
-    # Cancelling the selection is a normal way to back out, not an error.
+    # Treat cancelled selection as normal.
     geometry="$(slurp)" || return 0
     [ -n "$geometry" ] || return 0
   fi
@@ -196,11 +170,8 @@ start_recording() {
 
   local device
   device="$(audio_device)"
-  # Joined, not "-a <dev>": wf-recorder declares the audio flag with an
-  # OPTIONAL argument, so getopt never consumes the following argv entry.
-  # Written apart, -a silently means "default device" -- the microphone -- and
-  # the device name lands as a stray positional. It records the wrong source
-  # without ever reporting an error.
+  # Join the optional audio argument: a separate value is ignored and records
+  # the default microphone instead.
   [ -n "$device" ] && args+=("--audio=$device")
 
   wf-recorder "${args[@]}" >/dev/null 2>&1 &

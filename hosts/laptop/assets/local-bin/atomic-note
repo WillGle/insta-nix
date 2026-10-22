@@ -42,10 +42,8 @@ TASK_MODERATE_BG="@signalNotice@"
 TASK_LOW_BG="@signalOk@"
 CHIP_ICON_FONT_DESC="@monoFont@ @rofiFontSize@"
 
-# The generated Rofi theme follows the current wallpaper. Keep static.env as a
-# fallback, but refresh decorative action colours once per menu invocation so
-# the inline Pango markup and the Rasi containers stay aligned. Priority colours
-# below remain pinned signal colours because they carry semantic meaning.
+# Refresh action colours from the generated theme; static.env is the fallback.
+# Priority colours stay fixed because they carry meaning.
 THEME_PALETTE_FILE="${THEME_GENERATED_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/theme/generated}/palette.json"
 load_runtime_palette() {
   local values=""
@@ -87,10 +85,8 @@ load_runtime_palette() {
 }
 load_runtime_palette
 
-# Exact process name only: without -x the pattern also matched the waybar-*
-# helper scripts running at that instant (waybar-memory-info every second,
-# waybar-power-monitor…) and an RT signal terminates them, blanking their
-# module for a refresh. Nix wraps the binary, so both names are tried.
+# Match exact process names so RT signals cannot kill Waybar helpers.
+# Nix wraps the binary, so try both names.
 refresh_waybar() {
   pkill -RTMIN+5 -x waybar >/dev/null 2>&1 || pkill -RTMIN+5 -x .waybar-wrapped >/dev/null 2>&1 || true
 }
@@ -190,9 +186,7 @@ task_priority() {
 
 task_body() {
   local task="$1"
-  # Matched case-insensitively, and against the same tag set task_priority
-  # accepts: a hand-edited "[critical] ..." must lose its prefix here too, or
-  # the next edit re-wraps it into "[Critical] [critical] ...".
+  # Strip tags case-insensitively to avoid duplicating hand-edited prefixes.
   if [[ "${task,,}" =~ ^\[(critical|high|moderate|medium|low|a|b|c|d)\][[:space:]]* ]]; then
     printf '%s\n' "${task:${#BASH_REMATCH[0]}}"
     return 0
@@ -210,9 +204,7 @@ format_task() {
   printf '[%s] %s\n' "$(priority_label "$priority")" "$body"
 }
 
-# Quick-add syntax: a leading "!!" / "!" / "-" sets the priority so the picker
-# is not needed; the "[critical] …" spelling is still honoured. Prints
-# "<priority><TAB><body>".
+# Quick-add prefixes skip the picker. Prints "<priority><TAB><body>".
 parse_quick_add() {
   local text priority body
   text="$(trim_whitespace "$1")"
@@ -313,8 +305,7 @@ read_tasks() {
   mapfile -t TASKS < "$TASK_FILE"
 }
 
-# Replace the file in one step. waybar polls this list while the menu edits it,
-# and a truncating redirect would let a render observe a half-written file.
+# Rename atomically so Waybar cannot read a partial list.
 write_tasks() {
   local tmp
   tmp="$(mktemp "${TASK_FILE}.XXXXXX")"
@@ -324,11 +315,8 @@ write_tasks() {
   mv "$tmp" "$TASK_FILE"
 }
 
-# Every mutation is a read-modify-write against a file three processes touch
-# (the waybar poller, the rofi menu, and the right-click add), so they all run
-# through here: the mutator sees TASKS under an exclusive lock and rewrites it
-# in place. Interactive prompts stay outside, so an open menu never blocks a
-# render.
+# Lock read-modify-write operations against concurrent menu and add actions.
+# Keep prompts outside the lock so an open menu cannot block rendering.
 update_tasks() {
   local mutator="$1"
   shift
@@ -350,9 +338,7 @@ update_tasks() {
   return "$status"
 }
 
-# Tasks are addressed by their text rather than by a menu row index: the list
-# can have shifted under a concurrent edit between drawing the menu and acting
-# on it, and acting on the wrong row is worse than doing nothing.
+# Address tasks by text because concurrent edits can shift menu indices.
 task_index_of() {
   local target="$1"
   local i
@@ -460,14 +446,10 @@ add_task() {
 open_file_in_terminal() {
   local editor_cmd
   editor_cmd="$(resolve_editor)"
-  # resolve_editor can return a command with arguments ("nvim -p"), so the split
-  # here is deliberate. Read into an array to say that explicitly, instead of
-  # relying on an unquoted expansion that reads like an oversight.
+  # The editor command may contain arguments, so split it into an array.
   local -a editor_argv
   read -r -a editor_argv <<< "$editor_cmd"
-  # Refresh once the editor closes: this is the one path that changes the file
-  # without going through update_tasks, and the module no longer polls every
-  # second to notice it.
+  # The editor bypasses update_tasks, so refresh after it closes.
   (
     foot -e sh -lc 'exec "$@"' sh "${editor_argv[@]}" "$TASK_FILE" >/dev/null 2>&1
     refresh_waybar
@@ -549,8 +531,7 @@ task_menu() {
   move_option="$(chip_label "󰁝" "$ACTION_MOVE_BG" "Move to top")"
   cancel_option="$(chip_label "󰜺" "$ACTION_CANCEL_BG" "Cancel")"
 
-  # The body goes in the message line, not the prompt: a long task made the
-  # prompt chip run across the window.
+  # Use the message line so long tasks cannot stretch the prompt.
   choice="$(
     printf '%s\n%s\n%s\n%s\n%s\n' \
       "$done_option" "$edit_option" "$priority_option" "$move_option" "$cancel_option" \
@@ -595,8 +576,6 @@ render_waybar() {
     display_text="$display_text   ($remaining)"
   fi
 
-  # Every task, in display order; the 5-row cap was too low for a list whose
-  # whole point is to be short.
   tooltip="<b><span foreground='${ACTION_ADD_BG}'>ATOMIC TASKS</span></b>
 <span alpha='30%'>──────────────────────────</span>
 <tt>"
@@ -629,8 +608,7 @@ render_waybar() {
 rofi_menu() {
   # EXIT runs after function-local variables leave scope under nounset.
   action_theme="$(mktemp)"
-  # rofi reads the theme by path, so it must outlive the menu call; clean it
-  # up on the way out too, or a killed menu leaves it in /tmp.
+  # Keep the theme file until rofi exits, then remove it.
   trap 'rm -f "$action_theme"' EXIT
 
   while true; do

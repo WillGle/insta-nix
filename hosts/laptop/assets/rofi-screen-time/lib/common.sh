@@ -26,11 +26,8 @@ ERROR_COLOR="@signalCritical@"
 PURPLE_COLOR="${THEME_STATIC_PURPLE:-#a0cfd1}"
 CYAN_COLOR="${THEME_STATIC_CYAN:-#8fc0ff}"
 
-# The generated Rofi theme follows the current wallpaper, while static.env is
-# the build-time fallback used before the runtime theme has produced a palette.
-# Load decorative colours once so inline Pango markup uses the same palette as
-# the Rasi containers. Signal colours stay pinned above: their meaning must not
-# change with the wallpaper.
+# Match the generated palette, falling back to static.env before generation.
+# Keep signal colours fixed so their meaning survives wallpaper changes.
 load_runtime_palette() {
   local values=""
   local -a palette=()
@@ -117,13 +114,10 @@ humanize_class() {
   printf '%s\n' "${out%" "}"
 }
 
-# Pure parameter expansion: this is called for every label on every row, and
-# as a sed pipeline it was ~70 forks per rendered view.
+# Avoid subprocesses for each label.
 escape_markup() {
   local s="${1:-}"
-  # The replacements are quoted: with bash's patsub_replacement (default since
-  # 5.2) an unquoted & in them would stand for the matched text, turning ">"
-  # into ">gt;".
+  # Quote replacements so Bash 5.2+ treats & literally.
   s="${s//&/"&amp;"}"
   s="${s//</"&lt;"}"
   s="${s//>/"&gt;"}"
@@ -170,8 +164,7 @@ seconds_to_compact() {
   printf '%dm\n' "$minutes"
 }
 
-# awk, not jq: the input is one number, and jq costs ~10 ms of start-up per
-# call. Rounding is half away from zero, as jq's round (C round()) was.
+# Avoid jq startup for one number; round half away from zero.
 format_ratio_percent() {
   local raw="${1:-}"
   case "$raw" in
@@ -324,10 +317,7 @@ updated_time_label() {
   date -d "$timestamp" '+%H:%M'
 }
 
-# The one day-file schema. The tracker writes it, study-timer amends it, and
-# the popup and waybar module read it, so it is defined once here rather than
-# copied into each of them -- the copies had already drifted into three
-# different shapes.
+# Shared day-file schema for the tracker, timer, popup, and Waybar.
 default_day_json() {
   local target_date="$1"
   local now_iso="${2:-$(date --iso-8601=seconds)}"
@@ -374,10 +364,7 @@ default_day_json() {
     }'
 }
 
-# Serialise a read-modify-write on a day file. The 5-second tracker and
-# study-timer both rewrite $STATE_DIR/days/<date>.json, and the tracker's own
-# lock is a singleton guard that only excludes other trackers -- without this,
-# two interleaved jq-read/mv-write cycles drop one side's update entirely.
+# Lock day-file updates to prevent the tracker and timer from losing each other’s writes.
 with_day_lock() {
   local state_dir="$1"
   shift
@@ -494,11 +481,8 @@ normalize_day_json() {
 STUDY_TIMER_BIN="${STUDY_TIMER_BIN:-${HOME}/.local/bin/study-timer}"
 STUDY_STATUS_CACHE=""
 
-# study-timer owns the plan: mode, planned_sessions, current_session and the
-# remaining totals only exist in its status output. Deriving a status from the
-# active file here instead left every one of those fields null, so the popup's
-# study cards could only ever say "No plan active" while a plan was running.
-# Cached because one popup render asks for the status several times.
+# Read plan fields from study-timer status; the active file lacks them.
+# Cache repeated reads during one popup render.
 study_status_json() {
   if [ -z "$STUDY_STATUS_CACHE" ]; then
     if [ -x "$STUDY_TIMER_BIN" ]; then
@@ -511,8 +495,7 @@ study_status_json() {
   printf '%s\n' "$STUDY_STATUS_CACHE"
 }
 
-# Fallback for when study-timer is not installed: enough of the shape for the
-# "is a session running" questions, with the plan fields left null.
+# Without study-timer, report active sessions and leave plan fields null.
 study_status_from_active_file() {
   local file
   local started_at=""
@@ -629,8 +612,7 @@ day_json_for_date() {
   if [ -f "$file" ]; then
     day_json="$(normalize_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS" <"$file")"
   else
-    # A day with no file on disk is version 0, not a real v2 record: the
-    # baseline maths distinguishes the two.
+    # Missing days stay version 0 so baseline calculations can distinguish them.
     day_json="$(default_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS" \
       | jq '.version = 0 | .missing = true | .schema_ready = false')"
   fi

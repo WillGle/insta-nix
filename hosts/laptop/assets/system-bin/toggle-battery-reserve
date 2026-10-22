@@ -54,15 +54,14 @@ case "$CMD" in
     ;;
 esac
 
-# Status is readable without elevation. State changes are deliberately
-# noninteractive; a missing NOPASSWD rule must fail instead of opening askpass.
+# Status needs no elevation; changes must fail without NOPASSWD.
 if [ "$CMD" != status ] && [ "$EUID" -ne 0 ]; then
   exec "$SUDO_BIN" -n -- /run/current-system/sw/bin/toggle-battery-reserve "$CMD" "${ORIGINAL_ARGS[@]}"
 fi
 
 find_node_once() {
   local candidate
-  # Unquoted on purpose: NODE_GLOB is a glob pattern, not a path.
+  # Leave NODE_GLOB unquoted so the pattern expands.
   # shellcheck disable=SC2086
   for candidate in $NODE_GLOB; do
     if [ -f "$candidate" ]; then

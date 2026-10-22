@@ -20,8 +20,7 @@ local palette = {
   cyan = "__CYAN__",
 }
 
--- Signal palette: from theme.signal, never wallpaper-derived. Diagnostics and
--- anything else that encodes severity must read from here, not from `palette`.
+-- Use fixed theme.signal colors for diagnostics and severity.
 local signal = {
   ok = "__SIGNAL_OK__",
   notice = "__SIGNAL_NOTICE__",

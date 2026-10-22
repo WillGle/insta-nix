@@ -30,8 +30,7 @@ if [ "$#" -ne 1 ] || ! valid_argument "$PROFILE"; then
   exit 2
 fi
 
-# Daily profile switching is deliberately noninteractive. The NOPASSWD rule is
-# the contract; if it is missing, fail immediately instead of opening askpass.
+# Fail without NOPASSWD; profile switching must stay noninteractive.
 if [ "$EUID" -ne 0 ]; then
   exec "$SUDO_BIN" -n -- /run/current-system/sw/bin/native-power-profile "$PROFILE"
 fi

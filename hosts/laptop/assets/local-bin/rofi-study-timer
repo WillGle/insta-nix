@@ -115,8 +115,7 @@ row_markup() {
   local subtitle="${2:-}"
 
   if [ -n "$subtitle" ]; then
-    # We do NOT escape the subtitle because it might already contain Pango markup (e.g. from active_plan_summary).
-    # However, the title should still be escaped for safety.
+    # Preserve subtitle markup; escape the title.
     printf '<span weight="600">%s</span>&#10;<span size="small">%s</span>' \
       "$(escape_markup "$title")" \
       "$subtitle"
@@ -295,8 +294,7 @@ show_plan_breakdown() {
 
   while :; do
     local selection
-    # Split so the `||` tests the command substitution, not `local` itself,
-    # which always succeeds and would swallow a cancelled menu.
+    # Split the assignment so local cannot hide a cancelled menu status.
     selection="$(generate_breakdown_rows | run_rofi_menu "Session Breakdown")" || return 0
     case "$selection" in
       back|"") return 0 ;;

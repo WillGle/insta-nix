@@ -29,9 +29,7 @@ bar_markup() {
   printf '%s\n' "$out"
 }
 
-# Small counts read faster as countable marks than as a digit the eye has to
-# parse. Used for values whose interesting range is a handful, where a
-# proportional bar would be almost entirely empty and say nothing.
+# Use countable marks for small counts.
 pips_markup() {
   local filled="${1:-0}"
   local total="${2:-5}"
@@ -49,12 +47,8 @@ pips_markup() {
     "$color" "$on" "$BASE_COLOR" "$off"
 }
 
-# The category palette, hoisted out of momentum_sparkline_from_json so the
-# 24-hour strip and the category breakdown agree on what colour a category is.
-# This is identity colour, not severity: it answers "which category" and must
-# never be read as "how bad", which is what severity_color below is for.
-# Assigns rather than prints, so per-slot loops can ask 48 times without paying
-# a subshell each time. category_color below is the printing form.
+# Keep category colours consistent and separate from severity colours.
+# Assign the colour to avoid subshells in slot loops; category_color prints it.
 set_category_color() {
   case "${1:-}" in
     Study) CATEGORY_COLOR="$SUCCESS_COLOR" ;;
@@ -71,8 +65,7 @@ category_color() {
   printf '%s' "$CATEGORY_COLOR"
 }
 
-# One threshold ladder for every bounded metric, so the same number cannot read
-# as "fine" in one block and "warning" in another.
+# Share severity thresholds across bounded metrics.
 severity_color() {
   local value="${1:-0}"
   local warn_at="${2:-50}"
@@ -96,12 +89,7 @@ sparkline_from_json() {
   local glyph_index=0
   local positive=""
 
-  # One jq pass emits "<glyph index>\t<is positive>" per value so the loop below
-  # forks nothing. It used to spend two processes on length and max plus three
-  # per data point, and render_app_usage_timeline calls this once per app: a
-  # 48-slot sparkline across six apps was over eight hundred jq processes.
-  # An empty array emits no rows, leaving out="" and the bare newline the
-  # length<=0 early return used to print.
+  # Emit glyph indices and signs in one jq pass; empty arrays emit no rows.
   while IFS=$'\t' read -r glyph_index positive; do
     if [ "$positive" = "true" ]; then
       color="$CYAN_COLOR"
@@ -147,17 +135,9 @@ momentum_sparkline_from_json() {
   local dominant_cat=""
   local active=0
 
-  # One jq pass emits "<dominant category>\t<glyph index>" per slot, the same
-  # shape sparkline_from_json above uses. This function used to re-run jq over
-  # the whole bundle once per slot plus a second jq per non-empty slot -- about
-  # a hundred processes for one chart, on both the summary and timer views,
-  # which is exactly the antipattern the comment on sparkline_from_json
-  # describes having removed there.
-  #
-  # The active flag is a field of its own rather than an empty category field:
-  # tab is IFS whitespace, so an empty leading field would be swallowed and
-  # every column would read back shifted. Ties go to the first category in key
-  # order, as before.
+  # Emit category and glyph per slot in one jq pass.
+  # A separate active flag avoids leading empty TSV fields, which IFS discards.
+  # Ties use the first category in key order.
   while IFS=$'\t' read -r active dominant_cat glyph_index; do
     if [ "$active" = "0" ]; then
       CATEGORY_COLOR="$BASE_COLOR"
@@ -212,19 +192,12 @@ render_hero_day_strip() {
   local slots_bundle_json
   slots_bundle_json="$(printf '%s' "$context_json" | jq -c '.today.categories.slots // {}')"
 
-  # GitHub heatmap layout: 4 rows × 12 cells = 48 time slots (each = 30 min).
-  # Each cell is a shade character:
-  #   ░ (BASE_COLOR)          → no activity
-  #   ░ ▒ ▓ █ (category color) → increasing activity intensity
-  # The time label on the left of each row makes alignment exact.
-  #
-  # shade_chars indices: 0=empty  1=low  2=med  3=high  4=max
+  # Four rows of twelve half-hour slots; shades range from empty (0) to max (4).
   local shade_chars=("░" "░" "▒" "▓" "█")
   local out="" segment_out="" slot_idx active dominant_cat shade_idx
   local start_h end_h
 
   while IFS=$'\t' read -r slot_idx active dominant_cat shade_idx; do
-    # Every 12 slots (= 6 hours) start a new row.
     if (( slot_idx % 12 == 0 )); then
       if [ -n "$segment_out" ]; then
         out+="${segment_out}"$'\n'
@@ -258,7 +231,7 @@ render_hero_day_strip() {
       | if $value <= 0 then
           "\($i)\t0\tUnknown\t0"
         else
-          # 4-level intensity: ceil(value*4/max), clamped to 1–4.
+          # Scale intensity to 1–4 with ceil(value*4/max).
           "\($i)\t1\t\($dominant)\t\(
             if $max <= 0 then 4
             else (($value * 4 / $max) | ceil | if . < 1 then 1 elif . > 4 then 4 else . end)
@@ -267,7 +240,6 @@ render_hero_day_strip() {
         end
     '
   )
-  # Emit the final (18─24) row.
   out+="${segment_out}"
 
   printf '%s\n%s\n%s' \
@@ -294,13 +266,9 @@ render_transition_bars() {
 
   while IFS=$'\t' read -r from_app to_app count label; do
     [ -n "$from_app" ] || continue
-    # Window classes, humanised the same way every other view shows them, so
-    # this panel does not say "brave-browser" where the cards say "Brave Browser".
     local pair_name
     pair_name="$(humanize_class "$from_app") → $(humanize_class "$to_app")"
-    # The newline is appended outside the substitution: $( ) strips trailing
-    # newlines, so a \n inside the format string is silently swallowed and every
-    # row runs into the next one.
+    # Append newlines outside command substitution, which strips trailing newlines.
     output+="$(printf '%s  %s  %4s×  <span foreground="%s" size="small">%s</span>' \
       "$(escape_markup "$(pad_right "$(clip_text "$pair_name" 24)" 24)")" \
       "$(bar_markup "$count" "$max_count" 14 "$ACCENT_COLOR" "$BASE_COLOR")" \
@@ -318,11 +286,7 @@ render_transition_bars() {
             (if .from != "" then .from else "Unknown" end),
             (if .to != "" then .to else "Unknown" end),
             (.count | tostring),
-            # Relative to the busiest pair, not an absolute count. A fixed
-            # ">10 is a work loop" makes every row in a top-five list say the
-            # same thing, which is a column that costs space and tells you
-            # nothing. Against the leader it separates the dominant loops from
-            # the occasional hops.
+            # Compare with the busiest pair to distinguish dominant loops.
             (if .from == .to then "within task"
              elif ($top > 0 and .count * 2 >= $top) then "work loop"
              else "cross-context" end)
@@ -356,9 +320,7 @@ kv_markup_raw_value() {
     "$value"
 }
 
-# The label is padded by characters (pad_right) before it is escaped: %-*s
-# counted bytes, so a "●" tag or an "&amp;" entity in the label pushed the
-# value column right on that row alone.
+# Pad by characters before escaping so glyphs and entities do not shift columns.
 kv_markup_aligned() {
   local width="$1"
   local label="$2"
@@ -379,9 +341,7 @@ kv_markup_raw_value_aligned() {
     "$value"
 }
 
-# Left-align to a width measured in characters. bash's printf pads %-Ns by
-# bytes, so a label holding "→" (1 character, 3 bytes) came out two columns
-# short and the bar after it started early.
+# Bash printf pads by bytes; pad by characters for Unicode labels.
 pad_right() {
   local value="${1:-}" width="${2:-0}" fill
   fill=$((width - ${#value}))
@@ -408,9 +368,7 @@ render_digital_health() {
   local context_json="$1"
   local eye_risk cog_load circ_phase ultr_score rec_gaps wellbeing_json wellbeing_val afi confidence untracked
 
-  # All twelve context reads in one jq (NUL-separated); each was a process
-  # re-parsing the ~150 KB context. The wellbeing value follows
-  # score_value_text: "Unavailable" unless the score is available.
+  # Read context once; show unavailable wellbeing scores as "Unavailable".
   local -a f
   mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
     .today.scores.digital_wellbeing_score as $wb
@@ -437,10 +395,7 @@ render_digital_health() {
   [ "${f[9]}" = "y" ] && cog_color="$WARNING_COLOR"
   [ "${f[10]}" = "y" ] && cog_color="$ERROR_COLOR"
 
-  # One encoding per kind of value: bounded ratios get a bar the eye reads by
-  # length, small counts get pips it reads by counting, rank labels carry the
-  # severity in their colour. The number stays beside the bar for anyone who
-  # wants it, but nothing depends on reading it.
+  # Use bars for ratios, pips for counts, and severity colours for ranks.
   local bar_w=26
   local wb_bar_value="$wellbeing_val"
   [ "$wb_bar_value" = "—" ] && wb_bar_value=0
@@ -451,12 +406,11 @@ render_digital_health() {
   [ "$eye_risk" = "Moderate" ] && eye_level=2
   [ "$eye_risk" = "High" ] && eye_level=3
 
-  # Wellbeing is a "higher is better" score, so the ladder runs the other way.
+  # Invert severity thresholds: higher wellbeing is better.
   local wb_color="$ERROR_COLOR"
   [ "$wb_bar_value" -ge 34 ] && wb_color="$WARNING_COLOR"
   [ "$wb_bar_value" -ge 67 ] && wb_color="$SUCCESS_COLOR"
 
-  # The driver moved to the Wellbeing card, which has room for it unclipped.
   printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%3s</span>\n' \
     "$SUBTEXT_COLOR" "Wellbeing" \
     "$(bar_markup "$wb_bar_value" 100 "$bar_w" "$wb_color" "$BASE_COLOR")" \
@@ -482,7 +436,6 @@ render_digital_health() {
 
 note_health_alert_color() {
   local context_json="$1"
-  # One jq answers the whole question; it was three.
   if [ "$(printf '%s' "$context_json" | jq -r '
         if (.today.metrics.eye_strain_risk // "Low") == "High"
            or (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end')" = "y" ]; then
@@ -543,7 +496,6 @@ emit_row() {
   printf '\n'
 }
 
-# One jq per call instead of two; an empty score is "Unavailable" as before.
 score_value_text() {
   local score_json="$1"
   if [ -z "$score_json" ]; then
@@ -590,8 +542,7 @@ render_category_bars() {
 
   while IFS=$'\t' read -r name seconds share; do
     [ -n "$name" ] || continue
-    # Same hue the 24-hour strip gives this category, so a colour means one
-    # category across the whole dashboard instead of "this is a bar".
+    # Match category colours in the 24-hour strip.
     output+="$(printf '%s  %s  %6s  %s' \
       "$(pad_right "$name" 13)" \
       "$(bar_markup "$seconds" "$max_seconds" 20 "$(category_color "$name")" "$BASE_COLOR")" \
@@ -706,10 +657,7 @@ render_top_app_bars() {
       | ([.[].seconds] | max) // 0
     ')"
 
-  # Same shape as render_app_usage_timeline below: one jq pass emits the row as
-  # TSV, the loop forks nothing. This previously spent four jq processes per app
-  # and re-read the constant .today.total_seconds inside the loop, nesting a
-  # fifth process inside the fourth.
+  # Emit TSV in one jq pass to avoid subprocesses per app.
   while IFS=$'\t' read -r name category seconds share; do
     [ -n "$name" ] || continue
     output+="$(printf '<span foreground="%s">%s</span> %s  <span weight="600">%6s</span> <span foreground="%s">%4s</span> <span foreground="%s" size="small">%s</span>' \
@@ -774,7 +722,6 @@ render_baseline_summary() {
   local context_json="$1"
   local active_delta active_avg focus_delta frag_delta study_delta
 
-  # Five context reads in one jq (NUL-separated) instead of five processes.
   local -a f
   mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
     [ (.baseline.deltas.total_seconds.vs_yesterday // 0),
@@ -798,8 +745,6 @@ render_baseline_summary() {
 
 render_focus_breakdown() {
   local context_json="$1"
-  # Value and label of the four scores from one jq (NUL-separated), with the
-  # same rules as score_value_text / score_subtext; it was twelve processes.
   local -a f
   mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
     def score_value: if .available == true then (.value | round | tostring) else "Unavailable" end;
@@ -821,8 +766,6 @@ render_behavior_summary() {
   local context_json="$1"
   local longest current deep short top_label top_count switch_rate
 
-  # All nine context reads in one jq (NUL-separated); each was a process
-  # re-parsing the ~150 KB context.
   local -a f
   mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
     [ (.today.metrics.longest_focus_block_seconds // 0),
@@ -839,8 +782,6 @@ render_behavior_summary() {
   longest="${f[0]}"; current="${f[1]}"; deep="${f[2]}"; short="${f[3]}"
   top_label="${f[4]}"; top_count="${f[5]}"; switch_rate="${f[6]}"
 
-  # An arrow glyph instead of "->" so the direction is a mark, not two
-  # characters the reader parses as text.
   if [ "$top_label" != "None yet" ]; then
     top_label="${top_label// -> / → }"
   fi
@@ -851,10 +792,7 @@ render_behavior_summary() {
   cross_count="${f[8]}"
   blocks_total=$((deep + short))
 
-  # Two block lengths against the same day-long scale, so "best" and "right now"
-  # are comparable by eye instead of by subtracting two durations. The deep
-  # ratio is the line that matters and it was the one the reader had to compute:
-  # "2 deep • 28 short" is a fraction written as two numbers.
+  # Use the same day-long scale for both block lengths.
   local deep_color="$SUCCESS_COLOR"
   [ "$blocks_total" -gt 0 ] && [ $((deep * 100 / blocks_total)) -lt 25 ] && deep_color="$WARNING_COLOR"
   [ "$blocks_total" -gt 0 ] && [ $((deep * 100 / blocks_total)) -lt 10 ] && deep_color="$ERROR_COLOR"
@@ -879,14 +817,11 @@ render_behavior_summary() {
     printf '<span foreground="%s">%-11s</span><span foreground="%s">None yet</span>\n' \
       "$SUBTEXT_COLOR" "Top switch" "$SUBTEXT_COLOR"
   fi
-  # Pips are scaled against this user's own 7-day average, not a fixed ceiling.
-  # A constant cap saturates: a 10/h ceiling shows ten filled pips every day for
-  # someone who averages 35/h, which encodes nothing. Against the baseline the
-  # same marks answer "busier or calmer than usual".
+  # Scale pips against the 7-day average so busy users do not saturate a fixed cap.
   local switch_avg switch_pips switch_note
   switch_avg="${f[9]}"
   if [ -n "$switch_avg" ]; then
-    # Rates are non-negative, so int() is the floor jq computed here.
+    # Rates are non-negative, so int() gives the floor.
     switch_pips="$(awk -v r="${switch_rate:-0}" -v a="$switch_avg" \
       'BEGIN { if (a <= 0) print 0; else print int(r * 10 / a) }')"
     switch_note="vs usual $(format_decimal_label "$switch_avg" "/h")"
@@ -894,8 +829,6 @@ render_behavior_summary() {
     switch_pips=0
     switch_note="$(format_decimal_label "$switch_rate" "/h")"
   fi
-  # The rate itself is on the App switching card; showing it again here is the
-  # duplication this pass removes, so the row carries the comparison instead.
   printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s</span>  <span foreground="%s" size="small">%s cross-context</span>' \
     "$SUBTEXT_COLOR" "Switching" \
     "$(pips_markup "$switch_pips" 10 "$WARNING_COLOR")" \
@@ -943,7 +876,6 @@ render_study_summary() {
   local context_json="$1"
   local study_seconds study_ratio active_label focus_window
 
-  # All nine context reads in one jq (NUL-separated); it was up to nine.
   local -a f
   mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
     [ .today.study_seconds,
@@ -998,8 +930,6 @@ render_confidence_breakdown() {
   local context_json="$1"
   local conf mapped_pct unknown_time browser_pct unknown_raw
 
-  # Every figure of this block from one jq (NUL-separated): it was twelve
-  # processes, four of them re-parsing the ~150 KB context.
   local -a f
   mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
     (.data_quality.known_category_ratio // 0) as $mapped
@@ -1028,19 +958,11 @@ render_confidence_breakdown() {
   browser_status="${f[5]}"
   unknown_status="${f[6]}"
 
-  # These three bars used to be blue, amber and purple -- one hue per metric, so
-  # colour said "which row is this" while all three rows carried the same "this
-  # is dragging the score down" arrow. They run through severity_color now, the
-  # same ladder the summary view uses, so a hue means the same thing everywhere.
-  # App mapping is "higher is better", so its ladder is inverted.
+  # Use shared severity colours; invert the ladder for app mapping.
   local mapped_pct_num unknown_pct_num browser_pct_num
   mapped_pct_num="${f[7]}"
   browser_pct_num="${f[8]}"
-  # Share of the tracked day, not seconds against a two-hour ceiling. The old
-  # cap saturated: 3h27m and 5h29m are two hours apart and both drew a full bar,
-  # so the row could not distinguish a bad day from a much worse one. This also
-  # puts all three drivers on one scale -- percent of the day -- so their bar
-  # lengths are comparable with each other.
+  # Compare drivers as shares of the tracked day on the same scale.
   unknown_pct_num="${f[9]}"
 
   printf '%s\n%s\n%s\n%s\n%s' \
@@ -1056,8 +978,6 @@ render_unknown_apps() {
   local context_json="$1"
   local output="" mapping_note=""
 
-  # Compute projected coverage if we map the top unknown app
-  # The projection figures from one jq (NUL-separated) instead of seven.
   local top_name top_projected top_is_big
   local current_pct cur_val top_val max_val
   local -a f
@@ -1078,11 +998,7 @@ render_unknown_apps() {
   max_val=100
 
   if [ -n "$top_name" ] && [ "$top_name" != "null" ] && [ "$top_is_big" = "true" ]; then
-    # Current coverage takes the severity ladder, inverted because more mapped
-    # is better. The projection stays on the decorative accent: it used to be
-    # green, which in every other block means "inside the safe threshold", so
-    # the same hue was carrying two unrelated meanings. The projected bar is not
-    # a state at all -- it is what would happen if you acted.
+    # Invert severity for current coverage; accent the projection to distinguish it from status.
     mapping_note="$(kv_markup_raw_value_aligned 22 "Current coverage" "$(printf '%s  %6s' "$(bar_markup "$cur_val" "$max_val" 14 "$(severity_color "$((100 - cur_val))" 15 40)" "$BASE_COLOR")" "${current_pct}%")")"$'\n'
     mapping_note+="$(kv_markup_raw_value_aligned 22 "+ Map \"$(clip_text "$top_name" 14)\"" "$(printf '%s  %6s' "$(bar_markup "$top_val" "$max_val" 14 "$ACCENT_COLOR" "$BASE_COLOR")" "~${top_projected}")")"$'\n'
   fi
@@ -1156,9 +1072,7 @@ build_view_payload() {
   local card4_label card4_value card4_sub
   local primary_title primary_body chart_b_title chart_b_body chart_c_title chart_c_body insight_title insight_body
 
-  # The scalars every view needs, from one jq: this used to be eleven jq
-  # processes, each re-parsing the whole context. NUL-separated because an
-  # insight text may contain newlines.
+  # Read shared scalars once; NUL separators preserve newlines in insights.
   local -a scalars
   mapfile -d '' -t scalars < <(printf '%s' "$context_json" | jq -j '
     [ .target_date,
@@ -1200,10 +1114,7 @@ build_view_payload() {
       card1_sub="Busiest at $peak_window"
       card2_label="Best focus block"
       card2_value="$(seconds_to_short "$longest_focus_seconds")"
-      # Not the deep-block count: the Deep ratio row already carries it, as a bar
-      # that shows the ratio this number cannot. What no other element says is
-      # how much of the tracked day that single best block accounts for.
-      # The branch's eight context reads in one jq (NUL-separated).
+      # Show the best block’s share of the tracked day; deep ratio is shown separately.
       local -a s
       mapfile -d '' -t s < <(printf '%s' "$context_json" | jq -j \
         --argjson block "$longest_focus_seconds" '
@@ -1229,10 +1140,7 @@ build_view_payload() {
       local _wb_label
       _wb_label="$(score_subtext "${s[2]}")"
       card4_value="$_wb_label"
-      # Not the two scores: the How-you-are-doing bars carry both, and a bar
-      # says "how far along the range" in a way "34/100" cannot. What no bar can
-      # say is *why*, so the card takes the driver -- with room for it, instead
-      # of the 30-character stub the panel row was clipping it to.
+      # Show the driver here; the score bars already show the scores.
       card4_sub="${s[3]}"
 
       primary_title="Today at a glance"
@@ -1261,17 +1169,12 @@ build_view_payload() {
       else
         study_status="Tracking Mode: Normal (Study inactive)."
       fi
-      # Only the tracking mode survives here. The three facts that used to
-      # follow it -- busiest window, best focus block, wellbeing label -- are all
-      # already on screen above, two of them inside the stat cards, so the line
-      # restated them without condensing anything.
       note_text="$study_status"
       ;;
 
     activity)
       title="App timeline"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      # The branch's eight context reads in one jq (NUL-separated).
       local -a a
       mapfile -d '' -t a < <(printf '%s' "$context_json" | jq -j '
         [ .today.categories.top_category,
@@ -1314,7 +1217,6 @@ build_view_payload() {
     health)
       title="Focus & strain"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      # The branch's seven context reads in one jq (NUL-separated).
       local -a h
       mapfile -d '' -t h < <(printf '%s' "$context_json" | jq -j '
         [ ("Model confidence: " + (.data_quality.model_confidence // "Unknown")  + "  •  " + (if .data_quality.schema_ready then "v2 data" else "Legacy data" end)),
@@ -1369,7 +1271,6 @@ build_view_payload() {
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
       meta="$(kv_markup "Updated" "$updated_time")"
       card1_label="Study today"
-      # The branch's eight context reads in one jq (NUL-separated).
       local -a t
       mapfile -d '' -t t < <(printf '%s' "$context_json" | jq -j '
         [ .today.study_seconds,
@@ -1407,15 +1308,12 @@ build_view_payload() {
       note_text="This screen reads the background study timer service."
       ;;
     *)
-      # Default fallback to Dashboard
       view="summary"
       title="Today"
-      # ... (logic already handled in summary case above if this is an initial call)
       ;;
   esac
 
-  # The context arrives on stdin: it runs past the 128 KiB a single argument
-  # may hold, so --argjson is not an option for it.
+  # Pass context on stdin because it can exceed the 128 KiB argument limit.
   printf '%s' "$context_json" | jq \
     --arg view "$view" \
     --arg target_date "$target_date" \
@@ -1452,8 +1350,6 @@ build_view_payload() {
     --arg summary_main_insight "$main_insight" \
     --argjson navigation "$navigation_json" \
     '
-    # The six sub-objects used to be six jq processes each re-parsing the whole
-    # context; the whole context comes in once and they are picked out here.
     . as $context
     | $context.today.metrics as $metrics
     | $context.today.scores as $scores
@@ -1501,11 +1397,7 @@ render_theme() {
   local json="$1"
   local note_border_color
   note_border_color="$(note_health_alert_color "$json")"
-  # One jq pass emits every row. Each row used to cost two processes -- one to
-  # pull the field out, one inside rasi_quote to JSON-quote it -- so a single
-  # theme render forked about fifty times. `tostring` before @json keeps a
-  # missing field rendering as the literal "null", which is what `jq -r` piped
-  # into rasi_quote produced.
+  # Quote all fields in one jq pass; tostring preserves missing fields as "null".
   printf '%s' "$json" | jq -r '
     def cell(f): (f | tostring | @json);
     "textbox-title { content: \(cell(.title)); }",
@@ -1540,11 +1432,7 @@ render_rows() {
   local json="$1"
   local view target_date next_date previous_date current_view key label hint
 
-  # Read from the payload's navigation block instead of deriving the same three
-  # dates a second time: build_navigation_json already computed them from the
-  # same target_date, and nothing else read the block it produced. "none"
-  # stands in for an absent next day because tab is IFS whitespace, so an empty
-  # field would collapse and shift every column after it.
+  # Reuse navigation dates; "none" prevents empty TSV fields from collapsing.
   IFS=$'\t' read -r view target_date previous_date next_date < <(
     printf '%s' "$json" | jq -r '
       [
@@ -1565,8 +1453,7 @@ render_rows() {
     emit_row "refresh:$view:$target_date" "$(action_row_markup "[R] Refresh")" "view-refresh-symbolic"
   fi
 
-  # The view list comes from the same navigation block, so there is one table of
-  # view ids and labels rather than one here and one in build_navigation_json.
+  # Reuse the navigation view list to keep IDs and labels consistent.
   while IFS=$'\t' read -r current_view key label; do
     hint=""
     if [ "$current_view" = "$view" ]; then

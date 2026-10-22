@@ -108,9 +108,7 @@ METRICS_JSON="$(build_metrics_context "$BUNDLE_JSON")"
 SCORED_JSON="$(build_scored_context "$METRICS_JSON")"
 CONTEXT_JSON="$(build_insighted_context "$SCORED_JSON")"
 
-# Everything above this line is the same for every view; only the payload is
-# per view. The cache warm used to run this script once per view and so paid
-# for the day-file bundle four times over.
+# Share the day-file bundle across all view payloads.
 if [ -n "$ALL_VIEWS_DIR" ]; then
   mkdir -p "$ALL_VIEWS_DIR"
   for VIEW in summary activity health timer; do

@@ -45,32 +45,26 @@
     "on-click-middle": "setsid -f $HOME/.local/bin/rofi-study-timer",
     "tooltip": true
   },
-  // ─── Memory (custom with top-process tooltip) ─────────────────────
+  // Memory
   "custom/memory_info": {
     "exec": "$HOME/.local/bin/waybar-memory-info",
     "return-type": "json",
-    // A refresh is ~80 ms of CPU (fdinfo scan for GTT, ps for the top list).
-    // The thresholds it watches move over seconds, not sub-second, so 2 s
-    // halves the cost without changing when a warning appears.
+    // Limit expensive memory/process scans to every two seconds.
     "interval": 2,
-    // Click shows/hides the disk block next to it (see custom/disk_info).
     "on-click": "$HOME/.local/bin/waybar-disk-info toggle",
     "tooltip": true
   },
-  // ─── Disks (per-drive usage + NVMe temperature) ───────────────────
-  // Hidden until the memory block is clicked: exec-if fails while the
-  // state file is absent, and signal 8 re-runs the module on each toggle.
+  // Disks: hidden until memory is clicked; signal 8 refreshes visibility.
   "custom/disk_info": {
     "exec-if": "$HOME/.local/bin/waybar-disk-info visible",
     "exec": "$HOME/.local/bin/waybar-disk-info",
     "return-type": "json",
-    // Same cadence as apu_info/power_flow: the block is a temperature
-    // readout while open, not just a capacity table.
+    // Refresh temperatures while the block is open.
     "interval": 2,
     "signal": 8,
     "tooltip": true
   },
-  // ─── Audio ────────────────────────────────────────────────────────
+  // Audio
   "pulseaudio": {
     "format": "{icon}  {volume}%",
     "format-bluetooth": " {volume}%",
@@ -91,7 +85,7 @@
       ]
     }
   },
-  // ─── Hardware Monitors (consolidated temp + power) ────────────────
+  // Temperature and power
   "custom/apu_info": {
     "exec": "$HOME/.local/bin/waybar-power-monitor apu",
     "return-type": "json",
@@ -109,10 +103,7 @@
     "on-click": "$HOME/.local/bin/waybar-power-monitor bmode-toggle",
     "tooltip": true
   },
-  // ─── Screen recording ────────────────────────────────────────────
-  // No polling: the state only changes on click, and the script signals the
-  // module (9) itself on both start and stop. The interval is a slow safety
-  // net for the case where wf-recorder dies on its own.
+  // Recording changes signal 9; polling catches recorder crashes.
   "custom/screen_rec": {
     "exec": "$HOME/.local/bin/screen-rec status",
     "return-type": "json",
@@ -127,13 +118,11 @@
     "exec": "$HOME/.local/bin/atomic-note render-waybar",
     "max-length": 40,
     "return-type": "json",
-    // The script signals the module (5) after every change it makes, and the
-    // editor path signals on close; polling once a second cost ~4% of a core
-    // to re-read a file that changes a few times a day.
+    // Signal 5 refreshes changes, including editor exit; avoid frequent polling.
     "interval": 30,
     "on-click": "$HOME/.local/bin/atomic-note rofi",
     "on-click-right": "$HOME/.local/bin/atomic-note add",
-    // Middle click completes the task shown on the bar (undo from the menu).
+    // Middle click completes the task; undo is available in the menu.
     "on-click-middle": "$HOME/.local/bin/atomic-note done-top",
     "signal": 5,
     "tooltip": true
@@ -141,13 +130,10 @@
   "custom/network_info": {
     "exec": "$HOME/.local/bin/waybar-network-info",
     "return-type": "json",
-    // A refresh is ~1 s of CPU (nmcli and busctl round-trips); signal 6 fires
-    // after every change made through the menus, so the poll only catches
-    // external changes and 10 s is plenty for those.
+    // Signal 6 handles menu changes; polling catches external changes.
     "interval": 10,
     "signal": 6,
-    // One block, two destinations: left opens the network menu, right the
-    // Bluetooth manager. The block reports both, so both buttons are live.
+    // Left click opens network settings; right click opens Bluetooth.
     "on-click": "$HOME/.local/bin/rofi-network",
     "on-click-right": "$HOME/.local/bin/bluetooth-gui",
     "tooltip": true

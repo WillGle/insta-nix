@@ -1,22 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export LC_ALL=C
-# Waybar Disk Info — free space on / in the bar, one row per physical drive
-# with its NVMe temperature in the tooltip. Split out of waybar-memory-info,
-# where the disk table had nothing to do with the question that module
-# answers. It refreshes every 2 s like the APU/power blocks, since the NVMe
-# temperatures are the live part; capacity changing slowly costs nothing extra.
+# Show free space in the bar and per-drive NVMe temperatures in the tooltip.
 
 ICON_DISK=$(printf "")
 ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
-# The block is hidden by default and opened from the memory module's click.
-# waybar keeps no state, so the state is this file; `visible` is the module's
-# exec-if (a non-zero exit hides it) and `toggle` flips the file and signals
-# waybar (SIGRTMIN+8) so every module with "signal": 8 re-runs at once.
-# pkill must match the exact process name: without -x, "waybar" also matches
-# the helper scripts (waybar-power-monitor…) and an RT signal kills them.
+# The visibility file backs exec-if; toggle signals Waybar to refresh.
+# Match its exact process name so RT signals cannot kill helper scripts.
 STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/waybar-disk-panel"
 SIGNAL=8
 case "${1:-}" in
@@ -30,9 +22,7 @@ case "${1:-}" in
     ;;
 esac
 
-# Composite temperature per NVMe namespace, keyed by the name df reports
-# (nvme1n1). An hwmon node owns the namespace directory it belongs to, so the
-# mapping is a plain path test — no readlink needed.
+# Map composite temperatures to NVMe namespaces using their hwmon paths.
 nvme_temp_map() {
   local h name lbl label base raw nsdir
 
@@ -41,8 +31,7 @@ nvme_temp_map() {
     read -r name < "$h/name" || continue
     [ "$name" = "nvme" ] || continue
 
-    # "Composite" is the drive-level sensor; the numbered ones are per-die and
-    # read lower, so reporting them would understate how hot the drive is.
+    # Per-die sensors read lower; use Composite for drive-level temperature.
     for lbl in "$h"/temp*_label; do
       [ -r "$lbl" ] || continue
       read -r label < "$lbl" || continue
@@ -61,13 +50,9 @@ nvme_temp_map() {
   done
 }
 
-# One df pass feeds both the bar text (root's free space and fill level) and
-# the per-drive table. Partitions of the same disk are summed, so /boot folds
-# into its drive's totals instead of taking a row of its own. Pseudo
-# filesystems (tmpfs, devtmpfs, efivarfs) are dropped by requiring a /dev
-# source, and a device mounted twice — /nix/store alongside / — is only
-# counted once. Sizes are read in bytes rather than via -BG, which rounds a
-# 1 G partition to "1G / 1G".
+# Share one df pass for bar and tooltip. Sum partitions by drive, ignore
+# pseudo filesystems, and count duplicate mounts once. Read bytes to avoid
+# rounding small partitions to whole GiB.
 df_out="$(
   df -P -T -B1 2>/dev/null | awk -v temps="$(nvme_temp_map)" '
     BEGIN {
@@ -102,10 +87,7 @@ df_out="$(
       raw = cap > 0 ? used * 100 / cap : 0
       return (raw == int(raw)) ? raw : int(raw) + 1
     }
-    # Strip the partition suffix to reach the physical device. A whole-disk
-    # mount (nvme0n1, sda) carries no suffix and must survive untouched, which
-    # is why the nvme/mmc form is matched explicitly rather than by trailing
-    # digits.
+    # Strip partition suffixes explicitly to preserve whole-disk device names.
     function diskof(dev,   d) {
       d = dev
       sub(/^\/dev\//, "", d)
@@ -122,10 +104,7 @@ df_out="$(
 
       d = diskof($1)
       tot[d] += $3; usd[d] += $4; avl[d] += $5
-      # Label the drive by its shallowest mount: "/" reads better than
-      # "/boot" for the disk that happens to carry both. The filesystem type
-      # shown is the one of that mount. (No apostrophes here: this comment
-      # lives inside the single-quoted awk program.)
+      # Use the shallowest mount and its filesystem type as the drive label.
       if (!(d in lbl) || length(m) < length(lbl[d])) { lbl[d] = m; fst[d] = $2 }
     }
     # Two lines per drive: "DK n (mount)  used / total (pct) - fstype", then
@@ -155,10 +134,7 @@ df_out="$(
         share = tot[d] > 0 ? int(usd[d] * 100 / tot[d] + 0.5) : 0
         table = table sprintf("DK %d (%s)   %s / %s (%d%%) - %s\n", i, lbl[d], human(usd[d]), human(tot[d]), share, fst[d])
         table = table sprintf("%s · %s", bar(share), t)
-        # Bar: one "mount  free  temp" cluster per drive, joined by a dot.
-        # The mount label and the separator are dimmed (waybar renders this
-        # text as Pango markup) so the eye lands on the numbers:
-        #   /  127G  33°C  ·  /mnt  396G  36°C
+        # Dim mount labels and separators to emphasize free space and temperature.
         text = text (i > 1 ? "  <span alpha=\"60%\">·</span>  " : "") \
                "<span alpha=\"60%\">" short_mount(lbl[d]) "</span>  " human_bar(avl[d]) \
                (tc >= 0 ? sprintf("  %.0f°C", tc) : "")
@@ -175,8 +151,7 @@ IFS=$'\t' read -r bar_text worst_pct worst_temp <<< "$first_line"
 [ -n "${disk_table:-}" ] && [ "$disk_table" != "$df_out" ] || disk_table="Unavailable"
 [ -n "${bar_text:-}" ] || bar_text="n/a"
 
-# Worst drive decides the colour: nearly full, or hot for an NVMe (SMART's own
-# warning threshold on these drives is 85 °C; 70/80 leaves headroom).
+# Use the worst drive: 70/80 °C leaves headroom below the 85 °C SMART warning.
 class="normal"
 if   [ "${worst_pct:-0}" -ge 95 ] || [ "${worst_temp:-0}" -ge 80 ]; then class="critical"
 elif [ "${worst_pct:-0}" -ge 85 ] || [ "${worst_temp:-0}" -ge 70 ]; then class="warning"

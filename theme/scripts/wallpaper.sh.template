@@ -55,8 +55,7 @@ deleted.
 EOF
 }
 
-# Supported extension plus matching magic bytes; corrupt payloads are rejected
-# later by Matugen, before anything is committed.
+# Check extension and magic bytes; Matugen rejects corrupt images before commit.
 __IS_SUPPORTED_IMAGE__
 
 current_wallpaper() {
@@ -75,9 +74,7 @@ current_wallpaper() {
   fi
 }
 
-# Serialize mutations to the content-addressed store. This is deliberately a
-# different lock from theme-apply's generation lock: cmd_set holds this one
-# while invoking theme-apply, so reusing the same file would deadlock the child.
+# Use a separate store lock: sharing theme-apply's lock would deadlock its child.
 lock_wallpaper_state() {
   "$MKDIR_BIN" -p "$THEME_STATE_DIR"
   exec 8>>"$THEME_WALLPAPER_LOCK_FILE"
@@ -87,8 +84,7 @@ lock_wallpaper_state() {
   fi
 }
 
-# Drop copies that are no longer referenced. Only ever called after a
-# successful generation, so the live selection is never removed.
+# Prune unreferenced copies only after successful generation.
 prune_store() {
   local keep="$1" entry
   for entry in "$THEME_WALLPAPER_STORE"/*; do
@@ -129,9 +125,7 @@ cmd_set() {
   if [ -f "$dest" ]; then
     existed=1
   else
-    # Copy into the store first, then rename within it, so cross-filesystem
-    # sources still land atomically under a name that is safe for sed,
-    # hyprpaper and hyprctl (hex digest only).
+    # Copy then rename within the store for atomic writes and safe digest filenames.
     tmp="$("$MKTEMP_BIN" "$THEME_WALLPAPER_STORE/.incoming.XXXXXX")"
     if ! "$CP_BIN" -- "$resolved" "$tmp"; then
       "$RM_BIN" -f "$tmp"
@@ -161,10 +155,7 @@ cmd_reset() {
 
   lock_wallpaper_state
 
-  # Generate from the wallpaper the current Nix configuration ships. Only once
-  # that has succeeded is the user override dropped: theme-apply persisted the
-  # default path as a selection, and leaving it there would pin today's store
-  # path across future rebuilds instead of following the Nix default.
+  # Drop the override only after success so future rebuilds follow the Nix default.
   if ! "$THEME_APPLY_BIN" --wallpaper "$THEME_WALLPAPER" --strict; then
     log "keeping the previous wallpaper and theme"
     exit 1
@@ -174,15 +165,7 @@ cmd_reset() {
   printf '%s\n' "$THEME_WALLPAPER"
 }
 
-# Candidates are the user's own wallpaper directory plus an optional packaged
-# fallback from the Nix configuration.
-#
-# Earlier this scanned the *directory* holding the shipped wallpaper too. That
-# directory was managed by Home Manager, so listing it advertised a managed path
-# as the place to keep wallpapers — and any file dropped there is clobbered on
-# the next activation, or fails it outright once a stale .backup exists. Only the
-# shipped file itself is offered now, so nothing invites a write into a directory
-# that is not the user's to write to.
+# Offer user wallpapers and the packaged file, never its Home Manager-owned directory.
 collect_candidates() {
   local resolved entry
 
@@ -217,10 +200,7 @@ cmd_pick() {
     exit 1
   fi
 
-  # Thumbnails only if this Rofi understands dmenu icon metadata. The grep must
-  # read all of its input rather than exiting early on the first match: under
-  # `set -o pipefail` a short read would kill Rofi with SIGPIPE and turn the
-  # whole pipeline into a 141 exit status.
+  # Read all Rofi help output to avoid SIGPIPE under pipefail.
   if "$ROFI_BIN" -h 2>&1 | "$GREP_BIN" -- '-show-icons' >/dev/null; then
     icons=1
     rofi_args+=(-show-icons -theme-str 'element-icon { size: 2.5em; }')
@@ -229,8 +209,7 @@ cmd_pick() {
     rofi_args+=(-config "$HOME/.config/rofi/config.rasi")
   fi
 
-  # Rofi returns the index of the chosen row, so the label never has to be
-  # parsed back into a path. Cancelling prints nothing and exits non-zero.
+  # Use row indices rather than parsing labels; cancellation returns no selection.
   choice="$(
     for entry in "${CANDIDATES[@]}"; do
       if [ "$icons" -eq 1 ]; then

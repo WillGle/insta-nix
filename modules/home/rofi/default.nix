@@ -8,8 +8,7 @@ let
   themeGeneratedDir = "${config.xdg.configHome}/theme/generated";
   generatedLink = path: config.lib.file.mkOutOfStoreSymlink "${themeGeneratedDir}/${path}";
 
-  # writeShellApplication supplies its own shebang and `set -euo pipefail`;
-  # drop the asset's first line so the output has exactly one of each.
+  # Drop the asset shebang; writeShellApplication supplies it and strict mode.
   rofiScriptBody =
     path: lib.concatStringsSep "\n" (lib.drop 1 (lib.splitString "\n" (builtins.readFile path)));
 
@@ -56,9 +55,7 @@ in
   };
 
   home.file = {
-    # Packaged rather than copied, so these two get the same build-time
-    # shellcheck as every other script in this config. rofi itself is left off
-    # runtimeInputs on purpose -- the session copy carries the configured Rofi plugins.
+    # Package scripts for build-time shellcheck. Use session rofi for plugins.
     ".local/bin/rofi-show" = {
       source = lib.getExe (
         pkgs.writeShellApplication {

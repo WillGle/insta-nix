@@ -1,9 +1,6 @@
 @theme "~/.config/rofi/theme.rasi"
 
-/* screen-rec: three fixed rows, no search box. The list never grows, so an
-   entry that can only ever filter three known strings is a row of chrome that
-   pushes the menu taller than the choices it offers. Same single layer of
-   padding as calendar.rasi. */
+/* Three fixed choices need no search box. */
 
 window {
   width:         320px;

@@ -4,8 +4,7 @@ let
   lightworksWithDesktop = pkgs.callPackage ../../pkgs/lightworks { };
 in
 {
-  # Personal applications stay system-visible for the existing desktop PATH.
-  # This module owns the list; host modules own hardware, codecs, and services.
+  # Keep personal apps on the system PATH; host modules own hardware and services.
   environment.systemPackages = with pkgs; [
     antigravityIde
     pkgsUnstable.antigravity-cli

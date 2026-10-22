@@ -3,7 +3,6 @@ _: {
     ../desktop/theme.nix
   ];
 
-  # Locale / Time
   time.timeZone = "Asia/Ho_Chi_Minh";
   i18n.defaultLocale = "en_US.UTF-8";
   i18n.extraLocaleSettings = {
@@ -18,7 +17,6 @@ _: {
     LC_TIME = "vi_VN";
   };
 
-  # Core Nix settings
   nix.settings = {
     experimental-features = [
       "nix-command"
@@ -37,7 +35,7 @@ _: {
     options = "--delete-older-than 14d";
   };
 
-  # Use RAM (tmpfs) for /tmp to accelerate compilation/building
+  # Use tmpfs to speed up builds.
   boot.tmp = {
     useTmpfs = true;
     tmpfsSize = "75%";
@@ -81,7 +79,6 @@ _: {
       };
     };
 
-    # Shared system services across hosts.
     dbus.enable = true;
     udev.enable = true;
   };

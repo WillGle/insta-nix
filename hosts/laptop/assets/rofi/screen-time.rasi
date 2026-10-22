@@ -1,7 +1,6 @@
 @theme "~/.config/rofi/theme.rasi"
 
 * {
-  /* Unified colors from system theme variables */
   window-border:    @accent;
   card-bg:          @panel-bg;
   card-alt:         @base;
@@ -9,7 +8,6 @@
   card-muted:       @subtext;
   list-alt:         @base;
   
-  /* Accent background for the focus card (Card 4) */
   accent-card-bg:   @accent;
   accent-card-text: @base;
 }
@@ -33,7 +31,7 @@ mainbox {
 
 inputbar { enabled: false; }
 
-/* ── Header ─────────────────────────────────────────────── */
+/* Header */
 
 header-box {
   expand:      false;
@@ -80,7 +78,7 @@ textbox-meta {
   line-height: 1.6;
 }
 
-/* ── Overview cards ──────────────────────────────────────── */
+/* Overview cards */
 
 overview-box {
   expand:      false;
@@ -104,7 +102,7 @@ card-1 { children: [ textbox-card-1-label, textbox-card-1-value, textbox-card-1-
 card-2 { children: [ textbox-card-2-label, textbox-card-2-value, textbox-card-2-sub ]; }
 card-3 { children: [ textbox-card-3-label, textbox-card-3-value, textbox-card-3-sub ]; }
 
-/* Card 4 uses the accent color for higher priority (Momentum / Study info) */
+/* Accent the focus card to give it priority. */
 card-4 {
   orientation:      vertical;
   expand:           true;
@@ -140,7 +138,6 @@ textbox-card-3-value {
   font:       @mono-font-value;
 }
 
-/* Highlighted card value */
 textbox-card-4-value {
   markup:     true;
   expand:     true;
@@ -158,7 +155,7 @@ textbox-card-4-sub {
   font:       @mono-font;
 }
 
-/* ── Analytics split ─────────────────────────────────────── */
+/* Analytics */
 
 analytics-box {
   expand:      true;
@@ -227,7 +224,7 @@ textbox-insight-body {
   line-height: 1.6;
 }
 
-/* ── Note bar ────────────────────────────────────────────── */
+/* Note bar */
 
 note-box {
   expand:           false;
@@ -246,7 +243,7 @@ textbox-note {
   line-height: 1.6;
 }
 
-/* ── App list ────────────────────────────────────────────── */
+/* App list */
 
 listview {
   expand:           false;

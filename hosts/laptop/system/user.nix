@@ -4,9 +4,7 @@
   ...
 }:
 {
-  # Threat model (intentional):
-  # `will` is the primary owner-admin account for this personal machine,
-  # so near-root capabilities are accepted for operational convenience.
+  # The machine owner accepts near-root group access for daily administration.
   users.users.will = {
     shell = pkgs.fish;
     extraGroups = [
@@ -25,7 +23,6 @@
 
   programs.fish.enable = true;
 
-  # User-facing aliases belong to Home Manager. This removes NixOS's default
-  # `ll` alias so it cannot compete with the Fish alias in modules/home/shell/default.nix.
+  # Home Manager owns ll; remove the competing NixOS default.
   environment.shellAliases.ll = lib.mkForce null;
 }

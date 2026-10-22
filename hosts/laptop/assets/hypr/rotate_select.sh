@@ -9,7 +9,7 @@ usage() {
   echo "usage: rotate_select.sh [--all] [--set 0|1|2|3]" >&2
 }
 
-# --- Args ---
+# Usage:
 #   rotate_select.sh                -> cycle 0→90→270 for focused / under-cursor monitor
 #   rotate_select.sh --set 0|1|2|3  -> force specific transform for selected monitor
 #   rotate_select.sh --all          -> cycle for all active monitors
@@ -58,14 +58,13 @@ pick_names() {
     return
   fi
 
-  # Prefer the focused monitor.
   focused="$(jq -r 'first(.[] | select(.focused == true and .disabled == false) | .name) // empty' <<< "$json_monitors")"
   if [ -n "$focused" ]; then
     printf '%s\n' "$focused"
     return
   fi
 
-  # Fallback: monitor under cursor, using JSON so negative coordinates and commas are safe.
+  # JSON handles negative coordinates and commas safely.
   if cursor_json="$(hyprctl cursorpos -j 2>/dev/null)" \
     && jq -e '.x | type == "number"' >/dev/null <<< "$cursor_json" \
     && jq -e '.y | type == "number"' >/dev/null <<< "$cursor_json"; then
@@ -83,7 +82,6 @@ pick_names() {
     return
   fi
 
-  # Last resort: first active monitor.
   jq -r 'first(.[] | select(.disabled == false) | .name) // empty' <<< "$json_monitors"
 }
 
@@ -158,7 +156,7 @@ rotate_one() {
     return 1
   fi
 
-  # Refresh wallpaper without taking ownership of its process lifecycle.
+  # Refresh wallpaper without restarting its service.
   refresh_wallpaper "$monitor"
   notify "$monitor → transform=$next"
 }

@@ -103,7 +103,8 @@ let
         $out/lib/lightworks/ntcardvt
 
       wrapProgram $out/lib/lightworks/ntcardvt \
-        --prefix LD_LIBRARY_PATH : $out/lib/lightworks:${fullPath} \
+        --prefix LD_LIBRARY_PATH : ${lib.getLib alsa-lib}/lib:$out/lib/lightworks:${fullPath} \
+        --set ALSA_CONFIG_PATH ${alsa-lib}/share/alsa/alsa.conf \
         --set FONTCONFIG_FILE $out/lib/lightworks/fonts.conf
 
       cp -r usr/share $out/share
@@ -113,11 +114,15 @@ let
   };
 
 in
-# Lightworks expects some files in /usr/share/lightworks
 buildFHSEnv {
   inherit (lightworks) pname version;
 
-  targetPkgs = _pkgs: [ lightworks ];
+  # Use NixOS ALSA/PipeWire configuration to avoid the unusable sndio fallback.
+  # Remove when bundled audio opens the default device at 48 kHz.
+  targetPkgs = _pkgs: [
+    lightworks
+    alsa-lib
+  ];
 
   runScript = "lightworks";
 

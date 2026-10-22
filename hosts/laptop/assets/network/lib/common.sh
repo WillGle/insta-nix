@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-# NetworkManager query helpers shared by rofi-network and waybar-network-info.
-#
-# Both programs asked nmcli the same nine questions and each kept its own copy
-# of the answer. The copies drifted: wifi_iface below carries the fix for device
-# names containing an escaped colon, which waybar-network-info was missing.
-#
-# Two same-named helpers are deliberately NOT here, because the two callers need
-# different contracts from them:
-#   active_ethernet      rofi renders "name on device", waybar parses "name<TAB>device"
-#   active_wifi_ap_line  waybar additionally requests the RATE field, which shifts
-#                        every field position in the colon-separated line
-#
-# nmcli -t escapes literal colons inside values as "\:", which collides with the
-# field separator. The helpers mask them to \x01 before awk splits, then restore.
+# Shared NetworkManager queries. Keep caller-specific formats local:
+# active_ethernet: Rofi uses "name on device"; Waybar uses "name<TAB>device".
+# active_wifi_ap_line: Waybar adds RATE, shifting subsequent field positions.
+# Mask escaped nmcli colons as \x01 before splitting, then restore them.
 
 wifi_iface() {
   nmcli -t -f DEVICE,TYPE device | sed 's/\\:/\x01/g' | awk -F: '$2 == "wifi" && !found { gsub(/\x01/, ":", $1); print $1; found = 1 }'

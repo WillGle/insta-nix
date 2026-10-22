@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
-# Shared model-fitting helpers.
-#
-# Callers set, before sourcing: PROG (name used in error messages), FIT (the
-# llama-fit-params binary), MODEL, CTX. fit_params sets FITTED_CTX/FITTED_NGL
-# and, when needed, FITTED_OT for tensor-level CPU placement.
+# Before sourcing, set PROG, FIT (llama-fit-params), MODEL, and CTX.
+# fit_params sets FITTED_CTX, FITTED_NGL, and optional FITTED_OT.
 
-# Ask llama-fit-params what actually fits. Extra arguments are passed straight
-# through, which is how the KV-cache ladder (f16 -> q8_0 -> q4_0) is walked.
+# Forward extra fitter arguments for the KV-cache ladder (f16 -> q8_0 -> q4_0).
 fit_params() {
   local output normalized
 
@@ -15,9 +11,7 @@ fit_params() {
     return 3
   fi
 
-  # The fitter may add -ot when only a tensor-level CPU override makes the
-  # requested context fit. Preserve it; dropping it would recreate the OOM
-  # that caused the fitter to emit the plan.
+  # Preserve tensor CPU overrides (-ot) to avoid OOM.
   normalized="${output//$'\n'/ }"
   if ! [[ "$normalized" =~ ^[[:space:]]*-c[[:space:]]+([1-9][0-9]*)[[:space:]]+-ngl[[:space:]]+(-?[0-9]+|all|auto)([[:space:]]+-ot[[:space:]]+\"(.*)\")?[[:space:]]*$ ]]; then
     printf "%s: unexpected llama-fit-params output, expected '-c N -ngl M [-ot \"...\"]': %s\n" "$PROG" "$output" >&2
@@ -29,9 +23,7 @@ fit_params() {
   FITTED_OT="${BASH_REMATCH[4]:-}"
 }
 
-# -ngl -1 with no tensor override means every layer went to the GPU; a fitted
-# context below the requested one means it did not fit and the fitter shrank
-# the request.
+# Full GPU offload requires -ngl -1, no tensor override, and the requested context.
 full_offload_at_requested_context() {
   [ "$FITTED_CTX" = "$CTX" ] && [ "$FITTED_NGL" = "-1" ] && [ -z "$FITTED_OT" ]
 }

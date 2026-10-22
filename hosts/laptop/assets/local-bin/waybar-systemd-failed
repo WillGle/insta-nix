@@ -2,11 +2,8 @@
 set -euo pipefail
 export LC_ALL=C
 
-# Three states, never two. The old version emitted nothing when systemctl
-# failed, and "nothing" is also what a healthy system renders — so losing the
-# ability to check looked exactly like having checked and found nothing wrong.
-# "ok" therefore carries a visible mark of its own, and an unreadable systemd
-# reports "unknown" instead of vanishing.
+# Distinguish healthy, failed, and unreadable states; failed checks must not
+# look like a healthy system.
 
 SEP="<span alpha='30%'>──────────────────────────</span>"
 

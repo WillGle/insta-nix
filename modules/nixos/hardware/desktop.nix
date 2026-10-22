@@ -1,7 +1,6 @@
 _: {
   imports = [ ./bluetooth.nix ];
 
-  # Shared hardware connectivity defaults
   hardware = {
     enableAllFirmware = true;
     logitech.wireless.enable = true;
@@ -11,10 +10,8 @@ _: {
       settings = {
         General = {
           Experimental = true;
-          FastConnectable = true;
-        };
-        Policy = {
-          AutoEnable = true;
+          # LE Audio requires the kernel ISO socket feature as well as D-Bus APIs.
+          KernelExperimental = "6fbaf188-05e0-496a-9885-d6ddfdb4e03e";
         };
       };
     };
