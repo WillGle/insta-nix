@@ -3,18 +3,11 @@ set -euo pipefail
 export LC_ALL=C
 export PATH="$PATH:/run/current-system/sw/bin"
 
-# Shared nmcli query helpers, substituted to a store path at build time so the
-# two callers cannot drift apart again. See the header of that file for the two
-# same-named helpers that deliberately stay private to each caller.
+# Resolve shared nmcli helpers to a store path at build time.
 # shellcheck source=/dev/null
 . "@networkLib@"
 
-# Every refresh used to be ~14 nmcli/busctl round-trips (one per question:
-# wifi interface, active ethernet, active wifi, IP, gateway, DNS, adapter
-# powered, then three properties per paired device). NetworkManager and BlueZ
-# both answer everything in one call, so the module asks once for all devices
-# and once for all Bluetooth objects, then reads the answers from memory. The
-# rendered text is unchanged.
+# Query NetworkManager and BlueZ once each, then reuse their snapshots.
 
 escape_markup() {
   local s="${1:-}"
@@ -24,13 +17,8 @@ escape_markup() {
   printf '%s' "$s"
 }
 
-# ── NetworkManager, one query for all devices ────────────────────────────────
-# Fills NM_TYPE / NM_CONN / NM_IP / NM_GW / NM_DNS keyed by device name and
-# NM_DEVICES with the devices in NetworkManager's own order (the order
-# `nmcli device` lists them in, which is what wifi_iface relied on).
-# Terse `device show` prints one "KEY:VALUE" per line with no escaping, and a
-# blank line between devices. DNS servers are joined with " | ", the way the
-# old `nmcli -g IP4.DNS` printed several.
+# Index all device properties by name, retaining NetworkManager order.
+# Terse device show uses unescaped KEY:VALUE lines and blank device separators.
 declare -A NM_TYPE NM_CONN NM_IP NM_GW NM_DNS
 NM_DEVICES=()
 
@@ -67,9 +55,7 @@ first_wifi_iface() {
   done
 }
 
-# Active connections, one query. nmcli -t escapes literal colons inside values
-# as "\:", which collides with the field separator: masked to \x01 before the
-# split, restored after (same trick as the shared helpers).
+# Mask escaped colons before splitting active-connection fields, then restore.
 NM_ACTIVE=""
 load_nm_active() {
   NM_ACTIVE="$(nmcli -t -f NAME,UUID,TYPE,DEVICE connection show --active 2>/dev/null | sed 's/\\:/\x01/g')"
@@ -115,16 +101,9 @@ active_wifi_ap_line() {
     | awk -F: -v target="$masked_ssid" '$2 == target && !found { print; found = 1 }'
 }
 
-# ── Bluetooth, one query for every object ────────────────────────────────────
-# busctl, never bluetoothctl. Every bluetoothctl invocation registers an
-# advertisement monitor with bluetoothd and tears it down again on exit, which
-# at this module's interval wrote two journal lines a tick — roughly 1700 lines
-# per hour, for a status string. GetManagedObjects returns every adapter and
-# device with its properties in one round-trip, and one jq reads the lot.
-#
-# Echoes a human-readable summary of the adapter, or the connected devices with
-# their battery level when BlueZ exposes one (it only does with Experimental
-# enabled, which base.nix sets).
+# Use busctl to avoid bluetoothctl advertisement-monitor journal noise.
+# One GetManagedObjects query includes adapters, devices, and battery levels
+# when BlueZ Experimental is enabled.
 get_bluetooth_status() {
   if ! systemctl is-active --quiet bluetooth; then
     echo "Disabled"
@@ -134,9 +113,8 @@ get_bluetooth_status() {
   local objects
   objects="$(busctl call org.bluez / org.freedesktop.DBus.ObjectManager GetManagedObjects --json=short 2>/dev/null || true)"
 
-  # Lines: first the adapter verdict ("none" / "off" / "on"), then for each
-  # connected device — in path order, as the old `sort -u` walk visited them —
-  # its alias and battery percentage (empty when BlueZ has none), one per line.
+  # Output adapter state, then each connected device alias and optional battery
+  # percentage in path order.
   local -a lines=()
   mapfile -t lines < <(printf '%s' "$objects" | jq -r '
     (.data[0] // {}) as $o
@@ -171,8 +149,6 @@ get_bluetooth_status() {
   echo "${output%, }"
 }
 
-# The bar shows one glyph for Bluetooth next to the network one, so both live in
-# a single block. Only three states are worth distinguishing at a glance.
 bluetooth_icon() {
   case "${1:-}" in
     Disabled | "Powered off" | "No adapter") printf '󰂲' ;;
@@ -198,10 +174,7 @@ main() {
   local ssid signal security freq ip gateway dns tooltip
   local ACCENT="@themeAccent@"
   local SEP="<span alpha='30%'>──────────────────────────</span>"
-  # One block on the bar carries both link and Bluetooth, so the tooltip is
-  # titled for the pair. The transport (Wi-Fi / Ethernet) moves into a Link:
-  # field rather than the header, which keeps every heading inside the width of
-  # the 26-character rule below it.
+  # Put transport in the Link field to keep the shared tooltip heading short.
   local title="NETWORK AND CONNECTION"
   local escaped_ssid escaped_security escaped_ethernet_name escaped_ethernet_device
   local bt_status escaped_bt_status bt_icon
@@ -241,7 +214,6 @@ main() {
     bssid="${_bssid//$'\x01'/:}"
   fi
 
-  # Check for active VPN/Wireguard tunnels
   vpn_interfaces=$(ip link show | grep -E -o ' (wg[0-9a-zA-Z_-]+|tun[0-9a-zA-Z_-]+|tailscale[0-9a-zA-Z_-]+|proton[0-9a-zA-Z_-]+)' || true)
   if [ -n "$vpn_interfaces" ]; then
     vpn_interfaces=$(echo "$vpn_interfaces" | tr -d ' ' | sort -u | tr '\n' ' ' | sed 's/ $//')

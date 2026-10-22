@@ -15,8 +15,7 @@ __IS_SUPPORTED_IMAGE__
 
 [ "$#" -eq 1 ] || exit 2
 
-# GTK's Wallpaper portal overwrites one extensionless file for every selection.
-# Snapshot it before generation, and recover the extension from the image bytes.
+# Snapshot the portal's reused extensionless file; detect its extension from bytes.
 tmp="$("$MKTEMP_BIN" -d "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/wallpaper-portal.XXXXXX")"
 trap '"$RM_BIN" -rf "$tmp"' EXIT
 "$CP_BIN" -- "$1" "$tmp/image"

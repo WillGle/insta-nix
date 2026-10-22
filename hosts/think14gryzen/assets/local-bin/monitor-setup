@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# monitor-setup: Dynamic Monitor Configuration using Rofi & Hyprland
-# Author: Antigravity (Assistant)
+# Configure monitors with Rofi and Hyprland.
 
 export PATH="$PATH:/run/current-system/sw/bin"
 

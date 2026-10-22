@@ -95,9 +95,7 @@ record_sample() {
   [ -n "$normalized" ] || return 0
   ignored_class "$normalized" && return 0
 
-  # A window titled "Desktop" is the compositor's own background surface, not an
-  # application. (The second test this used to carry was always true when the
-  # first was, since "desktop" is itself in the ignore list.)
+  # The Desktop window is the compositor background, not an application.
   if [ "${title,,}" = "desktop" ]; then
     return 0
   fi
@@ -110,9 +108,8 @@ record_sample() {
     commit_sample "$normalized" "$raw_class" "$display_name" "$icon_name"
 }
 
-# Runs with the day-file lock held, so the last_app/last_sample_at read below
-# and the rewrite at the end are one transaction. study-timer amends the same
-# file under the same lock.
+# Hold the shared day-file lock across the read and rewrite; study-timer
+# amends the same file.
 commit_sample() {
   local normalized="$1"
   local raw_class="$2"
@@ -291,17 +288,7 @@ sample_once() {
   record_sample "$payload"
 }
 
-# Mutual exclusion through flock instead of a hand-rolled directory lock.
-#
-# The previous version left a window between creating the lock directory and
-# writing its pid file. A second instance arriving inside that window saw a
-# directory with no readable pid, concluded the owner was dead, `rm -rf`'d the
-# live owner's lock and took it — leaving two trackers running and each one's
-# exit trap deleting the other's lock. flock is atomic in the kernel, so the
-# check-then-act that caused this no longer exists.
-#
-# The descriptor is held for the process lifetime and released by the kernel on
-# exit, which also removes the stale-lock case the pid probe existed to handle.
+# Hold flock for the process lifetime; the kernel releases it on exit.
 acquire_lock() {
   local lock_file="${XDG_RUNTIME_DIR:-/tmp}/rofi-screen-time-track.lock"
 

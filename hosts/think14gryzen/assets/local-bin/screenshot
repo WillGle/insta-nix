@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
-# screenshot: capture the screen, save a timestamped file, and copy to clipboard.
-#
-# The Super+S / Super+Shift+S / Super+C binds used to call grim inline from
-# hyprland.conf. They worked, but silently: nothing said a shot had been taken,
-# only the Super+C variant reached the clipboard, and the epoch-second filenames
-# collided when two presses landed inside the same second.
-#
-# notify-send is why this is a wrapped script rather than a longer bind line --
-# libnotify is not in systemPackages, so it exists on PATH only through the
-# runtimeInputs of the writeShellApplication wrapper in hyprland-helpers.nix.
+# Save a timestamped screenshot and copy it to the clipboard.
+# The hyprland-helpers.nix wrapper supplies notify-send through runtimeInputs.
 set -euo pipefail
 export PATH="$PATH:/run/current-system/sw/bin"
 
@@ -29,15 +21,13 @@ esac
 
 GRIM_ARGS=()
 if [ "$MODE" != "full" ]; then
-  # slurp exits non-zero when the selection is cancelled with Escape or a
-  # right-click. That is a normal way to back out, not something to report.
+  # Treat Escape or right-click cancellation as normal.
   GEOMETRY="$(slurp)" || exit 0
   [ -n "$GEOMETRY" ] || exit 0
   GRIM_ARGS=(-g "$GEOMETRY")
 fi
 
-# -t is explicit so the clipboard advertises image/png rather than whatever
-# wl-copy guesses from a pipe.
+# Advertise image/png explicitly rather than relying on MIME detection.
 if [ "$MODE" = "clip" ]; then
   if ! grim "${GRIM_ARGS[@]}" - | wl-copy -t image/png; then
     notify_error "grim failed to capture"

@@ -30,8 +30,7 @@ in
       };
       Service = {
         Type = "oneshot";
-        # Absolute interpreter: the unit starts with an empty PATH, so a
-        # `/usr/bin/env bash` shebang would fail before the script runs.
+        # Use an absolute interpreter: the unit starts with an empty PATH.
         ExecStart = "${pkgs.bash}/bin/bash ${themeApplyPath}";
         TimeoutStartSec = "120s";
       };
@@ -130,8 +129,7 @@ in
     };
   };
 
-  # Watch the file, not picture-uri: GTK keeps the URI unchanged when replacing
-  # the image. PathChanged also catches atomic replacements of the same file.
+  # GTK replaces the image without changing its URI; watch the file instead.
   systemd.user.paths.wallpaper-portal = lib.mkIf osConfig.theme.runtime.enable {
     Unit = {
       Description = "Watch GTK Wallpaper portal image changes";

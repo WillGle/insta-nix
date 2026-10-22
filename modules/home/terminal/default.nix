@@ -47,9 +47,7 @@
           max_width = 1000;
           max_height = 1000;
         };
-        # The default media rule calls `mpv` directly, which isn't installed, so
-        # Enter did nothing on a video. Route through xdg-open instead to honour
-        # the defaultApplications table below (video -> VLC, audio -> Tauon).
+        # Use MIME defaults via xdg-open; the default mpv command is unavailable.
         open.prepend_rules = [
           {
             mime = "{audio,video}/*";
@@ -59,9 +57,7 @@
             ];
           }
         ];
-        # Defaults are image_bound = [ 5000 5000 ] / image_alloc = 512MiB, which
-        # rejects any 40MP photo with "Image size exceeds limit". Both limits
-        # apply to the magick previewer too (passed through as -limit).
+        # Raise both limits for 40 MP previews; magick uses them too.
         tasks = {
           image_alloc = 2147483648;
           image_bound = [
@@ -69,10 +65,8 @@
             40000
           ];
         };
-        # The builtin image previewer is the Rust image crate, which has no RAW
-        # decoder; route RAW to magick instead (built here with libraw). Matched
-        # by name because RAW mime detection is unreliable - CR3 has no magic
-        # entry, and NEF/ARW/DNG report as plain image/tiff.
+        # Use magick with libraw for RAW files. Match names because MIME
+        # detection misses CR3 or reports TIFF for NEF, ARW, and DNG.
         plugin =
           let
             raw = "*.{cr2,CR2,cr3,CR3,crw,CRW,nef,NEF,arw,ARW,dng,DNG,raf,RAF,orf,ORF,rw2,RW2,pef,PEF,srw,SRW,x3f,X3F}";
@@ -111,15 +105,14 @@
 
     tmux = {
       enable = true;
-      shortcut = "a"; # Changes prefix key from Ctrl-b to Ctrl-a
-      baseIndex = 1; # Start window and pane numbering at 1 (instead of 0)
-      mouse = true; # Enable mouse scrolling, clicking, and pane selection
-      keyMode = "vi"; # Use Vi keybindings in copy mode
-      escapeTime = 0; # Removes ESC key delay in Vim/Neovim
+      shortcut = "a";
+      baseIndex = 1;
+      mouse = true;
+      keyMode = "vi";
+      escapeTime = 0;
 
       terminal = "tmux-256color";
 
-      # Popular Tmux plugins from nixpkgs
       plugins = with pkgs.tmuxPlugins; [
         {
           plugin = catppuccin;
@@ -135,12 +128,11 @@
             set -g @catppuccin_date_time_text " %H:%M"
           '';
         }
-        vim-tmux-navigator # Seamless Ctrl+h/j/k/l navigation between Vim & Tmux
-        resurrect # Save/restore sessions across reboots (`Prefix + Ctrl-s` / `Prefix + Ctrl-r`)
-        yank # Vi copy mode integration with system clipboard
+        vim-tmux-navigator # Ctrl+h/j/k/l across Vim and Tmux
+        resurrect # Save: Prefix + Ctrl-s; restore: Prefix + Ctrl-r
+        yank # Copy to the system clipboard
       ];
 
-      # Custom configuration extra lines
       extraConfig = ''
         # Enable 24-bit True Color support
         set -as terminal-features ",foot*:RGB"

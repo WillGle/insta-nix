@@ -10,8 +10,7 @@
   purple: __PURPLE__;
   cyan: __CYAN__;
 
-  /* Signal palette: from theme.signal, never wallpaper-derived. Only these may
-     encode a state or a severity. */
+  /* Use fixed theme.signal colors for states and severity. */
   signal-ok: __SIGNAL_OK__;
   signal-notice: __SIGNAL_NOTICE__;
   signal-warning: __SIGNAL_WARNING__;
@@ -19,7 +18,6 @@
   signal-eco: __SIGNAL_ECO__;
   signal-muted: __SIGNAL_MUTED__;
 
-  /* Stable dark-theme surfaces; decorative colours remain wallpaper-derived. */
   outline: rgba(255, 255, 255, 0.10);
   outline-soft: rgba(255, 255, 255, 0.08);
   overlay: rgba(255, 255, 255, 0.05);
@@ -29,9 +27,7 @@
 
   background-color: transparent;
   text-color: @text;
-  /* Pango points, from theme.fonts.rofi.size — not theme.fonts.ui.size, which
-     Waybar consumes as CSS pixels. Sharing that number rendered every menu
-     about a third too large. */
+  /* Rofi uses Pango points; Waybar uses CSS pixels. */
   font: "__UI_FONT__ __ROFI_FONT_SIZE__";
   mono-font: "__MONO_FONT__ __ROFI_FONT_SIZE__";
   mono-font-label: "__MONO_FONT__ __ROFI_FONT_LABEL_SIZE__";

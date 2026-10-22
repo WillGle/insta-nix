@@ -40,12 +40,7 @@ log() {
   printf '[theme-apply] %s\n' "$*" >&2
 }
 
-# --- protected signal palette ----------------------------------------------
-#
-# State, severity and indicator-line colors are pinned here, straight from
-# theme.signal, and marked readonly. Neither set_dynamic_palette nor
-# set_fallback_palette assigns them: an attempt to do so aborts the run under
-# `set -e` instead of silently repainting the warning ladder.
+# Keep state and severity colors fixed to theme.signal.
 for _signal_var in \
   THEME_SIGNAL_OK THEME_SIGNAL_NOTICE THEME_SIGNAL_WARNING \
   THEME_SIGNAL_CRITICAL THEME_SIGNAL_ECO THEME_SIGNAL_MUTED; do
@@ -107,18 +102,14 @@ done
 
 "$MKDIR_BIN" -p "$THEME_GENERATED_DIR" "$THEME_STATE_DIR" "$THEME_WALLPAPER_STORE"
 
-# Serialize concurrent runs (login service, activation, `wallpaper set`) so two
-# generations can never interleave their renames. Locking a file descriptor we
-# hold for the rest of the process keeps the original argv intact: no re-exec,
-# no recursion, and the lock is released when this shell exits.
+# Serialize generations without changing argv; release the lock on exit.
 exec 9>>"$THEME_LOCK_FILE"
 if ! "$FLOCK_BIN" -w 60 9; then
   log "another theme-apply run still holds $THEME_LOCK_FILE after 60s"
   exit 1
 fi
 
-# Stage generated files inside the generated directory itself so every commit is
-# a same-filesystem rename, and therefore atomic per file.
+# Stage on the same filesystem for atomic per-file renames.
 STAGE_DIR="$("$MKTEMP_BIN" -d "$THEME_GENERATED_DIR/.stage.XXXXXX")"
 trap '"$RM_BIN" -rf "$STAGE_DIR"' EXIT INT TERM
 
@@ -132,8 +123,7 @@ strip_hex() {
   printf '%s' "${1#\#}"
 }
 
-# Cheap, dependency-free sanity check: supported extension plus matching magic
-# bytes. Truly corrupt payloads are still caught by Matugen failing below.
+# Check extension and magic bytes; Matugen rejects corrupt images.
 __IS_SUPPORTED_IMAGE__
 
 have_previous_theme() {
@@ -171,8 +161,7 @@ set_dynamic_palette() {
   local palette_tmp="$1"
   local base mantle text subtext accent success warning error purple cyan
 
-  # Matugen 4 prompts for a source color unless an index is supplied. Only ask
-  # it for data: this script owns rendering, wallpaper updates and live reloads.
+  # Supply an index to avoid Matugen 4 prompts; use it only for palette data.
   if ! "$TIMEOUT_BIN" 45 "$MATUGEN_BIN" image "$WALLPAPER" \
     --source-color-index 0 --dry-run -m dark -j hex -q > "$palette_tmp"; then
     return 1
@@ -186,11 +175,7 @@ set_dynamic_palette() {
   success="$("$JQ_BIN" -r '.colors.secondary.default.color' "$palette_tmp")"
   warning="$("$JQ_BIN" -r '.colors.tertiary.default.color' "$palette_tmp")"
   error="$("$JQ_BIN" -r '.colors.error.default.color' "$palette_tmp")"
-  # Secondary accents come from tone 70 of the same tonal palettes their
-  # primary siblings use: `.colors.<role>.default` is tone 80 for every role in
-  # dark mode, so reusing it here made purple identical to warning and cyan
-  # identical to success. Tone 70 keeps the hue and buys ~16 points of
-  # luminance separation, still far above the AAA threshold against the base.
+  # Use tone 70 for secondary accents to distinguish them from tone 80 roles.
   purple="$("$JQ_BIN" -r '.palettes.tertiary."70".color' "$palette_tmp")"
   cyan="$("$JQ_BIN" -r '.palettes.secondary."70".color' "$palette_tmp")"
 
@@ -211,13 +196,11 @@ set_dynamic_palette() {
   PURPLE="$purple"
   CYAN="$cyan"
 
-  # Record the pinned signal palette alongside matugen's output so palette.json
-  # stays an honest dump of what was actually rendered.
+  # Include the fixed signal colors in the rendered palette dump.
   annotate_palette_signal "$palette_tmp"
 }
 
-# The jq filter below is single-quoted on purpose: $ok and friends are jq
-# variables bound by --arg, not shell expansions.
+# $ok and similar names are jq variables, not shell expansions.
 # shellcheck disable=SC2016
 annotate_palette_signal() {
   local file="$1"
@@ -310,10 +293,7 @@ render_template() {
     "$input" > "$output"
 }
 
-# Last line of defence: a rendered surface must carry the literal signal colors
-# and must not leak an unsubstituted signal placeholder. If either check fails
-# the staged generation is discarded, so a broken warning ladder can never be
-# committed over a working one.
+# Reject missing signal colors or unresolved placeholders before committing.
 verify_signal_palette() {
   local file="$1"
   local color
@@ -332,11 +312,7 @@ verify_signal_palette() {
   done
 }
 
-# Surfaces that carry only part of the signal palette cannot use the check
-# above — it demands all six colors. Dunst maps just muted/notice/critical
-# onto its three urgency levels, so what matters there is the weaker but still
-# decisive property: nothing left unsubstituted. A literal __SIGNAL_MUTED__
-# reaching dunstrc is a parse error at load, i.e. no notifications at all.
+# Dunst uses only three signal colors; reject unresolved placeholders.
 verify_no_placeholder() {
   local file="$1"
 
@@ -346,8 +322,7 @@ verify_no_placeholder() {
   fi
 }
 
-# The third argument names the variable to set when the output changed, or is
-# "-" for outputs no live surface reacts to.
+# Argument 3 is the changed-output flag, or "-" when no reload is needed.
 apply_if_changed() {
   local src="$1"
   local dest="$2"
@@ -372,8 +347,7 @@ store_selection() {
   "$MV_BIN" "$tmp" "$THEME_WALLPAPER_POINTER"
 }
 
-# Hyprland >= 0.41 keeps its instance sockets under $XDG_RUNTIME_DIR/hypr;
-# /tmp/hypr is only kept as a fallback for older releases.
+# Use the current socket path, with a fallback for Hyprland before 0.41.
 ensure_hypr_signature() {
   local dir candidate
 
@@ -391,8 +365,7 @@ ensure_hypr_signature() {
   done
 }
 
-# Best effort: when hyprpaper (or Hyprland) is not running the generated config
-# is simply picked up on its next start.
+# If Hyprland or hyprpaper is stopped, load this config on its next start.
 sync_hyprpaper() {
   ensure_hypr_signature
   [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || return 0
@@ -404,7 +377,7 @@ sync_hyprpaper() {
   fi
 }
 
-# --- resolve the wallpaper -------------------------------------------------
+# Resolve wallpaper.
 
 PALETTE_SOURCE="dynamic"
 
@@ -428,7 +401,7 @@ else
   fi
 fi
 
-# --- short-circuit unchanged input ----------------------------------------
+# Skip unchanged input.
 
 STAMP_FILE="$THEME_GENERATED_DIR/stamp"
 STAMP=""
@@ -442,7 +415,7 @@ if [ "$PALETTE_SOURCE" = "dynamic" ]; then
   fi
 fi
 
-# --- phase 1: generate everything off to the side --------------------------
+# Stage the generation.
 
 PALETTE_TMP="$STAGE_DIR/palette.json"
 
@@ -473,12 +446,9 @@ render_template "$THEME_TEMPLATE_DIR/dunstrc.template" "$STAGE_DIR/dunstrc"
 verify_signal_palette "$STAGE_DIR/waybar.css"
 verify_no_placeholder "$STAGE_DIR/dunstrc"
 
-# --- phase 2: commit -------------------------------------------------------
+# Commit the generation.
 
-# Only the three surfaces refreshed below need a flag; Rofi, hyprlock, Neovim and
-# the palette dump are read from disk on their next use. hyprpaper deliberately
-# has no flag: its config text cannot express a same-path content change, so the
-# refresh is driven by the stamp instead.
+# Track changes only for live reloads; refresh hyprpaper using the content stamp.
 waybar_changed=0
 hyprland_changed=0
 dunst_changed=0
@@ -501,12 +471,7 @@ else
   "$RM_BIN" -f "$STAMP_FILE"
 fi
 
-# --- refresh the live surfaces --------------------------------------------
-#
-# Everything below is best effort. The generated files and the selection are
-# already committed at this point, so a surface that refuses to pick them up
-# right now must not be reported as a generation failure: callers such as
-# `wallpaper set` would then roll back an image that is in fact in use.
+# Reloads are best effort: committed files must not be rolled back on reload failure.
 
 if [ "$waybar_changed" -eq 1 ] && "$SYSTEMCTL_BIN" --user is-active --quiet waybar.service; then
   if ! "$SYSTEMCTL_BIN" --user reload waybar.service; then
@@ -519,20 +484,12 @@ if [ "$hyprland_changed" -eq 1 ]; then
   "$HYPRCTL_BIN" reload config-only >/dev/null 2>&1 || true
 fi
 
-# dunstctl talks to the running daemon over D-Bus and makes it re-read its
-# config search path, which is where ~/.config/dunst/dunstrc -> the generated
-# file sits. No restart, so nothing queued is dropped. When dunst is not up,
-# the command simply fails and the new colors apply the next time it starts.
+# Reload without restarting Dunst or dropping queued notifications.
 if [ "$dunst_changed" -eq 1 ]; then
   "$DUNSTCTL_BIN" reload >/dev/null 2>&1 || true
 fi
 
-# Deliberately unconditional. The generated hyprpaper.conf only differs when the
-# wallpaper *path* changes, so keying the refresh off that file misses the case
-# where the same path gets new bytes — which is exactly when the live desktop is
-# left stale while the palette, hyprlock and everything else already moved on.
-# compute_stamp hashes the image content, so reaching this line already means a
-# real change occurred; re-syncing is cheap and cannot be wrong.
+# Always refresh after a stamp change: the same path may contain new image bytes.
 sync_hyprpaper || true
 
 if [ "$PALETTE_SOURCE" = "fallback" ]; then

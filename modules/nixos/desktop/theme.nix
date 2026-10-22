@@ -252,9 +252,7 @@ in
     };
   };
 
-  # Two signal tokens sharing a value silently merges two distinct meanings on
-  # the same indicator line, which is exactly the failure the split is meant to
-  # prevent. Catch it at build time rather than on the bar.
+  # Reject duplicate signal colors so distinct states remain distinguishable.
   config.assertions =
     let
       s = config.theme.signal;

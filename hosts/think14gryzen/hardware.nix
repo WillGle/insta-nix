@@ -47,10 +47,7 @@
     ];
   };
 
-  # Swap = zram (10G, see system.nix zramSwap) + a 10G file = 20G total.
-  # The old 30G swap partition (nvme1n1p3) was deleted on 2026-06-07 and its
-  # space merged into root (resize2fs). Hibernation is intentionally NOT used,
-  # so swap need not be >= RAM. NixOS creates /var/lib/swapfile on switch.
+  # 10 GiB zram plus a 10 GiB swap file; hibernation is disabled.
   swapDevices = [
     {
       device = "/var/lib/swapfile";

@@ -5,18 +5,10 @@
   ...
 }:
 let
-  # A device that is trusted but was never bonded can never connect. Every
-  # encrypted profile — HID-over-GATT above all — refuses to read over an
-  # unencrypted link, so bluetoothd answers each attempt with "Request attribute
-  # has encountered an unlikely error" and never builds an input device. BlueZ
-  # still persists the entry, because trusting it is what makes it persistent,
-  # so the dead record outlives reboots and shadows the live device in every
-  # picker. BLE peripherals rotate their random address on each pairing, so one
-  # physical mouse can leave several identically-named corpses behind. Sweep
-  # them; nothing is recoverable from an entry that was never bonded.
-  #
-  # busctl rather than bluetoothctl: bluetoothctl registers and tears down an
-  # advertisement monitor on every single invocation, which floods the journal.
+  # Prune trusted, unbonded records only through explicit maintenance;
+  # these flags alone do not prove staleness. Preserve paired, bonded,
+  # connected, and actively discovered devices.
+  # Use busctl to avoid bluetoothctl advertisement-monitor journal spam.
   prune-bluetooth-ghosts = pkgs.writeShellApplication {
     name = "prune-bluetooth-ghosts";
     runtimeInputs = with pkgs; [
@@ -38,14 +30,20 @@ let
         | while read -r path; do
             paired=$(prop "$path" Paired)
             trusted=$(prop "$path" Trusted)
+            bonded=$(prop "$path" Bonded)
+            connected=$(prop "$path" Connected)
 
             # An empty read means the object vanished mid-sweep; skip it rather
             # than treating the blank as "not paired" and deleting a live device.
-            [ -n "$paired" ] && [ -n "$trusted" ] || continue
             [ "$trusted" = "true" ] && [ "$paired" = "false" ] || continue
+            [ "$bonded" = "false" ] && [ "$connected" = "false" ] || continue
+
+            adapter="''${path%/dev_*}"
+            discovering=$(busctl --json=short get-property org.bluez "$adapter" org.bluez.Adapter1 Discovering 2>/dev/null \
+              | sed 's/.*"data":\(.*\)}/\1/')
+            [ "$discovering" = "false" ] || continue
 
             alias=$(prop "$path" Alias | tr -d '"')
-            adapter="''${path%/dev_*}"
             echo "removing never-bonded entry $path ($alias)"
             busctl call org.bluez "$adapter" org.bluez.Adapter1 RemoveDevice o "$path" || true
           done
@@ -66,15 +64,5 @@ in
       };
     };
 
-    systemd.timers.prune-bluetooth-ghosts = {
-      description = "Periodic sweep of dead Bluetooth pairings";
-      wantedBy = [ "timers.target" ];
-      timerConfig = {
-        OnCalendar = "daily";
-        # Catch up after the laptop has been suspended or off past the window.
-        Persistent = true;
-        RandomizedDelaySec = "15m";
-      };
-    };
   };
 }

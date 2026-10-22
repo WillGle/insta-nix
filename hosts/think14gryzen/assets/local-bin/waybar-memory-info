@@ -1,39 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export LC_ALL=C
-# Waybar Memory Info — RAM / swap / pressure, with a top-consumers tooltip.
-# Outputs JSON for a custom module. Base RAM/PSI/GPU figures stay live on every
-# refresh; only the expensive per-process RSS+GTT attribution is cached briefly.
-#
-# Why this module does not colour itself by used%: on this APU the iGPU has no
-# VRAM of its own. amdgpu borrows system RAM (GTT, capped by ttm.pages_limit)
-# and llama.cpp keeps a whole model there, so used% sits at ~96% whenever a
-# model is loaded and the machine is perfectly fine. The colour instead follows
-# what actually predicts a freeze: MemAvailable, PSI (how much wall-clock time
-# every task spent stalled on memory), and spill from zram to the SSD swapfile.
-# The GPU's own VRAM/GTT split lives in the APU tooltip; disks have their own
-# module.
+# Show RAM, swap, pressure, and top consumers.
+# APU model weights keep used% high during normal operation, so colour follows
+# MemAvailable and PSI instead. Cache only expensive per-process attribution.
 
-# Use a stable text prefix instead of a private-use glyph to avoid
-# missing-glyph/error-icon rendering on some font stacks.
+# Use text because private-use glyphs are missing on some font stacks.
 ICON_MEM="RAM"
 
-# Colour thresholds, tuned to warn only when a freeze is close. With a 30B
-# model loaded the machine's normal state is Available ≈ 1.2–1.7 G and PSI
-# ≈ 0.1–0.2%, and that must stay green — a warning that is on all day is not
-# a warning. PSI is "full avg10": the share of the last 10 s in which every
-# non-idle task was stalled on memory. ~10% is input starting to stutter,
-# ~25% is multi-second freezes and the last moment a terminal still answers.
-# Available is in GiB. Spill to the SSD swapfile is critical on its own: it
-# only starts once zram is full.
+# Allow normal model loads: Available 1.2–1.7 GiB and PSI 0.1–0.2%.
+# PSI full avg10 measures all-task stalls over 10 s: ~10% stutters, ~25% freezes.
+# Available thresholds use GiB. SSD spill starts once zram is full.
 PSI_WARN=10
 PSI_CRIT=25
 AVAIL_WARN_GIB=1
 AVAIL_CRIT_GIB=0.5
 
-# Per-process GTT is attributed from /proc/*/fdinfo, which costs a find plus an
-# awk each refresh. Skip it while the GPU holds less than this: desktop apps
-# keep tens of MiB there and nothing hides behind that.
+# Skip costly per-process GTT attribution while only small desktop loads exist.
 GTT_SCAN_MIN_KB=$((1024 * 1024))
 TOP_PROCS_CACHE_FILE="${XDG_RUNTIME_DIR:-/tmp}/waybar-memory-info.top-procs"
 TOP_PROCS_CACHE_STAMP="${XDG_RUNTIME_DIR:-/tmp}/waybar-memory-info.top-procs.stamp"
@@ -61,15 +44,12 @@ done < /proc/meminfo
 
 mem_total_kb=${MI[MemTotal]:-0}
 mem_avail_kb=${MI[MemAvailable]:-0}
-# GPUActive is the amdgpu GTT footprint as the kernel accounts it — the same
-# figure as mem_info_gtt_used in sysfs, but already in hand.
+# GPUActive matches sysfs mem_info_gtt_used without another read.
 gtt_used_kb=${MI[GPUActive]:-0}
 
 # ── GPU pools from the first amdgpu card ────────────────────────────────────
-# Two pools: the VRAM carve-out (fixed by the BIOS, lives OUTSIDE MemTotal) and
-# GTT (borrowed from system RAM, capped by ttm.pages_limit, INSIDE MemTotal —
-# the GTT line in the Used tree). RADV hands both to Vulkan as one device-local
-# heap, so llama.cpp fills the 4 G carve-out first and the rest lands in GTT.
+# BIOS VRAM is outside MemTotal; GTT borrows RAM inside it. RADV exposes both
+# as one device-local heap, filling the 4 GiB carve-out before GTT.
 vram_used_kb=0; vram_total_kb=0; gtt_total_kb=0
 for d in /sys/class/drm/card*/device; do
   [ -r "$d/mem_info_gtt_total" ] || continue
@@ -78,14 +58,12 @@ for d in /sys/class/drm/card*/device; do
   read -r b < "$d/mem_info_gtt_total"  2>/dev/null && gtt_total_kb=$(( b / 1024 ))
   break
 done
-# `free` semantics for Used, so the bar text stays the number it always was.
+# Match free’s Used calculation.
 mem_used_kb=$(( mem_total_kb - ${MI[MemFree]:-0} - ${MI[Buffers]:-0} - ${MI[Cached]:-0} - ${MI[SReclaimable]:-0} ))
 (( mem_used_kb < 0 )) && mem_used_kb=0
 
 # ── swap: zram (compressed in RAM) vs the swapfile (NVMe) ───────────────────
-# /proc/swaps gives used/size per device; zram's mm_stat gives what its
-# compressed pages actually occupy in RAM, which is the number that matters
-# when the question is "how much RAM is left".
+# mm_stat gives physical zram usage; /proc/swaps gives logical usage.
 zram_used_kb=0; zram_size_kb=0; file_used_kb=0; file_size_kb=0
 while read -r dev type size used _; do
   case "$dev" in
@@ -114,9 +92,8 @@ if [ -r /proc/pressure/memory ]; then
 fi
 
 # ── one awk pass turns the raw figures into every displayed number ───────────
-# The last three fields say which signal tripped: 0 normal, 1 warning,
-# 2 critical, one each for Available and PSI. Swapfile use is shown separately
-# in the tooltip, but it must not keep the module red after pressure clears.
+# Signal flags: 0 normal, 1 warning, 2 critical for Available and PSI.
+# Residual swapfile usage must not keep the module red after pressure clears.
 IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
   vram_g vram_tot_g vram_pct gtt_tot_g gtt_pct \
   zram_used_g zram_size_g zram_pct file_used_g file_size_g file_pct psi_pct \
@@ -155,12 +132,8 @@ IFS=$'\t' read -r used_g total_g avail_g used_pct apps_g gtt_g \
 )
 
 # ── top consumers: RSS + GTT, aggregated by command name ─────────────────────
-# ps does not see GTT — llama-server holding 18 GiB shows a few hundred MiB of
-# RSS — so the DRM fdinfo of every process with a /dev/dri fd is folded in.
-# Only fds pointing at /dev/dri are read (one find), and duplicate fds to the
-# same DRM client are counted once via drm-client-id. This is the expensive
-# part of the tooltip, so it is refreshed every few seconds while the base
-# RAM/PSI/GPU figures above remain live on every Waybar tick.
+# RSS excludes GTT, so add DRM fdinfo for /dev/dri descriptors, deduplicated
+# by drm-client-id. Cache this work while base RAM/PSI/GPU readings stay live.
 top_procs=""
 top_cache_valid=0
 top_now=0
@@ -236,9 +209,7 @@ printf '%s\n' "$top_now" > "$TOP_PROCS_CACHE_STAMP" 2>/dev/null || true
 fi
 
 # ── one-shot notification on entering critical ───────────────────────────────
-# Nothing here kills anything: the point is a heads-up that arrives while the
-# desktop is still responsive, so the user can close something themselves.
-# The class is only written when it changes, so the steady state costs no I/O.
+# Notify while the desktop still responds; write state only on class changes.
 last_class=""
 if [ -r "$STATE_FILE" ]; then
   read -r last_class < "$STATE_FILE" || true
@@ -257,8 +228,7 @@ fi
 ACCENT="@themeAccent@"
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
-# A ◀ on the line whose signal tripped, with the threshold it crossed, so the
-# colour never has to be decoded from memory.
+# Mark the triggering signal and threshold to explain the colour.
 marker() {
   case "$1" in
     2) printf '  ◀ critical (%s)' "$2" ;;
@@ -272,12 +242,8 @@ m_avail="$(marker "$s_avail" "&lt; $avail_lim G")"
 m_psi="$(marker "$s_psi" "&gt; $psi_lim%")"
 m_swap="$(marker "$s_swap" "spill")"
 
-# One block, one table: every pool that can fill up gets the same
-# "used/total unit [bar]" row — the 27 G the OS sees and the 4 G VRAM
-# carve-out are the same LPDDR5, so the header shows both halves of the
-# physical total. Below the table, the two figures that are not a pool:
-# Available (what the colour thresholds watch) and Apps (Used minus GTT and
-# zram's compressed store — what closing programs can give back).
+# Include both OS RAM and BIOS VRAM in the physical total. Available drives
+# colour; Apps excludes GTT and compressed zram storage.
 tooltip="<b><span foreground='$ACCENT'>MEMORY ($total_g + $vram_tot_g GiB)</span></b>
 $SEP
 <tt>RAM       $(printf '%13s' "${used_g} / ${total_g}") GiB $(progress_bar "$used_pct")

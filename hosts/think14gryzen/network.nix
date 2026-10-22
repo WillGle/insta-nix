@@ -3,9 +3,8 @@
     hostName = "think14gryzen";
 
     firewall = {
-      # "loose" required: ProtonVPN routes packets via proton0 but kernel routing
-      # table points replies via the physical NIC — strict mode drops these.
-      # mkForce keeps this pinned regardless of what other modules want.
+      # ProtonVPN replies use the physical NIC; strict reverse-path filtering
+      # drops them. Force loose mode to preserve asymmetric routing.
       checkReversePath = lib.mkForce "loose";
       trustedInterfaces = [
         "proton0"

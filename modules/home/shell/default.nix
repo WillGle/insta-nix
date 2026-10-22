@@ -149,8 +149,7 @@ _:
     direnv = {
       enable = true;
       nix-direnv.enable = true;
-      # Bash remains an external user-owned startup file. Do not add a second
-      # hook if Bash or Zsh become Home Manager-managed later.
+      # Bash startup is externally owned; avoid duplicate hooks if later managed here.
       enableBashIntegration = false;
       enableZshIntegration = false;
     };

@@ -108,9 +108,7 @@ awk -v accent="$ACCENT_COLOR" '
     }
     return arg == "" ? disp : disp " " arg
   }
-  # Rows are Pango markup: a bare & < > in a section or description breaks
-  # the parse and rofi draws the row as "DDD" (all six Audio & Brightness
-  # rows did). Everything that came from the conf is escaped.
+  # Escape config text because bare &, <, or > breaks Pango rows.
   function esc(s) { gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s); gsub(/>/, "\\&gt;", s); return s }
   function flush() {
     if (pend_combo == "") return
@@ -122,8 +120,7 @@ awk -v accent="$ACCENT_COLOR" '
   BEGIN { sec = "Basic" }
   /^# --- .* ---/ { flush(); s = $0; sub(/^# --- /, "", s); sub(/ ---.*$/, "", s); sec = s; next }
   /^# ── .* ──/   { flush(); s = $0; sub(/^# ── /, "", s); sub(/ ──.*$/, "", s); sec = s; next }
-  # Only keyboard binds: the bindm mouse drags (Super+LMB/RMB) are not
-  # shortcuts one forgets, and they cannot be launched from a menu anyway.
+  # Mouse drags cannot be launched from this menu.
   /^bind *=/ {
     line = $0; sub(/^bind *= */, "", line)
     if (match(line, /[ \t]+#.*$/)) line = substr(line, 1, RSTART - 1)
@@ -148,10 +145,7 @@ awk -v accent="$ACCENT_COLOR" '
 ' "$HYPR_CONF"
 )"
 
-# rofi returns the row index (-format i), and the command is read from that
-# same line of parsed_list. Looking the row up by its key as a substring
-# picked the first line containing it: "Super+E" (File Manager) hit
-# "Super+Enter" and launched a terminal, "Super+S" hit "Super+Shift+E".
+# Use the returned row index; substring matching can select another binding.
 idx="$(printf "%s\n" "$parsed_list" | cut -d$'\t' -f1 | rofi "${ROFI_COMMON[@]}" -format i -p "⌨ Shortcuts" -mesg "Enter runs supported app shortcuts · other rows are reference only" || true)"
 
 if [ -n "$idx" ]; then

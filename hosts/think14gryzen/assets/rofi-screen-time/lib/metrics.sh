@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Global Productivity Baselines
 export STUDY_GOAL_BASELINE_SECONDS=${STUDY_GOAL_BASELINE_SECONDS:-14400} # Default: 4 hours
 
-# Implementation logic
 
 build_metrics_context() {
   local bundle_json="$1"
@@ -83,9 +81,7 @@ build_metrics_context() {
             | sort_by(-.count, .key));
         def app_name($apps; $key):
           (($apps | map(select(.key == $key)) | .[0].name) // $key);
-        # $planned_total arrives as a parameter because the plan lives on the
-        # bundle, not on a day: reading $day.study_active here always yielded
-        # null, so the goal silently fell back to the baseline every time.
+        # The plan belongs to the bundle, not the day.
         def annotate_day($map; $planned_total):
           . as $day
           | ($day.total_seconds // 0) as $total
@@ -107,10 +103,7 @@ build_metrics_context() {
         | (if $total > 0.000001 then (($day.switch_count // 0) / ($total / 3600)) else null end) as $raw_switch_rate
         | (if $total > 0.000001 then (($day.session_count // 0) / ($total / 3600)) else null end) as $raw_session_density
         | (if $total > 0 then (($category_seconds["Communication"] // 0) / $total) else 0 end) as $raw_comm_load
-        # Three ratios that the output below surfaces under two names each --
-        # once beside the category breakdown, once beside the metrics -- because
-        # different consumers read different paths. Bound once here so the two
-        # copies cannot drift into two different formulas.
+        # Reuse these ratios at both output paths so their formulas stay consistent.
         | (if $total > 0 then 1 - (($category_seconds["Unknown"] // 0) / $total) else 0 end) as $known_category_ratio
         | (if $total > 0 then (($category_seconds["Browser"] // 0) / $total) else 0 end) as $browser_ambiguity_ratio
         | (if $total > 0 then ((($category_seconds["Work"] // 0) + ($category_seconds["Study"] // 0)) / $total) else 0 end) as $work_study_ratio
@@ -291,8 +284,7 @@ build_metrics_context() {
           category_map_size: ($bundle.category_map | length),
           study_active: $bundle.study_active,
           title_tracking: false,
-          # Only today is measured against the running plan; past days are
-          # judged against the plain baseline.
+          # Compare only today against the running plan.
           today: ($bundle.today | annotate_day($bundle.category_map; ($bundle.study_active.planned_total_seconds // 0))),
           yesterday: ($bundle.yesterday | annotate_day($bundle.category_map; 0)),
           trailing: ($bundle.trailing | map(annotate_day($bundle.category_map; 0)))

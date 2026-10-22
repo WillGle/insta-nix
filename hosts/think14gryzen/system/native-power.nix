@@ -25,10 +25,8 @@ let
       text = body;
     };
 
-  # RyzenAdj remains available for later, isolated Curve Optimizer work. It is
-  # not part of the daily profile controller: the Lenovo platform profile,
-  # amd-pstate EPP, and the optional cpufreq policy cap are the active policy
-  # path.
+  # Daily profiles use platform profile, EPP, and optional frequency caps.
+  # RyzenAdj is reserved for separate Curve Optimizer work.
   nativeProfileRows = [
     [
       "performance"
@@ -99,9 +97,8 @@ let
     ];
   };
 
-  # Root-only and intentionally isolated from daily profile switching. The
-  # helper talks to ryzen_smu directly and has no service, udev rule, or sudo
-  # grant; the benchmark supplies one interactive sudo timestamp when needed.
+  # Direct ryzen_smu access requires interactive sudo; no service, udev
+  # rule, or sudo grant ties this helper to daily profile switching.
   coCurveControl = mkSystemScript {
     name = "co-curve-control";
     runtimeInputs = with pkgs; [

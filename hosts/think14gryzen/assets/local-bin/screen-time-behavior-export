@@ -34,9 +34,7 @@ date_epoch() {
   date -d "$1" +%s 2>/dev/null || printf '0\n'
 }
 
-# The same map the popup classifies with. Day files store no category of their
-# own, so without this the Communication term of cognitive_load_score summed
-# over an app field that never exists and was always zero.
+# Day files lack categories; use the popup map for cognitive load scoring.
 load_category_map() {
   local file="${CATEGORY_MAP_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/rofi-screen-time/category-map.json}"
   if [ -r "$file" ]; then
@@ -76,9 +74,7 @@ collect_files() {
   done
 }
 
-# The defs both output formats share. The CSV used to read circadian_phase,
-# cognitive_load_score and the other derived fields straight off the raw day
-# files, where none of them exist -- so those columns were always blank.
+# Derive fields absent from raw day files for both export formats.
 jq_prelude() {
   cat <<'JQ'
 def slot_time($minutes):
@@ -130,9 +126,7 @@ def day_summary:
       end
     ) | (.max_run / 3 | floor)) as $ult_score
   | ($slots | to_entries | map(select(.value > 0)) | if length == 0 then {key: -1} else max_by(.value) end | .key) as $peak_key
-  # Same definition as the popup's metrics.sh: the hour the day was last
-  # updated, not the busiest slot. Two different meanings under one field name
-  # made the exported series incomparable with what the dashboard showed.
+  # Match the popup: hour of the last update, not the busiest slot.
   | (
       if ($day.updated_at != null and ($day.updated_at | contains(":"))) then
         ($day.updated_at | split("T") | last | split(":") | .[0] | tonumber? // (now | (. / 3600 % 24 | floor)))
@@ -372,8 +366,7 @@ mapfile -t FILES < <(collect_files)
 
 case "$FORMAT" in
   json)
-    # The no-files case differs only in where the empty array comes from, so
-    # the argument list is built once.
+    # Share the argument list with the empty-files case.
     json_args=(
       --arg generated_at "$(date --iso-8601=seconds)"
       --arg from_date "$FROM_DATE"

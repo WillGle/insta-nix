@@ -76,8 +76,7 @@ in
         ];
       });
 
-      # Lives here rather than in waybar-helpers because it is a capture tool
-      # first — sibling of screenshot, bound to a key — and a bar module second.
+      # Keep the recording helper with capture tools; Waybar also uses it.
       ".local/bin/screen-rec" = scriptFile (mkScript {
         name = "screen-rec";
         runtimeInputs = with pkgs; [

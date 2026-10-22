@@ -106,11 +106,8 @@ in
         inherit themeAccent;
         networkLib = "${networkLib}";
       };
-      # systemd, not bluez, is what carries Bluetooth here: the script reads
-      # BlueZ's properties with busctl. bluetoothctl would do the same job but
-      # registers and tears down an advertisement monitor on every invocation,
-      # which at this module's 5s interval flooded bluetoothd's journal with
-      # ~1700 lines an hour. busctl reads the property silently.
+      # Use busctl: bluetoothctl creates advertisement monitors on each poll,
+      # flooding bluetoothd's journal.
       runtimeInputs = with pkgs; [
         coreutils
         gawk

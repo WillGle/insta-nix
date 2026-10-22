@@ -1,8 +1,6 @@
 {
-  # Decorative palette. Wallpaper-driven at runtime: matugen overwrites every
-  # value below, so nothing here may carry meaning on its own.
-  # Runtime generation is intentionally limited to desktop/session surfaces;
-  # terminal and shell consumers use these values statically until migrated.
+  # Matugen replaces decorative colors for desktop/session surfaces.
+  # Terminal and shell consumers use these values statically.
   colors = {
     base = "#0d1117";
     mantle = "#161b22";
@@ -16,16 +14,10 @@
     cyan = "#39c5cf";
   };
 
-  # Signal palette — CONTRACT: these are the only colors allowed to encode a
-  # state, a severity level or an indicator line (waybar border-top /
-  # border-bottom). They are deliberately kept out of `colors` so the runtime
-  # theme generator can never reach them: matugen flattens every semantic role
-  # onto Material tone 80, which collapses hue *and* luminance and destroys the
-  # warning ladder. See modules/nixos/desktop/theme.nix for the uniqueness assertion.
-  #
-  # Values are chosen to separate on hue AND luminance, because a 2px indicator
-  # line carries most of its weight through brightness contrast:
-  #   eco 76% > notice 45% > warning 37% ~ ok 36% > muted 34% > critical 26%
+  # Only signal colors encode states, severity, and indicator lines.
+  # Keep them outside colors: Matugen collapses hues and brightness,
+  # erasing severity differences. Distinct hues and brightness keep thin
+  # indicators readable; modules/nixos/desktop/theme.nix checks uniqueness.
   signal = {
     ok = "#3fb950"; # xanh lá  — trạng thái tốt / mức thấp
     notice = "#58a6ff"; # xanh dương — thông tin / mức trung bình
@@ -42,9 +34,7 @@
       size = 13;
     };
 
-    # Rofi renders font sizes as Pango *points*, not pixels, so it cannot share
-    # `ui.size`: 13 there means roughly 17px and blows the menus up by a third.
-    # Separate knob, separate unit.
+    # Rofi uses Pango points; ui.size is in pixels.
     rofi = {
       size = 10;
     };
@@ -68,8 +58,7 @@
   };
 
   wallpaper = {
-    # User-selected wallpapers live in XDG state; no personal image belongs in
-    # the flake source. A packaged fallback can be supplied by a host if needed.
+    # Keep personal wallpapers in XDG state; hosts may provide a packaged fallback.
     source = null;
   };
 

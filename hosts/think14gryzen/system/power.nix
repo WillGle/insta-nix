@@ -4,18 +4,15 @@
 }:
 {
   services = {
-    # Power daemon (pick one).
     power-profiles-daemon.enable = true;
 
-    # Suspend on lid close when running on battery; keep awake on AC or when docked.
     logind.settings.Login = {
       HandleLidSwitch = "suspend";
       HandleLidSwitchExternalPower = "ignore";
       HandleLidSwitchDocked = "ignore";
     };
-    # AMD power policy is managed only by native-power-profile and
-    # power-profiles-daemon. cpupower-gui is intentionally disabled because
-    # its persisted settings replayed a 3.8 GHz cap after profile changes.
+    # native-power-profile and power-profiles-daemon own AMD power policy.
+    # cpupower-gui replayed a persisted 3.8 GHz cap after profile changes.
     cpupower-gui.enable = false;
   };
 
@@ -29,9 +26,8 @@
       "msr"
       "ryzen_smu"
     ];
-    # Mainline from unstable (7.2 as of 2026-08): ~1.5y of amdgpu, amd-pstate
-    # (per-core EPP boost), and sched_ext maturity over the old 6.12 LTS pin.
-    # The pin existed for ryzen-smu, which builds against 7.2 since 2026-04.
+    # Use mainline for newer amdgpu and amd-pstate support; ryzen-smu builds
+    # without the former LTS pin.
     kernelPackages = pkgsUnstable.linuxPackages_latest;
     extraModulePackages = [ pkgsUnstable.linuxPackages_latest.ryzen-smu ];
 
@@ -39,10 +35,8 @@
     blacklistedKernelModules = [ "lenovo_wmi_gamezone" ];
 
     kernel.sysctl = {
-      # zram-friendly swapping (tune 10-30).
       "vm.swappiness" = 20;
-      # zram is per-page CPU-decompressed: disable swap readahead so one fault
-      # doesn't decompress 8 pages to serve 1. Recommended for compressed RAM swap.
+      # Disable readahead to avoid decompressing unused zram pages.
       "vm.page-cluster" = 0;
     };
   };

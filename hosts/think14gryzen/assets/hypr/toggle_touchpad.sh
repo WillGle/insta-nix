@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Touchpad lock. The state lives in a config fragment that hyprland.conf sources
-# (__TOUCHPAD_STATE_CONF__), because `hyprctl reload` — which theme-apply issues
-# on every wallpaper change — drops runtime keywords and would silently unlock.
-# The keyword is still issued alongside the write so the change takes effect
-# without waiting for a reload.
+# Save the lock in the sourced fragment so it survives Hyprland reloads.
+# Apply the keyword too, so the change is immediate.
 #
 #   toggle_touchpad.sh           toggle the lock
 #   toggle_touchpad.sh --reset   clear the lock (run at login)
@@ -51,15 +48,13 @@ if ! flock 9; then
   exit 1
 fi
 
-# A lock is recorded as the disabling device block; anything else (empty file,
-# missing file) means unlocked.
+# A missing or empty state file means unlocked.
 locked=0
 if [ -f "$STATE_FILE" ] && grep -q 'enabled = false' "$STATE_FILE"; then
   locked=1
 fi
 
-# Rewrite via a temporary file so a reload racing the write never sources a
-# half-written block.
+# Rename atomically so reloads cannot read a partial device block.
 write_state() {
   local body="$1" tmp
   tmp="$(mktemp "$STATE_FILE.XXXXXX")"

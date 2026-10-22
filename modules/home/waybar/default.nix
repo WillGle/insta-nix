@@ -16,10 +16,8 @@ in
 
   wayland.systemd.target = "hyprland-session.target";
 
-  # The desktop module owns the theme values; this module owns Waybar's
-  # generated files, enablement, and Hyprland-session lifecycle. The package
-  # also ships a fallback unit in the per-user profile; this ~/.config unit is
-  # the intentional Home Manager override and is the canonical unit source.
+  # Home Manager owns the Hyprland-session unit, overriding the package fallback.
+  # Theme values come from the desktop module.
   systemd.user.services.waybar = {
     Unit.PartOf = lib.mkForce [ "hyprland-session.target" ];
     Install.WantedBy = lib.mkForce [ "hyprland-session.target" ];

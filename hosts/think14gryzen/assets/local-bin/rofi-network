@@ -5,9 +5,7 @@ export PATH="$PATH:/run/current-system/sw/bin"
 
 ROFI_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/network.rasi"
 
-# Shared nmcli query helpers, substituted to a store path at build time so the
-# two callers cannot drift apart again. See the header of that file for the two
-# same-named helpers that deliberately stay private to each caller.
+# Resolve shared nmcli helpers to a store path at build time.
 # shellcheck source=/dev/null
 . "@networkLib@"
 

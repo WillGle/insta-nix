@@ -8,10 +8,8 @@ let
   bluemanWithoutApplet = pkgs.callPackage ../../../pkgs/blueman { };
 in
 {
-  # NixOS keeps Blueman's package, D-Bus integration, and mechanism service;
-  # Home Manager owns the applet lifecycle for the Hyprland session. The
-  # package's applet unit and XDG autostart entry are removed from the
-  # system package so Home Manager is the only applet lifecycle owner.
+  # NixOS owns Blueman's D-Bus integration and mechanism service.
+  # Remove competing launchers so Home Manager alone starts the applet.
   services.blueman.enable = lib.mkForce false;
   services.dbus.packages = [ bluemanWithoutApplet ];
   systemd.packages = [ bluemanWithoutApplet ];
@@ -28,10 +26,7 @@ in
     grim
     hyprlock
     hyprpaper
-    # Already a transitive dependency of half the desktop; listed here purely
-    # so `notify-send` lands on the interactive PATH. The scripts in this repo
-    # do not read it from here — they pin it through writeShellApplication's
-    # runtimeInputs, which is why they kept working while the shell had none.
+    # Expose notify-send on the interactive PATH; scripts pin their own copy.
     libnotify
     playerctl
     (rofi.override {
@@ -42,11 +37,7 @@ in
     })
     rofi-power-menu
     slurp
-    # Screen recording for the waybar button and Super+R. Picked over
-    # wl-screenrec (which drags in a second ffmpeg, +31 MB) and
-    # gpu-screen-recorder (whose KMS helper needs CAP_SYS_ADMIN): this one
-    # adds 0.2 MB because it reuses the ffmpeg already here, and speaks the
-    # same wlr-screencopy protocol grim does.
+    # Reuse the existing ffmpeg for recording without a privileged KMS helper.
     wf-recorder
     wl-clipboard
     wlr-randr
@@ -75,12 +66,6 @@ in
     ripgrep
     ryzen-monitor-ng
     s-tui
-    # GUI model runner dropped 2026-08-24: the llm-* belt (llmfit / llm-pull /
-    # llm-list / llm-fit) plus pi covers every role it filled, and
-    # keeping it would mean a second package needing the scoped unstable
-    # RADV override from hosts/think14gryzen/system/llm.nix. Models are untouched —
-    # /mnt/vault/lmstudio-models is the default path the scripts use, and
-    # LLM_MODELS_DIR overrides it.
     stressapptest
     sysbench
     vulkan-tools
@@ -89,16 +74,8 @@ in
     clinfo
     amdgpu_top
     radeontop
-    # ROCm: diagnostics only. The HIP compute libraries (rocblas, hipblas,
-    # hipblaslt, rocsolver, rocsparse, hipsparse, rocfft, hipfft, rocrand,
-    # hiprand, rocprim, rocthrust, hipcub, miopen, rocm-bandwidth-test —
-    # ~7.8 GiB of closure) were the "Tier A" runtime kept on 2026-06-07 for
-    # local training. The 2026-08-22 verdict (docs/archive/rocm/README.md)
-    # closed that lane: gfx1103 is not a supported ROCm target, training on
-    # it is stochastic, and it moved to cloud GPUs; llama.cpp runs on Vulkan
-    # (hosts/think14gryzen/system/llm.nix). Nothing on this host linked against those
-    # libraries afterwards, so they were removed 2026-08-25. Re-adding is a
-    # line here, cache-served. OpenCL (clr/clr.icd) stays in extraPackages.
+    # ROCm diagnostics only: gfx1103 is unsupported for training.
+    # llama.cpp uses Vulkan; OpenCL remains in graphics.extraPackages.
     rocmPackages.rocminfo
     rocmPackages.rocm-smi
     rocmPackages.rocm-runtime
@@ -119,45 +96,30 @@ in
     udiskie
     usbutils
     bluez-tools
-    # GTK4 Bluetooth manager, and the only one surfaced in launchers — see
-    # hosts/think14gryzen/home.nix, which hides blueman-manager's entry.
-    # blueman-applet stays as the pairing agent (the NixOS package and
-    # Home Manager user unit); this replaces only blueman-manager's window,
-    # whose pair -> connect -> trust flow is three separate right-click menus
-    # where GNOME's panel is one click. That split is not cosmetic:
-    # connecting without pairing leaves an unencrypted link that
-    # HID-over-GATT cannot use, and trusting it persists the dead entry.
-    # modules/nixos/hardware/bluetooth.nix sweeps up whatever still slips through.
-    #
-    # Unstable, not stable, as a mitigation rather than a proven fix. Stable's
-    # 0.6.5 hangs on startup often but not always: the process reaches "store
-    # folder is:", then parks its main thread on a futex and never maps a
-    # window, surviving a 60s wait and unaffected by GSK_RENDERER (cairo, gl,
-    # vulkan all hang the same way). Other runs of the same binary open fine,
-    # so this is a race, not a hard break, and the trigger was not pinned
-    # down. 0.6.6 came up cleanly every time it was tried. Revisit if the
-    # hang shows up again.
-    pkgsUnstable.overskride
+    # Use patched Overskride to pair and save trust before connecting.
+    # Blueman remains the pairing agent; home.nix hides its manager.
+    # Unstable mitigates intermittent 0.6.5 startup hangs; the cause is unproven.
+    (pkgsUnstable.callPackage ../../../pkgs/overskride { })
 
     # Shell & version control
     bash
     git
     gh
 
-    # Networking — packet capture & protocol analysis
+    # Packet capture
     tcpdump
     termshark
     ngrep
     tcpflow
 
-    # Networking — scanning & recon
+    # Network scanning
     nmap
     arp-scan
     whois
     hping
     macchanger
 
-    # Networking — diagnostics & troubleshooting
+    # Network diagnostics
     bind
     mtr
     traceroute
@@ -167,13 +129,13 @@ in
     ethtool
     ipcalc
 
-    # Networking — bandwidth & traffic monitoring
+    # Traffic monitoring
     bmon
     iftop
     nload
     vnstat
 
-    # Networking — core stack (routing, bridges, namespaces, firewall)
+    # Routing and firewall tools
     iproute2
     nettools
     bridge-utils
@@ -181,12 +143,12 @@ in
     conntrack-tools
     nftables
 
-    # Networking — VPN / overlay / virtual networking
+    # VPN and overlay tools
     wireguard-tools
     openvpn
     dnsmasq
 
-    # Deep Linux tracing & observability
+    # Tracing tools
     strace
     ltrace
     lsof

@@ -1,6 +1,6 @@
 @theme "~/.config/rofi/theme.rasi"
 
-/* Window switching is a scan task, so titles stay in one readable column. */
+/* Keep window titles in one readable column. */
 
 configuration {
   sidebar-mode: true;

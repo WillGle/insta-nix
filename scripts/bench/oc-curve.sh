@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# The redirects intentionally belong to the calling user so benchmark logs are
-# writable without granting the helper any filesystem access.
+# Keep log redirects owned by the caller, outside the privileged helper.
 # shellcheck disable=SC2024
 set -euo pipefail
 export LC_ALL=C
