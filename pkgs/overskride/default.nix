@@ -1,6 +1,7 @@
 { overskride }:
 
 overskride.overrideAttrs (old: {
+  # Upstream 0.6.6 connects twice after pairing and leaves trust unchanged.
   # Remove when upstream saves trust on explicit connect and connects only once.
   postPatch = (old.postPatch or "") + ''
     # Connect once, after pairing and saving consent for the selected device.
