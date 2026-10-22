@@ -36,16 +36,16 @@ load_runtime_palette() {
   values="$(
     jq -er '
       [
-        .colors.surface.default,
-        .colors.surface_container.default,
-        .colors.on_surface.default,
-        .colors.on_surface_variant.default,
-        .colors.primary.default,
-        .colors.secondary.default,
-        .colors.tertiary.default,
-        .colors.error.default,
-        .palettes.tertiary["70"],
-        .palettes.secondary["70"]
+        .colors.surface.default.color,
+        .colors.surface_container.default.color,
+        .colors.on_surface.default.color,
+        .colors.on_surface_variant.default.color,
+        .colors.primary.default.color,
+        .colors.secondary.default.color,
+        .colors.tertiary.default.color,
+        .colors.error.default.color,
+        .palettes.tertiary["70"].color,
+        .palettes.secondary["70"].color
       ] as $palette
       | if all($palette[]; type == "string" and test("^#[0-9A-Fa-f]{6}$"))
         then $palette | @tsv
@@ -693,7 +693,7 @@ build_desktop_cache() {
           key="$(normalize_class "$wmclass")"
           [ -n "$key" ] && printf '%s\t%s\t%s\n' "$key" "$name" "$icon"
         fi
-      done < <(find "$dir" -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null)
+      done < <(find -L "$dir" -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null)
     done
   } | awk -F '\t' '!seen[$1]++' >"$tmp"
 

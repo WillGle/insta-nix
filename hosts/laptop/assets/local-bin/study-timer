@@ -66,16 +66,16 @@ notify() {
   local title="$1"
   local body="$2"
   if command -v notify-send >/dev/null 2>&1; then
-    notify-send -a "study-timer" "$title" "$body"
+    notify-send -a "study-timer" "$title" "$body" 8>&-
   fi
 }
 
 refresh_screen_time_cache() {
-  systemctl --user start "$CACHE_SERVICE_NAME" >/dev/null 2>&1 || true
+  systemctl --user start "$CACHE_SERVICE_NAME" 8>&- >/dev/null 2>&1 || true
 }
 
 refresh_waybar_screen_time() {
-  pkill -RTMIN+"$WAYBAR_SCREEN_TIME_SIGNAL" waybar >/dev/null 2>&1 || true
+  pkill -RTMIN+"$WAYBAR_SCREEN_TIME_SIGNAL" -x waybar 8>&- >/dev/null 2>&1 || pkill -RTMIN+"$WAYBAR_SCREEN_TIME_SIGNAL" -x .waybar-wrapped 8>&- >/dev/null 2>&1 || true
 }
 
 epoch_from_iso() {
@@ -612,6 +612,14 @@ fi
 
 if [ -n "$DURATION_MINUTES" ] && [ -z "$SESSION_COUNT" ]; then
   SESSION_COUNT="1"
+fi
+
+# Serialize whole session transitions separately from the shared day-file lock.
+# Notification and refresh commands close fd 8 so descendants cannot retain it.
+if [ "$COMMAND" != "status" ]; then
+  ensure_dirs
+  exec 8>>"$STATE_DIR/.study-session.lock"
+  flock 8
 fi
 
 case "$COMMAND" in

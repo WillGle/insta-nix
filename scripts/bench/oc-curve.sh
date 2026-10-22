@@ -421,7 +421,7 @@ journal_log="$output/kernel-journal.log"
 journal_error_log="$output/kernel-journal.error.log"
 journal_baseline_log="$output/kernel-journal-before.log"
 printf 'timestamp_utc,phase,elapsed_s,tctl_c,amdgpu_power_w,freq_avg_mhz,freq_max_mhz,freq_min_mhz,policy_max_mhz,hardware_max_mhz,cpu_busy_pct,load1,thermal_throttle_count,kernel_fault\n' >"$telemetry"
-printf 'phase,status,elapsed_s,peak_tctl_c,thermal_warning,co_readback,kernel_fault,log\n' >"$summary"
+printf 'phase\tstatus\telapsed_s\tpeak_tctl_c\tthermal_warning\tco_readback\tkernel_fault\tlog\n' >"$summary"
 : >"$commands"
 trap on_exit EXIT
 trap 'exit 130' INT TERM

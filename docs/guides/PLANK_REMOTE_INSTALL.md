@@ -51,6 +51,14 @@ test -s /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
 ssh-keygen -l -f /etc/nixos/.local/remote-install/seed/etc/plank/authorized_keys
 ```
 
+Seed chỉ khởi tạo `/home/will/.ssh/authorized_keys` khi tệp đích chưa tồn tại.
+Activation xóa seed trên máy đích sau khi cài khóa thành công hoặc xác nhận
+tệp đích đã hợp lệ; seed gốc trên máy điều khiển vẫn được giữ. Sau đó, thay hoặc
+thu hồi khóa trực tiếp trong tệp đích; rebuild giữ nguyên các khóa này.
+Tệp đích đã tồn tại nhưng rỗng hoặc không hợp lệ sẽ làm activation báo lỗi,
+không chép lại hay xóa seed. Xóa tệp đích sau bootstrap cũng không khôi phục
+khóa từ seed đã dùng.
+
 ### 4. Thực hiện cài đặt
 
 #### Cách 1: Đồng bộ mã nguồn từ máy điều khiển (Khuyên dùng)

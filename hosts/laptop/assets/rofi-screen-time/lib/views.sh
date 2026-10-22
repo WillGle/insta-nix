@@ -148,7 +148,7 @@ momentum_sparkline_from_json() {
   done < <(
     printf '%s' "$slots_bundle_json" | jq -r '
       . as $bundle
-      | ([.[] | .[]] | max // 0) as $max
+      | ([range(0; 48) as $i | [$bundle[] | .[$i] // 0] | add // 0] | max // 0) as $max
       | ($bundle | to_entries) as $cats
       | range(0; 48)
       | . as $i
@@ -382,7 +382,8 @@ render_digital_health() {
         ($wb.confidence // "Medium"),
         ($wb.untracked_percent // 0),
         (if (.today.metrics.cognitive_load_score // 0) > 50 then "y" else "n" end),
-        (if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end)
+        (if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end),
+        (if $wb.available == true then ($wb.value | round) else 0 end)
       ] | map(tostring) | join(([0] | implode))')
   eye_risk="${f[0]}"; cog_load="${f[1]}"; circ_phase="${f[2]}"; ultr_score="${f[3]}"
   rec_gaps="${f[4]}"; afi="${f[5]}"; wellbeing_val="${f[6]}"; confidence="${f[7]}"; untracked="${f[8]}"
@@ -397,8 +398,7 @@ render_digital_health() {
 
   # Use bars for ratios, pips for counts, and severity colours for ranks.
   local bar_w=26
-  local wb_bar_value="$wellbeing_val"
-  [ "$wb_bar_value" = "—" ] && wb_bar_value=0
+  local wb_bar_value="${f[11]}"
   local cog_bar_value="$cog_load"
   [ "$cog_bar_value" = "—" ] && cog_bar_value=0
 
@@ -729,7 +729,7 @@ render_baseline_summary() {
       (.baseline.deltas.focus_score.vs_avg7 // ""),
       (.baseline.deltas.fragmentation_score.vs_avg7 // ""),
       (.baseline.deltas.study_ratio.vs_avg7 // "")
-    ] | map(tostring) | join(([0] | implode))')
+    ] | .[] | tostring + "\u0000"')
   active_delta="${f[0]}"; active_avg="${f[1]}"; focus_delta="${f[2]}"; frag_delta="${f[3]}"; study_delta="${f[4]}"
 
   printf '%s\n%s\n%s\n%s' \
@@ -778,7 +778,7 @@ render_behavior_summary() {
       (.today.metrics.safe_total_seconds // .today.total_seconds // 0),
       (.today.behavior.classified_transitions.cross_context // 0),
       (.baseline.deltas.switch_rate.avg7 // "")
-    ] | map(tostring) | join(([0] | implode))')
+    ] | .[] | tostring + "\u0000"')
   longest="${f[0]}"; current="${f[1]}"; deep="${f[2]}"; short="${f[3]}"
   top_label="${f[4]}"; top_count="${f[5]}"; switch_rate="${f[6]}"
 
