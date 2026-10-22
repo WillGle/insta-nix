@@ -7,10 +7,9 @@
 let
   llamaCppVulkan = pkgsUnstable.llama-cpp.override { vulkanSupport = true; };
 
-  # Unstable RADV improved measured llama.cpp prefill by about 30%.
-  # Keep it scoped: system-wide use broke stable applications (see graphics.nix).
-  # This requires llamaCppVulkan from pkgsUnstable for matching libdrm;
-  # remove the wrapper if llama.cpp moves to stable.
+  # Keep unstable RADV scoped to llama.cpp (see graphics.nix).
+  # Use the same package set for llama.cpp and RADV to avoid mixed runtime ABIs;
+  # reassess this wrapper when changing either package. Performance is unverified.
   radvUnstableIcd = "${pkgsUnstable.mesa}/share/vulkan/icd.d/radeon_icd.x86_64.json";
 
   llamaCppWrapped = pkgs.symlinkJoin {

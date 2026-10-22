@@ -20,7 +20,7 @@
       vulkan-loader
       vulkan-tools
       vulkan-validation-layers
-      # Keep libva and Mesa on the same release to preserve the VA driver ABI.
+      # Keep libva and Mesa in the same package set to preserve the VA driver ABI.
       libva
       libva-utils
       libva-vdpau-driver

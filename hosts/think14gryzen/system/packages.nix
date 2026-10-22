@@ -98,7 +98,6 @@ in
     bluez-tools
     # Use patched Overskride to pair and save trust before connecting.
     # Blueman remains the pairing agent; home.nix hides its manager.
-    # Unstable mitigates intermittent 0.6.5 startup hangs; the cause is unproven.
     (pkgsUnstable.callPackage ../../../pkgs/overskride { })
 
     # Shell & version control

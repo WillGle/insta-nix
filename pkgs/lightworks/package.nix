@@ -117,7 +117,7 @@ in
 buildFHSEnv {
   inherit (lightworks) pname version;
 
-  # Use NixOS ALSA/PipeWire configuration to avoid the unusable sndio fallback.
+  # 2026.1.0 falls back to broken sndio without NixOS ALSA configuration.
   # Remove when bundled audio opens the default device at 48 kHz.
   targetPkgs = _pkgs: [
     lightworks

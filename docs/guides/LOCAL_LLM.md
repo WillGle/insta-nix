@@ -1,8 +1,8 @@
 # Hướng dẫn chạy LLM cục bộ — think14gryzen (Radeon 780M / Vulkan)
 
 Tài liệu thiết lập và quy trình vận hành LLM cục bộ trên chip đồ họa tích hợp Radeon 780M:
-- **Tốc độ tối đa:** Sử dụng backend `llama.cpp` Vulkan (nhanh hơn ~1.8 lần so với engine của Ollama).
-- **Chống tràn bộ nhớ:** Tự động tính toán dung lượng KV-cache để đảm bảo toàn bộ ngữ cảnh nằm trong GPU/GTT, không tràn xuống CPU.
+- **Backend:** Sử dụng `llama.cpp` Vulkan. Tốc độ phụ thuộc mô hình, ngữ cảnh và phiên bản driver; chưa có phép đo so sánh hiện tại với Ollama.
+- **Ước lượng bộ nhớ:** `llm-fit` ước lượng dung lượng mô hình và KV-cache; kết quả không bảo đảm tránh OOM khi ứng dụng khác đang dùng RAM/GTT.
 - **Tính khai báo:** Toàn bộ công cụ và cấu hình GTT 22 GiB (`ttm.pages_limit=5767168`) được tích hợp sẵn trong cấu hình NixOS của máy trạm.
 
 ## 1. Bảng công cụ quản trị
