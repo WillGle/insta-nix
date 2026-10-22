@@ -14,7 +14,7 @@
 
   networking.firewall.allowedTCPPorts = [ 2222 ];
 
-  # Key seed copied into the target root before nixos-install.
+  # One-use bootstrap seed copied into the target root before nixos-install.
   system.activationScripts.plankAuthorizedKeySeed = {
     deps = [ "users" ];
     text = ''
@@ -25,22 +25,32 @@
       seed=/etc/plank/authorized_keys
       target=/home/will/.ssh/authorized_keys
 
-      if [ -e "$seed" ]; then
+      if [ -e "$target" ] || [ -L "$target" ]; then
+        if ! valid_authorized_keys "$target"; then
+          echo "FATAL: plank SSH authorized_keys is empty or invalid: $target" >&2
+          exit 1
+        fi
+
+        chown will:users /home/will/.ssh "$target"
+        chmod 700 /home/will/.ssh
+        chmod 600 "$target"
+      elif [ -e "$seed" ]; then
         if ! valid_authorized_keys "$seed"; then
           echo "FATAL: plank SSH key seed is empty or invalid: $seed" >&2
           exit 1
         fi
 
-        install -d -m 700 -o will -g users /home/will/.ssh
-        install -m 600 -o will -g users "$seed" "$target"
-      elif valid_authorized_keys "$target"; then
-        chown will:users /home/will/.ssh "$target"
-        chmod 700 /home/will/.ssh
-        chmod 600 "$target"
+        if ! install -d -m 700 -o will -g users /home/will/.ssh ||
+          ! install -m 600 -o will -g users "$seed" "$target"; then
+          echo "FATAL: could not install plank SSH authorized_keys: $target" >&2
+          exit 1
+        fi
       else
         echo "FATAL: plank requires a valid SSH key in $seed or $target" >&2
         exit 1
       fi
+
+      rm -f -- "$seed"
     '';
   };
 }

@@ -182,7 +182,7 @@ bench_record_tool_version() {
   local version
 
   if [ "$tool" = llama-bench ]; then
-    version='llama-bench does not expose a version option'
+    version="$("$tool" --version 2>&1 | sed -n '/^version:/ { p; q; }' || true)"
   else
     version="$("$tool" --version 2>&1 | sed -n '1p' || true)"
   fi

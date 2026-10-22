@@ -13,7 +13,7 @@ ACCENT_COLOR="${THEME_STATIC_ACCENT:-#89b4fa}"
 THEME_PALETTE_FILE="${THEME_GENERATED_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/theme/generated}/palette.json"
 runtime_accent=""
 if [ -r "$THEME_PALETTE_FILE" ]; then
-  runtime_accent="$(jq -er '.colors.primary.default | select(type == "string" and test("^#[0-9A-Fa-f]{6}$"))' "$THEME_PALETTE_FILE" 2>/dev/null || true)"
+  runtime_accent="$(jq -er '.colors.primary.default.color | select(type == "string" and test("^#[0-9A-Fa-f]{6}$"))' "$THEME_PALETTE_FILE" 2>/dev/null || true)"
   [ -n "$runtime_accent" ] && ACCENT_COLOR="$runtime_accent"
 fi
 

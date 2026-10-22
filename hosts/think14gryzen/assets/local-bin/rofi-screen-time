@@ -14,6 +14,7 @@ CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
 
 VIEW="summary"
 TARGET_DATE="$(date +%F)"
+force_refresh=false
 
 palette_stamp() {
   local digest=""
@@ -144,7 +145,7 @@ while :; do
   theme_str=""
   rows_file=""
 
-  if can_use_default_cache; then
+  if [ "$force_refresh" = false ] && can_use_default_cache; then
     theme_str="$(cat "$(default_theme_cache_file)")"
     rows_file="$(default_rows_cache_file)"
     refresh_default_cache_async
@@ -159,6 +160,7 @@ while :; do
     fi
     rm -f "$local_theme_file"
   fi
+  force_refresh=false
 
   if ! selection_idx="$(
     cat "$rows_file" \
@@ -212,7 +214,7 @@ while :; do
       VIEW="$(printf '%s' "$selection" | cut -d: -f4)"
       ;;
     refresh:*)
-      :
+      force_refresh=true
       ;;
     *)
       exit 0

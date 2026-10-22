@@ -26,9 +26,9 @@ load_runtime_palette() {
   values="$(
     jq -er '
       [
-        .colors.surface.default,
-        .colors.on_surface_variant.default,
-        .colors.primary.default
+        .colors.surface.default.color,
+        .colors.on_surface_variant.default.color,
+        .colors.primary.default.color
       ] as $palette
       | if all($palette[]; type == "string" and test("^#[0-9A-Fa-f]{6}$"))
         then $palette | @tsv

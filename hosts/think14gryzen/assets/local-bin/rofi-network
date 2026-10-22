@@ -36,8 +36,17 @@ first_line() {
   strip_ansi "$1" | sed -n '1p'
 }
 
+escape_markup() {
+  local s="${1:-}"
+  s="${s//&/"&amp;"}"
+  s="${s//</"&lt;"}"
+  s="${s//>/"&gt;"}"
+  printf '%s' "$s"
+}
+
 refresh_waybar_network() {
-  pkill -RTMIN+"$WAYBAR_NETWORK_SIGNAL" waybar >/dev/null 2>&1 || true
+  pkill -RTMIN+"$WAYBAR_NETWORK_SIGNAL" -x waybar >/dev/null 2>&1 || true
+  pkill -RTMIN+"$WAYBAR_NETWORK_SIGNAL" -x .waybar-wrapped >/dev/null 2>&1 || true
 }
 
 active_wifi_ap_line() {
@@ -153,10 +162,10 @@ wifi_network_entries() {
           "$b" \
           "$prefix" \
           "$(signal_icon "$sig")" \
-          "$s" \
+          "$(escape_markup "$s")" \
           "${sig:-0}" \
           "$(band_label "$freq")" \
-          "$(security_label "$sec")"
+          "$(escape_markup "$(security_label "$sec")")"
       done
 }
 
@@ -243,7 +252,7 @@ connect_wired_network() {
     while IFS=: read -r iface state; do
       [ -n "$iface" ] || continue
       iface="${iface//$'\x01'/:}"
-      printf '󰈀  %s  %s\n' "$iface" "$state"
+      printf '%s\0display\x1f󰈀  %s  %s\n' "$iface" "$(escape_markup "$iface")" "$(escape_markup "$state")"
     done <<< "$devices" \
       | rofi "${ROFI_COMMON[@]}" -no-custom -p "Connect wired" -mesg "Choose the Ethernet device to bring up." || true
   )"
@@ -253,7 +262,7 @@ connect_wired_network() {
     return 0
   }
 
-  iface="$(printf '%s' "$selection" | awk '{print $2}')"
+  iface="$selection"
   [ -n "$iface" ] || {
     status_message="Could not determine which Ethernet device to connect."
     return 0
@@ -357,9 +366,9 @@ edit_saved_network() {
       | while IFS=$'\t' read -r name uuid type device; do
           printf '%s  %s  %s  %s  %s\n' \
             "$(network_type_icon "$type")" \
-            "$name" \
+            "$(escape_markup "$name")" \
             "$(network_type_label "$type")" \
-            "$device" \
+            "$(escape_markup "$device")" \
             "$uuid"
         done
   )"
@@ -491,7 +500,7 @@ build_message() {
     lines+=("$status_message")
   fi
 
-  printf '%s\n' "${lines[@]}"
+  escape_markup "$(printf '%s\n' "${lines[@]}")"
 }
 
 build_menu() {
@@ -539,7 +548,7 @@ build_menu() {
 
 prompt_password() {
   local ssid="$1"
-  rofi "${ROFI_COMMON[@]}" -password -p "Password for ${ssid:-Wi-Fi}" <<< "" || true
+  rofi "${ROFI_COMMON[@]}" -password -p "Password for $(escape_markup "${ssid:-Wi-Fi}")" <<< "" || true
 }
 
 connect_ap() {
