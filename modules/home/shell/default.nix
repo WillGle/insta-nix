@@ -4,6 +4,7 @@ _:
   home = {
     sessionVariables = {
       TERMINAL = "foot";
+      SUPERPOWERS_DISABLE_TELEMETRY = "1";
     };
 
     file = {
