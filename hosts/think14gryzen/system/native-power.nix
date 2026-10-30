@@ -7,23 +7,10 @@
 let
   ryzenadjPackage = pkgsUnstable.ryzenadj;
 
-  mkSystemScript =
-    {
-      name,
-      dir ? ../assets/system-bin,
-      runtimeInputs ? [ ],
-      vars ? { },
-      excludeShellChecks ? [ ],
-    }:
-    let
-      source = dir + "/${name}";
-      rendered = if vars == { } then source else pkgs.replaceVars source vars;
-      body = lib.concatStringsSep "\n" (lib.drop 1 (lib.splitString "\n" (builtins.readFile rendered)));
-    in
-    pkgs.writeShellApplication {
-      inherit name runtimeInputs excludeShellChecks;
-      text = body;
-    };
+  mkSystemScript = import ../assets/mk-script.nix {
+    inherit pkgs lib;
+    defaultDir = ../assets/system-bin;
+  };
 
   # Daily profiles use platform profile, EPP, and optional frequency caps.
   # RyzenAdj is reserved for separate Curve Optimizer work.

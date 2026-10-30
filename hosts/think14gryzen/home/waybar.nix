@@ -10,23 +10,10 @@ let
   themeBase = osConfig.theme.colors.base;
   themeSubtext = osConfig.theme.colors.subtext;
 
-  mkScript =
-    {
-      name,
-      dir ? ../assets/local-bin,
-      runtimeInputs ? [ ],
-      vars ? { },
-      excludeShellChecks ? [ ],
-    }:
-    let
-      source = dir + "/${name}";
-      rendered = if vars == { } then source else pkgs.replaceVars source vars;
-      body = lib.concatStringsSep "\n" (lib.drop 1 (lib.splitString "\n" (builtins.readFile rendered)));
-    in
-    pkgs.writeShellApplication {
-      inherit name runtimeInputs excludeShellChecks;
-      text = body;
-    };
+  mkScript = import ../assets/mk-script.nix {
+    inherit pkgs lib;
+    defaultDir = ../assets/local-bin;
+  };
 
   scriptFile = pkg: {
     source = lib.getExe pkg;
@@ -35,17 +22,7 @@ let
 
   networkLib = ../assets/network/lib/common.sh;
 
-  rofiScreenTimeLib = pkgs.runCommand "rofi-screen-time-lib" { } ''
-    cp -r ${../assets/rofi-screen-time} "$out"
-    chmod -R u+w "$out"
-    cp ${
-      pkgs.replaceVars ../assets/rofi-screen-time/lib/common.sh {
-        signalOk = signal.ok;
-        signalWarning = signal.warning;
-        signalCritical = signal.critical;
-      }
-    } "$out/lib/common.sh"
-  '';
+  rofiScreenTimeLib = import ../assets/screen-time-lib.nix { inherit pkgs signal; };
 
   screenTimeLibVar = {
     screenTimeLib = "${rofiScreenTimeLib}";
