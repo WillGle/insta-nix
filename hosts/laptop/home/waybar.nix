@@ -33,10 +33,7 @@ in
     ".local/bin/bluetooth-gui" = scriptFile (mkScript {
       name = "bluetooth-gui";
       runtimeInputs = with pkgs; [
-        coreutils
-        hyprland
-        jq
-        util-linux
+        blueman
       ];
     });
 

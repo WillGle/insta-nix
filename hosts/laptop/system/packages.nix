@@ -1,6 +1,5 @@
 {
   pkgs,
-  pkgsUnstable,
   lib,
   ...
 }:
@@ -96,9 +95,6 @@ in
     udiskie
     usbutils
     bluez-tools
-    # Use patched Overskride to pair and save trust before connecting.
-    # Blueman remains the pairing agent; home.nix hides its manager.
-    (pkgsUnstable.callPackage ../../../pkgs/overskride { })
 
     # Shell & version control
     bash

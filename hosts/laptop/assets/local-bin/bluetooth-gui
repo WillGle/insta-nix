@@ -1,12 +1,4 @@
 #!/usr/bin/env bash
-# Focus an existing window because overskride allows multiple instances.
-# Keep the class pattern aligned with the Hyprland window rules.
+# Blueman manages its own application instance.
 set -euo pipefail
-export PATH="$PATH:/run/current-system/sw/bin"
-
-if hyprctl -j clients 2>/dev/null \
-  | jq -e 'any(.[]; (.class // "") | test("overskride"; "i"))' >/dev/null 2>&1; then
-  hyprctl dispatch focuswindow 'class:^(.*[Oo]verskride.*)$' >/dev/null
-else
-  setsid -f overskride >/dev/null 2>&1
-fi
+exec blueman-manager
