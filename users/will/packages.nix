@@ -38,7 +38,7 @@ in
     pkgsUnstable.obs-studio
     rawtherapee
     vlc
-    pkgsUnstable.tauon
+    tauon
     wavpack
 
     # System GUI apps
