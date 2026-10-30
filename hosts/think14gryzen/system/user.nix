@@ -14,6 +14,7 @@
       "input"
       "seat"
       "audio"
+      "dialout"
       "bluetooth"
       "docker"
       "render"
