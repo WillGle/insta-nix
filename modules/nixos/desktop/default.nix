@@ -17,6 +17,8 @@ let
   };
 in
 {
+  imports = [ ./theme.nix ];
+
   services = {
     flatpak.enable = true;
     upower.enable = true;

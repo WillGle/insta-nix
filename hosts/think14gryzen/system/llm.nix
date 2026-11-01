@@ -25,7 +25,7 @@ let
     '';
   };
 
-  mkSystemScript = import ../assets/mk-script.nix {
+  mkSystemScript = import ../../../lib/mk-script.nix {
     inherit pkgs lib;
     defaultDir = ../assets/system-bin;
   };

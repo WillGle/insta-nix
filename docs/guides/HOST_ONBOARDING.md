@@ -19,7 +19,7 @@ cp -r hosts/_template hosts/<host-id>
 - `network.nix`: Đặt tên máy (`networking.hostName = "<host-id>";`) và cấu hình tường lửa/mạng.
 - `storage.nix`: Khai báo hệ thống tệp (`fileSystems`), swap (`swapDevices`) và các phân vùng.
 - `system.nix`: Dịch vụ hệ thống, chính sách riêng và các gói phần mềm hệ thống. (Lưu ý: Với máy phức tạp như `think14gryzen`, có thể tách thành thư mục con `system/` gồm `power.nix`, `graphics.nix`, `packages.nix`, v.v.).
-- `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu `enableHome = true`). Nạp `../../users/will/home.nix` (đã bao gồm `users/will/packages.nix` cho ứng dụng cá nhân) và chọn các module giao diện cần dùng; bật Home Manager không tự bật desktop.
+- `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu khai báo `homeModule`). Nạp `../../users/will/home.nix` (đã bao gồm `users/will/packages.nix` cho ứng dụng cá nhân) và chọn các module giao diện cần dùng; bật Home Manager không tự bật desktop.
 - `assets/`: Chứa các script và tệp cấu hình bổ sung do Home Manager quản lý.
 
 ### 3. Thiết lập điểm nạp chính tại `hosts/<host-id>/default.nix`
@@ -57,8 +57,7 @@ Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hì
 ```nix
 nixosConfigurations.<host-id> = mkHost {
   hostModule = ./hosts/<host-id>/default.nix;
-  enableHome = true;                         # Đặt false nếu là máy chủ/installer không cần Home Manager
-  homeModule = ./hosts/<host-id>/home.nix;   # Bắt buộc nếu enableHome = true; bỏ qua nếu false
+  homeModule = ./hosts/<host-id>/home.nix;   # Bỏ qua nếu là máy chủ/installer không cần Home Manager
 };
 ```
 

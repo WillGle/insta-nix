@@ -10,7 +10,7 @@ let
   themeBase = osConfig.theme.colors.base;
   themeSubtext = osConfig.theme.colors.subtext;
 
-  mkScript = import ../assets/mk-script.nix {
+  mkScript = import ../../../lib/mk-script.nix {
     inherit pkgs lib;
     defaultDir = ../assets/local-bin;
   };
