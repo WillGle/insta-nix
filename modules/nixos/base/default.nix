@@ -1,6 +1,6 @@
 _: {
-  imports = [
-    ../desktop/theme.nix
+  nixpkgs.overlays = [
+    (import ../../../overlays/common.nix)
   ];
 
   time.timeZone = "Asia/Ho_Chi_Minh";

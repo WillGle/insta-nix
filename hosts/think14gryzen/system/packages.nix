@@ -3,20 +3,18 @@
   lib,
   ...
 }:
-let
-  bluemanWithoutApplet = pkgs.callPackage ../../../pkgs/blueman { };
-in
 {
   # NixOS owns Blueman's D-Bus integration and mechanism service.
-  # Remove competing launchers so Home Manager alone starts the applet.
+  # The shared overlay removes competing launchers so Home Manager alone
+  # starts the applet from the same package build.
   services.blueman.enable = lib.mkForce false;
-  services.dbus.packages = [ bluemanWithoutApplet ];
-  systemd.packages = [ bluemanWithoutApplet ];
+  services.dbus.packages = [ pkgs.blueman ];
+  systemd.packages = [ pkgs.blueman ];
 
   programs.wireshark.enable = true;
 
   environment.systemPackages = with pkgs; [
-    bluemanWithoutApplet
+    blueman
     adwaita-icon-theme
     bibata-cursors
     brightnessctl
