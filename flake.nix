@@ -114,6 +114,8 @@
           pkgs.runCommand "check-shellcheck"
             {
               nativeBuildInputs = [ pkgs.shellcheck ];
+              homeCleanup =
+                hostConfigs.think14gryzen.config.home-manager.users.will.home.file.".local/bin/home-cleanup".source;
             }
             ''
               # SC2034 is used for environment-style configuration in the bench
@@ -121,7 +123,8 @@
               shellcheck -x -s bash -S warning -e SC1091,SC2034,SC2209 \
                 ${./scripts}/bench/*.sh \
                 ${./theme}/scripts/lib/*.sh \
-                ${./hosts}/think14gryzen/assets/hypr/*.sh
+                ${./hosts}/think14gryzen/assets/hypr/*.sh \
+                "$homeCleanup"
               touch $out
             '';
 
