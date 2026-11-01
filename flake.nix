@@ -21,6 +21,7 @@
     let
       system = "x86_64-linux";
       inherit (nixpkgs) lib;
+      pkgs = nixpkgs.legacyPackages.${system};
 
       pkgsUnstable = import nixpkgs-unstable {
         inherit system;
@@ -75,8 +76,62 @@
         };
       };
 
+      checks = {
+        formatting =
+          pkgs.runCommand "check-nixfmt"
+            {
+              nativeBuildInputs = [
+                pkgs.findutils
+                pkgs.nixfmt
+              ];
+            }
+            ''
+              find ${./.} -type f -name '*.nix' -print0 | xargs -0 nixfmt --check
+              touch $out
+            '';
+
+        statix =
+          pkgs.runCommand "check-statix"
+            {
+              nativeBuildInputs = [ pkgs.statix ];
+            }
+            ''
+              statix check ${./.}
+              touch $out
+            '';
+
+        deadnix =
+          pkgs.runCommand "check-deadnix"
+            {
+              nativeBuildInputs = [ pkgs.deadnix ];
+            }
+            ''
+              deadnix --fail ${./.}
+              touch $out
+            '';
+
+        shellcheck =
+          pkgs.runCommand "check-shellcheck"
+            {
+              nativeBuildInputs = [ pkgs.shellcheck ];
+            }
+            ''
+              # SC2034 is used for environment-style configuration in the bench
+              # scripts; SC2209 is a style warning in existing benchmark code.
+              shellcheck -x -s bash -S warning -e SC1091,SC2034,SC2209 \
+                ${./scripts}/bench/*.sh \
+                ${./theme}/scripts/lib/*.sh \
+                ${./hosts}/think14gryzen/assets/hypr/*.sh
+              touch $out
+            '';
+
+      };
     in
     {
+      formatter.x86_64-linux = pkgs.nixfmt;
+
+      checks.x86_64-linux = checks;
+
       nixosConfigurations = hostConfigs;
     };
 }

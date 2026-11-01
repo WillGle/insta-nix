@@ -20,9 +20,17 @@ nix flake show --no-write-lock-file git+file:///etc/nixos
 Validate and build the laptop configuration:
 
 ```bash
-nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
+./scripts/validate.sh
 nix build --no-link --no-write-lock-file \
   git+file:///etc/nixos#nixosConfigurations.think14gryzen.config.system.build.toplevel
+```
+
+`scripts/validate.sh` runs `git diff --check` and `nix flake check`, which
+enforces formatting, statix, deadnix, and shellcheck. To run the same gate
+before every commit:
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 Apply it only after the check and build succeed:
