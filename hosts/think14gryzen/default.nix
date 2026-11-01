@@ -5,6 +5,7 @@
     ./storage.nix
     ./network.nix
     ../../modules/nixos/base/default.nix
+    ../../modules/nixos/maintenance/default.nix
     ../../modules/nixos/hardware/desktop.nix
     ../../modules/nixos/hardware/openlogi.nix
     ./system/llm.nix

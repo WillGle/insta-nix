@@ -68,6 +68,19 @@ The export includes app totals, switch rates, focus blocks, top transitions, and
 
 ---
 
+## Data Retention
+
+`home-cleanup` runs weekly and removes old user state:
+
+- screen-time day history older than 180 days;
+- Zed logs older than 14 days;
+- cached entries in `~/.cache` that have not changed for 14 days;
+- the generated Rofi desktop cache and screen-time cache files.
+
+Nix evaluation caches, editor and browser data, clip history, and other
+user-facing caches are protected from the broad `~/.cache` sweep. Run
+`home-cleanup --dry-run` to preview removals.
+
 ## Integration Notes
 
 Both tools are designed to work together:
