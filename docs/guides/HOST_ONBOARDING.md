@@ -71,7 +71,7 @@ hình dự định quản lý, không thêm state cục bộ hay thông tin xác
 Chạy kiểm tra flake và biên dịch thử nghiệm cấu hình:
 
 ```bash
-nix flake check --no-build --no-write-lock-file git+file:///etc/nixos
+./scripts/validate.sh
 nix build --no-link --no-write-lock-file \
   git+file:///etc/nixos#nixosConfigurations.<host-id>.config.system.build.toplevel
 ```
