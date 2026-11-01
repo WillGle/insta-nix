@@ -1,6 +1,6 @@
 # Hướng dẫn cài đặt từ xa cho Plank (Plank Remote Install)
 
-Quy trình cài đặt NixOS lên máy đích `plank` qua mạng mà không sử dụng công cụ `disko`. Máy `plank` được thiết kế làm môi trường bootstrap tối giản (không sử dụng Home Manager, `enableHome = false` trong `flake.nix`).
+Quy trình cài đặt NixOS lên máy đích `plank` qua mạng mà không sử dụng công cụ `disko`. Máy `plank` được thiết kế làm môi trường bootstrap tối giản (không sử dụng Home Manager; không khai báo `homeModule` trong `flake.nix`).
 
 ## Điều kiện tiên quyết
 

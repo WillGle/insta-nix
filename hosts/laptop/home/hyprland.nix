@@ -29,7 +29,7 @@ let
       ]
       (builtins.readFile path);
 
-  mkScript = import ../assets/mk-script.nix {
+  mkScript = import ../../../lib/mk-script.nix {
     inherit pkgs lib;
     defaultDir = ../assets/local-bin;
   };

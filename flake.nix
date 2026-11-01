@@ -47,7 +47,6 @@
       mkHost =
         {
           hostModule,
-          enableHome ? false,
           homeModule ? null,
         }:
         lib.nixosSystem {
@@ -59,17 +58,15 @@
           modules = [
             hostModule
           ]
-          ++ lib.optionals enableHome [
+          ++ lib.optionals (homeModule != null) [
             home-manager.nixosModules.home-manager
             (mkHomeModule homeModule)
           ];
         };
-    in
-    {
-      nixosConfigurations = {
+
+      hostConfigs = {
         laptop = mkHost {
           hostModule = ./hosts/laptop/default.nix;
-          enableHome = true;
           homeModule = ./hosts/laptop/home.nix;
         };
 
@@ -77,5 +74,9 @@
           hostModule = ./hosts/plank/default.nix;
         };
       };
+
+    in
+    {
+      nixosConfigurations = hostConfigs;
     };
 }
