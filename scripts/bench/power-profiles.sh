@@ -98,7 +98,7 @@ bench_positive_integer sample_interval "$SAMPLE_INTERVAL"
 
 IFS=',' read -r -a profiles <<< "$PROFILE_LIST"
 profile_count=0
-for profile in ${profiles[@]}; do
+for profile in "${profiles[@]}"; do
   valid_profile "$profile" || bench_die "unknown native profile: $profile"
   profile_count=$((profile_count + 1))
 done
@@ -543,7 +543,7 @@ run_profile() {
 }
 
 printf 'output=%s\n' "$RUN_DIR"
-for profile in ${profiles[@]}; do
+for profile in "${profiles[@]}"; do
   printf '\n=== %s ===\n' "$profile"
   run_profile "$profile" || true
 done
