@@ -64,10 +64,11 @@ base is headless. Laptop LLM, power, and desktop helpers live under
 `hosts/think14gryzen/system/` and `home/`; shared static assets live beside
 their consuming Home Manager module.
 
-`users/will/packages.nix` owns personal application selection and still installs
-these applications into the system profile. Home Manager packages retain their
-existing user scope. Custom package definitions and patches live together in
-`pkgs/<package>/`.
+`users/will/packages.nix` is a Home Manager module and owns personal application
+selection in the user profile. Genuinely system-wide tools and desktop
+integration remain in `environment.systemPackages` under
+`hosts/<host>/system/packages.nix`. Custom package definitions and patches live
+together in `pkgs/<package>/`.
 
 Git flake commands include tracked working-tree changes. Add intended new source
 files with `git add <paths>` before validation so Nix can see them. Keep local

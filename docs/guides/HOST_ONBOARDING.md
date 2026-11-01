@@ -19,7 +19,7 @@ cp -r hosts/_template hosts/<host-id>
 - `network.nix`: Đặt tên máy (`networking.hostName = "<host-id>";`) và cấu hình tường lửa/mạng.
 - `storage.nix`: Khai báo hệ thống tệp (`fileSystems`), swap (`swapDevices`) và các phân vùng.
 - `system.nix`: Dịch vụ hệ thống, chính sách riêng và các gói phần mềm hệ thống. (Lưu ý: Với máy phức tạp như `think14gryzen`, có thể tách thành thư mục con `system/` gồm `power.nix`, `graphics.nix`, `packages.nix`, v.v.).
-- `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu `enableHome = true`). Nạp `../../users/will/home.nix` và chọn các module giao diện cần dùng; bật Home Manager không tự bật desktop.
+- `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu `enableHome = true`). Nạp `../../users/will/home.nix` (đã bao gồm `users/will/packages.nix` cho ứng dụng cá nhân) và chọn các module giao diện cần dùng; bật Home Manager không tự bật desktop.
 - `assets/`: Chứa các script và tệp cấu hình bổ sung do Home Manager quản lý.
 
 ### 3. Thiết lập điểm nạp chính tại `hosts/<host-id>/default.nix`
@@ -40,7 +40,6 @@ Cấu hình tối thiểu:
     # ../../modules/nixos/development/iac.nix
     # ../../modules/nixos/desktop/default.nix
     # ../../modules/nixos/hardware/desktop.nix
-    # ../../users/will/packages.nix
   ];
 
   system.stateVersion = "25.11";

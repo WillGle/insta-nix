@@ -13,7 +13,6 @@
     ../../modules/nixos/desktop/default.nix
     ../../modules/nixos/services/ssh/strict.nix
     ../../users/will/default.nix
-    ../../users/will/packages.nix
     ./system.nix
     ../../modules/nixos/development/kubernetes.nix
     ../../modules/nixos/development/iac.nix

@@ -1,11 +1,9 @@
 { pkgs, pkgsUnstable, ... }:
-let
-  antigravityIde = pkgsUnstable.callPackage ../../pkgs/antigravity-ide { };
-  lightworksWithDesktop = pkgs.callPackage ../../pkgs/lightworks { };
-in
 {
-  # Keep personal apps on the system PATH; host modules own hardware and services.
-  environment.systemPackages = with pkgs; [
+  # Personal applications belong to the user profile. Genuinely system-wide
+  # tools, services, and desktop integration live in environment.systemPackages
+  # under hosts/<host>/system/packages.nix.
+  home.packages = with pkgs; [
     pkgsUnstable.antigravity-ide
     pkgsUnstable.antigravity-cli
 
