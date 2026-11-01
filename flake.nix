@@ -128,6 +128,24 @@
               touch $out
             '';
 
+        shell-tests =
+          pkgs.runCommand "check-shell-tests"
+            {
+              nativeBuildInputs = with pkgs; [
+                bats
+                coreutils
+                gawk
+                gnused
+                jq
+                util-linux
+              ];
+              REPO_ROOT = "${./.}";
+            }
+            ''
+              export HOME=$(mktemp -d)
+              bats ${./tests/shell}
+              touch $out
+            '';
       };
     in
     {
