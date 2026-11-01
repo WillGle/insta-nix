@@ -53,9 +53,9 @@ The Dashboard and Activity views include an **App Usage Today** timeline. Each r
 
 Waybar exposes the same data through the screen-time module:
 
-- Left-click opens the dashboard.
-- Right-click opens the study timer.
-- Middle-click opens the activity view.
+- Left-click toggles the Waybar module view.
+- Right-click opens the screen-time dashboard.
+- Middle-click opens the study timer.
 
 Behavior analytics are exported locally:
 

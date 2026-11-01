@@ -8,6 +8,8 @@ configuration {
   icon-theme: "Adwaita";
   drun-match-fields: "name,generic,comment,categories";
   drun-use-desktop-cache: true;
+  /* Rebuild the drun cache every launch so installed/removed apps are tracked. */
+  drun-reload-desktop-cache: true;
   application-fallback-icon: "application-x-executable";
 }
 
