@@ -1,18 +1,6 @@
 { pkgs, ... }:
 {
-  services.openssh = {
-    enable = true;
-    ports = [ 2222 ];
-    settings = {
-      PasswordAuthentication = false;
-      PermitRootLogin = "no";
-      KbdInteractiveAuthentication = false;
-      X11Forwarding = false;
-      AllowUsers = [ "will" ];
-    };
-  };
-
-  networking.firewall.allowedTCPPorts = [ 2222 ];
+  imports = [ ./base.nix ];
 
   # One-use bootstrap seed copied into the target root before nixos-install.
   system.activationScripts.plankAuthorizedKeySeed = {
