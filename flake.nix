@@ -25,6 +25,10 @@
       pkgsUnstable = import nixpkgs-unstable {
         inherit system;
         config.allowUnfree = true;
+        overlays = [
+          (import ./overlays/common.nix)
+          (import ./overlays/unstable.nix)
+        ];
       };
 
       mkHomeModule = homeOverlay: {

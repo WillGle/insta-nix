@@ -6,7 +6,7 @@ in
 {
   # Keep personal apps on the system PATH; host modules own hardware and services.
   environment.systemPackages = with pkgs; [
-    antigravityIde
+    pkgsUnstable.antigravity-ide
     pkgsUnstable.antigravity-cli
 
     # Editors & search
@@ -32,7 +32,7 @@ in
     gthumb
     guvcview
     imv
-    lightworksWithDesktop
+    lightworks-with-desktop
     pkgsUnstable.losslesscut-bin
     loupe
     pkgsUnstable.obs-studio
