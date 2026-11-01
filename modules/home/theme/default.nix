@@ -38,182 +38,162 @@ let
     in
     builtins.replaceStrings keys values (builtins.readFile file);
 
-  commonReplacements = [
-    [
-      "__BASE__"
-      theme.colors.base
-    ]
-    [
-      "__MANTLE__"
-      theme.colors.mantle
-    ]
-    [
-      "__TEXT__"
-      theme.colors.text
-    ]
-    [
-      "__SUBTEXT__"
-      theme.colors.subtext
-    ]
-    [
-      "__ACCENT__"
-      theme.colors.accent
-    ]
-    [
-      "__SUCCESS__"
-      theme.colors.success
-    ]
-    [
-      "__WARNING__"
-      theme.colors.warning
-    ]
-    [
-      "__ERROR__"
-      theme.colors.error
-    ]
-    [
-      "__PURPLE__"
-      theme.colors.purple
-    ]
-    [
-      "__CYAN__"
-      theme.colors.cyan
-    ]
-    [
-      "__BASE_STRIP__"
-      (strip theme.colors.base)
-    ]
-    [
-      "__MANTLE_STRIP__"
-      (strip theme.colors.mantle)
-    ]
-    [
-      "__TEXT_STRIP__"
-      (strip theme.colors.text)
-    ]
-    [
-      "__ACCENT_STRIP__"
-      (strip theme.colors.accent)
-    ]
-    [
-      "__PURPLE_STRIP__"
-      (strip theme.colors.purple)
-    ]
+  # Authoritative token values. Templates consume `commonTokenValues`; runtime
+  # scripts consume `binTokenValues`. Keep one value per token here.
+  commonTokenValues = {
+    BASE = theme.colors.base;
+    MANTLE = theme.colors.mantle;
+    TEXT = theme.colors.text;
+    SUBTEXT = theme.colors.subtext;
+    ACCENT = theme.colors.accent;
+    SUCCESS = theme.colors.success;
+    WARNING = theme.colors.warning;
+    ERROR = theme.colors.error;
+    PURPLE = theme.colors.purple;
+    CYAN = theme.colors.cyan;
+    BASE_STRIP = strip theme.colors.base;
+    MANTLE_STRIP = strip theme.colors.mantle;
+    TEXT_STRIP = strip theme.colors.text;
+    ACCENT_STRIP = strip theme.colors.accent;
+    PURPLE_STRIP = strip theme.colors.purple;
     # Keep signal colors separate from runtime-generated decorative colors.
-    [
-      "__SIGNAL_OK__"
-      signal.ok
-    ]
-    [
-      "__SIGNAL_NOTICE__"
-      signal.notice
-    ]
-    [
-      "__SIGNAL_WARNING__"
-      signal.warning
-    ]
-    [
-      "__SIGNAL_CRITICAL__"
-      signal.critical
-    ]
-    [
-      "__SIGNAL_ECO__"
-      signal.eco
-    ]
-    [
-      "__SIGNAL_MUTED__"
-      signal.muted
-    ]
-    [
-      "__UI_FONT__"
-      theme.fonts.ui.family
-    ]
-    [
-      "__UI_FONT_SIZE__"
-      (toString theme.fonts.ui.size)
-    ]
-    [
-      "__ROFI_FONT_SIZE__"
-      (toString theme.fonts.rofi.size)
-    ]
-    [
-      "__ROFI_FONT_LABEL_SIZE__"
-      (toString (theme.fonts.rofi.size + 1))
-    ]
-    [
-      "__ROFI_FONT_SUBTITLE_SIZE__"
-      (toString (theme.fonts.rofi.size + 2))
-    ]
-    [
-      "__ROFI_FONT_CALENDAR_SIZE__"
-      (toString (theme.fonts.rofi.size + 4))
-    ]
-    [
-      "__ROFI_FONT_VALUE_SIZE__"
-      (toString (theme.fonts.rofi.size + 8))
-    ]
-    [
-      "__ROFI_FONT_TITLE_SIZE__"
-      (toString (theme.fonts.rofi.size + 10))
-    ]
-    [
-      "__MONO_FONT__"
-      theme.fonts.mono.family
-    ]
-    [
-      "__LOCK_FONT__"
-      theme.fonts.lock.family
-    ]
-    [
-      "__LOCK_FONT_BOLD__"
-      theme.fonts.lock.boldFamily
-    ]
-    [
-      "__LOCK_CLOCK_SIZE__"
-      (toString theme.fonts.lock.clockSize)
-    ]
-    [
-      "__LOCK_TEXT_SIZE__"
-      (toString theme.fonts.lock.textSize)
-    ]
-    [
-      "__CURSOR_NAME__"
-      theme.cursor.name
-    ]
-    [
-      "__CURSOR_SIZE__"
-      (toString theme.cursor.size)
-    ]
-    [
-      "__WALLPAPER_PATH__"
-      themeWallpaperPath
-    ]
-    [
-      "__THEME_GENERATED_DIR__"
-      themeGeneratedDir
-    ]
-  ];
+    SIGNAL_OK = signal.ok;
+    SIGNAL_NOTICE = signal.notice;
+    SIGNAL_WARNING = signal.warning;
+    SIGNAL_CRITICAL = signal.critical;
+    SIGNAL_ECO = signal.eco;
+    SIGNAL_MUTED = signal.muted;
+    UI_FONT = theme.fonts.ui.family;
+    UI_FONT_SIZE = toString theme.fonts.ui.size;
+    ROFI_FONT_SIZE = toString theme.fonts.rofi.size;
+    ROFI_FONT_LABEL_SIZE = toString (theme.fonts.rofi.size + 1);
+    ROFI_FONT_SUBTITLE_SIZE = toString (theme.fonts.rofi.size + 2);
+    ROFI_FONT_CALENDAR_SIZE = toString (theme.fonts.rofi.size + 4);
+    ROFI_FONT_VALUE_SIZE = toString (theme.fonts.rofi.size + 8);
+    ROFI_FONT_TITLE_SIZE = toString (theme.fonts.rofi.size + 10);
+    MONO_FONT = theme.fonts.mono.family;
+    LOCK_FONT = theme.fonts.lock.family;
+    LOCK_FONT_BOLD = theme.fonts.lock.boldFamily;
+    LOCK_CLOCK_SIZE = toString theme.fonts.lock.clockSize;
+    LOCK_TEXT_SIZE = toString theme.fonts.lock.textSize;
+    CURSOR_NAME = theme.cursor.name;
+    CURSOR_SIZE = toString theme.cursor.size;
+    WALLPAPER_PATH = themeWallpaperPath;
+    THEME_GENERATED_DIR = themeGeneratedDir;
+  };
+
+  binTokenValues = {
+    BASH_BIN = "${pkgs.bash}/bin/bash";
+    MATUGEN_BIN = "${pkgs.matugen}/bin/matugen";
+    JQ_BIN = "${pkgs.jq}/bin/jq";
+    SED_BIN = "${pkgs.gnused}/bin/sed";
+    GREP_BIN = "${pkgs.gnugrep}/bin/grep";
+    FIND_BIN = "${pkgs.findutils}/bin/find";
+    SORT_BIN = "${pkgs.coreutils}/bin/sort";
+    # Use session rofi for its configured plugins.
+    ROFI_BIN = "rofi";
+    MKTEMP_BIN = "${pkgs.coreutils}/bin/mktemp";
+    MKDIR_BIN = "${pkgs.coreutils}/bin/mkdir";
+    MV_BIN = "${pkgs.coreutils}/bin/mv";
+    CP_BIN = "${pkgs.coreutils}/bin/cp";
+    RM_BIN = "${pkgs.coreutils}/bin/rm";
+    CAT_BIN = "${pkgs.coreutils}/bin/cat";
+    OD_BIN = "${pkgs.coreutils}/bin/od";
+    TR_BIN = "${pkgs.coreutils}/bin/tr";
+    SHA256_BIN = "${pkgs.coreutils}/bin/sha256sum";
+    READLINK_BIN = "${pkgs.coreutils}/bin/readlink";
+    TIMEOUT_BIN = "${pkgs.coreutils}/bin/timeout";
+    CMP_BIN = "${pkgs.diffutils}/bin/cmp";
+    FLOCK_BIN = "${pkgs.util-linux}/bin/flock";
+    SYSTEMCTL_BIN = "${pkgs.systemd}/bin/systemctl";
+    LS_BIN = "${pkgs.coreutils}/bin/ls";
+    HEAD_BIN = "${pkgs.coreutils}/bin/head";
+    HYPRCTL_BIN = "${pkgs.hyprland}/bin/hyprctl";
+    HYPRLOCK_BIN = "${pkgs.hyprlock}/bin/hyprlock";
+    DUNSTCTL_BIN = "${pkgs.dunst}/bin/dunstctl";
+    THEME_STATIC_ENV = themeStaticEnv;
+    THEME_APPLY_BIN = themeApplyPath;
+    WALLPAPER_BIN = wallpaperPath;
+    NOTIFY_SEND_BIN = "${pkgs.libnotify}/bin/notify-send";
+    # Share image detection between theme-apply and wallpaper.
+    IS_SUPPORTED_IMAGE = builtins.readFile ../../../theme/scripts/lib/is-supported-image.sh;
+  };
+
+  placeholder = name: "__${name}__";
+  tokenPairs =
+    values:
+    map (name: [
+      (placeholder name)
+      values.${name}
+    ]) (builtins.attrNames values);
+  commonReplacements = tokenPairs commonTokenValues;
+  themeBinReplacements = tokenPairs binTokenValues;
+
+  rawTokenValues = commonTokenValues // binTokenValues;
+  allPlaceholders = map placeholder (builtins.attrNames rawTokenValues);
+
+  tokensInText =
+    text:
+    map builtins.head (builtins.filter builtins.isList (builtins.split "(__[A-Z][A-Z0-9_]*__)" text));
+
+  themeSourceFiles =
+    lib.filesystem.listFilesRecursive ../../../theme/templates
+    ++ lib.filesystem.listFilesRecursive ../../../theme/scripts;
+  tokenInventory = lib.unique (
+    lib.concatMap (file: tokensInText (builtins.readFile file)) themeSourceFiles
+  );
+  missingTokens = builtins.filter (token: !(builtins.elem token allPlaceholders)) tokenInventory;
+
+  # Force this on every evaluation path, including static.env.
+  allTokenValues =
+    if missingTokens == [ ] then
+      rawTokenValues
+    else
+      throw "theme: no replacement for placeholders: ${lib.concatStringsSep ", " missingTokens}";
+
+  # Fail when a rendered file still contains a placeholder it does not own.
+  # theme-apply keeps common placeholders on purpose: they are its runtime sed
+  # patterns, not unresolved build-time substitutions.
+  checkRendered =
+    name: allowed: text:
+    let
+      leftover = builtins.filter (token: !(builtins.elem token allowed)) (tokensInText text);
+    in
+    if leftover == [ ] then
+      text
+    else
+      throw "theme: ${name} has unresolved placeholders: ${lib.concatStringsSep ", " leftover}";
 
   renderTheme = file: replaceMany commonReplacements file;
   waybarSeed = pkgs.writeText "theme-waybar.css" (
-    renderTheme ../../../theme/templates/waybar.css.template
+    checkRendered "theme-waybar.css" [ ] (renderTheme ../../../theme/templates/waybar.css.template)
   );
   rofiSeed = pkgs.writeText "theme-rofi.rasi" (
-    renderTheme ../../../theme/templates/rofi.rasi.template
+    checkRendered "theme-rofi.rasi" [ ] (renderTheme ../../../theme/templates/rofi.rasi.template)
   );
   hyprlockSeed = pkgs.writeText "theme-hyprlock.conf" (
-    renderTheme ../../../theme/templates/hyprlock.conf.template
+    checkRendered "theme-hyprlock.conf" [ ] (
+      renderTheme ../../../theme/templates/hyprlock.conf.template
+    )
   );
   hyprlandSeed = pkgs.writeText "theme-hyprland-decoration.conf" (
-    renderTheme ../../../theme/templates/hyprland-decoration.conf.template
+    checkRendered "theme-hyprland-decoration.conf" [ ] (
+      renderTheme ../../../theme/templates/hyprland-decoration.conf.template
+    )
   );
   nvimSeed = pkgs.writeText "theme-nvim-matugen.lua" (
-    renderTheme ../../../theme/templates/nvim-colors.lua.template
+    checkRendered "theme-nvim-matugen.lua" [ ] (
+      renderTheme ../../../theme/templates/nvim-colors.lua.template
+    )
   );
   hyprpaperSeed = pkgs.writeText "theme-hyprpaper.conf" (
-    renderTheme ../../../theme/templates/hyprpaper.conf.template
+    checkRendered "theme-hyprpaper.conf" [ ] (
+      renderTheme ../../../theme/templates/hyprpaper.conf.template
+    )
   );
-  dunstSeed = pkgs.writeText "theme-dunstrc" (renderTheme ../../../theme/templates/dunstrc.template);
+  dunstSeed = pkgs.writeText "theme-dunstrc" (
+    checkRendered "theme-dunstrc" [ ] (renderTheme ../../../theme/templates/dunstrc.template)
+  );
   paletteSeed = pkgs.writeText "theme-palette.json" (
     builtins.toJSON {
       source = "static-fallback";
@@ -221,151 +201,176 @@ let
       inherit signal;
     }
   );
-  themeBinReplacements = [
+
+  # theme-apply injects the common values at runtime, so those placeholders must
+  # survive build-time replacement and remain the only allowed leftovers.
+  commonPlaceholders = map placeholder (builtins.attrNames commonTokenValues);
+  themeApplyScript = checkRendered "theme-apply" commonPlaceholders (
+    replaceMany themeBinReplacements ../../../theme/scripts/theme-apply.sh.template
+  );
+  wallpaperScript = checkRendered "wallpaper" [ ] (
+    replaceMany themeBinReplacements ../../../theme/scripts/wallpaper.sh.template
+  );
+  wallpaperPortalScript = checkRendered "wallpaper-portal" [ ] (
+    replaceMany themeBinReplacements ../../../theme/scripts/wallpaper-portal.sh.template
+  );
+
+  themeLockScript = checkRendered "theme-lock" [ ] (
+    replaceMany (
+      commonReplacements ++ themeBinReplacements
+    ) ../../../theme/scripts/theme-lock.sh.template
+  );
+
+  staticEnvLine = name: value: "${name}=${lib.escapeShellArg value}";
+  staticEnvTokenLine =
+    entry: staticEnvLine (builtins.elemAt entry 0) allTokenValues.${builtins.elemAt entry 1};
+  staticEnvTokenLines = [
     [
-      "__BASH_BIN__"
-      "${pkgs.bash}/bin/bash"
+      "THEME_UI_FONT"
+      "UI_FONT"
     ]
     [
-      "__MATUGEN_BIN__"
-      "${pkgs.matugen}/bin/matugen"
+      "THEME_UI_FONT_SIZE"
+      "UI_FONT_SIZE"
     ]
     [
-      "__JQ_BIN__"
-      "${pkgs.jq}/bin/jq"
+      "THEME_ROFI_FONT_SIZE"
+      "ROFI_FONT_SIZE"
     ]
     [
-      "__SED_BIN__"
-      "${pkgs.gnused}/bin/sed"
+      "THEME_ROFI_FONT_LABEL_SIZE"
+      "ROFI_FONT_LABEL_SIZE"
     ]
     [
-      "__GREP_BIN__"
-      "${pkgs.gnugrep}/bin/grep"
+      "THEME_ROFI_FONT_SUBTITLE_SIZE"
+      "ROFI_FONT_SUBTITLE_SIZE"
     ]
     [
-      "__FIND_BIN__"
-      "${pkgs.findutils}/bin/find"
+      "THEME_ROFI_FONT_CALENDAR_SIZE"
+      "ROFI_FONT_CALENDAR_SIZE"
     ]
     [
-      "__SORT_BIN__"
-      "${pkgs.coreutils}/bin/sort"
-    ]
-    # Use session rofi for its configured plugins.
-    [
-      "__ROFI_BIN__"
-      "rofi"
+      "THEME_ROFI_FONT_VALUE_SIZE"
+      "ROFI_FONT_VALUE_SIZE"
     ]
     [
-      "__MKTEMP_BIN__"
-      "${pkgs.coreutils}/bin/mktemp"
+      "THEME_ROFI_FONT_TITLE_SIZE"
+      "ROFI_FONT_TITLE_SIZE"
     ]
     [
-      "__MKDIR_BIN__"
-      "${pkgs.coreutils}/bin/mkdir"
+      "THEME_MONO_FONT"
+      "MONO_FONT"
     ]
     [
-      "__MV_BIN__"
-      "${pkgs.coreutils}/bin/mv"
+      "THEME_LOCK_FONT"
+      "LOCK_FONT"
     ]
     [
-      "__CP_BIN__"
-      "${pkgs.coreutils}/bin/cp"
+      "THEME_LOCK_FONT_BOLD"
+      "LOCK_FONT_BOLD"
     ]
     [
-      "__RM_BIN__"
-      "${pkgs.coreutils}/bin/rm"
+      "THEME_LOCK_CLOCK_SIZE"
+      "LOCK_CLOCK_SIZE"
     ]
     [
-      "__CAT_BIN__"
-      "${pkgs.coreutils}/bin/cat"
+      "THEME_LOCK_TEXT_SIZE"
+      "LOCK_TEXT_SIZE"
     ]
     [
-      "__OD_BIN__"
-      "${pkgs.coreutils}/bin/od"
+      "THEME_STATIC_BASE"
+      "BASE"
     ]
     [
-      "__TR_BIN__"
-      "${pkgs.coreutils}/bin/tr"
+      "THEME_STATIC_MANTLE"
+      "MANTLE"
     ]
     [
-      "__SHA256_BIN__"
-      "${pkgs.coreutils}/bin/sha256sum"
+      "THEME_STATIC_TEXT"
+      "TEXT"
     ]
     [
-      "__READLINK_BIN__"
-      "${pkgs.coreutils}/bin/readlink"
+      "THEME_STATIC_SUBTEXT"
+      "SUBTEXT"
     ]
     [
-      "__TIMEOUT_BIN__"
-      "${pkgs.coreutils}/bin/timeout"
+      "THEME_STATIC_ACCENT"
+      "ACCENT"
     ]
     [
-      "__CMP_BIN__"
-      "${pkgs.diffutils}/bin/cmp"
+      "THEME_STATIC_SUCCESS"
+      "SUCCESS"
     ]
     [
-      "__FLOCK_BIN__"
-      "${pkgs.util-linux}/bin/flock"
+      "THEME_STATIC_WARNING"
+      "WARNING"
     ]
     [
-      "__SYSTEMCTL_BIN__"
-      "${pkgs.systemd}/bin/systemctl"
+      "THEME_STATIC_ERROR"
+      "ERROR"
     ]
     [
-      "__LS_BIN__"
-      "${pkgs.coreutils}/bin/ls"
+      "THEME_STATIC_PURPLE"
+      "PURPLE"
     ]
     [
-      "__HEAD_BIN__"
-      "${pkgs.coreutils}/bin/head"
+      "THEME_STATIC_CYAN"
+      "CYAN"
     ]
     [
-      "__HYPRCTL_BIN__"
-      "${pkgs.hyprland}/bin/hyprctl"
+      "THEME_SIGNAL_OK"
+      "SIGNAL_OK"
     ]
     [
-      "__DUNSTCTL_BIN__"
-      "${pkgs.dunst}/bin/dunstctl"
+      "THEME_SIGNAL_NOTICE"
+      "SIGNAL_NOTICE"
     ]
     [
-      "__THEME_STATIC_ENV__"
-      themeStaticEnv
+      "THEME_SIGNAL_WARNING"
+      "SIGNAL_WARNING"
     ]
     [
-      "__THEME_APPLY_BIN__"
-      themeApplyPath
+      "THEME_SIGNAL_CRITICAL"
+      "SIGNAL_CRITICAL"
     ]
     [
-      "__WALLPAPER_BIN__"
-      wallpaperPath
+      "THEME_SIGNAL_ECO"
+      "SIGNAL_ECO"
     ]
     [
-      "__NOTIFY_SEND_BIN__"
-      "${pkgs.libnotify}/bin/notify-send"
-    ]
-    # Share image detection between theme-apply and wallpaper.
-    [
-      "__IS_SUPPORTED_IMAGE__"
-      (builtins.readFile ../../../theme/scripts/lib/is-supported-image.sh)
+      "THEME_SIGNAL_MUTED"
+      "SIGNAL_MUTED"
     ]
   ];
-
-  themeApplyScript = replaceMany themeBinReplacements ../../../theme/scripts/theme-apply.sh.template;
-  wallpaperScript = replaceMany themeBinReplacements ../../../theme/scripts/wallpaper.sh.template;
-  wallpaperPortalScript = replaceMany themeBinReplacements ../../../theme/scripts/wallpaper-portal.sh.template;
-
-  themeLockScript = replaceMany (
-    commonReplacements
-    ++ [
-      [
-        "__HYPRLOCK_BIN__"
-        "${pkgs.hyprlock}/bin/hyprlock"
-      ]
+  staticEnvText = lib.concatMapStrings (line: "${line}\n") (
+    [
+      (staticEnvLine "THEME_GENERATOR_VERSION" "v9")
+      (staticEnvLine "THEME_RUNTIME_ENABLE" (if theme.runtime.enable then "1" else "0"))
+      (staticEnvLine "THEME_TEMPLATE_DIR" themeTemplatesDir)
+      (staticEnvLine "THEME_GENERATED_DIR" themeGeneratedDir)
+      (staticEnvLine "THEME_STATE_DIR" themeStateDir)
+      (staticEnvLine "THEME_WALLPAPER_STORE" themeWallpaperStore)
+      (staticEnvLine "THEME_WALLPAPER_POINTER" themeWallpaperPointer)
+      (staticEnvLine "THEME_WALLPAPER_LOCK_FILE" "${themeStateDir}/wallpaper.lock")
+      (staticEnvLine "THEME_LOCK_FILE" themeLockFile)
+      (staticEnvTokenLine [
+        "THEME_WALLPAPER"
+        "WALLPAPER_PATH"
+      ])
+      (staticEnvLine "THEME_WALLPAPER_DROP_DIR" wallpaperDropDir)
     ]
-  ) ../../../theme/scripts/theme-lock.sh.template;
+    ++ map staticEnvTokenLine staticEnvTokenLines
+  );
 
 in
 {
+  assertions = [
+    {
+      assertion = missingTokens == [ ];
+      message = "theme templates/scripts contain placeholders without replacements: ${lib.concatStringsSep ", " missingTokens}";
+    }
+  ];
+
   # GTK3 ignores the portal color-scheme and needs this setting.
   # GTK4/libadwaita follows the portal and warns if this key is set.
   gtk = {
@@ -375,48 +380,7 @@ in
 
   xdg.configFile = {
     "theme/templates".source = ../../../theme/templates;
-    "theme/static.env".text = ''
-      THEME_GENERATOR_VERSION=${lib.escapeShellArg "v9"}
-      THEME_RUNTIME_ENABLE=${if theme.runtime.enable then "1" else "0"}
-      THEME_TEMPLATE_DIR=${lib.escapeShellArg themeTemplatesDir}
-      THEME_GENERATED_DIR=${lib.escapeShellArg themeGeneratedDir}
-      THEME_STATE_DIR=${lib.escapeShellArg themeStateDir}
-      THEME_WALLPAPER_STORE=${lib.escapeShellArg themeWallpaperStore}
-      THEME_WALLPAPER_POINTER=${lib.escapeShellArg themeWallpaperPointer}
-      THEME_WALLPAPER_LOCK_FILE=${lib.escapeShellArg "${themeStateDir}/wallpaper.lock"}
-      THEME_LOCK_FILE=${lib.escapeShellArg themeLockFile}
-      THEME_WALLPAPER=${lib.escapeShellArg themeWallpaperPath}
-      THEME_WALLPAPER_DROP_DIR=${lib.escapeShellArg wallpaperDropDir}
-      THEME_UI_FONT=${lib.escapeShellArg theme.fonts.ui.family}
-      THEME_UI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.ui.size)}
-      THEME_ROFI_FONT_SIZE=${lib.escapeShellArg (toString theme.fonts.rofi.size)}
-      THEME_ROFI_FONT_LABEL_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 1))}
-      THEME_ROFI_FONT_SUBTITLE_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 2))}
-      THEME_ROFI_FONT_CALENDAR_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 4))}
-      THEME_ROFI_FONT_VALUE_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 8))}
-      THEME_ROFI_FONT_TITLE_SIZE=${lib.escapeShellArg (toString (theme.fonts.rofi.size + 10))}
-      THEME_MONO_FONT=${lib.escapeShellArg theme.fonts.mono.family}
-      THEME_LOCK_FONT=${lib.escapeShellArg theme.fonts.lock.family}
-      THEME_LOCK_FONT_BOLD=${lib.escapeShellArg theme.fonts.lock.boldFamily}
-      THEME_LOCK_CLOCK_SIZE=${lib.escapeShellArg (toString theme.fonts.lock.clockSize)}
-      THEME_LOCK_TEXT_SIZE=${lib.escapeShellArg (toString theme.fonts.lock.textSize)}
-      THEME_STATIC_BASE=${lib.escapeShellArg theme.colors.base}
-      THEME_STATIC_MANTLE=${lib.escapeShellArg theme.colors.mantle}
-      THEME_STATIC_TEXT=${lib.escapeShellArg theme.colors.text}
-      THEME_STATIC_SUBTEXT=${lib.escapeShellArg theme.colors.subtext}
-      THEME_STATIC_ACCENT=${lib.escapeShellArg theme.colors.accent}
-      THEME_STATIC_SUCCESS=${lib.escapeShellArg theme.colors.success}
-      THEME_STATIC_WARNING=${lib.escapeShellArg theme.colors.warning}
-      THEME_STATIC_ERROR=${lib.escapeShellArg theme.colors.error}
-      THEME_STATIC_PURPLE=${lib.escapeShellArg theme.colors.purple}
-      THEME_STATIC_CYAN=${lib.escapeShellArg theme.colors.cyan}
-      THEME_SIGNAL_OK=${lib.escapeShellArg signal.ok}
-      THEME_SIGNAL_NOTICE=${lib.escapeShellArg signal.notice}
-      THEME_SIGNAL_WARNING=${lib.escapeShellArg signal.warning}
-      THEME_SIGNAL_CRITICAL=${lib.escapeShellArg signal.critical}
-      THEME_SIGNAL_ECO=${lib.escapeShellArg signal.eco}
-      THEME_SIGNAL_MUTED=${lib.escapeShellArg signal.muted}
-    '';
+    "theme/static.env".text = staticEnvText;
     "theme/theme-apply" = {
       text = themeApplyScript;
       executable = true;
