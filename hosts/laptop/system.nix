@@ -53,6 +53,17 @@
     '';
   };
 
+  # Tag devices before 73-seat-late.rules applies the active session's ACL.
+  services.udev.packages = [
+    (pkgs.writeTextFile {
+      name = "usb-hid-uaccess";
+      destination = "/etc/udev/rules.d/70-usb-hid-uaccess.rules";
+      text = ''
+        SUBSYSTEM=="hidraw", SUBSYSTEMS=="usb", TAG+="uaccess"
+      '';
+    })
+  ];
+
   systemd.services = {
     # Docker is the only network-online consumer and creates its own bridge;
     # avoid delaying graphical startup for connectivity.
