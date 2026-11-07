@@ -3,6 +3,9 @@
   # Personal applications belong to the user profile. Genuinely system-wide
   # tools, services, and desktop integration live in environment.systemPackages
   # under hosts/<host>/system/packages.nix.
+  #
+  # Self-updating GUI apps come from Flathub instead: Brave, Zed, VS Code,
+  # Obsidian, Discord, LosslessCut, and Signal.
   home.packages = with pkgs; [
     pkgsUnstable.antigravity-ide
     pkgsUnstable.antigravity-cli
@@ -10,19 +13,15 @@
     # Editors & search
     neovim
     recoll
-    zed-editor
 
-    # Browsers
-    brave
+    # Browsers (Brave is installed from Flathub as com.brave.Browser)
     firefox
 
     # Office & productivity
     gsimplecal
     pkgsUnstable.libreoffice-stable
-    pkgsUnstable.obsidian
     wpsoffice
     pkgsUnstable.xournalpp
-    pkgsUnstable.vscode
 
     # Media apps
     pkgsUnstable.darktable
@@ -31,7 +30,6 @@
     guvcview
     imv
     lightworks-with-desktop
-    pkgsUnstable.losslesscut-bin
     loupe
     pkgsUnstable.obs-studio
     rawtherapee

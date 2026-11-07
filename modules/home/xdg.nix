@@ -25,14 +25,14 @@
     mimeApps = {
       enable = true;
       defaultApplications = {
-        "text/html" = "brave-browser.desktop";
-        "x-scheme-handler/http" = "brave-browser.desktop";
-        "x-scheme-handler/https" = "brave-browser.desktop";
-        "x-scheme-handler/about" = "brave-browser.desktop";
-        "x-scheme-handler/unknown" = "brave-browser.desktop";
+        "text/html" = "com.brave.Browser.desktop";
+        "x-scheme-handler/http" = "com.brave.Browser.desktop";
+        "x-scheme-handler/https" = "com.brave.Browser.desktop";
+        "x-scheme-handler/about" = "com.brave.Browser.desktop";
+        "x-scheme-handler/unknown" = "com.brave.Browser.desktop";
         "x-scheme-handler/sgnl" = "org.signal.Signal.desktop";
         "x-scheme-handler/signalcaptcha" = "org.signal.Signal.desktop";
-        "text/plain" = "code.desktop";
+        "text/plain" = "com.visualstudio.code.desktop";
         "application/pdf" = "draw.desktop";
 
         "image/jpeg" = "org.gnome.Loupe.desktop";
