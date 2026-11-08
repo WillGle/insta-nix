@@ -142,5 +142,10 @@ in
     openssl
     curl
     expat
+    # OpenCode is installed from its upstream binary and reads the clipboard
+    # through libwayland-client at runtime.
+    wayland
+    # X11 fallback for compositors without data-control support.
+    libxcb
   ];
 }
