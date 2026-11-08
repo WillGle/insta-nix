@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  pkgsUnstable,
   ...
 }:
 let
@@ -10,9 +9,18 @@ let
     themeConfig.Background = "/var/lib/sddm-wallpaper/background.jpg";
   };
 
+  # Keep fcitx5 core and all addons on the stable package set. The GTK
+  # immodule is loaded by the system GTK, and the immodule cache is generated
+  # with the stable GTK/GLib stack.
+  fcitx5Addons = with pkgs; [
+    fcitx5-bamboo
+    fcitx5-gtk
+    kdePackages.fcitx5-qt
+    libsForQt5.fcitx5-qt
+  ];
+
   # Home Manager starts Fcitx; remove the competing XDG autostart launcher.
-  # Keep core and addons on one package set for ABI compatibility.
-  fcitx5WithoutAutostart = pkgsUnstable.callPackage ../../../pkgs/fcitx5 {
+  fcitx5WithoutAutostart = pkgs.callPackage ../../../pkgs/fcitx5 {
     inherit (config.i18n.inputMethod.fcitx5) addons;
   };
 in
@@ -92,12 +100,7 @@ in
     enable = true;
     type = "fcitx5";
     fcitx5 = {
-      addons = with pkgsUnstable; [
-        fcitx5-bamboo
-        fcitx5-gtk
-        kdePackages.fcitx5-qt
-        libsForQt5.fcitx5-qt
-      ];
+      addons = fcitx5Addons;
       waylandFrontend = true;
     };
   };
