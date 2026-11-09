@@ -9,4 +9,7 @@ _final: prev: {
   lightworks-with-desktop = prev.callPackage ../pkgs/lightworks {
     pkgs = prev;
   };
+
+  # Mister Download Manager, packaged from the upstream AppImage.
+  misterdownloadmanager = prev.callPackage ../pkgs/misterdownloadmanager { };
 }

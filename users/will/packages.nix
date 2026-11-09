@@ -22,6 +22,9 @@
     wpsoffice
     pkgsUnstable.xournalpp
 
+    # Downloads
+    misterdownloadmanager
+
     # Media apps
     pkgsUnstable.darktable
     evince
