@@ -4,13 +4,12 @@
   # tools, services, and desktop integration live in environment.systemPackages
   # under hosts/<host>/system/packages.nix.
   #
-  # Self-updating GUI apps come from Flathub instead: Brave, Zed, VS Code,
+  # Self-updating GUI apps come from Flathub instead: Brave, VS Code,
   # Obsidian, Discord, LosslessCut, and Signal.
   home.packages = with pkgs; [
-    pkgsUnstable.antigravity-ide
-    pkgsUnstable.antigravity-cli
-
     # Editors & search
+    # Zed is packaged here because its Flatpak cannot access /etc/nixos.
+    pkgsUnstable.zed-editor
     neovim
     recoll
 
