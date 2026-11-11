@@ -76,6 +76,9 @@
         };
       };
 
+      homeCleanupBin =
+        hostConfigs.think14gryzen.config.home-manager.users.will.home.file.".local/bin/home-cleanup".source;
+
       checks = {
         formatting =
           pkgs.runCommand "check-nixfmt"
@@ -114,8 +117,7 @@
           pkgs.runCommand "check-shellcheck"
             {
               nativeBuildInputs = [ pkgs.shellcheck ];
-              homeCleanup =
-                hostConfigs.think14gryzen.config.home-manager.users.will.home.file.".local/bin/home-cleanup".source;
+              homeCleanup = homeCleanupBin;
             }
             ''
               # SC2034 is used for environment-style configuration in the bench
@@ -134,12 +136,14 @@
               nativeBuildInputs = with pkgs; [
                 bats
                 coreutils
+                findutils
                 gawk
                 gnused
                 jq
                 util-linux
               ];
               REPO_ROOT = "${./.}";
+              HOME_CLEANUP_BIN = "${homeCleanupBin}";
             }
             ''
               export HOME=$(mktemp -d)
