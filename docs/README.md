@@ -10,6 +10,7 @@ Tracked documentation lives in this directory tree. Local-only operational notes
 
 ## Specialized Guides
 
+- [`FLATPAK.md`](./FLATPAK.md): Flatpak and non-nixpkgs package inventory for manual reinstall.
 - [`guides/LOCAL_LLM.md`](./guides/LOCAL_LLM.md): use this when running local LLM tools on `think14gryzen`.
 - [`ROFI_UTILITIES.md`](./ROFI_UTILITIES.md): use this for Study Timer and Screen Time dashboard documentation.
 - [`ATOMIC_NOTE_USAGE.md`](./ATOMIC_NOTE_USAGE.md): use this for the Waybar task queue and `atomic-note` commands.
