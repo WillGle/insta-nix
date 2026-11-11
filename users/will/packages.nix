@@ -5,7 +5,9 @@
   # under hosts/<host>/system/packages.nix.
   #
   # Self-updating GUI apps come from Flathub instead: Brave, VS Code,
-  # Obsidian, Discord, LosslessCut, and Signal.
+  # Obsidian, Discord, LosslessCut, and Signal. The CAD/EDA/3D tools are also
+  # Flathub apps: org.kicad.KiCad, org.freecad.FreeCAD,
+  # org.openscad.OpenSCAD, org.blender.Blender, and org.librepcb.LibrePCB.
   home.packages = with pkgs; [
     # Editors & search
     # Zed is packaged here because its Flatpak cannot access /etc/nixos.
