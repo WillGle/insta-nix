@@ -28,7 +28,6 @@
         config.allowUnfree = true;
         overlays = [
           (import ./overlays/common.nix)
-          (import ./overlays/unstable.nix)
         ];
       };
 
