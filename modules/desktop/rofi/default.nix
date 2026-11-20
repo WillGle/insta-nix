@@ -134,6 +134,7 @@ in
         iproute2
         networkmanager
         procps
+        rofi
       ];
     });
   };
