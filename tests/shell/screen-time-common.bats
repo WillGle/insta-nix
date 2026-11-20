@@ -7,7 +7,7 @@ setup() {
   unset THEME_STATIC_ACCENT THEME_STATIC_PURPLE THEME_STATIC_CYAN
 
   # shellcheck source=/dev/null
-  source "$REPO_ROOT/modules/desktop/screen-time/lib/common.sh"
+  source "$REPO_ROOT/modules/desktop/apps/screen-time/lib/common.sh"
 }
 
 @test "normalize_class lowercases and strips launcher suffixes" {

@@ -4,9 +4,9 @@ setup() {
   export HOME="$BATS_TEST_TMPDIR/home"
   mkdir -p "$HOME"
 
-  note="$REPO_ROOT/modules/desktop/apps/assets/atomic-note"
+  note="$REPO_ROOT/modules/desktop/apps/atomic-note/assets/atomic-note"
   study_source="$REPO_ROOT/modules/desktop/apps/assets/study-timer"
-  screen_lib="$REPO_ROOT/modules/desktop/screen-time"
+  screen_lib="$REPO_ROOT/modules/desktop/apps/screen-time"
   study="$BATS_TEST_TMPDIR/study-timer"
   sed "s|@screenTimeLib@|$screen_lib|g" "$study_source" >"$study"
   chmod +x "$study"

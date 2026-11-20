@@ -21,7 +21,7 @@ let
   };
 
   networkLib = ../rofi/assets/network-lib.sh;
-  screenTimeLib = import ../screen-time/lib.nix { inherit pkgs signal; };
+  screenTimeLib = import ../apps/screen-time/lib.nix { inherit pkgs signal; };
   screenTimeLibVar = {
     screenTimeLib = "${screenTimeLib}";
   };

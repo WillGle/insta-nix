@@ -10,7 +10,7 @@ let
 
   inherit (osConfig.theme) signal;
 
-  mkScript = import ../../../lib/mk-script.nix {
+  mkScript = import ../../../../lib/mk-script.nix {
     inherit pkgs lib;
     defaultDir = ./assets;
   };
