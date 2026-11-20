@@ -25,7 +25,11 @@ let
   };
 in
 {
-  imports = [ ./theme ];
+  imports = [
+    ./theme
+    ./packages.nix
+    ./bluetooth.nix
+  ];
 
   home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
 
