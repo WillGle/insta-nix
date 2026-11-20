@@ -27,10 +27,10 @@ let
 
   mkSystemScript = import ../../../lib/mk-script.nix {
     inherit pkgs lib;
-    defaultDir = ../assets/system-bin;
+    defaultDir = ./assets;
   };
 
-  llmLib = ../assets/llm/lib/common.sh;
+  llmLib = ./assets/llm-common.sh;
 
   # Override detection: llmfit sees only 4 GiB VRAM and misses shared GTT.
   llmfitWrapped = pkgs.writeShellScriptBin "llmfit" ''
@@ -42,7 +42,7 @@ let
     llmfitWrapped
     (mkSystemScript {
       name = "llm-pull";
-      dir = ../assets/local-bin;
+      dir = ./assets;
       runtimeInputs = with pkgs; [
         coreutils
         curl
@@ -53,7 +53,7 @@ let
     })
     (mkSystemScript {
       name = "llm-fit";
-      dir = ../assets/local-bin;
+      dir = ./assets;
       vars = {
         llmLib = "${llmLib}";
       };
@@ -65,7 +65,7 @@ let
     })
     (mkSystemScript {
       name = "llm-list";
-      dir = ../assets/local-bin;
+      dir = ./assets;
       runtimeInputs = with pkgs; [
         coreutils
         curl

@@ -5,11 +5,9 @@
 }:
 {
   imports = [
-    ./system/user.nix
-    ./system/graphics.nix
-    ./system/power.nix
-    ./system/gaming.nix
-    ./system/packages.nix
+    ./user.nix
+    ./graphics.nix
+    ./packages.nix
   ];
 
   # Keep the personal image out of the flake/store and readable before login.

@@ -3,7 +3,7 @@
   imports = [
     ../../users/will/home.nix
     ../../modules/desktop/home.nix
-    ../../modules/home/maintenance/default.nix
+    ../../modules/system/maintenance/home.nix
   ];
 
   # Waybar supplies the Bluetooth indicator. Disable StatusIcon and its

@@ -9,7 +9,7 @@ let
 
   mkSystemScript = import ../../../lib/mk-script.nix {
     inherit pkgs lib;
-    defaultDir = ../assets/system-bin;
+    defaultDir = ./assets;
   };
 
   # Daily profiles use platform profile, EPP, and optional frequency caps.
@@ -71,7 +71,7 @@ let
     name = "rofi-sudo-askpass";
     runtimeInputs = [ pkgs.rofi ];
     text = lib.concatStringsSep "\n" (
-      lib.drop 1 (lib.splitString "\n" (builtins.readFile ../assets/system-bin/rofi-sudo-askpass))
+      lib.drop 1 (lib.splitString "\n" (builtins.readFile ./assets/rofi-sudo-askpass))
     );
   };
 

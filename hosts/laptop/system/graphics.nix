@@ -15,7 +15,7 @@
     enable32Bit = true;
     # Keep system Mesa on stable: mixing unstable drivers with stable libdrm
     # broke Steam, CS2, VA-API, and Chromium acceleration.
-    # Scope unstable RADV to llama.cpp with matching libdrm in system/llm.nix.
+    # Scope unstable RADV to llama.cpp with matching libdrm in modules/system/llm.
     extraPackages = with pkgs; [
       vulkan-loader
       vulkan-tools

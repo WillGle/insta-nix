@@ -5,7 +5,7 @@
     ./storage.nix
     ./network.nix
     ../../base/default.nix
-    ../../modules/nixos/services/ssh/strict.nix
+    ../../modules/system/services/ssh/strict.nix
     ../../users/will/default.nix
     ./system
   ];

@@ -5,17 +5,16 @@
     ./storage.nix
     ./network.nix
     ../../base/default.nix
-    ../../modules/nixos/maintenance/default.nix
-    ../../modules/nixos/hardware/desktop.nix
-    ../../modules/nixos/hardware/openlogi.nix
-    ./system/llm.nix
-    ./system/native-power.nix
+    ../../modules/system/maintenance
+    ../../modules/system/hardware
+    ../../modules/system/llm
+    ../../modules/system/power
+    ../../modules/system/gaming
     ../../modules/desktop/default.nix
-    ../../modules/nixos/services/ssh/strict.nix
+    ../../modules/system/services/ssh/strict.nix
     ../../users/will/default.nix
-    ./system.nix
-    ../../modules/nixos/development/kubernetes.nix
-    ../../modules/nixos/development/iac.nix
+    ./system
+    ../../modules/system/development
   ];
 
   system.stateVersion = "25.11";

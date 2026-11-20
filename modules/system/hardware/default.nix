@@ -1,5 +1,8 @@
 _: {
-  imports = [ ./bluetooth.nix ];
+  imports = [
+    ./bluetooth.nix
+    ./openlogi.nix
+  ];
 
   hardware = {
     enableAllFirmware = true;
