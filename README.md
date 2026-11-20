@@ -88,7 +88,7 @@ headless. Desktop assets live beside their consuming module under
 `users/will/packages.nix` is a Home Manager module and owns personal application
 selection in the user profile. Genuinely system-wide tools and desktop
 integration remain in `environment.systemPackages` under
-`hosts/<host>/system/packages.nix`. Custom package definitions and patches live
+`hosts/<host>/packages.nix`. Custom package definitions and patches live
 together in `pkgs/<package>/`.
 
 Git flake commands include tracked working-tree changes. Add intended new source

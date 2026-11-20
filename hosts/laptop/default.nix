@@ -13,7 +13,7 @@
     ../../modules/desktop/default.nix
     ../../modules/system/services/ssh/strict.nix
     ../../users/will/default.nix
-    ./system
+    ./system.nix
     ../../modules/system/development
   ];
 

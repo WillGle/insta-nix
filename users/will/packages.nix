@@ -2,7 +2,7 @@
 {
   # Personal applications belong to the user profile. Genuinely system-wide
   # tools, services, and desktop integration live in environment.systemPackages
-  # under hosts/<host>/system/packages.nix.
+  # under hosts/<host>/packages.nix.
   #
   # Self-updating GUI apps come from Flathub instead: Brave, VS Code,
   # Obsidian, Discord, LosslessCut, and Signal. The CAD/EDA/3D tools are also

@@ -18,7 +18,7 @@ cp -r hosts/_template hosts/<host-id>
 - `hardware.nix`: Điền thông số phần cứng từ `nixos-generate-config` (hệ điều hành, driver, initrd).
 - `network.nix`: Đặt tên máy (`networking.hostName = "<host-id>";`) và cấu hình tường lửa/mạng.
 - `storage.nix`: Khai báo hệ thống tệp (`fileSystems`), swap (`swapDevices`) và các phân vùng.
-- `system/`: Chính sách gắn với máy: `packages.nix`, `graphics.nix`, `user.nix`, và `default.nix` làm điểm nạp. Các vai trò dùng chung nằm trong `modules/system/`.
+- `system.nix`: Chính sách gắn với máy: `packages.nix`, `graphics.nix`, `user.nix`, và `system.nix` làm điểm nạp. Các vai trò dùng chung nằm trong `modules/system/`.
 - `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu khai báo `homeModule`). Nạp `../../users/will/home.nix` (đã bao gồm `users/will/packages.nix` và `modules/cli`), `../../modules/desktop/home.nix` cho bộ desktop chuẩn, và `../../modules/system/maintenance/home.nix`.
 - Không đặt app asset dưới host. Asset nằm cạnh module sở hữu trong `modules/desktop/<feature>/` hoặc `modules/system/<role>/`.
 
@@ -34,7 +34,7 @@ Cấu hình tối thiểu:
     ../../base/default.nix
     ../../users/will/default.nix
     ../../modules/system/services/ssh/strict.nix
-    ./system
+    ./system.nix
     # Nạp thêm các vai trò dùng chung nếu cần:
     # ../../modules/system/development
     # ../../modules/system/hardware
