@@ -7,15 +7,11 @@
 let
   inherit (osConfig.theme) signal;
 
-  mkScript = import ../../../../lib/mk-script.nix {
+  scripts = import ../../../../lib/mk-home-script.nix {
     inherit pkgs lib;
     defaultDir = ./assets;
   };
-
-  scriptFile = pkg: {
-    source = lib.getExe pkg;
-    executable = true;
-  };
+  inherit (scripts) mkScript scriptFile;
 in
 {
   home.file.".local/bin/atomic-note" = scriptFile (mkScript {
@@ -30,6 +26,7 @@ in
       util-linux
     ];
     vars = {
+      paletteLib = "${../../theme/lib/palette.sh}";
       signalOk = signal.ok;
       signalNotice = signal.notice;
       signalWarning = signal.warning;

@@ -16,35 +16,15 @@ ACCENT="@themeAccent@"
 BASE="@themeBase@"
 SUBTEXT="@themeSubtext@"
 RASI="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/calendar.rasi"
-THEME_PALETTE_FILE="${XDG_CONFIG_HOME:-${HOME}/.config}/theme/generated/palette.json"
 
-load_runtime_palette() {
-  local values=""
-  local -a palette=()
+# shellcheck source=/dev/null
+. "@paletteLib@"
 
-  [ -r "$THEME_PALETTE_FILE" ] || return 0
-  values="$(
-    jq -er '
-      [
-        .colors.surface.default.color,
-        .colors.on_surface_variant.default.color,
-        .colors.primary.default.color
-      ] as $palette
-      | if all($palette[]; type == "string" and test("^#[0-9A-Fa-f]{6}$"))
-        then $palette | @tsv
-        else error("invalid runtime palette")
-        end
-    ' "$THEME_PALETTE_FILE" 2>/dev/null
-  )" || return 0
-
-  IFS=$'\t' read -r -a palette <<< "$values"
-  [ "${#palette[@]}" -eq 3 ] || return 0
-  BASE="${palette[0]}"
-  SUBTEXT="${palette[1]}"
-  ACCENT="${palette[2]}"
-}
-
-load_runtime_palette
+if load_runtime_palette; then
+  BASE="${RUNTIME_PALETTE[0]}"
+  SUBTEXT="${RUNTIME_PALETTE[3]}"
+  ACCENT="${RUNTIME_PALETTE[4]}"
+fi
 
 today_y=$(date +%Y)
 today_m=$(date +%-m)

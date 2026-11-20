@@ -6,16 +6,10 @@ export PATH="$PATH:/run/current-system/sw/bin"
 # Resolve shared nmcli helpers to a store path at build time.
 # shellcheck source=/dev/null
 . "@networkLib@"
+# shellcheck source=/dev/null
+. "@menuLib@"
 
 # Query NetworkManager and BlueZ once each, then reuse their snapshots.
-
-escape_markup() {
-  local s="${1:-}"
-  s="${s//&/"&amp;"}"
-  s="${s//</"&lt;"}"
-  s="${s//>/"&gt;"}"
-  printf '%s' "$s"
-}
 
 # Index all device properties by name, retaining NetworkManager order.
 # Terse device show uses unescaped KEY:VALUE lines and blank device separators.

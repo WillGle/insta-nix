@@ -7,9 +7,8 @@ export LC_ALL=C
 
 SEP="<span alpha='30%'>──────────────────────────</span>"
 
-escape_markup() {
-  printf '%s' "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
-}
+# shellcheck source=/dev/null
+. "@menuLib@"
 
 emit() {
   jq -cn --arg text "$1" --arg tooltip "$2" --arg class "$3" \

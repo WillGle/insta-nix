@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+VIEW_LIB_DIR="${BASH_SOURCE[0]%/*}"
+if [ -r "$VIEW_LIB_DIR/menu.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$VIEW_LIB_DIR/menu.sh"
+fi
+ROFI_SUBTEXT_COLOR="$SUBTEXT_COLOR"
+
 bar_markup() {
   local value="${1:-0}"
   local max="${2:-0}"
@@ -396,31 +403,6 @@ render_unknown_apps() {
   else
     printf '%s' "${output%$'\n'}"
   fi
-}
-
-action_row_markup() {
-  local label="$1"
-  local hint="${2:-}"
-  if [ -n "$hint" ]; then
-    printf '<span weight="600">%s</span>&#10;<span foreground="%s" size="small">%s</span>' \
-      "$(escape_markup "$label")" \
-      "$SUBTEXT_COLOR" \
-      "$(escape_markup "$hint")"
-  else
-    printf '<span weight="600">%s</span>' "$(escape_markup "$label")"
-  fi
-}
-
-emit_row() {
-  local token="$1"
-  local display="$2"
-  local icon="${3:-}"
-  printf '%s' "$token"
-  printf '\0display\x1f%s' "$display"
-  if [ -n "$icon" ]; then
-    printf '\x1ficon\x1f%s' "$icon"
-  fi
-  printf '\n'
 }
 
 build_navigation_json() {

@@ -16,17 +16,13 @@ let
   rofiScriptBody =
     path: lib.concatStringsSep "\n" (lib.drop 1 (lib.splitString "\n" (builtins.readFile path)));
 
-  mkScript = import ../../../lib/mk-script.nix {
+  scripts = import ../../../lib/mk-home-script.nix {
     inherit pkgs lib;
     defaultDir = ./assets;
   };
+  inherit (scripts) mkScript scriptFile;
 
-  scriptFile = pkg: {
-    source = lib.getExe pkg;
-    executable = true;
-  };
-
-  networkLib = ./assets/network-lib.sh;
+  networkLib = ../lib/network.sh;
 in
 {
   xdg.configFile = {
@@ -108,7 +104,10 @@ in
         rofi
         util-linux
       ];
-      vars = { inherit themeAccent themeBase themeSubtext; };
+      vars = {
+        paletteLib = "${../theme/lib/palette.sh}";
+        inherit themeAccent themeBase themeSubtext;
+      };
     });
     ".local/bin/rofi-keybinds" = scriptFile (mkScript {
       name = "rofi-keybinds";
@@ -125,6 +124,7 @@ in
     ".local/bin/rofi-network" = scriptFile (mkScript {
       name = "rofi-network";
       vars = {
+        menuLib = "${./lib/menu.sh}";
         networkLib = "${networkLib}";
       };
       runtimeInputs = with pkgs; [

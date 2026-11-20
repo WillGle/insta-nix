@@ -10,15 +10,11 @@ let
 
   inherit (osConfig.theme) signal;
 
-  mkScript = import ../../../../lib/mk-script.nix {
+  scripts = import ../../../../lib/mk-home-script.nix {
     inherit pkgs lib;
     defaultDir = ./assets;
   };
-
-  scriptFile = pkg: {
-    source = lib.getExe pkg;
-    executable = true;
-  };
+  inherit (scripts) mkScript scriptFile;
 
   screenTimeLib = import ./lib.nix { inherit pkgs signal; };
 

@@ -26,6 +26,14 @@ if [ -r "$THEME_STATIC_ENV" ]; then
   . "$THEME_STATIC_ENV"
 fi
 
+# Shared generated-palette loader. Direct repo tests may not have the packaged
+# store path, so keep this source optional.
+PALETTE_LIB="@paletteLib@"
+if [ -r "$PALETTE_LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$PALETTE_LIB"
+fi
+
 ACTION_FG="${THEME_STATIC_BASE:-#11111b}"
 ACTION_ADD_BG="${THEME_STATIC_ACCENT:-#89b4fa}"
 ACTION_OPEN_BG="${THEME_STATIC_CYAN:-#74c7ec}"
@@ -44,46 +52,17 @@ CHIP_ICON_FONT_DESC="@monoFont@ @rofiFontSize@"
 
 # Refresh action colours from the generated theme; static.env is the fallback.
 # Priority colours stay fixed because they carry meaning.
-THEME_PALETTE_FILE="${THEME_GENERATED_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/theme/generated}/palette.json"
-load_runtime_palette() {
-  local values=""
-  local -a palette=()
-
-  [ -r "$THEME_PALETTE_FILE" ] || return 0
-  values="$(jq -er '
-    [
-      .colors.surface.default.color,
-      .colors.surface_container.default.color,
-      .colors.on_surface.default.color,
-      .colors.on_surface_variant.default.color,
-      .colors.primary.default.color,
-      .colors.secondary.default.color,
-      .colors.tertiary.default.color,
-      .colors.error.default.color,
-      .palettes.tertiary["70"].color,
-      .palettes.secondary["70"].color
-    ] as $palette
-    | if all($palette[]; type == "string" and test("^#[0-9A-Fa-f]{6}$"))
-      then $palette | @tsv
-      else error("invalid runtime palette")
-      end
-  ' "$THEME_PALETTE_FILE" 2>/dev/null
-  )" || return 0
-
-  IFS=$'\t' read -r -a palette <<< "$values"
-  [ "${#palette[@]}" -eq 10 ] || return 0
-
-  ACTION_FG="${palette[0]}"
-  ACTION_ADD_BG="${palette[4]}"
-  ACTION_OPEN_BG="${palette[9]}"
-  ACTION_EDIT_BG="${palette[8]}"
-  ACTION_MOVE_BG="${palette[6]}"
-  ACTION_CANCEL_BG="${palette[3]}"
-  SECTION_BG="${palette[1]}"
-  SECTION_FG="${palette[2]}"
-  INFO_FG="${palette[3]}"
-}
-load_runtime_palette
+if declare -F load_runtime_palette >/dev/null && load_runtime_palette; then
+  ACTION_FG="${RUNTIME_PALETTE[0]}"
+  ACTION_ADD_BG="${RUNTIME_PALETTE[4]}"
+  ACTION_OPEN_BG="${RUNTIME_PALETTE[9]}"
+  ACTION_EDIT_BG="${RUNTIME_PALETTE[8]}"
+  ACTION_MOVE_BG="${RUNTIME_PALETTE[6]}"
+  ACTION_CANCEL_BG="${RUNTIME_PALETTE[3]}"
+  SECTION_BG="${RUNTIME_PALETTE[1]}"
+  SECTION_FG="${RUNTIME_PALETTE[2]}"
+  INFO_FG="${RUNTIME_PALETTE[3]}"
+fi
 
 # Match exact process names so RT signals cannot kill Waybar helpers.
 # Nix wraps the binary, so try both names.

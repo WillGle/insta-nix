@@ -8,6 +8,8 @@ ROFI_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/network.rasi"
 # Resolve shared nmcli helpers to a store path at build time.
 # shellcheck source=/dev/null
 . "@networkLib@"
+# shellcheck source=/dev/null
+. "@menuLib@"
 
 ROFI_COMMON=(
   -dmenu
@@ -34,14 +36,6 @@ strip_ansi() {
 
 first_line() {
   strip_ansi "$1" | sed -n '1p'
-}
-
-escape_markup() {
-  local s="${1:-}"
-  s="${s//&/"&amp;"}"
-  s="${s//</"&lt;"}"
-  s="${s//>/"&gt;"}"
-  printf '%s' "$s"
 }
 
 refresh_waybar_network() {

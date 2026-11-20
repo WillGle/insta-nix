@@ -8,6 +8,8 @@ setup() {
 
   # shellcheck source=/dev/null
   source "$REPO_ROOT/modules/desktop/apps/screen-time/lib/common.sh"
+  # shellcheck source=/dev/null
+  source "$REPO_ROOT/modules/desktop/rofi/lib/menu.sh"
 }
 
 @test "normalize_class lowercases and strips launcher suffixes" {

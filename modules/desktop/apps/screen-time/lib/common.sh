@@ -24,46 +24,23 @@ ERROR_COLOR="@signalCritical@"
 PURPLE_COLOR="${THEME_STATIC_PURPLE:-#a0cfd1}"
 CYAN_COLOR="${THEME_STATIC_CYAN:-#8fc0ff}"
 
+# The packaged copy lives beside this file; direct repo tests may not have it.
+SCREEN_TIME_PALETTE_LIB="${SCREEN_TIME_PALETTE_LIB:-$(dirname "${BASH_SOURCE[0]}")/palette.sh}"
+if [ -r "$SCREEN_TIME_PALETTE_LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$SCREEN_TIME_PALETTE_LIB"
+fi
+
 # Match the generated palette, falling back to static.env before generation.
 # Keep signal colours fixed so their meaning survives wallpaper changes.
-load_runtime_palette() {
-  local values=""
-  local -a palette=()
-
-  [ -r "$THEME_PALETTE_FILE" ] || return 0
-  values="$(
-    jq -er '
-      [
-        .colors.surface.default.color,
-        .colors.surface_container.default.color,
-        .colors.on_surface.default.color,
-        .colors.on_surface_variant.default.color,
-        .colors.primary.default.color,
-        .colors.secondary.default.color,
-        .colors.tertiary.default.color,
-        .colors.error.default.color,
-        .palettes.tertiary["70"].color,
-        .palettes.secondary["70"].color
-      ] as $palette
-      | if all($palette[]; type == "string" and test("^#[0-9A-Fa-f]{6}$"))
-        then $palette | @tsv
-        else error("invalid runtime palette")
-        end
-    ' "$THEME_PALETTE_FILE" 2>/dev/null
-  )" || return 0
-
-  IFS=$'\t' read -r -a palette <<< "$values"
-  [ "${#palette[@]}" -eq 10 ] || return 0
-
-  BASE_COLOR="${palette[0]}"
-  TEXT_COLOR="${palette[2]}"
-  SUBTEXT_COLOR="${palette[3]}"
-  ACCENT_COLOR="${palette[4]}"
-  PURPLE_COLOR="${palette[8]}"
-  CYAN_COLOR="${palette[9]}"
-}
-
-load_runtime_palette
+if declare -F load_runtime_palette >/dev/null && load_runtime_palette; then
+  BASE_COLOR="${RUNTIME_PALETTE[0]}"
+  TEXT_COLOR="${RUNTIME_PALETTE[2]}"
+  SUBTEXT_COLOR="${RUNTIME_PALETTE[3]}"
+  ACCENT_COLOR="${RUNTIME_PALETTE[4]}"
+  PURPLE_COLOR="${RUNTIME_PALETTE[8]}"
+  CYAN_COLOR="${RUNTIME_PALETTE[9]}"
+fi
 
 trim() {
   local value="${1:-}"
@@ -104,16 +81,6 @@ humanize_class() {
     out+="${word^} "
   done
   printf '%s\n' "${out%" "}"
-}
-
-# Avoid subprocesses for each label.
-escape_markup() {
-  local s="${1:-}"
-  # Quote replacements so Bash 5.2+ treats & literally.
-  s="${s//&/"&amp;"}"
-  s="${s//</"&lt;"}"
-  s="${s//>/"&gt;"}"
-  printf '%s' "$s"
 }
 
 rasi_quote() {

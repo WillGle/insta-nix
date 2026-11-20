@@ -10,17 +10,13 @@ let
   themeAccent = osConfig.theme.colors.accent;
   themeGeneratedDir = "${config.xdg.configHome}/theme/generated";
 
-  mkScript = import ../../../lib/mk-script.nix {
+  scripts = import ../../../lib/mk-home-script.nix {
     inherit pkgs lib;
     defaultDir = ./assets;
   };
+  inherit (scripts) mkScript scriptFile;
 
-  scriptFile = pkg: {
-    source = lib.getExe pkg;
-    executable = true;
-  };
-
-  networkLib = ../rofi/assets/network-lib.sh;
+  networkLib = ../lib/network.sh;
   screenTimeLib = import ../apps/screen-time/lib.nix { inherit pkgs signal; };
   screenTimeLibVar = {
     screenTimeLib = "${screenTimeLib}";
@@ -91,6 +87,7 @@ in
       name = "waybar-network-info";
       vars = {
         inherit themeAccent;
+        menuLib = "${../rofi/lib/menu.sh}";
         networkLib = "${networkLib}";
       };
       # Use busctl: bluetoothctl creates advertisement monitors on each poll,
@@ -147,6 +144,7 @@ in
         systemd
       ];
       vars = {
+        menuLib = "${../rofi/lib/menu.sh}";
         signalOk = signal.ok;
         signalWarning = signal.warning;
         signalCritical = signal.critical;

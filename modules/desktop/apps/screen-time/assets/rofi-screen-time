@@ -5,9 +5,14 @@ set -euo pipefail
 SCREEN_TIME_LIB_DIR="@screenTimeLib@/lib"
 # shellcheck source=/dev/null
 . "$SCREEN_TIME_LIB_DIR/common.sh"
+# shellcheck source=/dev/null
+. "$SCREEN_TIME_LIB_DIR/menu.sh"
 
 ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
-ROFI_THEME="${HOME}/.config/rofi/screen-time.rasi"
+ROFI_THEME="$(resolve_rofi_theme "${ROFI_THEME:-}" "${HOME}/.config/rofi/screen-time.rasi")" || {
+  printf 'rofi-screen-time: unable to locate screen-time theme\n' >&2
+  exit 1
+}
 STATS_BIN="${STATS_BIN:-${HOME}/.local/bin/rofi-screen-time-stats}"
 CACHE_ROOT="${SCREEN_TIME_CACHE_HOME}/popup-cache"
 CACHE_TTL_SECONDS=300

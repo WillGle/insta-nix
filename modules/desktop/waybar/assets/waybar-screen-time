@@ -3,6 +3,8 @@ set -euo pipefail
 
 # shellcheck source=/dev/null
 . "@screenTimeLib@/lib/common.sh"
+# shellcheck source=/dev/null
+. "@screenTimeLib@/lib/menu.sh"
 
 TARGET_DATE="$(date +%F)"
 DAY_FILE="${SCREEN_TIME_HOME}/days/${TARGET_DATE}.json"
