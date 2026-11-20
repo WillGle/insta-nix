@@ -3,9 +3,7 @@ _:
 {
   imports = [
     ./packages.nix
-    ../../modules/home/shell/default.nix
-    ../../modules/home/terminal/default.nix
-    ../../modules/home/xdg.nix
+    ../../modules/cli
   ];
 
   home = {
