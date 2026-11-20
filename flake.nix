@@ -123,7 +123,7 @@
               # scripts; SC2209 is a style warning in existing benchmark code.
               shellcheck -x -s bash -S warning -e SC1091,SC2034,SC2209 \
                 ${./scripts}/bench/*.sh \
-                ${./modules/desktop/theme/scripts}/lib/*.sh \
+                ${./modules/desktop/theme}/lib/*.sh \
                 ${./modules/desktop/hyprland/assets}/*.sh \
                 "$homeCleanup"
               touch $out

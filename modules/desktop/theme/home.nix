@@ -116,7 +116,7 @@ let
     WALLPAPER_BIN = wallpaperPath;
     NOTIFY_SEND_BIN = "${pkgs.libnotify}/bin/notify-send";
     # Share image detection between theme-apply and wallpaper.
-    IS_SUPPORTED_IMAGE = builtins.readFile ./scripts/lib/is-supported-image.sh;
+    IS_SUPPORTED_IMAGE = builtins.readFile ./lib/is-supported-image.sh;
   };
 
   placeholder = name: "__${name}__";

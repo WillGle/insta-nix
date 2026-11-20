@@ -33,14 +33,14 @@ Cấu hình tối thiểu:
     ./network.nix
     ../../base/default.nix
     ../../users/will/default.nix
-    ../../modules/system/services/ssh/strict.nix
+    ../../modules/system/ssh/strict.nix
     ./system.nix
     # Nạp thêm các vai trò dùng chung nếu cần:
     # ../../modules/system/development
     # ../../modules/system/hardware
     # ../../modules/desktop/default.nix
     # ../../modules/system/power
-    # ../../modules/system/gaming
+    # ../../modules/system/gaming.nix
   ];
 
   system.stateVersion = "25.11";
@@ -48,7 +48,7 @@ Cấu hình tối thiểu:
 ```
 
 *Lưu ý kiến trúc:* Host chọn chính sách SSH trong `default.nix`: dùng
-`modules/system/services/ssh/strict.nix` hoặc `plank.nix`. Baseline `base/`
+`modules/system/ssh/strict.nix` hoặc `plank.nix`. Baseline `base/`
 dùng chung không bật desktop; host chọn desktop và phần cứng cần thiết. Không
 dùng module LLM/native-power riêng của laptop cho máy khác nếu chưa kiểm tra phụ
 thuộc.

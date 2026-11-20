@@ -1,6 +1,6 @@
 # Yazi Usage Guide
 
-Configured in `modules/cli/terminal/default.nix`. Key bindings below match Yazi 26.5.6 defaults; uppercase keys are distinct.
+Configured in `modules/cli/terminal.nix`. Key bindings below match Yazi 26.5.6 defaults; uppercase keys are distinct.
 
 ## 1. Core Navigation (Vim-style)
 
@@ -46,7 +46,7 @@ The package includes these tools:
 
 ## 4. Tier 2: Intelligent Defaults
 
-Configured via Home Manager in `modules/cli/terminal/default.nix`:
+Configured via Home Manager in `modules/cli/terminal.nix`:
 
 - **Hidden Files**: Automatically shown by default.
 - **Sorting**: Files are sorted by **Modified Time** (`mtime`); reverse sorting is not enabled.
@@ -64,9 +64,9 @@ Configured via Home Manager in `modules/cli/terminal/default.nix`:
 
 ### 🪟 Opening Files (`Enter`)
 
-Images, audio and video use `xdg-open`, with handlers from `xdg.mimeApps.defaultApplications` in `modules/cli/xdg/default.nix`: **Loupe** for images, **VLC** for video, **Tauon** for audio.
+Images, audio and video use `xdg-open`, with handlers from `xdg.mimeApps.defaultApplications` in `modules/cli/xdg.nix`: **Loupe** for images, **VLC** for video, **Tauon** for audio.
 
-Note that Yazi's own default sends `{audio,video}/*` straight to `mpv` instead, bypassing xdg entirely; since `mpv` isn't installed here, `Enter` on a video used to do nothing. The `open.prepend_rules` entry in `modules/cli/terminal/default.nix` is what overrides that.
+Note that Yazi's own default sends `{audio,video}/*` straight to `mpv` instead, bypassing xdg entirely; since `mpv` isn't installed here, `Enter` on a video used to do nothing. The `open.prepend_rules` entry in `modules/cli/terminal.nix` is what overrides that.
 
 ### 🎨 Visual Theme
 

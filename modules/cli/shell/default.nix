@@ -8,7 +8,7 @@ _:
     };
 
     file = {
-      ".config/fastfetch/config.jsonc".source = ./assets/fastfetch/config.jsonc;
+      ".config/fastfetch/config.jsonc".source = ./config.jsonc;
     };
   };
 

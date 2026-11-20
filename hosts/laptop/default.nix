@@ -9,9 +9,9 @@
     ../../modules/system/hardware
     ../../modules/system/llm
     ../../modules/system/power
-    ../../modules/system/gaming
+    ../../modules/system/gaming.nix
     ../../modules/desktop/default.nix
-    ../../modules/system/services/ssh/strict.nix
+    ../../modules/system/ssh/strict.nix
     ../../users/will/default.nix
     ./system.nix
     ../../modules/system/development

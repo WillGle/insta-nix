@@ -5,7 +5,7 @@
     ./storage.nix
     ./network.nix
     ../../base/default.nix
-    ../../modules/system/services/ssh/plank.nix
+    ../../modules/system/ssh/plank.nix
     ../../users/will/default.nix
     ./system.nix
   ];
