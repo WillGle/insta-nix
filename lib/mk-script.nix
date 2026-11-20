@@ -5,13 +5,14 @@
 }:
 {
   name,
+  file ? name,
   dir ? defaultDir,
   runtimeInputs ? [ ],
   vars ? { },
   excludeShellChecks ? [ ],
 }:
 let
-  source = dir + "/${name}";
+  source = dir + "/${file}";
   input = builtins.readFile source;
   keys = builtins.attrNames vars;
   rendered = builtins.replaceStrings (map (key: "@${key}@") keys) (map (
