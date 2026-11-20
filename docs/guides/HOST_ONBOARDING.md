@@ -2,6 +2,9 @@
 
 Hướng dẫn tích hợp cấu hình của một máy trạm mới vào kho lưu trữ NixOS theo kiến trúc hiện tại.
 
+Nếu máy chưa có NixOS, cài bằng [`INSTALL.md`](./INSTALL.md) trước. Installer
+mặc định dùng host `minimal`; sau khi reboot, `/etc/nixos` đã có sẵn để rebuild.
+
 ## Điều kiện tiên quyết
 
 - Xác định định danh duy nhất cho máy mới (`<host-id>`).
@@ -15,10 +18,10 @@ cp -r hosts/_template hosts/<host-id>
 ```
 
 ### 2. Cấu hình các tệp thành phần trong `hosts/<host-id>/`
-- `hardware.nix`: Điền thông số phần cứng từ `nixos-generate-config` (hệ điều hành, driver, initrd).
+- `hardware.nix`: Thông số phần cứng từ `nixos-generate-config` (fileSystems, driver, initrd). Installer tạo file này tự động; chỉ sửa khi thêm phần cứng mới.
 - `network.nix`: Đặt tên máy (`networking.hostName = "<host-id>";`) và cấu hình tường lửa/mạng.
 - `storage.nix`: Khai báo hệ thống tệp (`fileSystems`), swap (`swapDevices`) và các phân vùng.
-- `system.nix`: Chính sách gắn với máy: `packages.nix`, `graphics.nix`, `user.nix`, và `system.nix` làm điểm nạp. Các vai trò dùng chung nằm trong `modules/system/`.
+- `system.nix`: Điểm nạp chính sách gắn với máy; các file đi kèm là `packages.nix`, `graphics.nix`, và `user.nix`. Các vai trò dùng chung nằm trong `modules/system/`.
 - `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu khai báo `homeModule`). Nạp `../../users/will/home.nix` (đã bao gồm `users/will/packages.nix` và `modules/cli`), `../../modules/desktop/home.nix` cho bộ desktop chuẩn, và `../../modules/system/maintenance/home.nix`.
 - Không đặt app asset dưới host. Asset nằm cạnh module sở hữu trong `modules/desktop/<feature>/` hoặc `modules/system/<role>/`.
 
@@ -48,10 +51,9 @@ Cấu hình tối thiểu:
 ```
 
 *Lưu ý kiến trúc:* Host chọn `modules/system/ssh/strict.nix` nếu cần SSH quản
-trị. Baseline `base/`
-dùng chung không bật desktop; host chọn desktop và phần cứng cần thiết. Không
-dùng module LLM/native-power riêng của laptop cho máy khác nếu chưa kiểm tra phụ
-thuộc.
+trị. Baseline `base/` dùng chung không bật desktop; host chọn desktop và phần
+cứng cần thiết. Không dùng module LLM/native-power riêng của laptop cho máy khác
+nếu chưa kiểm tra phụ thuộc.
 
 ### 4. Khai báo máy trong `flake.nix`
 Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hình máy mới vào mục `nixosConfigurations`:

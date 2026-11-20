@@ -4,7 +4,7 @@ Danh sách này dùng để cài lại thủ công các ứng dụng **không do
 Manager quản lý**. Flatpak là mutable state: `nixos-rebuild switch` chỉ cài
 phần mềm Flatpak, không cài lại các app bên dưới.
 
-- Flatpak được bật toàn hệ thống trong `modules/nixos/desktop/default.nix`.
+- Flatpak được bật toàn hệ thống trong `modules/desktop/default.nix`.
 - Các app người dùng cài ở **user scope**; riêng Signal cài ở **system scope**.
 - Phiên bản ghi ngày **2026-11-11**. Flathub branch `stable` tự cập nhật, nên
   phiên bản thực tế có thể mới hơn.
@@ -13,7 +13,7 @@ phần mềm Flatpak, không cài lại các app bên dưới.
 
 | Ứng dụng | Flatpak ID | Phạm vi | Branch | Phiên bản | Ghi chú |
 |---|---|---|---|---|---|
-| Brave | `com.brave.Browser` | user | stable | 1.99.55 | Trình duyệt mặc định cho HTTP/HTTPS trong `modules/home/xdg.nix` |
+| Brave | `com.brave.Browser` | user | stable | 1.99.55 | Trình duyệt mặc định cho HTTP/HTTPS trong `modules/cli/xdg.nix` |
 | Discord | `com.discordapp.Discord` | user | stable | 1.0.168 | |
 | Visual Studio Code | `com.visualstudio.code` | user | stable | 1.139.1 | |
 | Obsidian | `md.obsidian.Obsidian` | user | stable | 1.15.0 | |

@@ -11,6 +11,15 @@ không cần SSH remote install.
 - Ổ đích sẽ bị **xóa toàn bộ**, không dual boot.
 - Nên cắm Ethernet nếu WiFi firmware trên distro cũ không ổn định.
 
+## Kiểm tra trước
+
+```bash
+lsblk -d -o NAME,SIZE,MODEL
+sudo bash install.sh --dry-run --yes --disk /dev/nvme0n1
+```
+
+`--dry-run` không đụng ổ. Chỉ chạy lệnh thật khi `--disk` đúng là ổ muốn xóa.
+
 ## Cài
 
 ```bash
@@ -64,6 +73,20 @@ Sau reboot, `/etc/nixos` đã có sẵn để rebuild:
 ```bash
 sudo nixos-rebuild switch --flake /etc/nixos#minimal
 ```
+
+`/etc/nixos` là bản copy source từ tarball, không phải git checkout. Nếu muốn
+dùng Git, clone repo vào thư mục khác rồi trỏ `--flake` tới đó.
+
+## Troubleshooting
+
+- `404` khi tải `install.sh`: commit chưa được push lên `main`.
+- `not a whole disk` / `has mounted partitions`: kiểm tra lại `lsblk`; unmount
+  hoặc chọn đúng ổ.
+- `UEFI is required`: máy đang boot legacy/BIOS; cần boot lại ở UEFI.
+- `nix: command not found` sau khi cài Nix: mở shell mới hoặc source
+  `/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh`.
+- Secure Boot bật: tắt trước khi cài; systemd-boot chưa được ký.
+- Nên test trong VM UEFI hoặc ổ phụ trước khi chạy trên máy thật.
 
 ## Giới hạn
 
