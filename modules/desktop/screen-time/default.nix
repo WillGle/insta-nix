@@ -12,7 +12,7 @@ let
 
   mkScript = import ../../../lib/mk-script.nix {
     inherit pkgs lib;
-    defaultDir = ../assets/local-bin;
+    defaultDir = ./assets;
   };
 
   scriptFile = pkg: {
@@ -20,32 +20,15 @@ let
     executable = true;
   };
 
-  rofiScreenTimeLib = import ../assets/screen-time-lib.nix { inherit pkgs signal; };
+  screenTimeLib = import ./lib.nix { inherit pkgs signal; };
 
   screenTimeLibVar = {
-    screenTimeLib = "${rofiScreenTimeLib}";
+    screenTimeLib = "${screenTimeLib}";
   };
 in
 {
   home = {
     file = {
-      ".local/bin/atomic-note" = scriptFile (mkScript {
-        name = "atomic-note";
-        runtimeInputs = with pkgs; [
-          coreutils
-          jq
-          procps
-          util-linux
-        ];
-        vars = {
-          signalOk = signal.ok;
-          signalNotice = signal.notice;
-          signalWarning = signal.warning;
-          signalCritical = signal.critical;
-          monoFont = osConfig.theme.fonts.mono.family;
-          rofiFontSize = toString osConfig.theme.fonts.rofi.size;
-        };
-      });
       ".local/bin/rofi-screen-time" = scriptFile (mkScript {
         name = "rofi-screen-time";
         vars = screenTimeLibVar;
@@ -91,27 +74,6 @@ in
           jq
         ];
       });
-      ".local/bin/rofi-study-timer" = scriptFile (mkScript {
-        name = "rofi-study-timer";
-        runtimeInputs = with pkgs; [
-          coreutils
-          gnused
-          jq
-          util-linux
-        ];
-      });
-      ".local/bin/study-timer" = scriptFile (mkScript {
-        name = "study-timer";
-        vars = screenTimeLibVar;
-        runtimeInputs = with pkgs; [
-          coreutils
-          jq
-          libnotify
-          procps
-          systemd
-          util-linux
-        ];
-      });
     };
 
     activation = {
@@ -119,11 +81,11 @@ in
         ${pkgs.coreutils}/bin/mkdir -p "${config.xdg.configHome}/rofi-screen-time"
         if [ ! -e "${config.xdg.configHome}/rofi-screen-time/category-map.json" ]; then
           ${pkgs.coreutils}/bin/cp \
-            "${rofiScreenTimeLib}/category-map.default.json" \
+            "${screenTimeLib}/category-map.default.json" \
             "${config.xdg.configHome}/rofi-screen-time/category-map.json"
         else
           ${pkgs.jq}/bin/jq -s '.[0] as $defaults | .[1] as $current | $defaults + {categories: ($defaults.categories + $current.categories)}' \
-            "${rofiScreenTimeLib}/category-map.default.json" \
+            "${screenTimeLib}/category-map.default.json" \
             "${config.xdg.configHome}/rofi-screen-time/category-map.json" \
             > "${config.xdg.configHome}/rofi-screen-time/category-map.json.tmp" && \
           ${pkgs.coreutils}/bin/mv "${config.xdg.configHome}/rofi-screen-time/category-map.json.tmp" "${config.xdg.configHome}/rofi-screen-time/category-map.json"
@@ -133,8 +95,7 @@ in
   };
 
   xdg.configFile = {
-    "rofi/screen-time.rasi".source = ../assets/rofi/screen-time.rasi;
-    "rofi/study-timer.rasi".source = ../assets/rofi/study-timer.rasi;
+    "rofi/screen-time.rasi".source = ./assets/screen-time.rasi;
   };
 
   systemd.user = {

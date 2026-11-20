@@ -10,7 +10,7 @@
     ../../modules/nixos/hardware/openlogi.nix
     ./system/llm.nix
     ./system/native-power.nix
-    ../../modules/nixos/desktop/default.nix
+    ../../modules/desktop/default.nix
     ../../modules/nixos/services/ssh/strict.nix
     ../../users/will/default.nix
     ./system.nix

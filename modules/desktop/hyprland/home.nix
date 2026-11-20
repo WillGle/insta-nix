@@ -31,7 +31,7 @@ let
 
   mkScript = import ../../../lib/mk-script.nix {
     inherit pkgs lib;
-    defaultDir = ../assets/local-bin;
+    defaultDir = ./assets;
   };
 
   scriptFile = pkg: {
@@ -40,6 +40,8 @@ let
   };
 in
 {
+  imports = [ ./input-method.nix ];
+
   home = {
     file = {
       ".local/bin/monitor-setup" = scriptFile (mkScript {
@@ -96,15 +98,15 @@ in
   };
 
   xdg.configFile = {
-    "hypr/hyprland.conf".text = renderHostConfig ../assets/hypr/hyprland.conf;
+    "hypr/hyprland.conf".text = renderHostConfig ./assets/hyprland.conf;
     "hypr/toggle_waybar.sh" = scriptFile (mkScript {
       name = "toggle_waybar.sh";
-      dir = ../assets/hypr;
+      dir = ./assets;
       runtimeInputs = with pkgs; [ systemd ];
     });
     "hypr/rotate_select.sh" = scriptFile (mkScript {
       name = "rotate_select.sh";
-      dir = ../assets/hypr;
+      dir = ./assets;
       runtimeInputs = with pkgs; [
         gawk
         hyprland
@@ -115,7 +117,7 @@ in
     });
     "hypr/toggle_touchpad.sh" = scriptFile (mkScript {
       name = "toggle_touchpad.sh";
-      dir = ../assets/hypr;
+      dir = ./assets;
       vars = { inherit touchpadStateConf; };
       runtimeInputs = with pkgs; [
         coreutils

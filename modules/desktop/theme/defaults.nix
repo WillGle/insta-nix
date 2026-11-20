@@ -17,7 +17,7 @@
   # Only signal colors encode states, severity, and indicator lines.
   # Keep them outside colors: Matugen collapses hues and brightness,
   # erasing severity differences. Distinct hues and brightness keep thin
-  # indicators readable; modules/nixos/desktop/theme.nix checks uniqueness.
+  # indicators readable; modules/desktop/theme/default.nix checks uniqueness.
   signal = {
     ok = "#3fb950"; # xanh lá  — trạng thái tốt / mức thấp
     notice = "#58a6ff"; # xanh dương — thông tin / mức trung bình

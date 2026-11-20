@@ -116,7 +116,7 @@ let
     WALLPAPER_BIN = wallpaperPath;
     NOTIFY_SEND_BIN = "${pkgs.libnotify}/bin/notify-send";
     # Share image detection between theme-apply and wallpaper.
-    IS_SUPPORTED_IMAGE = builtins.readFile ../../../theme/scripts/lib/is-supported-image.sh;
+    IS_SUPPORTED_IMAGE = builtins.readFile ./scripts/lib/is-supported-image.sh;
   };
 
   placeholder = name: "__${name}__";
@@ -137,8 +137,7 @@ let
     map builtins.head (builtins.filter builtins.isList (builtins.split "(__[A-Z][A-Z0-9_]*__)" text));
 
   themeSourceFiles =
-    lib.filesystem.listFilesRecursive ../../../theme/templates
-    ++ lib.filesystem.listFilesRecursive ../../../theme/scripts;
+    lib.filesystem.listFilesRecursive ./templates ++ lib.filesystem.listFilesRecursive ./scripts;
   tokenInventory = lib.unique (
     lib.concatMap (file: tokensInText (builtins.readFile file)) themeSourceFiles
   );
@@ -166,33 +165,27 @@ let
 
   renderTheme = file: replaceMany commonReplacements file;
   waybarSeed = pkgs.writeText "theme-waybar.css" (
-    checkRendered "theme-waybar.css" [ ] (renderTheme ../../../theme/templates/waybar.css.template)
+    checkRendered "theme-waybar.css" [ ] (renderTheme ./templates/waybar.css.template)
   );
   rofiSeed = pkgs.writeText "theme-rofi.rasi" (
-    checkRendered "theme-rofi.rasi" [ ] (renderTheme ../../../theme/templates/rofi.rasi.template)
+    checkRendered "theme-rofi.rasi" [ ] (renderTheme ./templates/rofi.rasi.template)
   );
   hyprlockSeed = pkgs.writeText "theme-hyprlock.conf" (
-    checkRendered "theme-hyprlock.conf" [ ] (
-      renderTheme ../../../theme/templates/hyprlock.conf.template
-    )
+    checkRendered "theme-hyprlock.conf" [ ] (renderTheme ./templates/hyprlock.conf.template)
   );
   hyprlandSeed = pkgs.writeText "theme-hyprland-decoration.conf" (
     checkRendered "theme-hyprland-decoration.conf" [ ] (
-      renderTheme ../../../theme/templates/hyprland-decoration.conf.template
+      renderTheme ./templates/hyprland-decoration.conf.template
     )
   );
   nvimSeed = pkgs.writeText "theme-nvim-matugen.lua" (
-    checkRendered "theme-nvim-matugen.lua" [ ] (
-      renderTheme ../../../theme/templates/nvim-colors.lua.template
-    )
+    checkRendered "theme-nvim-matugen.lua" [ ] (renderTheme ./templates/nvim-colors.lua.template)
   );
   hyprpaperSeed = pkgs.writeText "theme-hyprpaper.conf" (
-    checkRendered "theme-hyprpaper.conf" [ ] (
-      renderTheme ../../../theme/templates/hyprpaper.conf.template
-    )
+    checkRendered "theme-hyprpaper.conf" [ ] (renderTheme ./templates/hyprpaper.conf.template)
   );
   dunstSeed = pkgs.writeText "theme-dunstrc" (
-    checkRendered "theme-dunstrc" [ ] (renderTheme ../../../theme/templates/dunstrc.template)
+    checkRendered "theme-dunstrc" [ ] (renderTheme ./templates/dunstrc.template)
   );
   paletteSeed = pkgs.writeText "theme-palette.json" (
     builtins.toJSON {
@@ -206,19 +199,17 @@ let
   # survive build-time replacement and remain the only allowed leftovers.
   commonPlaceholders = map placeholder (builtins.attrNames commonTokenValues);
   themeApplyScript = checkRendered "theme-apply" commonPlaceholders (
-    replaceMany themeBinReplacements ../../../theme/scripts/theme-apply.sh.template
+    replaceMany themeBinReplacements ./scripts/theme-apply.sh.template
   );
   wallpaperScript = checkRendered "wallpaper" [ ] (
-    replaceMany themeBinReplacements ../../../theme/scripts/wallpaper.sh.template
+    replaceMany themeBinReplacements ./scripts/wallpaper.sh.template
   );
   wallpaperPortalScript = checkRendered "wallpaper-portal" [ ] (
-    replaceMany themeBinReplacements ../../../theme/scripts/wallpaper-portal.sh.template
+    replaceMany themeBinReplacements ./scripts/wallpaper-portal.sh.template
   );
 
   themeLockScript = checkRendered "theme-lock" [ ] (
-    replaceMany (
-      commonReplacements ++ themeBinReplacements
-    ) ../../../theme/scripts/theme-lock.sh.template
+    replaceMany (commonReplacements ++ themeBinReplacements) ./scripts/theme-lock.sh.template
   );
 
   staticEnvLine = name: value: "${name}=${lib.escapeShellArg value}";
@@ -379,7 +370,7 @@ in
   };
 
   xdg.configFile = {
-    "theme/templates".source = ../../../theme/templates;
+    "theme/templates".source = ./templates;
     "theme/static.env".text = staticEnvText;
     "theme/theme-apply" = {
       text = themeApplyScript;

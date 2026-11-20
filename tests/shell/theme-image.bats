@@ -4,7 +4,7 @@ setup() {
   OD_BIN="$(command -v od)"
   TR_BIN="$(command -v tr)"
   # shellcheck source=/dev/null
-  source "$REPO_ROOT/theme/scripts/lib/is-supported-image.sh"
+  source "$REPO_ROOT/modules/desktop/theme/scripts/lib/is-supported-image.sh"
 
   tmp="$BATS_TEST_TMPDIR"
   printf '\x89PNG\r\n\x1a\n' >"$tmp/valid.png"

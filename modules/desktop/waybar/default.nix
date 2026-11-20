@@ -1,18 +1,18 @@
 {
+  config,
+  lib,
   osConfig,
   pkgs,
-  lib,
   ...
 }:
 let
   inherit (osConfig.theme) signal;
   themeAccent = osConfig.theme.colors.accent;
-  themeBase = osConfig.theme.colors.base;
-  themeSubtext = osConfig.theme.colors.subtext;
+  themeGeneratedDir = "${config.xdg.configHome}/theme/generated";
 
   mkScript = import ../../../lib/mk-script.nix {
     inherit pkgs lib;
-    defaultDir = ../assets/local-bin;
+    defaultDir = ./assets;
   };
 
   scriptFile = pkg: {
@@ -20,15 +20,42 @@ let
     executable = true;
   };
 
-  networkLib = ../assets/network/lib/common.sh;
-
-  rofiScreenTimeLib = import ../assets/screen-time-lib.nix { inherit pkgs signal; };
-
+  networkLib = ../rofi/assets/network-lib.sh;
+  screenTimeLib = import ../screen-time/lib.nix { inherit pkgs signal; };
   screenTimeLibVar = {
-    screenTimeLib = "${rofiScreenTimeLib}";
+    screenTimeLib = "${screenTimeLib}";
   };
 in
+
 {
+  programs.waybar = {
+    enable = true;
+    systemd.enable = true;
+  };
+
+  wayland.systemd.target = "hyprland-session.target";
+
+  # Home Manager owns the Hyprland-session unit, overriding the package fallback.
+  # Theme values come from the desktop module.
+  systemd.user.services.waybar = {
+    Unit.PartOf = lib.mkForce [ "hyprland-session.target" ];
+    Install.WantedBy = lib.mkForce [ "hyprland-session.target" ];
+  };
+
+  xdg.configFile = {
+    "waybar/config.jsonc" = {
+      source = ./assets/config.jsonc;
+      onChange = ''
+        if ${pkgs.systemd}/bin/systemctl --user is-active --quiet waybar.service; then
+          ${pkgs.systemd}/bin/systemctl --user reload waybar.service
+        fi
+      '';
+    };
+    "waybar/style.css".text = ''
+      @import url("file://${themeGeneratedDir}/waybar.css");
+    '';
+  };
+
   home.file = {
     ".local/bin/bluetooth-gui" = scriptFile (mkScript {
       name = "bluetooth-gui";
@@ -37,20 +64,6 @@ in
       ];
     });
 
-    ".local/bin/rofi-network" = scriptFile (mkScript {
-      name = "rofi-network";
-      vars = {
-        networkLib = "${networkLib}";
-      };
-      runtimeInputs = with pkgs; [
-        coreutils
-        gawk
-        gnused
-        iproute2
-        networkmanager
-        procps
-      ];
-    });
     ".local/bin/waybar-memory-info" = scriptFile (mkScript {
       name = "waybar-memory-info";
       runtimeInputs = with pkgs; [
@@ -140,35 +153,5 @@ in
         signalCritical = signal.critical;
       };
     });
-    ".local/bin/rofi-calendar" = scriptFile (mkScript {
-      name = "rofi-calendar";
-      runtimeInputs = with pkgs; [
-        coreutils
-        gawk
-        jq
-        rofi
-        util-linux
-      ];
-      vars = { inherit themeAccent themeBase themeSubtext; };
-    });
-    ".local/bin/rofi-keybinds" = scriptFile (mkScript {
-      name = "rofi-keybinds";
-      runtimeInputs = with pkgs; [
-        coreutils
-        gawk
-        gnused
-        jq
-        libnotify
-        procps
-        rofi
-      ];
-    });
-  };
-
-  xdg.configFile = {
-    "rofi/calendar.rasi".source = ../assets/rofi/calendar.rasi;
-    "rofi/keybinds.rasi".source = ../assets/rofi/keybinds.rasi;
-    "rofi/network.rasi".source = ../assets/rofi/network.rasi;
-    "rofi/screen-rec.rasi".source = ../assets/rofi/screen-rec.rasi;
   };
 }

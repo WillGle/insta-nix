@@ -20,12 +20,12 @@ let
   ];
 
   # Home Manager starts Fcitx; remove the competing XDG autostart launcher.
-  fcitx5WithoutAutostart = pkgs.callPackage ../../../pkgs/fcitx5 {
+  fcitx5WithoutAutostart = pkgs.callPackage ../../pkgs/fcitx5 {
     inherit (config.i18n.inputMethod.fcitx5) addons;
   };
 in
 {
-  imports = [ ./theme.nix ];
+  imports = [ ./theme ];
 
   services = {
     flatpak.enable = true;
