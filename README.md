@@ -135,5 +135,5 @@ One runtime path has one canonical owner:
 - [`docs/README.md`](./docs/README.md): documentation index.
 - [`docs/guides/HOST_ONBOARDING.md`](./docs/guides/HOST_ONBOARDING.md): add a host.
 - [`docs/guides/LOCAL_LLM.md`](./docs/guides/LOCAL_LLM.md): local LLM workflow.
-- [`docs/guides/PLANK_REMOTE_INSTALL.md`](./docs/guides/PLANK_REMOTE_INSTALL.md): remote installation.
+- [`docs/guides/INSTALL.md`](./docs/guides/INSTALL.md): local UEFI installation.
 - [`docs/guides/HARDWARE_BENCHMARK.md`](./docs/guides/HARDWARE_BENCHMARK.md): repeatable benchmarks.
