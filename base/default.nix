@@ -1,6 +1,6 @@
 _: {
   nixpkgs.overlays = [
-    (import ../../../overlays/common.nix)
+    (import ../overlays/common.nix)
   ];
 
   time.timeZone = "Asia/Ho_Chi_Minh";

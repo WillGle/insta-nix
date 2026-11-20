@@ -4,7 +4,7 @@
     ./hardware.nix
     ./storage.nix
     ./network.nix
-    ../../modules/nixos/base/default.nix
+    ../../base/default.nix
     ../../modules/nixos/services/ssh/plank.nix
     ../../users/will/default.nix
   ];
