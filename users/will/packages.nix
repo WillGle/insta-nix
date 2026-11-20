@@ -23,6 +23,7 @@
     pkgsUnstable.libreoffice-stable
     wpsoffice
     pkgsUnstable.xournalpp
+    zotero
 
     # Downloads
     misterdownloadmanager
