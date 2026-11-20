@@ -8,6 +8,10 @@ let
   journalMaxSize = "1G";
 in
 {
+  home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
+
+  services.fstrim.enable = true;
+
   services.journald.extraConfig = ''
     SystemMaxUse=${journalMaxSize}
   '';

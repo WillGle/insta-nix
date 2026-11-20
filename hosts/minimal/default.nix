@@ -1,10 +1,17 @@
-{ lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 {
   imports = [
     ./hardware.nix
     ../../base/default.nix
     ../../users/will/default.nix
   ];
+
+  primaryUser.username = "will";
 
   networking.hostName = lib.mkDefault "nixos";
 
@@ -18,7 +25,7 @@
   # The installer deliberately creates no swap.
   swapDevices = lib.mkForce [ ];
 
-  users.users.will.extraGroups = [
+  users.users.${config.primaryUser.username}.extraGroups = [
     "wheel"
     "networkmanager"
   ];

@@ -67,7 +67,7 @@
       hostConfigs = {
         laptop = mkHost {
           hostModule = ./hosts/laptop/default.nix;
-          homeModule = ./hosts/laptop/home.nix;
+          homeModule = ./users/will/home.nix;
         };
 
         minimal = mkHost {

@@ -1,3 +1,4 @@
+{ config, ... }:
 {
   services.openssh = {
     enable = true;
@@ -7,7 +8,7 @@
       PermitRootLogin = "no";
       KbdInteractiveAuthentication = false;
       X11Forwarding = false;
-      AllowUsers = [ "will" ];
+      AllowUsers = [ config.primaryUser.username ];
     };
   };
 

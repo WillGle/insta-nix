@@ -9,6 +9,15 @@ let
   themeApplyPath = "${config.xdg.configHome}/theme/theme-apply";
 in
 {
+  # Waybar supplies the Bluetooth indicator. Disable StatusIcon and its
+  # dependent ShowConnected, which otherwise reloads StatusIcon despite '!'.
+  # Keep NetUsage explicitly enabled; AuthAgent continues pairing headlessly.
+  dconf.settings."org/blueman/general".plugin-list = [
+    "NetUsage"
+    "!ShowConnected"
+    "!StatusIcon"
+  ];
+
   systemd.user.services = {
     wallpaper-portal = lib.mkIf osConfig.theme.runtime.enable {
       Unit = {

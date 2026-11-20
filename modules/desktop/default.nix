@@ -27,12 +27,27 @@ in
 {
   imports = [ ./theme ];
 
+  home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
+
   services = {
     flatpak.enable = true;
     upower.enable = true;
     acpid.enable = true;
     udisks2.enable = true;
     gvfs.enable = true;
+
+    xserver = {
+      enable = true;
+
+      xkb.layout = "us";
+
+      excludePackages = with pkgs; [
+        xterm
+      ];
+
+      desktopManager.xterm.enable = false;
+    };
+
     displayManager = {
       sddm = {
         enable = true;
@@ -96,6 +111,8 @@ in
     };
   };
 
+  security.rtkit.enable = true;
+
   i18n.inputMethod = {
     enable = true;
     type = "fcitx5";
@@ -132,20 +149,23 @@ in
     QT_SCALE_FACTOR = "1";
     QT_AUTO_SCREEN_SCALE_FACTOR = "0";
   };
-  programs.nix-ld.enable = true;
-  programs.nix-ld.libraries = with pkgs; [
-    stdenv.cc.cc
-    zlib
-    fuse3
-    icu
-    nss
-    openssl
-    curl
-    expat
-    # OpenCode is installed from its upstream binary and reads the clipboard
-    # through libwayland-client at runtime.
-    wayland
-    # X11 fallback for compositors without data-control support.
-    libxcb
-  ];
+  programs = {
+    hyprland.enable = true;
+    nix-ld.enable = true;
+    nix-ld.libraries = with pkgs; [
+      stdenv.cc.cc
+      zlib
+      fuse3
+      icu
+      nss
+      openssl
+      curl
+      expat
+      # OpenCode is installed from its upstream binary and reads the clipboard
+      # through libwayland-client at runtime.
+      wayland
+      # X11 fallback for compositors without data-control support.
+      libxcb
+    ];
+  };
 }

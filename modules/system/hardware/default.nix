@@ -4,6 +4,8 @@ _: {
     ./openlogi.nix
   ];
 
+  services.usbmuxd.enable = true;
+
   hardware = {
     enableAllFirmware = true;
     logitech.wireless.enable = true;

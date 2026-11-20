@@ -14,7 +14,7 @@ let
     path:
     builtins.replaceStrings
       [
-        "/home/will"
+        "__HOME__"
         "__CURSOR_NAME__"
         "__CURSOR_SIZE__"
         "__THEME_GENERATED_DIR__"

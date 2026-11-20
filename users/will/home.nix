@@ -1,4 +1,4 @@
-_:
+{ osConfig, ... }:
 
 {
   imports = [
@@ -7,8 +7,8 @@ _:
   ];
 
   home = {
-    username = "will";
-    homeDirectory = "/home/will";
+    username = osConfig.primaryUser.username;
+    homeDirectory = "/home/${osConfig.primaryUser.username}";
     stateVersion = "25.11";
   };
 

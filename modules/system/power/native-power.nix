@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   pkgsUnstable,
   lib,
@@ -113,7 +114,7 @@ in
 
   security.sudo.extraRules = [
     {
-      users = [ "will" ];
+      users = [ config.primaryUser.username ];
       commands = [
         {
           command = "/run/current-system/sw/bin/native-power-profile";

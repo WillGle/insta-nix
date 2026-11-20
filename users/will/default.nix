@@ -1,6 +1,7 @@
-_: {
-  users.users.will = {
+{ config, ... }:
+{
+  users.users.${config.primaryUser.username} = {
     isNormalUser = true;
-    description = "will";
+    description = config.primaryUser.username;
   };
 }
