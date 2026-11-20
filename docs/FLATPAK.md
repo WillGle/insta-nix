@@ -16,7 +16,6 @@ phần mềm Flatpak, không cài lại các app bên dưới.
 | Brave | `com.brave.Browser` | user | stable | 1.99.55 | Trình duyệt mặc định cho HTTP/HTTPS trong `modules/home/xdg.nix` |
 | Discord | `com.discordapp.Discord` | user | stable | 1.0.168 | |
 | Visual Studio Code | `com.visualstudio.code` | user | stable | 1.139.1 | |
-| Zed | `dev.zed.Zed` | user | stable | v1.27.0 | Bản Nix `pkgsUnstable.zed-editor` vẫn được dùng vì Flatpak không đọc được `/etc/nixos` |
 | Obsidian | `md.obsidian.Obsidian` | user | stable | 1.15.0 | |
 | LosslessCut | `no.mifi.losslesscut` | user | stable | 3.69.0 | |
 | Blender | `org.blender.Blender` | user | stable | 5.2 | Bản LTS 5.2.0 |
@@ -61,7 +60,6 @@ flatpak install --user -y flathub \
   com.brave.Browser \
   com.discordapp.Discord \
   com.visualstudio.code \
-  dev.zed.Zed \
   md.obsidian.Obsidian \
   no.mifi.losslesscut \
   org.blender.Blender \
