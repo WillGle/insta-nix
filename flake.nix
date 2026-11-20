@@ -115,17 +115,32 @@
         shellcheck =
           pkgs.runCommand "check-shellcheck"
             {
-              nativeBuildInputs = [ pkgs.shellcheck ];
+              nativeBuildInputs = [
+                pkgs.coreutils
+                pkgs.findutils
+                pkgs.gnugrep
+                pkgs.shellcheck
+              ];
               homeCleanup = homeCleanupBin;
             }
             ''
               # SC2034 is used for environment-style configuration in the bench
               # scripts; SC2209 is a style warning in existing benchmark code.
-              shellcheck -x -s bash -S warning -e SC1091,SC2034,SC2209 \
+              # SC1090/SC1091 cover store-path sources injected by Nix.
+              : > scripts.nul
+              while IFS= read -r -d "" file; do
+                if head -n 1 "$file" | grep -qE '^#!.*(bash|/sh)'; then
+                  printf '%s\0' "$file" >> scripts.nul
+                fi
+              done < <(
+                {
+                  find ${./.}/modules -type f \( -path '*/assets/*' -o -path '*/lib/*' \) -print0
+                  find ${./.}/scripts/bench -type f -name '*.sh' -print0
+                }
+              )
+              xargs -0 shellcheck -x -s bash -S warning -e SC1090,SC1091,SC2034,SC2209 < scripts.nul
+              shellcheck -x -s bash -S warning -e SC1090,SC1091,SC2034,SC2209 \
                 ${./install.sh} \
-                ${./scripts}/bench/*.sh \
-                ${./modules/desktop/theme}/lib/*.sh \
-                ${./modules/desktop/hyprland/assets}/*.sh \
                 "$homeCleanup"
               touch $out
             '';
