@@ -1,10 +1,7 @@
 _:
 
 {
-  imports = [
-    ./packages.nix
-    ../../modules/cli
-  ];
+  imports = [ ./baseline.nix ];
 
   home = {
     username = "will";
