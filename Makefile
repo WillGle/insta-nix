@@ -2,7 +2,7 @@
 HOST ?= laptop
 FLAKE ?= git+file://$(CURDIR)
 
-.PHONY: check build build-plank switch diff update clean
+.PHONY: check build switch diff update clean
 
 check:
 	./scripts/validate.sh
@@ -10,10 +10,6 @@ check:
 build:
 	nix build --no-link --no-write-lock-file \
 		$(FLAKE)#nixosConfigurations.$(HOST).config.system.build.toplevel
-
-build-plank:
-	nix build --no-link --no-write-lock-file \
-		$(FLAKE)#nixosConfigurations.plank.config.system.build.toplevel
 
 switch:
 	sudo nixos-rebuild switch --flake $(FLAKE)#$(HOST)

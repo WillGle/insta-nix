@@ -70,8 +70,8 @@
           homeModule = ./hosts/laptop/home.nix;
         };
 
-        plank = mkHost {
-          hostModule = ./hosts/plank/default.nix;
+        minimal = mkHost {
+          hostModule = ./hosts/minimal/default.nix;
         };
       };
 
@@ -122,6 +122,7 @@
               # SC2034 is used for environment-style configuration in the bench
               # scripts; SC2209 is a style warning in existing benchmark code.
               shellcheck -x -s bash -S warning -e SC1091,SC2034,SC2209 \
+                ${./install.sh} \
                 ${./scripts}/bench/*.sh \
                 ${./modules/desktop/theme}/lib/*.sh \
                 ${./modules/desktop/hyprland/assets}/*.sh \
@@ -153,6 +154,8 @@
     in
     {
       formatter.x86_64-linux = pkgs.nixfmt;
+
+      packages.x86_64-linux.nixos-install-tools = pkgs.nixos-install-tools;
 
       checks.x86_64-linux = checks;
 

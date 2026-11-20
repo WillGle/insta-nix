@@ -1,19 +1,33 @@
 # Insta-Nix
 
-Modular NixOS configuration for a personal laptop and a lightweight remote
-bootstrap target.
+Modular NixOS configuration for a personal laptop and a minimal UEFI install
+target.
 
 ## Outputs
 
 - `laptop`: AMD laptop with Hyprland, Home Manager, local LLM
   tools, Waybar, and the Rofi utilities.
-- `plank`: Minimal headless/remote-install target. It does not use Home Manager.
+- `minimal`: Minimal console system for fresh UEFI installs and older hardware.
 
 Inspect the available outputs:
 
 ```bash
 nix flake show --no-write-lock-file git+file:///etc/nixos
 ```
+
+## Install from an existing Linux
+
+This wipes the target disk. UEFI x86_64 only; no swap is created.
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/WillGle/insta-nix/main/install.sh
+sudo bash install.sh --disk /dev/nvme0n1
+sudo reboot
+```
+
+The default host is `minimal`: console NixOS, NetworkManager, user `will`, no
+desktop and no Home Manager. See
+[`docs/guides/INSTALL.md`](./docs/guides/INSTALL.md) for options and details.
 
 ## Quick start
 
@@ -32,8 +46,7 @@ nix build --no-link --no-write-lock-file \
   git+file:///etc/nixos#nixosConfigurations.laptop.config.system.build.toplevel
 ```
 
-`make` wraps `check`, `build`, `build-plank`, `switch`, `diff`, `update`, and
-`clean`. `scripts/validate.sh` runs `git diff --check` and `nix flake check`,
+`make` wraps `check`, `build`, `switch`, `diff`, `update`, and `clean`. `scripts/validate.sh` runs `git diff --check` and `nix flake check`,
 which enforces formatting, statix, deadnix, and shellcheck. To run the same gate
 before every commit:
 
@@ -50,23 +63,19 @@ sudo nixos-rebuild switch --flake git+file:///etc/nixos#laptop
 After activation, verify the affected system and user services. A successful
 check or build does not prove that the new generation is active.
 
-Build the remote target:
-
-```bash
-nixos-rebuild build --flake git+file:///etc/nixos#plank
-```
-
 ## Layout
 
 ```text
 /etc/nixos/
 ├── flake.nix              # Flake inputs and host outputs
 ├── Makefile               # check/build/switch/diff/update/clean
+├── install.sh             # Local UEFI installer for an existing Linux
+├── install/disko.nix      # Installer disk layout
 ├── base/                  # Shared headless NixOS baseline
 ├── hosts/
-│   ├── _template/         # Host shape: hardware, storage, network, system/, home
-│   ├── laptop/     # Laptop identity, hardware, storage, network, composition
-│   └── plank/             # Remote bootstrap identity and policy
+│   ├── _template/         # Host shape: hardware, storage, network, system, home
+│   ├── minimal/           # Minimal console host for fresh installs
+│   └── laptop/     # Laptop identity, hardware, storage, network, composition
 ├── modules/
 │   ├── cli/               # Home Manager: shell, terminal, XDG
 │   ├── desktop/           # NixOS desktop platform + graphical feature slices

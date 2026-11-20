@@ -47,8 +47,8 @@ Cấu hình tối thiểu:
 }
 ```
 
-*Lưu ý kiến trúc:* Host chọn chính sách SSH trong `default.nix`: dùng
-`modules/system/ssh/strict.nix` hoặc `plank.nix`. Baseline `base/`
+*Lưu ý kiến trúc:* Host chọn `modules/system/ssh/strict.nix` nếu cần SSH quản
+trị. Baseline `base/`
 dùng chung không bật desktop; host chọn desktop và phần cứng cần thiết. Không
 dùng module LLM/native-power riêng của laptop cho máy khác nếu chưa kiểm tra phụ
 thuộc.
@@ -80,5 +80,5 @@ nix build --no-link --no-write-lock-file \
 
 ## Tài liệu liên quan
 
-- [`PLANK_REMOTE_INSTALL.md`](./PLANK_REMOTE_INSTALL.md): Hướng dẫn cài đặt từ xa cho host plank.
+- [`INSTALL.md`](./INSTALL.md): Cài NixOS từ Linux hiện có.
 - [`../README.md`](../README.md): Tổng quan cấu trúc tài liệu.

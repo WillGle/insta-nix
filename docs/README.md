@@ -4,9 +4,9 @@ Tracked documentation lives in this directory tree. Local-only operational notes
 
 ## Active Guides
 
+- [`guides/INSTALL.md`](./guides/INSTALL.md): install NixOS from an existing Linux distro with the local UEFI installer.
 - [`guides/HOST_ONBOARDING.md`](./guides/HOST_ONBOARDING.md): use this when adding a new host or checking where host files belong.
 - [`guides/HARDWARE_BENCHMARK.md`](./guides/HARDWARE_BENCHMARK.md): repeatable CPU, memory, GPU, storage, LLM, developer-build, and long-run stability measurements.
-- [`guides/PLANK_REMOTE_INSTALL.md`](./guides/PLANK_REMOTE_INSTALL.md): use this when installing `plank` on a remote machine.
 
 ## Specialized Guides
 
