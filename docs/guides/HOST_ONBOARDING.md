@@ -8,6 +8,7 @@ mặc định dùng host `minimal`; sau khi reboot, `/etc/nixos` đã có sẵn 
 ## Điều kiện tiên quyết
 
 - Xác định định danh duy nhất cho máy mới (`<host-id>`).
+- Xác định user chính (`primaryUser.username`).
 - Cấu hình phần cứng hợp lệ tạo bởi `nixos-generate-config`.
 
 ## Các bước thực hiện
@@ -20,12 +21,16 @@ mkdir -p hosts/<host-id>
 ### 2. Cấu hình các tệp thành phần trong `hosts/<host-id>/`
 - `hardware.nix`: Thông số phần cứng từ `nixos-generate-config` (fileSystems, driver, initrd). Installer tạo file này tự động; chỉ sửa khi thêm phần cứng mới.
 - `default.nix`: Composition, identity và policy gắn với máy:
+  - `primaryUser.username = "<username>";`
   - `networking.hostName`, firewall;
   - `fileSystems`/`swapDevices` bổ sung;
   - user groups và shell;
   - boot loader, Nix resource tuning, udev quirk.
-- `packages.nix` (tùy chọn): package/tool chỉ dùng trên máy này.
-- `home.nix` (bắt buộc nếu khai báo `homeModule`): điểm nạp Home Manager của máy. Nạp `../../users/will/home.nix` (đã gồm `users/will/packages.nix` và `modules/cli`), `../../modules/desktop/home.nix` cho bộ desktop chuẩn, và `../../modules/system/maintenance/home.nix`.
+- `packages.nix` (tùy chọn): package/tool chỉ dùng trên máy này. Nạp file này từ
+  `default.nix` nếu dùng.
+- Không tạo `home.nix` cho host. Module NixOS tự wire Home Manager dưới
+  `home-manager.users.${config.primaryUser.username}`; host không compose
+  desktop/CLI/maintenance Home Manager.
 - Không đặt app asset dưới host. Asset nằm cạnh module sở hữu trong `modules/desktop/<feature>/` hoặc `modules/system/<role>/`.
 
 ### 3. Thiết lập điểm nạp chính tại `hosts/<host-id>/default.nix`
@@ -46,6 +51,7 @@ Cấu hình tối thiểu:
     # ../../modules/system/gaming.nix
   ];
 
+  primaryUser.username = "<username>";
   networking.hostName = "<host-id>";
 
   system.stateVersion = "25.11";
@@ -63,7 +69,8 @@ Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hì
 ```nix
 nixosConfigurations.<host-id> = mkHost {
   hostModule = ./hosts/<host-id>/default.nix;
-  homeModule = ./hosts/<host-id>/home.nix;   # Bỏ qua nếu là máy chủ/installer không cần Home Manager
+  # Dùng chung identity/packages/CLI của user; bỏ qua nếu máy không cần Home Manager.
+  homeModule = ./users/will/home.nix;
 };
 ```
 
@@ -85,4 +92,5 @@ nix build --no-link --no-write-lock-file \
 ## Tài liệu liên quan
 
 - [`INSTALL.md`](./INSTALL.md): Cài NixOS từ Linux hiện có.
+- [`../../modules/README.md`](../../modules/README.md): Inventory module, layer, owner.
 - [`../README.md`](../README.md): Tổng quan cấu trúc tài liệu.

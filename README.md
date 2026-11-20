@@ -73,31 +73,37 @@ check or build does not prove that the new generation is active.
 ├── install/disko.nix      # Installer disk layout
 ├── base/                  # Shared headless NixOS baseline
 ├── hosts/
-│   ├── minimal/           # Minimal console host for fresh installs
-│   └── laptop/     # Laptop identity, hardware, composition
+│   ├── minimal/           # default.nix, hardware.nix
+│   └── laptop/     # default.nix, hardware.nix, packages.nix
 ├── modules/
 │   ├── cli/               # Home Manager: shell, terminal, XDG
-│   ├── desktop/           # NixOS desktop platform + graphical feature slices
-│   └── system/            # NixOS roles: hardware, ssh, development, maintenance,
-│                          # power, llm, gaming
-├── users/will/            # Account, Home Manager identity, personal applications
+│   ├── desktop/           # NixOS platform, Home Manager suite, theme,
+│   │                      # hyprland, waybar, rofi, apps, shared lib
+│   └── system/            # NixOS roles: hardware, development, ssh,
+│                          # maintenance, power, llm, gaming
+├── users/will/            # Account, Home Manager identity, personal packages, CLI
 ├── pkgs/                  # Custom packages and their patches
 ├── lib/                   # Shared Nix helpers
 ├── scripts/               # Validation and hardware benchmarks
 └── docs/                  # Guides and archived notes
 ```
 
-Each host composes shared features in `hosts/<host>/default.nix` and selects
-the desktop suite once in `hosts/<host>/home.nix`. The shared `base/` is
-headless. Desktop assets live beside their consuming module under
+Each host is composition, identity, and host-only policy in
+`hosts/<host>/default.nix`. NixOS modules own their Home Manager side and wire
+`home-manager.users.${config.primaryUser.username}` themselves; hosts do not
+compose desktop, CLI, or maintenance Home Manager imports. `primaryUser.username`
+is the single username source for modules. The shared `base/` is headless.
+Desktop assets live beside their consuming module under
 `modules/desktop/<feature>/`; system role assets live under
 `modules/system/<role>/`.
 
-`users/will/packages.nix` is a Home Manager module and owns personal application
-selection in the user profile. Genuinely system-wide tools and desktop
-integration remain in `environment.systemPackages` under
-`hosts/<host>/packages.nix`. Custom package definitions and patches live
-together in `pkgs/<package>/`.
+`modules/desktop/packages.nix` owns desktop integration, fonts, and cursors.
+`modules/desktop/bluetooth.nix` owns Blueman's service, D-Bus, and dconf
+settings. `users/will/packages.nix` is a Home Manager module and owns personal
+application selection in the user profile. `hosts/laptop/packages.nix`
+is the host-bound diagnostics, benchmark, network, and media toolbox. Custom
+package definitions and patches live together in `pkgs/<package>/`. See
+[`modules/README.md`](./modules/README.md) for the module inventory.
 
 Git flake commands include tracked working-tree changes. Add intended new source
 files with `git add <paths>` before validation so Nix can see them. Keep local
@@ -119,7 +125,9 @@ One runtime path has one canonical owner:
 
 - Local LLM: `llmfit`, `llm-pull`, `llm-list`, and `llm-fit`.
 - Power: `native-power-profile` and `toggle-battery-reserve`.
-- Desktop: `rofi-screen-time`, `waybar-*`, and Hyprland helper scripts.
+- Desktop: `rofi-screen-time` (summary and app usage), `waybar-*`, and
+  Hyprland helper scripts. Screen-time caches one rendered view for 300 seconds;
+  there is no background cache service.
 - Wallpaper: Nautilus **Set as Background**, `wallpaper pick`, or `wallpaper set <image>`.
   The GTK Wallpaper portal writes `~/.config/background`; Home Manager's
   `wallpaper-portal.path` detects each replacement and calls `wallpaper set`.

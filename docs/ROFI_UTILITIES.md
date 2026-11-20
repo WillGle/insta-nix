@@ -1,72 +1,45 @@
 # Rofi Utilities Guide
 
-This guide covers the specialized Rofi-based tools used for productivity tracking and system dashboards on `laptop`.
+This guide covers the Rofi-based screen-time dashboard on `laptop`.
 
-## 1. Study Timer (`rofi-study-timer`)
+## Screen Time (`rofi-screen-time`)
 
-The Study Timer is a Rofi interface for the underlying `study-timer` service. It allows you to manage focused work sessions with preset durations or custom plans.
+The dashboard reads the local day files written by the focused-window tracker.
 
-### Features
+### Views
 
-- **Quick Start Presets**:
-  - **Quick start**: 25 min, 1 session
-  - **Pomodoro set**: 25 min, 4 sessions
-  - **Deep work set**: 50 min, 2 sessions
-  - **Long block**: 90 min, 1 session
-- **Custom Study Plan**: Choose your own duration and session count.
-- **Open-ended Session**: A classic timer without a fixed target.
-- **Active Session View**: Shows elapsed time, progress bars for multi-session plans, and estimated finish time.
-- **Plan Breakdown**: View the status (Completed/Pending) of individual sessions within a plan.
+- **Summary**: total screen time, 24-hour activity strip, top apps, category
+  breakdown, busiest hours, and unknown-app coverage.
+- **Activity**: per-app timeline, busy hours, category breakdown, and unknown
+  apps.
+
+Historical days are available with the previous/next-day rows. The tracker
+samples the focused window every 5 seconds; `swayidle` supplies `IdleHint` so
+idle time is excluded.
 
 ### Usage
 
-Run the script from your terminal or via a keyboard shortcut:
-
-```bash
-rofi-study-timer
-```
-
-Left-click the Waybar module (if integrated) to open this menu.
-
----
-
-## 2. Screen Time Dashboard (`rofi-screen-time`)
-
-The Screen Time utility provides a visual dashboard of your computer usage and study totals.
-
-### Features Summary
-
-- **Summary View**: Highlights today's total active time, study progress, top app usage, and hourly app timelines.
-- **Activity View**: Breaks down usage by application, category, and time of day.
-- **Historical Data**: Navigate through previous days to compare productivity.
-- **Integrated Study Stats**: Pulls data directly from the Study Timer logs to show focused vs. unfocused time.
-
-### Usage Instructions
-
 ```bash
 rofi-screen-time
+rofi-screen-time --view activity
+rofi-screen-time --date 2026-11-20
 ```
 
-The dashboard is designed to be fast, using a popup-cache for immediate rendering of the today's summary.
+The popup caches one rendered view for 300 seconds. A stale or missing view is
+rendered synchronously (about 2 seconds on a cold start); there is no background
+cache service or timer.
 
-The Dashboard and Activity views include an **App Usage Today** timeline. Each row shows the app name, a 24-hour activity sparkline, total duration, share of the day, category, and peak hour.
+The same data is available to scripts:
 
-Waybar exposes the same data through the screen-time module:
+```bash
+rofi-screen-time-stats --view summary --format json
+rofi-screen-time-stats --view activity --format rows
+```
+
+Waybar exposes the screen-time module:
 
 - Left-click toggles the Waybar module view.
 - Right-click opens the screen-time dashboard.
-- Middle-click opens the study timer.
-
-Behavior analytics are exported locally:
-
-```bash
-screen-time-behavior-export --days 14 --format json
-screen-time-behavior-export --from 2026-04-01 --to 2026-04-27 --format csv --output ~/screen-time-summary.csv
-```
-
-The export includes app totals, switch rates, focus blocks, top transitions, and 30-minute time slots. Raw window titles are not exported.
-
----
 
 ## Data Retention
 
@@ -75,16 +48,16 @@ The export includes app totals, switch rates, focus blocks, top transitions, and
 - screen-time day history older than 180 days;
 - Zed logs older than 14 days;
 - cached entries in `~/.cache` that have not changed for 14 days;
-- the generated Rofi desktop cache and screen-time cache files.
+- the generated Rofi desktop cache and old screen-time cache files.
 
 Nix evaluation caches, editor and browser data, clip history, and other
 user-facing caches are protected from the broad `~/.cache` sweep. Run
 `home-cleanup --dry-run` to preview removals.
 
-## Integration Notes
+## Source Layout
 
-Both tools are designed to work together:
-
-- `rofi-study-timer` can launch `rofi-screen-time` via the "Open screen time" option.
-- `rofi-screen-time` can launch the study timer via the study status row.
-- Themes live beside their feature: `modules/desktop/screen-time/assets/screen-time.rasi` and `modules/desktop/apps/assets/study-timer.rasi`. Generic Rofi themes live in `modules/desktop/rofi/assets/`.
+- Dashboard module: `modules/desktop/apps/screen-time/`
+- Generic Rofi platform and shared menu helpers: `modules/desktop/rofi/`
+- Waybar module and helper: `modules/desktop/waybar/`
+- Shared palette loader: `modules/desktop/theme/lib/palette.sh`
+- Shared network helper: `modules/desktop/lib/network.sh`
