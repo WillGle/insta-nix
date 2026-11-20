@@ -73,15 +73,14 @@ check or build does not prove that the new generation is active.
 ├── install/disko.nix      # Installer disk layout
 ├── base/                  # Shared headless NixOS baseline
 ├── hosts/
-│   ├── _template/         # Host shape: hardware, storage, network, system, home
 │   ├── minimal/           # Minimal console host for fresh installs
-│   └── laptop/     # Laptop identity, hardware, storage, network, composition
+│   └── laptop/     # Laptop identity, hardware, composition
 ├── modules/
 │   ├── cli/               # Home Manager: shell, terminal, XDG
 │   ├── desktop/           # NixOS desktop platform + graphical feature slices
 │   └── system/            # NixOS roles: hardware, ssh, development, maintenance,
 │                          # power, llm, gaming
-├── users/will/            # Account, Home Manager baseline, personal applications
+├── users/will/            # Account, Home Manager identity, personal applications
 ├── pkgs/                  # Custom packages and their patches
 ├── lib/                   # Shared Nix helpers
 ├── scripts/               # Validation and hardware benchmarks

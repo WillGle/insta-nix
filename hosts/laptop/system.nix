@@ -5,7 +5,6 @@
 }:
 {
   imports = [
-    ./user.nix
     ./graphics.nix
     ./packages.nix
   ];

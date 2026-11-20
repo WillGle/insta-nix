@@ -12,17 +12,20 @@ mặc định dùng host `minimal`; sau khi reboot, `/etc/nixos` đã có sẵn 
 
 ## Các bước thực hiện
 
-### 1. Sao chép cấu hình mẫu
+### 1. Tạo thư mục host
 ```bash
-cp -r hosts/_template hosts/<host-id>
+mkdir -p hosts/<host-id>
 ```
 
 ### 2. Cấu hình các tệp thành phần trong `hosts/<host-id>/`
 - `hardware.nix`: Thông số phần cứng từ `nixos-generate-config` (fileSystems, driver, initrd). Installer tạo file này tự động; chỉ sửa khi thêm phần cứng mới.
-- `network.nix`: Đặt tên máy (`networking.hostName = "<host-id>";`) và cấu hình tường lửa/mạng.
-- `storage.nix`: Khai báo hệ thống tệp (`fileSystems`), swap (`swapDevices`) và các phân vùng.
-- `system.nix`: Điểm nạp chính sách gắn với máy; các file đi kèm là `packages.nix`, `graphics.nix`, và `user.nix`. Các vai trò dùng chung nằm trong `modules/system/`.
-- `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu khai báo `homeModule`). Nạp `../../users/will/home.nix` (đã bao gồm `users/will/packages.nix` và `modules/cli`), `../../modules/desktop/home.nix` cho bộ desktop chuẩn, và `../../modules/system/maintenance/home.nix`.
+- `default.nix`: Composition, identity và policy gắn với máy:
+  - `networking.hostName`, firewall;
+  - `fileSystems`/`swapDevices` bổ sung;
+  - user groups và shell;
+  - boot loader, Nix resource tuning, udev quirk.
+- `packages.nix` (tùy chọn): package/tool chỉ dùng trên máy này.
+- `home.nix` (bắt buộc nếu khai báo `homeModule`): điểm nạp Home Manager của máy. Nạp `../../users/will/home.nix` (đã gồm `users/will/packages.nix` và `modules/cli`), `../../modules/desktop/home.nix` cho bộ desktop chuẩn, và `../../modules/system/maintenance/home.nix`.
 - Không đặt app asset dưới host. Asset nằm cạnh module sở hữu trong `modules/desktop/<feature>/` hoặc `modules/system/<role>/`.
 
 ### 3. Thiết lập điểm nạp chính tại `hosts/<host-id>/default.nix`
@@ -32,12 +35,9 @@ Cấu hình tối thiểu:
 {
   imports = [
     ./hardware.nix
-    ./storage.nix
-    ./network.nix
     ../../base/default.nix
     ../../users/will/default.nix
-    ../../modules/system/ssh/strict.nix
-    ./system.nix
+    ../../modules/system/ssh
     # Nạp thêm các vai trò dùng chung nếu cần:
     # ../../modules/system/development
     # ../../modules/system/hardware
@@ -46,14 +46,16 @@ Cấu hình tối thiểu:
     # ../../modules/system/gaming.nix
   ];
 
+  networking.hostName = "<host-id>";
+
   system.stateVersion = "25.11";
 }
 ```
 
-*Lưu ý kiến trúc:* Host chọn `modules/system/ssh/strict.nix` nếu cần SSH quản
-trị. Baseline `base/` dùng chung không bật desktop; host chọn desktop và phần
-cứng cần thiết. Không dùng module LLM/native-power riêng của laptop cho máy khác
-nếu chưa kiểm tra phụ thuộc.
+*Lưu ý kiến trúc:* Host chọn `modules/system/ssh` nếu cần SSH quản trị.
+Baseline `base/` dùng chung không bật desktop; host chọn desktop và phần cứng
+cần thiết. Không dùng module LLM/native-power riêng của laptop cho máy khác nếu
+chưa kiểm tra phụ thuộc.
 
 ### 4. Khai báo máy trong `flake.nix`
 Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hình máy mới vào mục `nixosConfigurations`:
