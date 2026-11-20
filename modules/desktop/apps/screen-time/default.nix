@@ -38,18 +38,12 @@ in
           util-linux
         ];
       });
-      ".local/bin/rofi-screen-time-cache" = scriptFile (mkScript {
-        name = "rofi-screen-time-cache";
-        runtimeInputs = with pkgs; [
-          coreutils
-          util-linux # flock
-        ];
-      });
       ".local/bin/rofi-screen-time-stats" = scriptFile (mkScript {
         name = "rofi-screen-time-stats";
         vars = screenTimeLibVar;
         runtimeInputs = with pkgs; [
           coreutils
+          gawk
           jq
         ];
       });
@@ -64,14 +58,8 @@ in
           hyprland
           jq
           procps
+          systemd
           util-linux
-        ];
-      });
-      ".local/bin/screen-time-behavior-export" = scriptFile (mkScript {
-        name = "screen-time-behavior-export";
-        runtimeInputs = with pkgs; [
-          coreutils
-          jq
         ];
       });
     };
@@ -128,43 +116,6 @@ in
           ExecStart = "${pkgs.swayidle}/bin/swayidle -w idlehint 300";
           Restart = "on-failure";
           RestartSec = "5s";
-        };
-        Install = {
-          WantedBy = [ "graphical-session.target" ];
-        };
-      };
-
-      rofi-screen-time-cache = {
-        Unit = {
-          Description = "Warm the default rofi screen-time popup cache";
-          After = [
-            "graphical-session.target"
-            "rofi-screen-time-tracker.service"
-          ];
-          PartOf = [ "graphical-session.target" ];
-        };
-        Service = {
-          Type = "oneshot";
-          ExecStart = "${homeDir}/.local/bin/rofi-screen-time-cache";
-        };
-        Install = {
-          WantedBy = [ "graphical-session.target" ];
-        };
-      };
-    };
-
-    timers = {
-      rofi-screen-time-cache = {
-        Unit = {
-          Description = "Refresh the default rofi screen-time popup cache";
-          PartOf = [ "graphical-session.target" ];
-        };
-        Timer = {
-          OnActiveSec = "20s";
-          # Cache rendering costs about 10 CPU seconds; the popup refreshes stale
-          # data on open, so frequent background refreshes waste CPU.
-          OnUnitActiveSec = "5m";
-          Unit = "rofi-screen-time-cache.service";
         };
         Install = {
           WantedBy = [ "graphical-session.target" ];

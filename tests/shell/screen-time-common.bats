@@ -17,11 +17,11 @@ setup() {
   [ "$(normalize_class 'Qux Updater')" = "qux" ]
 }
 
-@test "resolve_screen_time_view maps aliases to views" {
+@test "resolve_screen_time_view maps aliases to the two views" {
   [ "$(resolve_screen_time_view app)" = "activity" ]
   [ "$(resolve_screen_time_view time-windows)" = "activity" ]
-  [ "$(resolve_screen_time_view focus)" = "health" ]
-  [ "$(resolve_screen_time_view study-timer)" = "timer" ]
+  [ "$(resolve_screen_time_view activity)" = "activity" ]
+  [ "$(resolve_screen_time_view summary)" = "summary" ]
   [ "$(resolve_screen_time_view unknown)" = "summary" ]
   [ "$(resolve_screen_time_view)" = "summary" ]
 }
@@ -51,8 +51,19 @@ setup() {
   [ "$(escape_markup '<a&b>')" = '&lt;a&amp;b&gt;' ]
 }
 
-@test "delta_label_seconds reports direction and magnitude" {
-  [ "$(delta_label_seconds 90)" = "↑ 1m" ]
-  [ "$(delta_label_seconds -90)" = "↓ 1m" ]
-  [ "$(delta_label_seconds 0)" = "→ 0m" ]
+@test "default_day_json emits schema v3 without study or behavior" {
+  day="$(default_day_json 2026-11-21 2026-11-21T00:00:00+07:00 5)"
+  [ "$(jq -r '.version' <<<"$day")" = "3" ]
+  [ "$(jq -r '.slots_30m | length' <<<"$day")" = "48" ]
+  [ "$(jq -r 'has("study") or has("behavior")' <<<"$day")" = "false" ]
+}
+
+@test "normalize_day_json drops legacy fields and keeps app totals" {
+  legacy='{"version":2,"date":"2026-11-21","updated_at":"x","sample_seconds":5,"sample_count":3,"first_seen":"a","last_seen":"b","total_seconds":15,"slots_30m":[15],"apps":{"foo":{"class":"Foo","name":"Foo App","icon":"icon","seconds":15,"sample_count":3,"session_count":1,"first_seen":"a","last_seen":"b","slots_30m":[15]}},"study":{"total_seconds":5},"behavior":{"transitions":{"a -> b":{"count":1}}}}'
+  normalized="$(normalize_day_json 2026-11-21 2026-11-21T00:00:00+07:00 5 <<<"$legacy")"
+  [ "$(jq -r '.version' <<<"$normalized")" = "3" ]
+  [ "$(jq -r '.apps.foo.seconds' <<<"$normalized")" = "15" ]
+  [ "$(jq -r '.apps.foo.session_count // "absent"' <<<"$normalized")" = "absent" ]
+  [ "$(jq -r 'has("study") or has("behavior")' <<<"$normalized")" = "false" ]
+  [ "$(jq -r '.slots_30m | length' <<<"$normalized")" = "48" ]
 }

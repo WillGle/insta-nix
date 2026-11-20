@@ -29,24 +29,6 @@ bar_markup() {
   printf '%s\n' "$out"
 }
 
-# Use countable marks for small counts.
-pips_markup() {
-  local filled="${1:-0}"
-  local total="${2:-5}"
-  local color="${3:-$ACCENT_COLOR}"
-  local i=0
-  local on=""
-  local off=""
-
-  [ "$filled" -gt "$total" ] && filled="$total"
-  while [ "$i" -lt "$total" ]; do
-    if [ "$i" -lt "$filled" ]; then on+="●"; else off+="○"; fi
-    i=$((i + 1))
-  done
-  printf '<span foreground="%s">%s</span><span foreground="%s">%s</span>' \
-    "$color" "$on" "$BASE_COLOR" "$off"
-}
-
 # Keep category colours consistent and separate from severity colours.
 # Assign the colour to avoid subshells in slot loops; category_color prints it.
 set_category_color() {
@@ -63,20 +45,6 @@ set_category_color() {
 category_color() {
   set_category_color "${1:-}"
   printf '%s' "$CATEGORY_COLOR"
-}
-
-# Share severity thresholds across bounded metrics.
-severity_color() {
-  local value="${1:-0}"
-  local warn_at="${2:-50}"
-  local crit_at="${3:-70}"
-  if [ "$value" -ge "$crit_at" ]; then
-    printf '%s' "$ERROR_COLOR"
-  elif [ "$value" -ge "$warn_at" ]; then
-    printf '%s' "$WARNING_COLOR"
-  else
-    printf '%s' "$SUCCESS_COLOR"
-  fi
 }
 
 sparkline_from_json() {
@@ -107,63 +75,6 @@ sparkline_from_json() {
       | .[]
       | (. // 0) as $value
       | "\(if $max <= 0 then 0 else (($value * 7 / $max) | floor) end)\t\($value > 0)"
-    '
-  )
-
-  printf '%s\n' "$out"
-}
-
-render_momentum_chart() {
-  local slots_bundle_json="$1"
-  printf '<span foreground="%s" weight="600">Usage Through The Day</span>\n<span foreground="%s" size="small">00        06        12        18        24   ·   each block = 30m</span>\n%s\n<span size="small" foreground="%s">Legend: <span foreground="%s">■ Work</span>  <span foreground="%s">■ Study</span>  <span foreground="%s">■ Browser</span>  <span foreground="%s">■ Comm</span>  <span foreground="%s">■ Leisure</span></span>\n' \
-    "$ACCENT_COLOR" \
-    "$SUBTEXT_COLOR" \
-    "$(momentum_sparkline_from_json "$slots_bundle_json")" \
-    "$SUBTEXT_COLOR" \
-    "$CYAN_COLOR" \
-    "$SUCCESS_COLOR" \
-    "$PURPLE_COLOR" \
-    "$WARNING_COLOR" \
-    "$ERROR_COLOR"
-}
-
-momentum_sparkline_from_json() {
-  local slots_bundle_json="$1"
-  local out=""
-  local glyph_index=0
-  local chars=("▁" "▂" "▃" "▄" "▅" "▆" "▇" "█")
-  local dominant_cat=""
-  local active=0
-
-  # Emit category and glyph per slot in one jq pass.
-  # A separate active flag avoids leading empty TSV fields, which IFS discards.
-  # Ties use the first category in key order.
-  while IFS=$'\t' read -r active dominant_cat glyph_index; do
-    if [ "$active" = "0" ]; then
-      CATEGORY_COLOR="$BASE_COLOR"
-    else
-      set_category_color "$dominant_cat"
-    fi
-    out+="<span foreground=\"$CATEGORY_COLOR\">${chars[$glyph_index]}</span>"
-  done < <(
-    printf '%s' "$slots_bundle_json" | jq -r '
-      . as $bundle
-      | ([range(0; 48) as $i | [$bundle[] | .[$i] // 0] | add // 0] | max // 0) as $max
-      | ($bundle | to_entries) as $cats
-      | range(0; 48)
-      | . as $i
-      | ($cats | map({cat: .key, sec: (.value[$i] // 0)})) as $slot
-      | ($slot | map(.sec) | add // 0) as $value
-      | (
-          reduce $slot[] as $c ({cat: "Unknown", sec: 0};
-            if $c.sec > .sec then {cat: $c.cat, sec: $c.sec} else . end
-          ) | .cat
-        ) as $dominant
-      | if $value <= 0 then
-          "0\tUnknown\t0"
-        else
-          "1\t\($dominant)\t\(if $max <= 0 then 1 else (($value * 6 / $max) | floor + 1) end)"
-        end
     '
   )
 
@@ -251,57 +162,6 @@ render_hero_day_strip() {
         "$CYAN_COLOR" "$SUCCESS_COLOR" "$PURPLE_COLOR" "$WARNING_COLOR" "$ERROR_COLOR")"
 }
 
-render_transition_bars() {
-  local context_json="$1"
-  local limit="${2:-5}"
-  local output=""
-  local max_count
-
-  max_count="$(printf '%s' "$context_json" | jq -r \
-    --argjson limit "$limit" '
-      (.today.behavior.transitions // [])
-      | if ($limit > 0) then .[:$limit] else . end
-      | ([.[].count] | max) // 0
-    ')"
-
-  while IFS=$'\t' read -r from_app to_app count label; do
-    [ -n "$from_app" ] || continue
-    local pair_name
-    pair_name="$(humanize_class "$from_app") → $(humanize_class "$to_app")"
-    # Append newlines outside command substitution, which strips trailing newlines.
-    output+="$(printf '%s  %s  %4s×  <span foreground="%s" size="small">%s</span>' \
-      "$(escape_markup "$(pad_right "$(clip_text "$pair_name" 24)" 24)")" \
-      "$(bar_markup "$count" "$max_count" 14 "$ACCENT_COLOR" "$BASE_COLOR")" \
-      "$count" \
-      "$SUBTEXT_COLOR" \
-      "$(escape_markup "$label")")"$'\n'
-  done < <(
-    printf '%s' "$context_json" | jq -r \
-      --argjson limit "$limit" '
-        (.today.behavior.transitions // [])
-        | if ($limit > 0) then .[:$limit] else . end
-        | (([.[].count] | max) // 0) as $top
-        | .[]
-        | [
-            (if .from != "" then .from else "Unknown" end),
-            (if .to != "" then .to else "Unknown" end),
-            (.count | tostring),
-            # Compare with the busiest pair to distinguish dominant loops.
-            (if .from == .to then "within task"
-             elif ($top > 0 and .count * 2 >= $top) then "work loop"
-             else "cross-context" end)
-          ]
-        | @tsv
-      '
-  )
-
-  if [ -z "$output" ]; then
-    printf '%s\n' "$(kv_markup "Transitions" "No app transitions recorded yet")"
-  else
-    printf '%s' "${output%$'\n'}"
-  fi
-}
-
 kv_markup() {
   local label="$1"
   local value="$2"
@@ -309,36 +169,6 @@ kv_markup() {
     "$SUBTEXT_COLOR" \
     "$(escape_markup "$label")" \
     "$(escape_markup "$value")"
-}
-
-kv_markup_raw_value() {
-  local label="$1"
-  local value="$2"
-  printf '<span foreground="%s">%s</span> <span weight="600">%s</span>' \
-    "$SUBTEXT_COLOR" \
-    "$(escape_markup "$label")" \
-    "$value"
-}
-
-# Pad by characters before escaping so glyphs and entities do not shift columns.
-kv_markup_aligned() {
-  local width="$1"
-  local label="$2"
-  local value="$3"
-  printf '<span foreground="%s">%s</span> <span weight="600">%s</span>' \
-    "$SUBTEXT_COLOR" \
-    "$(escape_markup "$(pad_right "$label" "$width")")" \
-    "$(escape_markup "$value")"
-}
-
-kv_markup_raw_value_aligned() {
-  local width="$1"
-  local label="$2"
-  local value="$3"
-  printf '<span foreground="%s">%s</span> <span weight="600">%s</span>' \
-    "$SUBTEXT_COLOR" \
-    "$(escape_markup "$(pad_right "$label" "$width")")" \
-    "$value"
 }
 
 # Bash printf pads by bytes; pad by characters for Unicode labels.
@@ -362,158 +192,6 @@ clip_text() {
     return 0
   fi
   printf '%s...\n' "${value:0:$((max - 3))}"
-}
-
-render_digital_health() {
-  local context_json="$1"
-  local eye_risk cog_load circ_phase ultr_score rec_gaps wellbeing_json wellbeing_val afi confidence untracked
-
-  # Read context once; show unavailable wellbeing scores as "Unavailable".
-  local -a f
-  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
-    .today.scores.digital_wellbeing_score as $wb
-    | [ (.today.metrics.eye_strain_risk // "Low"),
-        (.today.metrics.cognitive_load_score // "—"),
-        (.today.metrics.circadian_phase // "Unknown"),
-        (.today.metrics.ultradian_score // 0),
-        (.today.metrics.recovery_gap_count // 0),
-        (.today.metrics.attention_fragmentation_index | if . == null then "—" else (. * 10 | round / 10 | tostring) end),
-        (if $wb.available == true then ($wb.value | round | tostring) else "Unavailable" end),
-        ($wb.confidence // "Medium"),
-        ($wb.untracked_percent // 0),
-        (if (.today.metrics.cognitive_load_score // 0) > 50 then "y" else "n" end),
-        (if (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end),
-        (if $wb.available == true then ($wb.value | round) else 0 end)
-      ] | map(tostring) | join(([0] | implode))')
-  eye_risk="${f[0]}"; cog_load="${f[1]}"; circ_phase="${f[2]}"; ultr_score="${f[3]}"
-  rec_gaps="${f[4]}"; afi="${f[5]}"; wellbeing_val="${f[6]}"; confidence="${f[7]}"; untracked="${f[8]}"
-
-  local eye_color="$SUCCESS_COLOR"
-  [ "$eye_risk" = "Moderate" ] && eye_color="$WARNING_COLOR"
-  [ "$eye_risk" = "High" ] && eye_color="$ERROR_COLOR"
-
-  local cog_color="$SUCCESS_COLOR"
-  [ "${f[9]}" = "y" ] && cog_color="$WARNING_COLOR"
-  [ "${f[10]}" = "y" ] && cog_color="$ERROR_COLOR"
-
-  # Use bars for ratios, pips for counts, and severity colours for ranks.
-  local bar_w=26
-  local wb_bar_value="${f[11]}"
-  local cog_bar_value="$cog_load"
-  [ "$cog_bar_value" = "—" ] && cog_bar_value=0
-
-  local eye_level=1
-  [ "$eye_risk" = "Moderate" ] && eye_level=2
-  [ "$eye_risk" = "High" ] && eye_level=3
-
-  # Invert severity thresholds: higher wellbeing is better.
-  local wb_color="$ERROR_COLOR"
-  [ "$wb_bar_value" -ge 34 ] && wb_color="$WARNING_COLOR"
-  [ "$wb_bar_value" -ge 67 ] && wb_color="$SUCCESS_COLOR"
-
-  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%3s</span>\n' \
-    "$SUBTEXT_COLOR" "Wellbeing" \
-    "$(bar_markup "$wb_bar_value" 100 "$bar_w" "$wb_color" "$BASE_COLOR")" \
-    "$wellbeing_val"
-  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%3s</span>\n' \
-    "$SUBTEXT_COLOR" "Cognitive" \
-    "$(bar_markup "$cog_bar_value" 100 "$bar_w" "$cog_color" "$BASE_COLOR")" \
-    "$cog_load"
-  printf '<span foreground="%s">%-11s</span>%s  <span foreground="%s" weight="600">%s</span>\n' \
-    "$SUBTEXT_COLOR" "Eye strain" \
-    "$(bar_markup "$eye_level" 3 "$bar_w" "$eye_color" "$BASE_COLOR")" \
-    "$eye_color" "$eye_risk"
-  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%2s%%</span>  <span foreground="%s" size="small">conf %s</span>\n' \
-    "$SUBTEXT_COLOR" "Untracked" \
-    "$(bar_markup "$untracked" 100 "$bar_w" "$(severity_color "$untracked" 15 30)" "$BASE_COLOR")" \
-    "$untracked" "$SUBTEXT_COLOR" "$confidence"
-  printf '<span foreground="%s">%-11s</span><span weight="600">%s</span>  <span foreground="%s">·</span>  <span foreground="%s">cycles</span> %s  <span foreground="%s">·</span>  <span foreground="%s">gaps</span> %s  <span foreground="%s">·</span>  <span foreground="%s">frag</span> <span weight="600">%s</span>' \
-    "$SUBTEXT_COLOR" "Rhythm" "$circ_phase" \
-    "$SUBTEXT_COLOR" "$SUBTEXT_COLOR" "$(pips_markup "$ultr_score" 5 "$CYAN_COLOR")" \
-    "$SUBTEXT_COLOR" "$SUBTEXT_COLOR" "$(pips_markup "$rec_gaps" 3 "$WARNING_COLOR")" \
-    "$SUBTEXT_COLOR" "$SUBTEXT_COLOR" "$afi"
-}
-
-note_health_alert_color() {
-  local context_json="$1"
-  if [ "$(printf '%s' "$context_json" | jq -r '
-        if (.today.metrics.eye_strain_risk // "Low") == "High"
-           or (.today.metrics.cognitive_load_score // 0) > 70 then "y" else "n" end')" = "y" ]; then
-    printf '%s' "$ERROR_COLOR"
-  else
-    printf '%s' "$BASE_COLOR"
-  fi
-}
-
-render_goal_gauge() {
-  local current_seconds="$1"
-  local target_seconds="$2"
-  local ratio
-  local label=""
-  local action_hint=""
-  
-  ratio="$(jq -nr --argjson c "$current_seconds" --argjson t "$target_seconds" 'if $t <= 0 then 0 else ($c / $t) end')"
-  label="$(seconds_to_short "$current_seconds") / $(seconds_to_short "$target_seconds")"
-  
-  local remaining_sec
-  remaining_sec=$((target_seconds - current_seconds))
-  if [ "$remaining_sec" -gt 0 ]; then
-    local blocks_left
-    blocks_left=$(( (remaining_sec + 2999) / 3000 ))
-    action_hint=" • Next: 50m block ($blocks_left left)"
-  else
-    action_hint=" • Goal achieved!"
-  fi
-
-  printf '<span foreground="%s">%s</span>\n%s\n' \
-    "$SUBTEXT_COLOR" \
-    "Study target: $(format_ratio_percent "$ratio") ($label)$action_hint" \
-    "$(bar_markup "$current_seconds" "$target_seconds" 28 "$SUCCESS_COLOR" "$BASE_COLOR")"
-}
-
-action_row_markup() {
-  local label="$1"
-  local hint="${2:-}"
-  if [ -n "$hint" ]; then
-    printf '<span weight="600">%s</span>&#10;<span foreground="%s" size="small">%s</span>' \
-      "$(escape_markup "$label")" \
-      "$SUBTEXT_COLOR" \
-      "$(escape_markup "$hint")"
-  else
-    printf '<span weight="600">%s</span>' "$(escape_markup "$label")"
-  fi
-}
-
-emit_row() {
-  local token="$1"
-  local display="$2"
-  local icon="${3:-}"
-  printf '%s' "$token"
-  printf '\0display\x1f%s' "$display"
-  if [ -n "$icon" ]; then
-    printf '\x1ficon\x1f%s' "$icon"
-  fi
-  printf '\n'
-}
-
-score_value_text() {
-  local score_json="$1"
-  if [ -z "$score_json" ]; then
-    printf 'Unavailable\n'
-    return 0
-  fi
-  printf '%s\n' "$(printf '%s' "$score_json" | jq -r '
-    if .available == true then (.value | round | tostring) else "Unavailable" end')"
-}
-
-score_subtext() {
-  local score_json="$1"
-  if [ -z "$score_json" ]; then
-    printf '\n'
-    return 0
-  fi
-  printf '%s\n' "$(printf '%s' "$score_json" | jq -r '
-    if .available == true then .label else (.reason // "Unavailable") end')"
 }
 
 render_category_bars() {
@@ -693,329 +371,22 @@ render_top_app_bars() {
   fi
 }
 
-render_priority_insights() {
-  local context_json="$1"
-  local limit="${2:-3}"
-  local output=""
-  local text=""
-
-  while IFS= read -r text; do
-    [ -n "$text" ] || continue
-    output+="• $(escape_markup "$text")"$'\n'
-  done < <(
-    printf '%s' "$context_json" | jq -r \
-      --argjson limit "$limit" '
-        (.insights.all // [])
-        | if length == 0 then
-            ["No major insight available yet."]
-          else
-            map(.text)[:$limit]
-          end
-        | .[]
-      '
-  )
-
-  printf '%s' "${output%$'\n'}"
-}
-
-render_baseline_summary() {
-  local context_json="$1"
-  local active_delta active_avg focus_delta frag_delta study_delta
-
-  local -a f
-  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
-    [ (.baseline.deltas.total_seconds.vs_yesterday // 0),
-      (.baseline.deltas.total_seconds.vs_avg7 // ""),
-      (.baseline.deltas.focus_score.vs_avg7 // ""),
-      (.baseline.deltas.fragmentation_score.vs_avg7 // ""),
-      (.baseline.deltas.study_ratio.vs_avg7 // "")
-    ] | .[] | tostring + "\u0000"')
-  active_delta="${f[0]}"; active_avg="${f[1]}"; focus_delta="${f[2]}"; frag_delta="${f[3]}"; study_delta="${f[4]}"
-
-  printf '%s\n%s\n%s\n%s' \
-    "$(kv_markup "Compared with yesterday" "$(delta_label_seconds "$active_delta")")" \
-    "$(kv_markup "Active time vs 7-day" "$( [ -n "$active_avg" ] && delta_label_seconds "$(round_number "$active_avg")" || printf 'Unavailable' )")" \
-    "$(kv_markup "Focus vs 7-day" "$( [ -n "$focus_delta" ] && format_score_delta "$focus_delta" || printf 'Unavailable' )")" \
-    "$(kv_markup "Study vs 7-day" "$( [ -n "$study_delta" ] && format_ratio_points_delta "$study_delta" || printf 'Unavailable' )")"
-
-  if [ -n "$frag_delta" ]; then
-    printf '\n%s' "$(kv_markup "Fragmentation vs 7-day" "$(format_score_delta "$frag_delta")")"
-  fi
-}
-
-render_focus_breakdown() {
-  local context_json="$1"
-  local -a f
-  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
-    def score_value: if .available == true then (.value | round | tostring) else "Unavailable" end;
-    def score_label: if .available == true then .label else (.reason // "Unavailable") end;
-    [ (.today.scores.focus_score | score_value, score_label),
-      (.today.scores.fragmentation_score | score_value, score_label),
-      (.today.scores.distraction_load | score_value, score_label),
-      (.today.scores.daily_consistency_score | score_value, score_label)
-    ] | map(tostring) | join(([0] | implode))')
-
-  printf '%s\n%s\n%s\n%s' \
-    "$(kv_markup_aligned 18 "Focus" "${f[0]}/100 • ${f[1]}")" \
-    "$(kv_markup_aligned 18 "Fragmentation" "${f[2]}/100 • ${f[3]}")" \
-    "$(kv_markup_aligned 18 "Distraction load" "${f[4]}/100 • ${f[5]}")" \
-    "$(kv_markup_aligned 18 "Consistency" "${f[6]}/100 • ${f[7]}")"
-}
-
-render_behavior_summary() {
-  local context_json="$1"
-  local longest current deep short top_label top_count switch_rate
-
-  local -a f
-  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
-    [ (.today.metrics.longest_focus_block_seconds // 0),
-      (.today.metrics.current_focus_block_seconds // 0),
-      (.today.metrics.deep_focus_block_count // 0),
-      (.today.metrics.short_focus_block_count // 0),
-      (.today.metrics.top_transition_label // "None yet"),
-      (.today.metrics.top_transition_count // 0),
-      (.today.metrics.switch_rate // ""),
-      (.today.metrics.safe_total_seconds // .today.total_seconds // 0),
-      (.today.behavior.classified_transitions.cross_context // 0),
-      (.baseline.deltas.switch_rate.avg7 // "")
-    ] | .[] | tostring + "\u0000"')
-  longest="${f[0]}"; current="${f[1]}"; deep="${f[2]}"; short="${f[3]}"
-  top_label="${f[4]}"; top_count="${f[5]}"; switch_rate="${f[6]}"
-
-  if [ "$top_label" != "None yet" ]; then
-    top_label="${top_label// -> / → }"
-  fi
-
-  local bar_w=26
-  local day_seconds blocks_total cross_count
-  day_seconds="${f[7]}"
-  cross_count="${f[8]}"
-  blocks_total=$((deep + short))
-
-  # Use the same day-long scale for both block lengths.
-  local deep_color="$SUCCESS_COLOR"
-  [ "$blocks_total" -gt 0 ] && [ $((deep * 100 / blocks_total)) -lt 25 ] && deep_color="$WARNING_COLOR"
-  [ "$blocks_total" -gt 0 ] && [ $((deep * 100 / blocks_total)) -lt 10 ] && deep_color="$ERROR_COLOR"
-
-  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s</span>\n' \
-    "$SUBTEXT_COLOR" "Best block" \
-    "$(bar_markup "$longest" "$day_seconds" "$bar_w" "$CYAN_COLOR" "$BASE_COLOR")" \
-    "$(seconds_to_short "$longest")"
-  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s</span>\n' \
-    "$SUBTEXT_COLOR" "Right now" \
-    "$(bar_markup "$current" "$day_seconds" "$bar_w" "$CYAN_COLOR" "$BASE_COLOR")" \
-    "$(seconds_to_short "$current")"
-  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s deep</span> <span foreground="%s" size="small">· %s short</span>\n' \
-    "$SUBTEXT_COLOR" "Deep ratio" \
-    "$(bar_markup "$deep" "$blocks_total" "$bar_w" "$deep_color" "$BASE_COLOR")" \
-    "$deep" "$SUBTEXT_COLOR" "$short"
-  if [ "$top_count" -gt 0 ]; then
-    printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s×</span>\n' \
-      "$SUBTEXT_COLOR" "Top switch" \
-      "$(escape_markup "$(clip_text "$top_label" 30)")" "$top_count"
-  else
-    printf '<span foreground="%s">%-11s</span><span foreground="%s">None yet</span>\n' \
-      "$SUBTEXT_COLOR" "Top switch" "$SUBTEXT_COLOR"
-  fi
-  # Scale pips against the 7-day average so busy users do not saturate a fixed cap.
-  local switch_avg switch_pips switch_note
-  switch_avg="${f[9]}"
-  if [ -n "$switch_avg" ]; then
-    # Rates are non-negative, so int() gives the floor.
-    switch_pips="$(awk -v r="${switch_rate:-0}" -v a="$switch_avg" \
-      'BEGIN { if (a <= 0) print 0; else print int(r * 10 / a) }')"
-    switch_note="vs usual $(format_decimal_label "$switch_avg" "/h")"
-  else
-    switch_pips=0
-    switch_note="$(format_decimal_label "$switch_rate" "/h")"
-  fi
-  printf '<span foreground="%s">%-11s</span>%s  <span weight="600">%s</span>  <span foreground="%s" size="small">%s cross-context</span>' \
-    "$SUBTEXT_COLOR" "Switching" \
-    "$(pips_markup "$switch_pips" 10 "$WARNING_COLOR")" \
-    "$switch_note" \
-    "$SUBTEXT_COLOR" "$cross_count"
-}
-
-render_focus_vs_baseline() {
-  local context_json="$1"
-  local output=""
-  local metrics rows
-
-  rows="$(
-    printf '%s' "$context_json" \
-      | jq -r '
-        [
-          ["Session density", .today.metrics.session_density, .baseline.averages.session_density],
-          ["Switch rate", .today.metrics.switch_rate, .baseline.averages.switch_rate],
-          ["Goal-aligned activity", .today.metrics.productive_ratio_v1, .baseline.averages.productive_ratio_v1],
-          ["Browser ambiguity ratio", .today.metrics.browser_ambiguity_ratio, .baseline.averages.browser_ambiguity_ratio]
-        ]
-        | .[]
-        | @tsv
-      '
-  )"
-
-  while IFS=$'\t' read -r label current avg; do
-    [ -n "$label" ] || continue
-    if [ "$current" = "null" ]; then
-      output+="$(kv_markup_aligned 24 "$label" "Unavailable")"$'\n'
-      continue
-    fi
-    if [ "$label" = "Session density" ] || [ "$label" = "Switch rate" ]; then
-      metrics="$(format_rate_with_avg "$current" "$avg")"
-    else
-      metrics="$(format_ratio_with_avg "$current" "$avg")"
-    fi
-    output+="$(kv_markup_aligned 24 "$label" "$metrics")"$'\n'
-  done <<< "$rows"
-
-  printf '%s' "${output%$'\n'}"
-}
-
-render_study_summary() {
-  local context_json="$1"
-  local study_seconds study_ratio active_label focus_window
-
-  local -a f
-  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
-    [ .today.study_seconds,
-      .today.metrics.study_ratio,
-      .today.metrics.focus_window,
-      .study_active.active,
-      (.study_active.mode // ""),
-      (.study_active.current_session // ""),
-      (.study_active.planned_sessions // ""),
-      (.study_active.remaining_total_seconds // ""),
-      (.study_active.elapsed_seconds // 0)
-    ] | map(tostring) | join(([0] | implode))')
-  study_seconds="${f[0]}"
-  study_ratio="${f[1]}"
-  focus_window="${f[2]}"
-
-  if [ "${f[3]}" = "true" ]; then
-    local mode current planned left elapsed
-
-    mode="${f[4]}"
-    current="${f[5]}"
-    planned="${f[6]}"
-    left="${f[7]}"
-    elapsed="${f[8]}"
-
-    if [ -n "$mode" ]; then
-      active_label="$mode"
-    else
-      active_label="Active"
-    fi
-
-    if [ -n "$current" ] && [ -n "$planned" ] && [ "$planned" != "null" ]; then
-      active_label+=" ($current/$planned)"
-    fi
-
-    if [ -n "$left" ] && [ "$left" != "null" ]; then
-      active_label+=" • $(seconds_to_short "$left") left"
-    else
-      active_label+=" • $(seconds_to_short "$elapsed")"
-    fi
-  else
-    active_label="Idle"
-  fi
-
-  printf '%s\n%s\n%s' \
-    "$(kv_markup "Study today" "$(seconds_to_short "$study_seconds") • $(format_ratio_percent "$study_ratio")")" \
-    "$(kv_markup "Timer" "$active_label")" \
-    "$(kv_markup "Peak density window" "$focus_window")"
-}
-
-render_confidence_breakdown() {
-  local context_json="$1"
-  local conf mapped_pct unknown_time browser_pct unknown_raw
-
-  local -a f
-  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
-    (.data_quality.known_category_ratio // 0) as $mapped
-    | (.today.categories.seconds["Unknown"] // 0) as $unknown
-    | (.data_quality.browser_ambiguity_ratio // 0) as $browser
-    | (.today.metrics.safe_total_seconds // .today.total_seconds // 0) as $t
-    | [ (.data_quality.model_confidence // "Unknown"),
-        $unknown,
-        (($mapped * 100 | round | tostring) + "%"),
-        (($browser * 100 | round | tostring) + "%"),
-        (if $mapped >= 0.85 then "Good" else "\u2193 below 85% threshold" end),
-        (if $browser < 0.30 then "OK" else "\u2193 high ambiguity" end),
-        (if $unknown < 1800 then "OK" else "\u2193 significant" end),
-        ($mapped * 100 | round),
-        ($browser * 100 | round),
-        ((if $t > 0 then (($unknown * 100 / $t) | round) else 0 end) | if . > 100 then 100 else . end)
-      ] | map(tostring) | join(([0] | implode))')
-  conf="${f[0]}"
-  unknown_raw="${f[1]}"
-  mapped_pct="${f[2]}"
-  unknown_time="$(seconds_to_short "$unknown_raw")"
-  browser_pct="${f[3]}"
-
-  local mapped_status browser_status unknown_status
-  mapped_status="${f[4]}"
-  browser_status="${f[5]}"
-  unknown_status="${f[6]}"
-
-  # Use shared severity colours; invert the ladder for app mapping.
-  local mapped_pct_num unknown_pct_num browser_pct_num
-  mapped_pct_num="${f[7]}"
-  browser_pct_num="${f[8]}"
-  # Compare drivers as shares of the tracked day on the same scale.
-  unknown_pct_num="${f[9]}"
-
-  printf '%s\n%s\n%s\n%s\n%s' \
-    "$(kv_markup_aligned 18 "Model confidence" "$conf")" \
-    "$(kv_markup_raw_value_aligned 18 "App mapping" "$(printf '%s  %6s  %s' "$(bar_markup "$mapped_pct_num" 100 14 "$(severity_color "$((100 - mapped_pct_num))" 15 40)" "$BASE_COLOR")" "${mapped_pct}" "${mapped_status}")")" \
-    "$(kv_markup_raw_value_aligned 18 "Unknown activity" "$(printf '%s  %6s  %s' "$(bar_markup "$unknown_pct_num" 100 14 "$(severity_color "$unknown_pct_num" 25 50)" "$BASE_COLOR")" "${unknown_time}" "${unknown_status}")")" \
-    "$(kv_markup_raw_value_aligned 18 "Browser ambiguity" "$(printf '%s  %6s  %s' "$(bar_markup "$browser_pct_num" 100 14 "$(severity_color "$browser_pct_num" 30 60)" "$BASE_COLOR")" "${browser_pct}" "${browser_status}")")" \
-    "$(kv_markup_aligned 18 "Tip" "Map top unknown app to raise score reliability.")"
-}
-
-
 render_unknown_apps() {
   local context_json="$1"
-  local output="" mapping_note=""
+  local output=""
 
-  local top_name top_projected top_is_big
-  local current_pct cur_val top_val max_val
-  local -a f
-  mapfile -d '' -t f < <(printf '%s' "$context_json" | jq -j '
-    (.today.metrics.safe_total_seconds // 1) as $total
-    | (.today.metrics.known_category_ratio // 0) as $mapped
-    | (.today.app_entries | map(select(.category == "Unknown")) | sort_by(-.seconds)) as $unknown
-    | (if ($unknown | length) > 0 then $unknown[0].seconds else 0 end) as $top
-    | [ (if ($unknown | length) > 0 then $unknown[0].name else "" end),
-        ((($mapped * $total + $top) / $total * 100 | round | tostring) + "%"),
-        ((.data_quality.known_category_ratio // 0) * 100 | round | tostring),
-        ((.data_quality.known_category_ratio // 0) * 100 | round),
-        (($mapped * $total + $top) / $total * 100 | round),
-        ($top > 600)
-      ] | map(tostring) | join(([0] | implode))')
-  top_name="${f[0]}"; top_projected="${f[1]}"; current_pct="${f[2]}"
-  cur_val="${f[3]}"; top_val="${f[4]}"; top_is_big="${f[5]}"
-  max_val=100
-
-  if [ -n "$top_name" ] && [ "$top_name" != "null" ] && [ "$top_is_big" = "true" ]; then
-    # Invert severity for current coverage; accent the projection to distinguish it from status.
-    mapping_note="$(kv_markup_raw_value_aligned 22 "Current coverage" "$(printf '%s  %6s' "$(bar_markup "$cur_val" "$max_val" 14 "$(severity_color "$((100 - cur_val))" 15 40)" "$BASE_COLOR")" "${current_pct}%")")"$'\n'
-    mapping_note+="$(kv_markup_raw_value_aligned 22 "+ Map \"$(clip_text "$top_name" 14)\"" "$(printf '%s  %6s' "$(bar_markup "$top_val" "$max_val" 14 "$ACCENT_COLOR" "$BASE_COLOR")" "~${top_projected}")")"$'\n'
-  fi
-
-  while IFS=$'\t' read -r name seconds impact; do
+  while IFS=$'\t' read -r name seconds; do
     [ -n "$name" ] || continue
-    local tag=""
-    [ "$impact" = "high" ] && tag=" ●"
-    output+="$(kv_markup_aligned 22 "$(clip_text "${name}${tag}" 22)" "$(printf '%6s' "$(seconds_to_short "$seconds")")")"$'\n'
+    output+="$(printf '%s  %6s' \
+      "$(escape_markup "$(pad_right "$(clip_text "$name" 28)" 28)")" \
+      "$(seconds_to_short "$seconds")")"$'\n'
   done < <(
     printf '%s' "$context_json" \
       | jq -r '
-        (.today.metrics.safe_total_seconds // 1) as $total
-        | .today.app_entries
-        | map(select(.category == "Unknown"))
+        .today.app_entries
+        | map(select(.category == "Unknown" and (.seconds // 0) > 0))
         | .[:6][]
-        | [.name, (.seconds | tostring), (if (.seconds / $total) > 0.10 then "high" else "normal" end)]
+        | [.name, (.seconds | tostring)]
         | @tsv
       '
   )
@@ -1023,8 +394,33 @@ render_unknown_apps() {
   if [ -z "$output" ]; then
     printf '%s\n' "$(kv_markup "Unknown apps" "All visible apps are mapped.")"
   else
-    printf '%s' "${mapping_note}${output%$'\n'}"
+    printf '%s' "${output%$'\n'}"
   fi
+}
+
+action_row_markup() {
+  local label="$1"
+  local hint="${2:-}"
+  if [ -n "$hint" ]; then
+    printf '<span weight="600">%s</span>&#10;<span foreground="%s" size="small">%s</span>' \
+      "$(escape_markup "$label")" \
+      "$SUBTEXT_COLOR" \
+      "$(escape_markup "$hint")"
+  else
+    printf '<span weight="600">%s</span>' "$(escape_markup "$label")"
+  fi
+}
+
+emit_row() {
+  local token="$1"
+  local display="$2"
+  local icon="${3:-}"
+  printf '%s' "$token"
+  printf '\0display\x1f%s' "$display"
+  if [ -n "$icon" ]; then
+    printf '\x1ficon\x1f%s' "$icon"
+  fi
+  printf '\n'
 }
 
 build_navigation_json() {
@@ -1052,9 +448,7 @@ build_navigation_json() {
       today: $today,
       views: [
         {id:"summary", key:"T", label:"Today"},
-        {id:"activity", key:"A", label:"App timeline"},
-        {id:"health", key:"F", label:"Focus & strain"},
-        {id:"timer", key:"S", label:"Study timer"}
+        {id:"activity", key:"A", label:"App timeline"}
       ]
     }'
 }
@@ -1063,253 +457,111 @@ build_view_payload() {
   local view="$1"
   local context_json="$2"
   local target_date subtitle meta title note_text navigation_json
-    local updated_time total_seconds study_ratio focus_json frag_json focus_value frag_value
-    local longest_focus_seconds switch_rate_label
-  local top_category peak_window main_insight summary_active summary_study_ratio
+  local updated_time total_seconds top_category top_category_seconds
+  local active_slot_count peak_slot_label peak_slot_seconds focus_window
+  local unknown_seconds unknown_share sample_seconds slots_json
   local card1_label card1_value card1_sub
   local card2_label card2_value card2_sub
   local card3_label card3_value card3_sub
   local card4_label card4_value card4_sub
-  local primary_title primary_body chart_b_title chart_b_body chart_c_title chart_c_body insight_title insight_body
+  local primary_title primary_body chart_b_title chart_b_body chart_c_title chart_c_body
+  local insight_title insight_body
 
-  # Read shared scalars once; NUL separators preserve newlines in insights.
+  # Read shared scalars once; NUL separators preserve empty fields.
   local -a scalars
   mapfile -d '' -t scalars < <(printf '%s' "$context_json" | jq -j '
     [ .target_date,
       .today.updated_at,
       .today.total_seconds,
-      .today.metrics.study_ratio,
-      (.today.scores.focus_score | tojson),
-      (.today.scores.fragmentation_score | tojson),
-      (.today.metrics.longest_focus_block_seconds // 0),
-      (.today.metrics.switch_rate // ""),
       .today.categories.top_category,
+      .today.categories.top_category_seconds,
+      .today.metrics.active_slot_count,
       .today.metrics.peak_slot_label,
-      (.insights.main.text // "No major insight available yet.")
+      .today.metrics.peak_slot_seconds,
+      .today.metrics.focus_window,
+      .today.metrics.unknown_seconds,
+      .today.metrics.unknown_share,
+      .today.sample_seconds
     ] | map(tostring) | join(([0] | implode))')
   target_date="${scalars[0]}"
   updated_time="$(updated_time_label "${scalars[1]}")"
   total_seconds="${scalars[2]}"
-  study_ratio="${scalars[3]}"
-  focus_json="${scalars[4]}"
-  frag_json="${scalars[5]}"
-    focus_value="$(score_value_text "$focus_json")"
-    frag_value="$(score_value_text "$frag_json")"
-    longest_focus_seconds="${scalars[6]}"
-    switch_rate_label="$(format_decimal_label "${scalars[7]}" "/h" "n/a")"
-    top_category="${scalars[8]}"
-  peak_window="${scalars[9]}"
-  main_insight="${scalars[10]}"
-  summary_active="$(seconds_to_compact "$total_seconds")"
-  summary_study_ratio="$(format_ratio_percent "$study_ratio")"
+  top_category="${scalars[3]}"
+  top_category_seconds="${scalars[4]}"
+  active_slot_count="${scalars[5]}"
+  peak_slot_label="${scalars[6]}"
+  peak_slot_seconds="${scalars[7]}"
+  focus_window="${scalars[8]}"
+  unknown_seconds="${scalars[9]}"
+  unknown_share="${scalars[10]}"
+  sample_seconds="${scalars[11]}"
+  slots_json="$(printf '%s' "$context_json" | jq -c '.today.slots_30m')"
   navigation_json="$(build_navigation_json "$view" "$target_date")"
 
   case "$view" in
-    summary)
-      title="Today"
-      subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Updated" "$updated_time")"
-      card1_label="Screen time"
-      card1_value="$summary_active"
-      card1_sub="Busiest at $peak_window"
-      card2_label="Best focus block"
-      card2_value="$(seconds_to_short "$longest_focus_seconds")"
-      # Show the best block’s share of the tracked day; deep ratio is shown separately.
-      local -a s
-      mapfile -d '' -t s < <(printf '%s' "$context_json" | jq -j \
-        --argjson block "$longest_focus_seconds" '
-        [ ((.today.metrics.safe_total_seconds // .today.total_seconds // 0) as $t
-            | if $t > 0 then (($block * 100 / $t) | round | tostring) + "% of tracked day"
-              else "no tracked time yet" end),
-          (.today.switch_count // 0),
-          (.today.scores.digital_wellbeing_score | tojson),
-          ((.today.scores.digital_wellbeing_score.drivers // [])
-            | if length > 0 then
-                (.[0] | "\(if .type == "positive" then "+" else "−" end) \(.name) (\(.impact))")
-              else "Balanced baseline" end),
-          .today.study_seconds,
-          .today.metrics.study_goal_seconds,
-          .study_active.active,
-          .study_active.elapsed_seconds
-        ] | map(tostring) | join(([0] | implode))')
-      card2_sub="${s[0]}"
-      card3_label="App switching"
-      card3_value="$switch_rate_label"
-      card3_sub="${s[1]} switches today"
-      card4_label="Wellbeing"
-      local _wb_label
-      _wb_label="$(score_subtext "${s[2]}")"
-      card4_value="$_wb_label"
-      # Show the driver here; the score bars already show the scores.
-      card4_sub="${s[3]}"
-
-      primary_title="Today at a glance"
-      primary_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">24-Hour Activity Strip</span>\n%s\n\n<span foreground=\"%s\" weight=\"600\">Top Apps Today</span>\n%s' \
-        "$(render_goal_gauge "${s[4]}" "${s[5]}")" \
-        "$ACCENT_COLOR" \
-        "$(render_hero_day_strip "$context_json")" \
-        "$ACCENT_COLOR" \
-        "$(render_top_app_bars "$context_json" 4)")"
-
-      chart_b_title="How you are doing"
-      chart_b_body="$(render_digital_health "$context_json")"
-
-      chart_c_title="Focus pattern"
-      chart_c_body="$(render_behavior_summary "$context_json")"
-
-      insight_title="What stands out"
-      insight_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">Compared with your usual week</span>\n%s' \
-        "$(render_priority_insights "$context_json" 3)" \
-        "$ACCENT_COLOR" \
-        "$(render_baseline_summary "$context_json")")"
-
-      local study_status
-      if [ "${s[6]}" = "true" ]; then
-        study_status="Study session: $(seconds_to_short "${s[7]}") active."
-      else
-        study_status="Tracking Mode: Normal (Study inactive)."
-      fi
-      note_text="$study_status"
-      ;;
-
     activity)
       title="App timeline"
       subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      local -a a
-      mapfile -d '' -t a < <(printf '%s' "$context_json" | jq -j '
-        [ .today.categories.top_category,
-          .today.categories.top_category_seconds,
-          (.today.metrics.active_slot_count | tostring),
-          .today.metrics.peak_slot_label,
-          .today.metrics.peak_slot_seconds,
-          .today.study_seconds,
-          (.today.raw.slots_30m | tojson),
-          .today.metrics.focus_window
-        ] | map(tostring) | join(([0] | implode))')
-      meta="$(kv_markup "Main category" "${a[0]}")"
+      meta="$(kv_markup "Main category" "$top_category")"
       card1_label="Main category"
-      card1_value="$(humanize_class "${a[0]}")"
-      card1_sub="$(seconds_to_short "${a[1]}")"
+      card1_value="$(humanize_class "$top_category")"
+      card1_sub="$(seconds_to_short "$top_category_seconds")"
       card2_label="Active half-hours"
-      card2_value="${a[2]}"
+      card2_value="$active_slot_count"
       card2_sub="30-minute blocks"
       card3_label="Busiest 30-min"
-      card3_value="${a[3]}"
-      card3_sub="$(seconds_to_short "${a[4]}") active"
-      card4_label="Study share"
-      card4_value="$(format_ratio_percent "$study_ratio")"
-      card4_sub="$(seconds_to_short "${a[5]}") total"
-      
+      card3_value="$peak_slot_label"
+      card3_sub="$(seconds_to_short "$peak_slot_seconds") active"
+      card4_label="Unknown share"
+      card4_value="$(format_ratio_percent "$unknown_share")"
+      card4_sub="$(seconds_to_short "$unknown_seconds") unclassified"
+
       primary_title="Apps across the day"
       primary_body="$(render_app_usage_timeline "$context_json" 8)"
-      
+
       chart_b_title="Busy hours"
-      chart_b_body="$(render_timeline_chart "${a[6]}" "Densest 90-min window: ${a[7]}")"$'\n'"$(kv_markup "Resolution" "Chart: 1-hour bins  |  Cards: 30-min  |  Collected: 5-min")"
-      
+      chart_b_body="$(render_timeline_chart "$slots_json" "Densest 90-min window: ${focus_window}")"
+
       chart_c_title="Category breakdown"
       chart_c_body="$(render_category_bars "$context_json" 6 true)"
-      
-      insight_title="Top app transitions"
-      insight_body="$(render_transition_bars "$context_json" 5)"
-      note_text="Updated from the focused window every 5 minutes."
-      ;;
 
-    health)
-      title="Focus & strain"
-      subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      local -a h
-      mapfile -d '' -t h < <(printf '%s' "$context_json" | jq -j '
-        [ ("Model confidence: " + (.data_quality.model_confidence // "Unknown")  + "  •  " + (if .data_quality.schema_ready then "v2 data" else "Legacy data" end)),
-          (.today.metrics.switch_rate // ""),
-          .today.metrics.known_category_ratio,
-          (.today.scores.digital_wellbeing_score | tojson),
-          (.today.metrics.eye_strain_risk // "Low"),
-          (.insights.by_class.quality.text // "All systems operational."),
-          ((.data_quality.unknown_share * 100 | round | tostring) + "%")
-        ] | map(tostring) | join(([0] | implode))')
-      meta="${h[0]}"
-      card1_label="Focus structure"
-      card1_value="${focus_value}/100"
-      card1_sub="$(score_subtext "$focus_json")"
-      card2_label="Fragmentation"
-      card2_value="${frag_value}/100"
-      card2_sub="$(score_subtext "$frag_json")"
-      card3_label="App switching"
-      card3_value="$(format_decimal_label "${h[1]}" "/h")"
-      card3_sub="Switches per hour"
-      card4_label="Mapped apps"
-      card4_value="$(format_ratio_percent "${h[2]}")"
-      card4_sub="Share with known type"
-      
-      primary_title="What the scores mean"
-      primary_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">Compared with your usual week</span>\n%s' \
-        "$(render_focus_breakdown "$context_json")" \
-        "$ACCENT_COLOR" \
-        "$(render_focus_vs_baseline "$context_json")")"
-        
-      local _wb_score_health _wb_label_health
-      _wb_score_health="$(score_value_text "${h[3]}")"
-      _wb_label_health="$(score_subtext "${h[3]}")"
-      chart_b_title="Score drivers"
-      chart_b_body="$(printf '%s\n%s\n%s' \
-        "$(kv_markup_aligned 18 "Wellbeing" "$_wb_score_health/100 • $_wb_label_health")" \
-        "$(kv_markup_aligned 18 "Eye strain risk" "${h[4]}")" \
-        "$(render_confidence_breakdown "$context_json" 18)")"
-
-      chart_c_title="Unsorted apps"
-      chart_c_body="$(render_unknown_apps "$context_json")"
-
-      insight_title="Main issue"
-      insight_body="${h[5]}"
-
-      local unknown_pct_note
-      unknown_pct_note="${h[6]}"
-      note_text="${unknown_pct_note} of today's activity is unclassified — scores reflect mapped apps only."
-      ;;
-    timer)
-      title="Study timer"
-      subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
-      meta="$(kv_markup "Updated" "$updated_time")"
-      card1_label="Study today"
-      local -a t
-      mapfile -d '' -t t < <(printf '%s' "$context_json" | jq -j '
-        [ .today.study_seconds,
-          .today.metrics.study_goal_progress,
-          .today.metrics.study_goal_seconds,
-          .study_active.active,
-          .study_active.elapsed_seconds,
-          (.study_active.mode // "No plan active"),
-          (.today.categories.slots | tojson),
-          (.insights.main.text // "Start a session to track goal velocity.")
-        ] | map(tostring) | join(([0] | implode))')
-      card1_value="$(seconds_to_short "${t[0]}")"
-      card1_sub="Total today"
-      card2_label="Target hit"
-      card2_value="$(format_ratio_percent "${t[1]}")"
-      card2_sub="$(seconds_to_short "${t[2]}") target"
-      card3_label="Current Session"
-      card3_value="$(if [ "${t[3]}" = "true" ]; then seconds_to_short "${t[4]}"; else printf "Not running"; fi)"
-      card3_sub="Elapsed"
-      card4_label="Timer state"
-      card4_value="$(if [ "${t[3]}" = "true" ]; then printf "Running"; else printf "Idle"; fi)"
-      card4_sub="${t[5]}"
-      
-      primary_title=""
-      primary_body="$(render_goal_gauge "${t[0]}" "${t[2]}")"
-      
-      chart_b_title="Plan"
-      chart_b_body="$(render_study_summary "$context_json")"
-      
-      chart_c_title="Focus rhythm"
-      chart_c_body="$(render_momentum_chart "${t[6]}")"
-      
-      insight_title="Next step"
-      insight_body="${t[7]}"
-      note_text="This screen reads the background study timer service."
+      insight_title="Unknown apps"
+      insight_body="$(render_unknown_apps "$context_json")"
+      note_text="Updated from the focused window every ${sample_seconds} seconds."
       ;;
     *)
       view="summary"
       title="Today"
+      subtitle="$(date -d "$target_date" '+%A, %d %B %Y')"
+      meta="$(kv_markup "Updated" "$updated_time")"
+      card1_label="Screen time"
+      card1_value="$(seconds_to_compact "$total_seconds")"
+      card1_sub="Tracked today"
+      card2_label="Top category"
+      card2_value="$(humanize_class "$top_category")"
+      card2_sub="$(seconds_to_short "$top_category_seconds")"
+      card3_label="Active half-hours"
+      card3_value="$active_slot_count"
+      card3_sub="30-minute blocks"
+      card4_label="Busiest 30-min"
+      card4_value="$peak_slot_label"
+      card4_sub="$(seconds_to_short "$peak_slot_seconds") active"
+
+      primary_title="Today at a glance"
+      primary_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">Top Apps Today</span>\n%s' \
+        "$(render_hero_day_strip "$context_json")" \
+        "$ACCENT_COLOR" \
+        "$(render_top_app_bars "$context_json" 4)")"
+
+      chart_b_title="Category breakdown"
+      chart_b_body="$(render_category_bars "$context_json" 6 true)"
+
+      chart_c_title="Busy hours"
+      chart_c_body="$(render_timeline_chart "$slots_json" "Densest 90-min window: ${focus_window}")"
+
+      insight_title="Unknown apps"
+      insight_body="$(render_unknown_apps "$context_json")"
+      note_text="Updated from the focused window every ${sample_seconds} seconds."
       ;;
   esac
 
@@ -1341,22 +593,9 @@ build_view_payload() {
     --arg insight_title "$insight_title" \
     --arg insight_body "$insight_body" \
     --arg note "$note_text" \
-    --arg summary_active "$summary_active" \
-    --arg summary_focus "$focus_value" \
-    --arg summary_fragmentation "$frag_value" \
-    --arg summary_study_ratio "$summary_study_ratio" \
-    --arg summary_top_category "$top_category" \
-    --arg summary_peak_window "$peak_window" \
-    --arg summary_main_insight "$main_insight" \
     --argjson navigation "$navigation_json" \
     '
     . as $context
-    | $context.today.metrics as $metrics
-    | $context.today.scores as $scores
-    | $context.today.categories as $categories
-    | $context.data_quality as $data_quality
-    | $context.insights as $insights
-    | $context.baseline as $baseline
     | {
       view: $view,
       target_date: $target_date,
@@ -1374,29 +613,14 @@ build_view_payload() {
       chart_c: {title: $chart_c_title, body: $chart_c_body},
       insight: {title: $insight_title, body: $insight_body},
       note: $note,
-      summary: {
-        active_time: $summary_active,
-        focus_score: $summary_focus,
-        fragmentation_score: $summary_fragmentation,
-        study_ratio: $summary_study_ratio,
-        top_category: $summary_top_category,
-        peak_window: $summary_peak_window,
-        main_insight: $summary_main_insight
-      },
-      metrics: $metrics,
-      scores: $scores,
-      categories: $categories,
-      data_quality: $data_quality,
-      insights: $insights,
-      baseline: $baseline,
+      metrics: $context.today.metrics,
+      categories: $context.today.categories,
       navigation: $navigation
     }'
 }
 
 render_theme() {
   local json="$1"
-  local note_border_color
-  note_border_color="$(note_health_alert_color "$json")"
   # Quote all fields in one jq pass; tostring preserves missing fields as "null".
   printf '%s' "$json" | jq -r '
     def cell(f): (f | tostring | @json);
@@ -1425,7 +649,7 @@ render_theme() {
     "textbox-insight-body { content: \(cell(.insight.body)); }",
     "textbox-note { content: \(cell(.note)); }"
   '
-  printf 'note-box { border-color: %s; }\n' "$(rasi_quote "$note_border_color")"
+  printf 'note-box { border-color: %s; }\n' "$(rasi_quote "$ACCENT_COLOR")"
 }
 
 render_rows() {

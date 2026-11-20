@@ -9,12 +9,18 @@ SCREEN_TIME_LIB_DIR="@screenTimeLib@/lib"
 ROFI_CONFIG="${HOME}/.config/rofi/config.rasi"
 ROFI_THEME="${HOME}/.config/rofi/screen-time.rasi"
 STATS_BIN="${STATS_BIN:-${HOME}/.local/bin/rofi-screen-time-stats}"
-CACHE_BIN="${CACHE_BIN:-${HOME}/.local/bin/rofi-screen-time-cache}"
-CACHE_DIR="${SCREEN_TIME_CACHE_HOME}/popup-cache"
+CACHE_ROOT="${SCREEN_TIME_CACHE_HOME}/popup-cache"
+CACHE_TTL_SECONDS=300
 
 VIEW="summary"
 TARGET_DATE="$(date +%F)"
 force_refresh=false
+
+usage() {
+  cat <<'EOF'
+Usage: rofi-screen-time [--date YYYY-MM-DD] [--view summary|activity]
+EOF
+}
 
 palette_stamp() {
   local digest=""
@@ -31,85 +37,55 @@ palette_stamp() {
   printf '%s\n' "${digest%% *}"
 }
 
-usage() {
-  cat <<'EOF'
-Usage: rofi-screen-time [--date YYYY-MM-DD] [--view summary|activity|health|timer]
-EOF
+cache_dir_for() {
+  printf '%s/%s-%s\n' "$CACHE_ROOT" "$VIEW" "$TARGET_DATE"
 }
 
-default_theme_cache_file() {
-  printf "%s/default-%s-theme.rasi\n" "$CACHE_DIR" "$VIEW"
+cache_is_fresh() {
+  local dir now age
+  local -a meta=()
+  dir="$(cache_dir_for)"
+  [ -r "$dir/theme.rasi" ] || return 1
+  [ -r "$dir/rows.txt" ] || return 1
+  [ -r "$dir/meta" ] || return 1
+  mapfile -t meta <"$dir/meta"
+  [ "${#meta[@]}" -eq 3 ] || return 1
+  [ "${meta[0]}" = "$TARGET_DATE" ] || return 1
+  [ "${meta[1]}" = "$(palette_stamp)" ] || return 1
+  now="$(date +%s)"
+  age=$((now - meta[2]))
+  [ "$age" -ge 0 ] && [ "$age" -lt "$CACHE_TTL_SECONDS" ]
 }
 
-default_rows_cache_file() {
-  printf "%s/default-%s-rows.txt\n" "$CACHE_DIR" "$VIEW"
+write_cache() {
+  local theme_source="$1"
+  local rows_source="$2"
+  local dir theme_tmp rows_tmp meta_tmp
+
+  dir="$(cache_dir_for)"
+  mkdir -p "$dir"
+  theme_tmp="$(mktemp "$dir/theme.XXXXXX")"
+  rows_tmp="$(mktemp "$dir/rows.XXXXXX")"
+  meta_tmp="$(mktemp "$dir/meta.XXXXXX")"
+
+  cat "$theme_source" >"$theme_tmp"
+  cat "$rows_source" >"$rows_tmp"
+  # Write the stamp last so an interrupted render cannot mark partial output fresh.
+  printf '%s\n%s\n%s\n' "$TARGET_DATE" "$(palette_stamp)" "$(date +%s)" >"$meta_tmp"
+
+  mv "$theme_tmp" "$dir/theme.rasi"
+  mv "$rows_tmp" "$dir/rows.txt"
+  mv "$meta_tmp" "$dir/meta"
 }
 
-default_date_cache_file() {
-  printf "%s/default-%s-date.txt\n" "$CACHE_DIR" "$VIEW"
-}
-
-can_use_default_cache() {
-  local today
-  local cached_date=""
-  local cached_palette=""
-  today="$(date +%F)"
-  [ "$TARGET_DATE" = "$today" ] || return 1
-  [ -r "$(default_theme_cache_file)" ] || return 1
-  [ -r "$(default_rows_cache_file)" ] || return 1
-  [ -r "$(default_date_cache_file)" ] || return 1
-  if ! {
-    read -r cached_date
-    read -r cached_palette
-  } < "$(default_date_cache_file)"; then
-    return 1
-  fi
-  [ "$cached_date" = "$today" ] || return 1
-  [ "$cached_palette" = "$(palette_stamp)" ]
-}
-
-# Minimum cache age before opening a view triggers a background refresh.
-CACHE_STALE_SECONDS=120
-
-refresh_default_cache_async() {
-  local stamp age
-  stamp="$(default_date_cache_file)"
-  if [ -f "$stamp" ]; then
-    age=$(( $(date +%s) - $(stat -c %Y "$stamp" 2>/dev/null || echo 0) ))
-    [ "$age" -ge "$CACHE_STALE_SECONDS" ] || return 0
-  fi
-  if [ -x "$CACHE_BIN" ]; then
-    setsid -f "$CACHE_BIN" >/dev/null 2>&1 || true
-  fi
-}
-
-write_default_cache() {
-  local theme_str="$1"
-  local rows_file="$2"
-  local today
-  local theme_tmp=""
-  local rows_tmp=""
-  local date_tmp=""
-
-  today="$(date +%F)"
-  mkdir -p "$CACHE_DIR"
-  theme_tmp="$(mktemp "${CACHE_DIR}/theme.XXXXXX")"
-  rows_tmp="$(mktemp "${CACHE_DIR}/rows.XXXXXX")"
-  date_tmp="$(mktemp "${CACHE_DIR}/date.XXXXXX")"
-
-  printf '%s' "$theme_str" >"$theme_tmp"
-  cat "$rows_file" >"$rows_tmp"
-  printf '%s\n%s\n' "$today" "$(palette_stamp)" >"$date_tmp"
-
-  mv "$theme_tmp" "$(default_theme_cache_file)"
-  mv "$rows_tmp" "$(default_rows_cache_file)"
-  mv "$date_tmp" "$(default_date_cache_file)"
-}
-
-is_default_today_view() {
-  local today
-  today="$(date +%F)"
-  [ "$TARGET_DATE" = "$today" ]
+render_sync() {
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  "$STATS_BIN" --view "$VIEW" --date "$TARGET_DATE" --format files \
+    --theme-file "$tmpdir/theme.rasi" \
+    --rows-file "$tmpdir/rows.txt"
+  write_cache "$tmpdir/theme.rasi" "$tmpdir/rows.txt"
+  rm -rf "$tmpdir"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -134,33 +110,19 @@ while [ "$#" -gt 0 ]; do
 done
 
 TARGET_DATE="$(date -d "$TARGET_DATE" +%F 2>/dev/null || date +%F)"
-if ! VIEW="$(resolve_screen_time_view "$VIEW")"; then
-  printf 'rofi-screen-time: invalid view %s\n' "$VIEW" >&2
-  exit 2
-fi
+VIEW="$(resolve_screen_time_view "$VIEW")"
 
 while :; do
-  local_theme_file=""
-  local_rows_file=""
-  theme_str=""
-  rows_file=""
-
-  if [ "$force_refresh" = false ] && can_use_default_cache; then
-    theme_str="$(cat "$(default_theme_cache_file)")"
-    rows_file="$(default_rows_cache_file)"
-    refresh_default_cache_async
+  if [ "$force_refresh" = false ] && cache_is_fresh; then
+    cache_dir="$(cache_dir_for)"
   else
-    local_theme_file="$(mktemp)"
-    local_rows_file="$(mktemp)"
-    "$STATS_BIN" --view "$VIEW" --date "$TARGET_DATE" --format files --theme-file "$local_theme_file" --rows-file "$local_rows_file"
-    theme_str="$(cat "$local_theme_file")"
-    rows_file="$local_rows_file"
-    if is_default_today_view; then
-      write_default_cache "$theme_str" "$rows_file"
-    fi
-    rm -f "$local_theme_file"
+    render_sync
+    cache_dir="$(cache_dir_for)"
   fi
   force_refresh=false
+
+  rows_file="$cache_dir/rows.txt"
+  theme_str="$(cat "$cache_dir/theme.rasi")"
 
   if ! selection_idx="$(
     cat "$rows_file" \
@@ -170,34 +132,15 @@ while :; do
           -theme-str "$theme_str" \
           -p ""
   )"; then
-    if [ -n "$local_rows_file" ] && [ -f "$local_rows_file" ]; then
-      rm -f "$local_rows_file"
-    fi
     exit 0
   fi
 
-  # Bash strips NUL bytes in substitutions; read Rofi metadata byte-safely.
-  selection="$(
-    perl -ne '
-      BEGIN { $target = shift @ARGV }
-      if ($. == $target) {
-        s/\x00.*//s;
-        print;
-        exit 0;
-      }
-    ' "$((selection_idx + 1))" "$rows_file"
-  )"
-
-  if [ -n "$local_rows_file" ] && [ -f "$local_rows_file" ]; then
-    rm -f "$local_rows_file"
-  fi
+  # Bash strings cannot hold NUL; the row token ends before the metadata suffix.
+  mapfile -t rows <"$rows_file"
+  selection="${rows[$selection_idx]:-}"
 
   case "$selection" in
     close|"")
-      exit 0
-      ;;
-    view:study-timer:*|view:timer:*)
-      setsid -f "${HOME}/.local/bin/rofi-study-timer" >/dev/null 2>&1 || true
       exit 0
       ;;
     view:*:*)
@@ -205,11 +148,7 @@ while :; do
       VIEW="${VIEW%%:*}"
       TARGET_DATE="${selection##*:}"
       ;;
-    nav:prev-day:*)
-      TARGET_DATE="$(printf '%s' "$selection" | cut -d: -f3)"
-      VIEW="$(printf '%s' "$selection" | cut -d: -f4)"
-      ;;
-    nav:next-day:*)
+    nav:prev-day:*|nav:next-day:*)
       TARGET_DATE="$(printf '%s' "$selection" | cut -d: -f3)"
       VIEW="$(printf '%s' "$selection" | cut -d: -f4)"
       ;;

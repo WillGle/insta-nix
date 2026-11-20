@@ -42,7 +42,6 @@
     "signal": 7,
     "on-click": "$HOME/.local/bin/waybar-screen-time toggle",
     "on-click-right": "setsid -f $HOME/.local/bin/rofi-screen-time",
-    "on-click-middle": "setsid -f $HOME/.local/bin/rofi-study-timer",
     "tooltip": true
   },
   // Memory

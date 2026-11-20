@@ -112,7 +112,6 @@ in
       name = "waybar-screen-time";
       runtimeInputs = with pkgs; [
         coreutils
-        gnused
         hyprland
         jq
         procps

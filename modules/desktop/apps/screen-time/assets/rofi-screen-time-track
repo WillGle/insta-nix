@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
-
 # shellcheck source=/dev/null
 . "@screenTimeLib@/lib/common.sh"
 
@@ -108,8 +106,7 @@ record_sample() {
     commit_sample "$normalized" "$raw_class" "$display_name" "$icon_name"
 }
 
-# Hold the shared day-file lock across the read and rewrite; study-timer
-# amends the same file.
+# Hold the shared day-file lock across the read and rewrite.
 commit_sample() {
   local normalized="$1"
   local raw_class="$2"
@@ -122,12 +119,7 @@ commit_sample() {
   local minute=""
   local slot_idx=""
   local now_iso=""
-  local previous_app=""
-  local previous_sample_at=""
-  local previous_epoch=0
-  local now_epoch=0
-  local new_session=0
-  local new_switch=0
+  local normalized_json=""
 
   target_date="$(date +%F)"
   day_file="${STATE_DIR}/days/${target_date}.json"
@@ -136,145 +128,50 @@ commit_sample() {
   minute="$(date +%M)"
   slot_idx=$((10#$hour * 2 + 10#$minute / 30))
 
-  [ -f "$day_file" ] || default_day_json "$target_date" "$now_iso" "$INTERVAL_SECONDS" >"$day_file"
-
-  previous_app="$(jq -r '.last_app // empty' "$day_file" 2>/dev/null || true)"
-  previous_sample_at="$(jq -r '.last_sample_at // empty' "$day_file" 2>/dev/null || true)"
-
-  if [ -z "$previous_app" ] || [ "$previous_app" != "$normalized" ]; then
-    new_session=1
-  fi
-  if [ -n "$previous_app" ] && [ "$previous_app" != "$normalized" ]; then
-    new_switch=1
-  fi
-  if [ -n "$previous_sample_at" ]; then
-    previous_epoch="$(date -d "$previous_sample_at" +%s 2>/dev/null || printf '0')"
-    now_epoch="$(date -d "$now_iso" +%s 2>/dev/null || printf '0')"
-    if [ "$previous_epoch" -gt 0 ] && [ "$now_epoch" -gt 0 ] && [ $((now_epoch - previous_epoch)) -gt $((INTERVAL_SECONDS * 3)) ]; then
-      new_session=1
-    fi
+  if [ -f "$day_file" ]; then
+    normalized_json="$(normalize_day_json "$target_date" "$now_iso" "$INTERVAL_SECONDS" <"$day_file")"
+  else
+    normalized_json="$(default_day_json "$target_date" "$now_iso" "$INTERVAL_SECONDS")"
   fi
 
   tmp_file="$(mktemp "${day_file}.XXXXXX")"
-  jq \
-    --arg date "$target_date" \
-    --arg now "$now_iso" \
-    --arg key "$normalized" \
+  printf '%s' "$normalized_json" \
+    | jq \
+      --arg now "$now_iso" \
+      --arg key "$normalized" \
       --arg class "$raw_class" \
       --arg name "$display_name" \
       --arg icon "$icon_name" \
-      --arg previous_app "$previous_app" \
       --argjson sample "$INTERVAL_SECONDS" \
       --argjson slot "$slot_idx" \
-      --argjson new_session "$new_session" \
-      --argjson new_switch "$new_switch" \
       '
-      def default_behavior: {
-        transitions: {},
-        focus_blocks: {
-          current_app: "",
-          current_started_at: "",
-          current_seconds: 0,
-          completed_count: 0,
-          deep_count: 0,
-          short_count: 0,
-          longest_seconds: 0
-        }
-      };
-      def normalize_behavior:
-        .behavior = (.behavior // default_behavior)
-        | .behavior.transitions = (.behavior.transitions // {})
-        | .behavior.focus_blocks = (.behavior.focus_blocks // default_behavior.focus_blocks)
-        | .behavior.focus_blocks.current_app = (.behavior.focus_blocks.current_app // "")
-        | .behavior.focus_blocks.current_started_at = (.behavior.focus_blocks.current_started_at // "")
-        | .behavior.focus_blocks.current_seconds = (.behavior.focus_blocks.current_seconds // 0)
-        | .behavior.focus_blocks.completed_count = (.behavior.focus_blocks.completed_count // 0)
-        | .behavior.focus_blocks.deep_count = (.behavior.focus_blocks.deep_count // 0)
-        | .behavior.focus_blocks.short_count = (.behavior.focus_blocks.short_count // 0)
-        | .behavior.focus_blocks.longest_seconds = (.behavior.focus_blocks.longest_seconds // 0);
-      def close_focus_block:
-        (.behavior.focus_blocks.current_seconds // 0) as $seconds
-        | if $seconds > 0 then
-            .behavior.focus_blocks.completed_count += 1
-            | .behavior.focus_blocks.deep_count += (if $seconds >= 1500 then 1 else 0 end)
-            | .behavior.focus_blocks.short_count += (if $seconds < 300 then 1 else 0 end)
-            | .behavior.focus_blocks.longest_seconds = ([.behavior.focus_blocks.longest_seconds, $seconds] | max)
-          else
-            .
-          end;
-      .version = 2
-      | .date = $date
-      | .updated_at = $now
-    | .sample_seconds = $sample
-    | .study = (
-        (.study // {
-          total_seconds: 0,
-          session_count: 0,
-          last_started_at: "",
-          last_stopped_at: "",
-          active_overlap_seconds: 0
-        })
-          | .active_overlap_seconds = (.active_overlap_seconds // 0)
-        )
-      | normalize_behavior
+      .updated_at = $now
       | .sample_count = ((.sample_count // 0) + 1)
       | .first_seen = (if (.first_seen // "") == "" then $now else .first_seen end)
       | .last_seen = $now
-    | .session_count = ((.session_count // 0) + $new_session)
-    | .switch_count = ((.switch_count // 0) + $new_switch)
-    | .last_app = $key
-      | .last_sample_at = $now
       | .total_seconds = ((.total_seconds // 0) + $sample)
       | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
-      | if $new_switch == 1 and $previous_app != "" then
-          ($previous_app + " -> " + $key) as $transition_key
-          | .behavior.transitions[$transition_key] = (
-              (.behavior.transitions[$transition_key] // {
-                from: $previous_app,
-                to: $key,
-                count: 0,
-                first_seen: $now,
-                last_seen: $now
-              })
-              | .count = ((.count // 0) + 1)
-              | .last_seen = $now
-            )
-        else
-          .
-        end
-      | if $new_session == 1 then
-          close_focus_block
-          | .behavior.focus_blocks.current_app = $key
-          | .behavior.focus_blocks.current_started_at = $now
-          | .behavior.focus_blocks.current_seconds = $sample
-        else
-          .behavior.focus_blocks.current_app = $key
-          | .behavior.focus_blocks.current_seconds = ((.behavior.focus_blocks.current_seconds // 0) + $sample)
-          | .behavior.focus_blocks.longest_seconds = ([.behavior.focus_blocks.longest_seconds, (.behavior.focus_blocks.current_seconds // 0)] | max)
-        end
       | .apps[$key] = (
           (.apps[$key] // {
             class: $class,
-          name: $name,
-          icon: $icon,
-          seconds: 0,
-          sample_count: 0,
-          first_seen: $now,
-          last_seen: $now,
-          session_count: 0,
-          slots_30m: ([range(0; 48)] | map(0))
-        })
-        | .class = $class
-        | .name = $name
-        | .icon = $icon
-        | .seconds = ((.seconds // 0) + $sample)
-        | .sample_count = ((.sample_count // 0) + 1)
-        | .first_seen = (if (.first_seen // "") == "" then $now else .first_seen end)
-        | .last_seen = $now
-        | .session_count = ((.session_count // 0) + $new_session)
-        | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
-      )
-    ' "$day_file" >"$tmp_file"
+            name: $name,
+            icon: $icon,
+            seconds: 0,
+            sample_count: 0,
+            first_seen: $now,
+            last_seen: $now,
+            slots_30m: ([range(0; 48)] | map(0))
+          })
+          | .class = $class
+          | .name = $name
+          | .icon = $icon
+          | .seconds = ((.seconds // 0) + $sample)
+          | .sample_count = ((.sample_count // 0) + 1)
+          | .first_seen = (if (.first_seen // "") == "" then $now else .first_seen end)
+          | .last_seen = $now
+          | .slots_30m = ((.slots_30m // ([range(0; 48)] | map(0))) | .[$slot] += $sample)
+        )
+      ' >"$tmp_file"
   mv "$tmp_file" "$day_file"
 }
 

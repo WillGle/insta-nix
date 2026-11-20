@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-export PATH="/run/current-system/sw/bin:/etc/profiles/per-user/${USER:-$(id -un)}/bin:${HOME}/.nix-profile/bin:${PATH}"
-
 SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
 SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME}/.cache}/rofi-screen-time}"
 SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"
@@ -86,17 +84,11 @@ normalize_class() {
 
 resolve_screen_time_view() {
   case "${1:-summary}" in
-    day|overview|summary|trend|recommendations|recommendation)
+    day|overview|summary|trend)
       printf 'summary\n'
       ;;
     app|categories|windows|time|time-windows|activity)
       printf 'activity\n'
-      ;;
-    focus|health|quality|data-quality)
-      printf 'health\n'
-      ;;
-    study-timer|timer)
-      printf 'timer\n'
       ;;
     *)
       printf 'summary\n'
@@ -177,137 +169,10 @@ format_ratio_percent() {
   }'
 }
 
-format_ratio_points_delta() {
-  local raw="${1:-}"
-  jq -nr --arg raw "$raw" '
-    ($raw | if . == "" or . == "null" then null else tonumber? end) as $delta
-    | if $delta == null then
-        "Unavailable"
-      else
-        ($delta * 100) as $points
-        | if $points > 0 then
-            "+" + ($points | round | tostring) + "pp"
-          elif $points < 0 then
-            ($points | round | tostring) + "pp"
-          else
-            "0pp"
-          end
-      end
-  '
-}
-
-format_score_delta() {
-  local raw="${1:-}"
-  jq -nr --arg raw "$raw" '
-    ($raw | if . == "" or . == "null" then null else tonumber? end) as $delta
-    | if $delta == null then
-        "Unavailable"
-      else
-        if $delta > 0 then
-          "+" + ($delta | round | tostring) + " pts"
-        elif $delta < 0 then
-          ($delta | round | tostring) + " pts"
-        else
-          "0 pts"
-        end
-      end
-  '
-}
-
-format_rate_with_avg() {
-  local current="${1:-}"
-  local avg="${2:-}"
-  jq -nr --arg current "$current" --arg avg "$avg" '
-    def number_or_null($value):
-      if $value == "" or $value == "null" then
-        null
-      else
-        ($value | tonumber?)
-      end;
-
-    (number_or_null($current)) as $current_rate
-    | (number_or_null($avg)) as $avg_rate
-    | if $current_rate == null then
-        "Unavailable"
-      else
-        (($current_rate * 10 | round / 10) | tostring) + "/h"
-        + " • avg "
-        + (if $avg_rate == null then "n/a" else (($avg_rate * 10 | round / 10) | tostring) + "/h" end)
-      end
-  '
-}
-
-round_number() {
-  local raw="${1:-}"
-  jq -nr --arg raw "$raw" '
-    ($raw | if . == "" or . == "null" then null else tonumber? end) as $number
-    | if $number == null then "0" else ($number | round | tostring) end
-  '
-}
-
-format_decimal_label() {
-  local raw="${1:-}"
-  local suffix="${2:-}"
-  local fallback="${3:-Unavailable}"
-  jq -nr --arg raw "$raw" --arg suffix "$suffix" --arg fallback "$fallback" '
-    ($raw | if . == "" or . == "null" then null else tonumber? end) as $number
-    | if $number == null then
-        $fallback
-      else
-        (($number * 10 | round / 10) | tostring) + $suffix
-      end
-  '
-}
-
-format_ratio_with_avg() {
-  local current="${1:-}"
-  local avg="${2:-}"
-  jq -nr --arg current "$current" --arg avg "$avg" '
-    def number_or_null($value):
-      if $value == "" or $value == "null" then
-        null
-      else
-        ($value | tonumber?)
-      end;
-
-    (number_or_null($current)) as $current_ratio
-    | (number_or_null($avg)) as $avg_ratio
-    | if $current_ratio == null then
-        "Unavailable"
-      else
-        (($current_ratio * 100) | round | tostring) + "%"
-        + " • avg "
-        + (if $avg_ratio == null then "n/a" else (($avg_ratio * 100) | round | tostring) + "%" end)
-      end
-  '
-}
-
-delta_label_seconds() {
-  local delta="${1:-0}"
-  local arrow="→"
-  local abs_delta="$delta"
-
-  if [ "$delta" -gt 0 ]; then
-    arrow="↑"
-  elif [ "$delta" -lt 0 ]; then
-    arrow="↓"
-    abs_delta=$((delta * -1))
-  fi
-
-  printf '%s %s\n' "$arrow" "$(seconds_to_short "$abs_delta")"
-}
-
 day_file() {
   printf '%s/days/%s.json\n' "$SCREEN_TIME_HOME" "$1"
 }
 
-study_active_file() {
-  printf '%s/study-active.json\n' "$SCREEN_TIME_HOME"
-}
-
-epoch_from_iso() {
-  date -d "$1" +%s 2>/dev/null || printf '0\n'
-}
 updated_time_label() {
   local timestamp="$1"
   if [ -z "$timestamp" ]; then
@@ -317,7 +182,7 @@ updated_time_label() {
   date -d "$timestamp" '+%H:%M'
 }
 
-# Shared day-file schema for the tracker, timer, popup, and Waybar.
+# Shared day-file schema for the tracker, popup, and Waybar.
 default_day_json() {
   local target_date="$1"
   local now_iso="${2:-$(date --iso-8601=seconds)}"
@@ -328,43 +193,19 @@ default_day_json() {
     --arg now "$now_iso" \
     --argjson sample "$sample" \
     '{
-      version: 2,
+      version: 3,
       date: $date,
       updated_at: $now,
       sample_seconds: $sample,
       sample_count: 0,
       first_seen: "",
       last_seen: "",
-      session_count: 0,
-      switch_count: 0,
-      last_app: "",
-      last_sample_at: "",
       total_seconds: 0,
       slots_30m: ([range(0; 48)] | map(0)),
-      apps: {},
-      study: {
-        total_seconds: 0,
-        session_count: 0,
-        last_started_at: "",
-        last_stopped_at: "",
-        active_overlap_seconds: 0
-      },
-      behavior: {
-        transitions: {},
-        focus_blocks: {
-          current_app: "",
-          current_started_at: "",
-          current_seconds: 0,
-          completed_count: 0,
-          deep_count: 0,
-          short_count: 0,
-          longest_seconds: 0
-        }
-      }
+      apps: {}
     }'
 }
 
-# Lock day-file updates to prevent the tracker and timer from losing each other’s writes.
 with_day_lock() {
   local state_dir="$1"
   shift
@@ -378,6 +219,8 @@ with_day_lock() {
   return "$status"
 }
 
+# Read legacy schema and emit the minimal v3 shape. Historical app totals and
+# slots are preserved; study, behavior, and session bookkeeping are dropped.
 normalize_day_json() {
   local target_date="$1"
   local now_iso="${2:-$(date --iso-8601=seconds)}"
@@ -389,35 +232,14 @@ normalize_day_json() {
     --argjson sample "$sample" \
     '
     def zero_slots: ([range(0; 48)] | map(0));
-      def default_study: {
-        total_seconds: 0,
-        session_count: 0,
-        last_started_at: "",
-        last_stopped_at: "",
-        active_overlap_seconds: 0
-      };
-      def default_behavior: {
-        transitions: {},
-        focus_blocks: {
-          current_app: "",
-          current_started_at: "",
-          current_seconds: 0,
-          completed_count: 0,
-          deep_count: 0,
-          short_count: 0,
-          longest_seconds: 0
-        }
-      };
     def normalize_app($key):
       (. // {})
       | {
-          key: $key,
           class: (.class // $key),
           name: (.name // $key),
           icon: (.icon // ""),
           seconds: (.seconds // 0),
           sample_count: (.sample_count // 0),
-          session_count: (.session_count // 0),
           first_seen: (.first_seen // ""),
           last_seen: (.last_seen // ""),
           slots_30m: ((.slots_30m // zero_slots) | if length == 48 then . else zero_slots end)
@@ -425,18 +247,13 @@ normalize_day_json() {
 
     (. // {}) as $day
     | {
-        missing: ($day.missing // false),
-        version: ($day.version // 0),
+        version: 3,
         date: ($day.date // $date),
         updated_at: ($day.updated_at // $now),
         sample_seconds: ($day.sample_seconds // $sample),
         sample_count: ($day.sample_count // 0),
         first_seen: ($day.first_seen // ""),
         last_seen: ($day.last_seen // ""),
-        session_count: ($day.session_count // 0),
-        switch_count: ($day.switch_count // 0),
-        last_app: ($day.last_app // ""),
-        last_sample_at: ($day.last_sample_at // ""),
         total_seconds: ($day.total_seconds // 0),
         slots_30m: (($day.slots_30m // zero_slots) | if length == 48 then . else zero_slots end),
         apps: (
@@ -444,198 +261,24 @@ normalize_day_json() {
           | to_entries
           | map(.key as $key | {key: $key, value: (.value | normalize_app($key))})
           | from_entries
-        ),
-          study: (
-            ($day.study // default_study)
-            | {
-                total_seconds: (.total_seconds // 0),
-                session_count: (.session_count // 0),
-                last_started_at: (.last_started_at // ""),
-                last_stopped_at: (.last_stopped_at // ""),
-                active_overlap_seconds: (.active_overlap_seconds // 0)
-              }
-          ),
-          behavior: (
-            ($day.behavior // default_behavior)
-            | {
-                transitions: (.transitions // {}),
-                focus_blocks: (
-                  (.focus_blocks // default_behavior.focus_blocks)
-                  | {
-                      current_app: (.current_app // ""),
-                      current_started_at: (.current_started_at // ""),
-                      current_seconds: (.current_seconds // 0),
-                      completed_count: (.completed_count // 0),
-                      deep_count: (.deep_count // 0),
-                      short_count: (.short_count // 0),
-                      longest_seconds: (.longest_seconds // 0)
-                    }
-                )
-              }
-          )
-        }
-    | .schema_ready = (.version >= 2)
+        )
+      }
     '
-}
-
-STUDY_TIMER_BIN="${STUDY_TIMER_BIN:-${HOME}/.local/bin/study-timer}"
-STUDY_STATUS_CACHE=""
-
-# Read plan fields from study-timer status; the active file lacks them.
-# Cache repeated reads during one popup render.
-study_status_json() {
-  if [ -z "$STUDY_STATUS_CACHE" ]; then
-    if [ -x "$STUDY_TIMER_BIN" ]; then
-      STUDY_STATUS_CACHE="$("$STUDY_TIMER_BIN" status --format json 2>/dev/null || true)"
-    fi
-    if ! printf '%s' "$STUDY_STATUS_CACHE" | jq -e 'type == "object" and has("active")' >/dev/null 2>&1; then
-      STUDY_STATUS_CACHE="$(study_status_from_active_file)"
-    fi
-  fi
-  printf '%s\n' "$STUDY_STATUS_CACHE"
-}
-
-# Without study-timer, report active sessions and leave plan fields null.
-study_status_from_active_file() {
-  local file
-  local started_at=""
-  local started_date=""
-  local start_epoch=0
-  local current_epoch=0
-  local elapsed=0
-
-  file="$(study_active_file)"
-  if [ ! -f "$file" ]; then
-    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
-    return 0
-  fi
-  if ! jq -e '.active == true and (.started_at // "" | length > 0)' "$file" >/dev/null 2>&1; then
-    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
-    return 0
-  fi
-
-  started_at="$(jq -r '.started_at // empty' "$file")"
-  start_epoch="$(epoch_from_iso "$started_at")"
-  if [ "$start_epoch" -le 0 ]; then
-    jq -n '{active:false, started_at:"", started_date:"", elapsed_seconds:0}'
-    return 0
-  fi
-
-  current_epoch="$(date +%s)"
-  if [ "$current_epoch" -gt "$start_epoch" ]; then
-    elapsed=$((current_epoch - start_epoch))
-  fi
-  started_date="$(date -d "$started_at" +%F)"
-
-  jq -n \
-    --arg started_at "$started_at" \
-    --arg started_date "$started_date" \
-    --argjson elapsed_seconds "$elapsed" \
-    '{active:true, started_at:$started_at, started_date:$started_date, elapsed_seconds:$elapsed_seconds}'
-}
-
-study_overlap_seconds_for_date() {
-  local target_date="$1"
-  local status_json=""
-  local started_at=""
-  local start_epoch=0
-  local now_epoch=0
-  local day_start=0
-  local day_end=0
-  local overlap_start=0
-  local overlap_end=0
-
-  status_json="$(study_status_json)"
-  if [ "$(printf '%s' "$status_json" | jq -r '.active')" != "true" ]; then
-    printf '0\n'
-    return 0
-  fi
-
-  started_at="$(printf '%s' "$status_json" | jq -r '.started_at')"
-  start_epoch="$(epoch_from_iso "$started_at")"
-  now_epoch="$(date +%s)"
-  day_start="$(date -d "$target_date 00:00:00" +%s)"
-  day_end="$(date -d "$target_date +1 day 00:00:00" +%s)"
-
-  overlap_start="$start_epoch"
-  if [ "$day_start" -gt "$overlap_start" ]; then
-    overlap_start="$day_start"
-  fi
-  overlap_end="$now_epoch"
-  if [ "$day_end" -lt "$overlap_end" ]; then
-    overlap_end="$day_end"
-  fi
-
-  if [ "$overlap_end" -le "$overlap_start" ]; then
-    printf '0\n'
-  else
-    printf '%d\n' $((overlap_end - overlap_start))
-  fi
-}
-
-merge_active_study_into_day_json() {
-  local target_date="$1"
-  local day_json="$2"
-  local overlap=0
-  local active_json=""
-  local started_at=""
-
-  overlap="$(study_overlap_seconds_for_date "$target_date")"
-  if [ "$overlap" -le 0 ]; then
-    printf '%s\n' "$day_json"
-    return 0
-  fi
-
-  active_json="$(study_status_json)"
-  started_at="$(printf '%s' "$active_json" | jq -r '.started_at // empty')"
-
-  printf '%s' "$day_json" \
-    | jq \
-      --arg started_at "$started_at" \
-      --argjson overlap "$overlap" \
-      '
-      .study.total_seconds = ((.study.total_seconds // 0) + $overlap)
-      | .study.active_overlap_seconds = $overlap
-      | .study.last_started_at = (if (.study.last_started_at // "") == "" then $started_at else .study.last_started_at end)
-      '
 }
 
 day_json_for_date() {
   local target_date="$1"
   local now_iso=""
   local file=""
-  local day_json=""
 
   now_iso="$(date --iso-8601=seconds)"
   file="$(day_file "$target_date")"
 
   if [ -f "$file" ]; then
-    day_json="$(normalize_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS" <"$file")"
+    normalize_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS" <"$file"
   else
-    # Missing days stay version 0 so baseline calculations can distinguish them.
-    day_json="$(default_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS" \
-      | jq '.version = 0 | .missing = true | .schema_ready = false')"
+    default_day_json "$target_date" "$now_iso" "$SCREEN_TIME_SAMPLE_SECONDS"
   fi
-
-  merge_active_study_into_day_json "$target_date" "$day_json"
-}
-
-trailing_days_json() {
-  local target_date="$1"
-  local count="${2:-7}"
-  local start_date=""
-  local cursor=""
-
-  start_date="$(date -d "$target_date -$((count - 1)) days" +%F)"
-  cursor="$start_date"
-
-  while :; do
-    day_json_for_date "$cursor"
-    if [ "$cursor" = "$target_date" ]; then
-      break
-    fi
-    cursor="$(date -d "$cursor +1 day" +%F)"
-  done | jq -sc '.'
 }
 
 build_desktop_cache() {
@@ -703,35 +346,19 @@ build_desktop_cache() {
 build_data_bundle_json() {
   local target_date="$1"
   local category_map_json="$2"
-  local yesterday_date=""
   local today_json=""
-  local yesterday_json=""
-  local trailing_json=""
-  local study_active_json=""
 
-  yesterday_date="$(date -d "$target_date -1 day" +%F)"
   today_json="$(day_json_for_date "$target_date")"
-  yesterday_json="$(day_json_for_date "$yesterday_date")"
-  trailing_json="$(trailing_days_json "$target_date" 7)"
-  study_active_json="$(study_status_json)"
 
   jq -n \
     --arg target_date "$target_date" \
-    --arg yesterday_date "$yesterday_date" \
     --arg category_map_path "$CATEGORY_MAP_FILE" \
     --argjson category_map "$category_map_json" \
     --argjson today "$today_json" \
-    --argjson yesterday "$yesterday_json" \
-    --argjson trailing "$trailing_json" \
-    --argjson study_active "$study_active_json" \
     '{
       target_date: $target_date,
-      yesterday_date: $yesterday_date,
       category_map_path: $category_map_path,
       category_map: $category_map,
-      today: $today,
-      yesterday: $yesterday,
-      trailing: $trailing,
-      study_active: $study_active
+      today: $today
     }'
 }

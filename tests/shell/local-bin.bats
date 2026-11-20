@@ -5,11 +5,6 @@ setup() {
   mkdir -p "$HOME"
 
   note="$REPO_ROOT/modules/desktop/apps/atomic-note/assets/atomic-note"
-  study_source="$REPO_ROOT/modules/desktop/apps/assets/study-timer"
-  screen_lib="$REPO_ROOT/modules/desktop/apps/screen-time"
-  study="$BATS_TEST_TMPDIR/study-timer"
-  sed "s|@screenTimeLib@|$screen_lib|g" "$study_source" >"$study"
-  chmod +x "$study"
 }
 
 @test "atomic-note parses quick-add priority prefixes" {
@@ -40,33 +35,4 @@ setup() {
   run bash "$note" list
   [ "$status" -eq 0 ]
   [ "$output" = "[Moderate] Body text" ]
-}
-
-@test "study-timer rejects non-positive durations" {
-  run bash "$study" start --duration-minutes 0 --state-dir "$BATS_TEST_TMPDIR/state"
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"--duration-minutes must be a positive integer"* ]]
-}
-
-@test "study-timer requires a duration for session counts" {
-  run bash "$study" start --session-count 3 --state-dir "$BATS_TEST_TMPDIR/state"
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"--session-count requires --duration-minutes"* ]]
-}
-
-@test "study-timer records a planned session in its status JSON" {
-  state="$BATS_TEST_TMPDIR/state"
-
-  run bash "$study" start --duration-minutes 25 --state-dir "$state" --format json
-  [ "$status" -eq 0 ]
-
-  run bash "$study" status --state-dir "$state" --format json
-  [ "$status" -eq 0 ]
-  [ "$(jq -r '.active' <<<"$output")" = "true" ]
-  [ "$(jq -r '.duration_minutes' <<<"$output")" = "25" ]
-  [ "$(jq -r '.planned_sessions' <<<"$output")" = "1" ]
-
-  run bash "$study" stop --state-dir "$state" --format json
-  [ "$status" -eq 0 ]
-  [ "$(jq -r '.active' <<<"$output")" = "false" ]
 }
