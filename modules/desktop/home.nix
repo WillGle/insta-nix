@@ -2,7 +2,7 @@ _: {
   imports = [
     ./theme/home.nix
     ./session.nix
-    ./hyprland/home.nix
+    ./hyprland/default.nix
     ./waybar/default.nix
     ./rofi/default.nix
     ./screen-time/default.nix

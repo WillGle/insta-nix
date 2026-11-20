@@ -18,9 +18,9 @@ cp -r hosts/_template hosts/<host-id>
 - `hardware.nix`: Điền thông số phần cứng từ `nixos-generate-config` (hệ điều hành, driver, initrd).
 - `network.nix`: Đặt tên máy (`networking.hostName = "<host-id>";`) và cấu hình tường lửa/mạng.
 - `storage.nix`: Khai báo hệ thống tệp (`fileSystems`), swap (`swapDevices`) và các phân vùng.
-- `system.nix`: Dịch vụ hệ thống, chính sách riêng và các gói phần mềm hệ thống. (Lưu ý: Với máy phức tạp như `laptop`, có thể tách thành thư mục con `system/` gồm `power.nix`, `graphics.nix`, `packages.nix`, v.v.).
-- `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu khai báo `homeModule`). Nạp `../../users/will/home.nix` (đã bao gồm `users/will/packages.nix` cho ứng dụng cá nhân) và chọn các module giao diện cần dùng; bật Home Manager không tự bật desktop.
-- `assets/`: Chứa các script và tệp cấu hình bổ sung do Home Manager quản lý.
+- `system/`: Chính sách gắn với máy: `packages.nix`, `graphics.nix`, `user.nix`, và `default.nix` làm điểm nạp. Các vai trò dùng chung nằm trong `modules/system/`.
+- `home.nix`: Điểm nạp Home Manager riêng của máy (bắt buộc nếu khai báo `homeModule`). Nạp `../../users/will/home.nix` (đã bao gồm `users/will/packages.nix` và `modules/cli`), `../../modules/desktop/home.nix` cho bộ desktop chuẩn, và `../../modules/system/maintenance/home.nix`.
+- Không đặt app asset dưới host. Asset nằm cạnh module sở hữu trong `modules/desktop/<feature>/` hoặc `modules/system/<role>/`.
 
 ### 3. Thiết lập điểm nạp chính tại `hosts/<host-id>/default.nix`
 Cấu hình tối thiểu:
@@ -31,15 +31,16 @@ Cấu hình tối thiểu:
     ./hardware.nix
     ./storage.nix
     ./network.nix
-    ../../modules/nixos/base/default.nix
+    ../../base/default.nix
     ../../users/will/default.nix
-    ../../modules/nixos/services/ssh/strict.nix
-    ./system.nix
-    # Nạp thêm các module vai trò dùng chung nếu cần:
-    # ../../modules/nixos/development/kubernetes.nix
-    # ../../modules/nixos/development/iac.nix
-    # ../../modules/nixos/desktop/default.nix
-    # ../../modules/nixos/hardware/desktop.nix
+    ../../modules/system/services/ssh/strict.nix
+    ./system
+    # Nạp thêm các vai trò dùng chung nếu cần:
+    # ../../modules/system/development
+    # ../../modules/system/hardware
+    # ../../modules/desktop/default.nix
+    # ../../modules/system/power
+    # ../../modules/system/gaming
   ];
 
   system.stateVersion = "25.11";
@@ -47,9 +48,10 @@ Cấu hình tối thiểu:
 ```
 
 *Lưu ý kiến trúc:* Host chọn chính sách SSH trong `default.nix`: dùng
-`modules/nixos/services/ssh/strict.nix` hoặc `plank.nix`. Baseline dùng chung
-không bật desktop; host chọn desktop và phần cứng cần thiết. Không dùng module
-LLM/native-power riêng của laptop cho máy khác nếu chưa kiểm tra phụ thuộc.
+`modules/system/services/ssh/strict.nix` hoặc `plank.nix`. Baseline `base/`
+dùng chung không bật desktop; host chọn desktop và phần cứng cần thiết. Không
+dùng module LLM/native-power riêng của laptop cho máy khác nếu chưa kiểm tra phụ
+thuộc.
 
 ### 4. Khai báo máy trong `flake.nix`
 Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hình máy mới vào mục `nixosConfigurations`:

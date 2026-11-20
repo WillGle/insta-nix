@@ -6,9 +6,9 @@ Atomic Note is a small task queue integrated into Waybar and managed through `at
 
 Atomic Note currently depends on these files:
 
-- `hosts/laptop/assets/local-bin/atomic-note`: main script for task storage, Waybar JSON rendering, and the Rofi menus
-- `modules/home/waybar/assets/config.jsonc`: Waybar module wiring for `custom/atomic_note`
-- `hosts/laptop/home/screen-time.nix`: installs the script as `~/.local/bin/atomic-note`
+- `modules/desktop/apps/assets/atomic-note`: main script for task storage, Waybar JSON rendering, and the Rofi menus
+- `modules/desktop/waybar/assets/config.jsonc`: Waybar module wiring for `custom/atomic_note`
+- `modules/desktop/apps/default.nix`: installs the script as `~/.local/bin/atomic-note`
 
 Because `~/.local/bin/atomic-note` is Home Manager-managed, editing the repo copy alone does not update the live command until you apply the system configuration.
 

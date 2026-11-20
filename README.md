@@ -20,13 +20,21 @@ nix flake show --no-write-lock-file git+file:///etc/nixos
 Validate and build the laptop configuration:
 
 ```bash
+make check
+make build
+```
+
+The equivalent raw commands are:
+
+```bash
 ./scripts/validate.sh
 nix build --no-link --no-write-lock-file \
   git+file:///etc/nixos#nixosConfigurations.laptop.config.system.build.toplevel
 ```
 
-`scripts/validate.sh` runs `git diff --check` and `nix flake check`, which
-enforces formatting, statix, deadnix, and shellcheck. To run the same gate
+`make` wraps `check`, `build`, `build-plank`, `switch`, `diff`, `update`, and
+`clean`. `scripts/validate.sh` runs `git diff --check` and `nix flake check`,
+which enforces formatting, statix, deadnix, and shellcheck. To run the same gate
 before every commit:
 
 ```bash
@@ -53,24 +61,29 @@ nixos-rebuild build --flake git+file:///etc/nixos#plank
 ```text
 /etc/nixos/
 ├── flake.nix              # Flake inputs and host outputs
+├── Makefile               # check/build/switch/diff/update/clean
+├── base/                  # Shared headless NixOS baseline
 ├── hosts/
-│   ├── _template/         # Template for new hosts
-│   ├── laptop/     # Laptop configuration, assets, and host policy
-│   └── plank/             # Remote bootstrap configuration
+│   ├── _template/         # Host shape: hardware, storage, network, system/, home
+│   ├── laptop/     # Laptop identity, hardware, storage, network, composition
+│   └── plank/             # Remote bootstrap identity and policy
 ├── modules/
-│   ├── nixos/             # Shared base, desktop, hardware, services, development
-│   └── home/              # Shared Home Manager modules and adjacent assets
+│   ├── cli/               # Home Manager: shell, terminal, XDG
+│   ├── desktop/           # NixOS desktop platform + graphical feature slices
+│   └── system/            # NixOS roles: hardware, ssh, development, maintenance,
+│                          # power, llm, gaming
 ├── users/will/            # Account, Home Manager baseline, personal applications
 ├── pkgs/                  # Custom packages and their patches
-├── theme/                 # Theme settings, templates, and generators
-├── scripts/bench/         # Hardware and developer benchmarks
+├── lib/                   # Shared Nix helpers
+├── scripts/               # Validation and hardware benchmarks
 └── docs/                  # Guides and archived notes
 ```
 
-Each host selects its shared features in `hosts/<host>/default.nix`. The shared
-base is headless. Laptop LLM, power, and desktop helpers live under
-`hosts/laptop/system/` and `home/`; shared static assets live beside
-their consuming Home Manager module.
+Each host composes shared features in `hosts/<host>/default.nix` and selects
+the desktop suite once in `hosts/<host>/home.nix`. The shared `base/` is
+headless. Desktop assets live beside their consuming module under
+`modules/desktop/<feature>/`; system role assets live under
+`modules/system/<role>/`.
 
 `users/will/packages.nix` is a Home Manager module and owns personal application
 selection in the user profile. Genuinely system-wide tools and desktop
@@ -104,8 +117,9 @@ One runtime path has one canonical owner:
   `wallpaper-portal.path` detects each replacement and calls `wallpaper set`.
   Matugen generates the palette, and Hyprpaper displays the image. The selected
   image is copied to `~/.local/state/theme/wallpapers/` and survives rebuilds.
-  `theme/scripts/` and `theme/templates/` own this flow; the former Nautilus
-  **Scripts > Set as Wallpaper** entry is retired. SDDM keeps its separate image.
+  `modules/desktop/theme/scripts/` and `modules/desktop/theme/templates/` own
+  this flow; the former Nautilus **Scripts > Set as Wallpaper** entry is retired.
+  SDDM keeps its separate image.
 
 ## Guides
 
