@@ -43,7 +43,7 @@ home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
 | `modules/desktop/theme/default.nix` | NixOS | `default.nix` | Theme option schema and assertions | `modules/desktop/default.nix` |
 | `modules/desktop/theme/defaults.nix` | Nix | imported by theme | Default color/font/cursor/wallpaper values | `modules/desktop/theme/default.nix` |
 | `modules/desktop/theme/home.nix` | Home Manager | `home.nix` | Template deployment, generated links, theme-apply/wallpaper scripts | `modules/desktop/home.nix` |
-| `modules/desktop/theme/lib/palette.sh` | Shell library | sourced | Runtime Matugen palette loader | Screen-time, atomic-note, rofi-calendar |
+| `modules/desktop/theme/lib/palette.sh` | Shell library | sourced | Runtime Matugen palette loader | Screen-time, rofi-calendar |
 | `modules/desktop/hyprland/default.nix` | Home Manager | `default.nix` | Hyprland config/assets, helper scripts, session target | `modules/desktop/home.nix` |
 | `modules/desktop/hyprland/input-method.nix` | Home Manager | imported by hyprland | Fcitx5 session-start boundary | Hyprland module |
 | `modules/desktop/waybar/default.nix` | Home Manager | `default.nix` | Waybar config, bar helpers, user unit lifecycle | `modules/desktop/home.nix` |

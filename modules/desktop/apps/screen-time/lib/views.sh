@@ -5,7 +5,6 @@ if [ -r "$VIEW_LIB_DIR/menu.sh" ]; then
   # shellcheck source=/dev/null
   . "$VIEW_LIB_DIR/menu.sh"
 fi
-ROFI_SUBTEXT_COLOR="$SUBTEXT_COLOR"
 
 bar_markup() {
   local value="${1:-0}"
@@ -405,6 +404,19 @@ render_unknown_apps() {
   fi
 }
 
+action_row_markup() {
+  local label="$1"
+  local hint="${2:-}"
+  if [ -n "$hint" ]; then
+    printf '<span weight="600">%s</span>&#10;<span foreground="%s" size="small">%s</span>' \
+      "$(escape_markup "$label")" \
+      "$SUBTEXT_COLOR" \
+      "$(escape_markup "$hint")"
+  else
+    printf '<span weight="600">%s</span>' "$(escape_markup "$label")"
+  fi
+}
+
 build_navigation_json() {
   local view="$1"
   local target_date="$2"
@@ -441,7 +453,8 @@ build_view_payload() {
   local target_date subtitle meta title note_text navigation_json
   local updated_time total_seconds top_category top_category_seconds
   local active_slot_count peak_slot_label peak_slot_seconds focus_window
-  local unknown_seconds unknown_share sample_seconds slots_json
+  local unknown_seconds unknown_share sample_seconds sample_count
+  local top_app_name top_app_seconds slots_json
   local card1_label card1_value card1_sub
   local card2_label card2_value card2_sub
   local card3_label card3_value card3_sub
@@ -463,7 +476,10 @@ build_view_payload() {
       .today.metrics.focus_window,
       .today.metrics.unknown_seconds,
       .today.metrics.unknown_share,
-      .today.sample_seconds
+      .today.sample_seconds,
+      .today.sample_count,
+      (.today.app_entries[0].name // "—"),
+      (.today.app_entries[0].seconds // 0)
     ] | map(tostring) | join(([0] | implode))')
   target_date="${scalars[0]}"
   updated_time="$(updated_time_label "${scalars[1]}")"
@@ -477,6 +493,9 @@ build_view_payload() {
   unknown_seconds="${scalars[9]}"
   unknown_share="${scalars[10]}"
   sample_seconds="${scalars[11]}"
+  sample_count="${scalars[12]}"
+  top_app_name="${scalars[13]}"
+  top_app_seconds="${scalars[14]}"
   slots_json="$(printf '%s' "$context_json" | jq -c '.today.slots_30m')"
   navigation_json="$(build_navigation_json "$view" "$target_date")"
 
@@ -522,27 +541,26 @@ build_view_payload() {
       card2_label="Top category"
       card2_value="$(humanize_class "$top_category")"
       card2_sub="$(seconds_to_short "$top_category_seconds")"
-      card3_label="Active half-hours"
-      card3_value="$active_slot_count"
-      card3_sub="30-minute blocks"
-      card4_label="Busiest 30-min"
-      card4_value="$peak_slot_label"
-      card4_sub="$(seconds_to_short "$peak_slot_seconds") active"
+      card3_label="Top app"
+      card3_value="$(clip_text "$top_app_name" 18)"
+      card3_sub="$(seconds_to_short "$top_app_seconds")"
+      card4_label="Active half-hours"
+      card4_value="$active_slot_count"
+      card4_sub="30-minute blocks"
 
       primary_title="Today at a glance"
-      primary_body="$(printf '%s\n\n<span foreground=\"%s\" weight=\"600\">Top Apps Today</span>\n%s' \
-        "$(render_hero_day_strip "$context_json")" \
-        "$ACCENT_COLOR" \
-        "$(render_top_app_bars "$context_json" 4)")"
+      primary_body="$(render_hero_day_strip "$context_json")"
 
-      chart_b_title="Category breakdown"
-      chart_b_body="$(render_category_bars "$context_json" 6 true)"
+      chart_b_title="Top apps today"
+      chart_b_body="$(render_top_app_bars "$context_json" 6)"
 
-      chart_c_title="Busy hours"
-      chart_c_body="$(render_timeline_chart "$slots_json" "Densest 90-min window: ${focus_window}")"
+      chart_c_title="Category breakdown"
+      chart_c_body="$(render_category_bars "$context_json" 6 true)"
 
-      insight_title="Unknown apps"
-      insight_body="$(render_unknown_apps "$context_json")"
+      insight_title="Tracking"
+      insight_body="$(printf '%s\n%s' \
+        "$(kv_markup "Samples" "$sample_count")" \
+        "$(kv_markup "Updated" "$updated_time")")"
       note_text="Updated from the focused window every ${sample_seconds} seconds."
       ;;
   esac

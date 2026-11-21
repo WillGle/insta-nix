@@ -8,8 +8,8 @@ The dashboard reads the local day files written by the focused-window tracker.
 
 ### Views
 
-- **Summary**: total screen time, 24-hour activity strip, top apps, category
-  breakdown, busiest hours, and unknown-app coverage.
+- **Summary**: total screen time, 24-hour activity strip, top apps, top
+  category, and sample tracking status.
 - **Activity**: per-app timeline, busy hours, category breakdown, and unknown
   apps.
 

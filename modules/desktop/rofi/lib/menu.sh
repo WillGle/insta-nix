@@ -36,19 +36,6 @@ row_markup() {
   fi
 }
 
-action_row_markup() {
-  local label="$1"
-  local hint="${2:-}"
-  if [ -n "$hint" ]; then
-    printf '<span weight="600">%s</span>&#10;<span foreground="%s" size="small">%s</span>' \
-      "$(escape_markup "$label")" \
-      "${ROFI_SUBTEXT_COLOR:-#c3c8bc}" \
-      "$(escape_markup "$hint")"
-  else
-    printf '<span weight="600">%s</span>' "$(escape_markup "$label")"
-  fi
-}
-
 # Resolve the first readable theme path from the provided candidates.
 resolve_rofi_theme() {
   local candidate
