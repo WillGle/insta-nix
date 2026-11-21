@@ -333,11 +333,6 @@ menuitem:hover,
   color: @signal-muted;
 }
 
-#custom-screen_time.studying {
-  color: @signal-eco;
-  border-bottom: 2px solid @signal-eco;
-}
-
 #custom-screen_time.medium {
   color: @signal-warning;
 }
