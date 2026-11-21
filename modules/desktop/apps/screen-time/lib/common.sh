@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Keep the system profile ahead of script runtime inputs so the plugin-enabled
+# Rofi override wins over a plain rofi package.
+export PATH="/run/current-system/sw/bin:${PATH:-}"
+
 SCREEN_TIME_HOME="${SCREEN_TIME_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/rofi-screen-time}"
 SCREEN_TIME_CACHE_HOME="${SCREEN_TIME_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME}/.cache}/rofi-screen-time}"
 SCREEN_TIME_SAMPLE_SECONDS="${SCREEN_TIME_SAMPLE_SECONDS:-5}"

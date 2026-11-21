@@ -101,7 +101,6 @@ in
         coreutils
         gawk
         jq
-        rofi
         util-linux
       ];
       vars = {
@@ -118,7 +117,6 @@ in
         jq
         libnotify
         procps
-        rofi
       ];
     });
     ".local/bin/rofi-network" = scriptFile (mkScript {
@@ -134,7 +132,6 @@ in
         iproute2
         networkmanager
         procps
-        rofi
       ];
     });
   };

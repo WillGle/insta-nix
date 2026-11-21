@@ -22,11 +22,9 @@ in
       gawk
       jq
       procps
-      rofi
       util-linux
     ];
     vars = {
-      paletteLib = "${../../theme/lib/palette.sh}";
       signalOk = signal.ok;
       signalNotice = signal.notice;
       signalWarning = signal.warning;

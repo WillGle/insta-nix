@@ -70,7 +70,6 @@ let
 
   rofiAskpass = pkgs.writeShellApplication {
     name = "rofi-sudo-askpass";
-    runtimeInputs = [ pkgs.rofi ];
     text = lib.concatStringsSep "\n" (
       lib.drop 1 (lib.splitString "\n" (builtins.readFile ./assets/rofi-sudo-askpass))
     );
