@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 cache_max_age_days=14
-history_keep_days=180
 log_max_age_days=14
 
 # Use a denylist because application cache names vary. Protect history,
@@ -41,7 +40,6 @@ case "${1:-}" in
 esac
 
 cache_dir="$HOME/.cache"
-history_dir="$HOME/.local/share/rofi-screen-time/days"
 zed_log_dir="$HOME/.local/share/zed/logs"
 applications_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 quarantine_root="${XDG_STATE_HOME:-$HOME/.local/state}/home-cleanup/quarantined-desktop-entries"
@@ -195,11 +193,6 @@ prune_generated_caches() {
   if [ -e "$HOME/.cache/rofi-drun-desktop.cache" ]; then
     remove_path "$HOME/.cache/rofi-drun-desktop.cache"
   fi
-  if [ -d "$HOME/.cache/rofi-screen-time" ]; then
-    while IFS= read -r -d "" file; do
-      remove_path "$file"
-    done < <(find "$HOME/.cache/rofi-screen-time" -type f -mtime +7 -print0)
-  fi
 }
 
 prune_logs() {
@@ -209,18 +202,9 @@ prune_logs() {
   done < <(find "$zed_log_dir" -type f -mtime +"${log_max_age_days}" -print0)
 }
 
-prune_screen_time_history() {
-  [ -d "$history_dir" ] || return 0
-  while IFS= read -r -d "" file; do
-    remove_path "$file"
-  done < <(find "$history_dir" -maxdepth 1 -type f -name '*.json' \
-    -mtime +"${history_keep_days}" -print0)
-}
-
 if [ "$desktop_entries_only" = false ]; then
   prune_old_cache_entries
   prune_generated_caches
   prune_logs
-  prune_screen_time_history
 fi
 prune_broken_desktop_entries
