@@ -17,10 +17,6 @@ let
   inherit (scripts) mkScript scriptFile;
 
   networkLib = ../lib/network.sh;
-  screenTimeLib = import ../apps/screen-time/lib.nix { inherit pkgs signal; };
-  screenTimeLibVar = {
-    screenTimeLib = "${screenTimeLib}";
-  };
 in
 
 {
@@ -104,18 +100,6 @@ in
         wireguard-tools
       ];
       excludeShellChecks = [ "SC2034" ];
-    });
-    ".local/bin/waybar-screen-time" = scriptFile (mkScript {
-      name = "waybar-screen-time";
-      runtimeInputs = with pkgs; [
-        coreutils
-        hyprland
-        jq
-        procps
-      ];
-      vars = screenTimeLibVar // {
-        inherit themeAccent;
-      };
     });
     ".local/bin/waybar-power-monitor" = scriptFile (mkScript {
       name = "waybar-power-monitor";

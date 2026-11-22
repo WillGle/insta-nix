@@ -43,15 +43,14 @@ home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
 | `modules/desktop/theme/default.nix` | NixOS | `default.nix` | Theme option schema and assertions | `modules/desktop/default.nix` |
 | `modules/desktop/theme/defaults.nix` | Nix | imported by theme | Default color/font/cursor/wallpaper values | `modules/desktop/theme/default.nix` |
 | `modules/desktop/theme/home.nix` | Home Manager | `home.nix` | Template deployment, generated links, theme-apply/wallpaper scripts | `modules/desktop/home.nix` |
-| `modules/desktop/theme/lib/palette.sh` | Shell library | sourced | Runtime Matugen palette loader | Screen-time, rofi-calendar |
+| `modules/desktop/theme/lib/palette.sh` | Shell library | sourced | Runtime Matugen palette loader | rofi-calendar |
 | `modules/desktop/hyprland/default.nix` | Home Manager | `default.nix` | Hyprland config/assets, helper scripts, session target | `modules/desktop/home.nix` |
 | `modules/desktop/hyprland/input-method.nix` | Home Manager | imported by hyprland | Fcitx5 session-start boundary | Hyprland module |
 | `modules/desktop/waybar/default.nix` | Home Manager | `default.nix` | Waybar config, bar helpers, user unit lifecycle | `modules/desktop/home.nix` |
 | `modules/desktop/rofi/default.nix` | Home Manager | `default.nix` | Rofi platform, generic menus/themes, network helper | `modules/desktop/home.nix` |
-| `modules/desktop/rofi/lib/menu.sh` | Shell library | sourced | Rofi dmenu protocol, markup escaping, row emission, theme resolution | Screen-time, rofi-network, Waybar helpers |
-| `modules/desktop/apps/default.nix` | Home Manager | `default.nix` | Atomic Note and screen-time aggregation | `modules/desktop/home.nix` |
+| `modules/desktop/rofi/lib/menu.sh` | Shell library | sourced | Rofi dmenu protocol, markup escaping, row emission, theme resolution | rofi-network, Waybar helpers |
+| `modules/desktop/apps/default.nix` | Home Manager | `default.nix` | Atomic Note aggregation | `modules/desktop/home.nix` |
 | `modules/desktop/apps/atomic-note` | Home Manager | `default.nix` | `atomic-note` script and assets | `modules/desktop/apps` |
-| `modules/desktop/apps/screen-time` | Home Manager | `default.nix` | 5-second tracker, Summary/Activity dashboard, Waybar data, category map, 2 user units | `modules/desktop/apps`, `modules/desktop/waybar` |
 | `modules/desktop/lib/network.sh` | Shell library | sourced | NetworkManager query helpers | Rofi network menu, Waybar network info |
 
 ## System
@@ -78,4 +77,4 @@ home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
 | Helper | Owns | Consumers |
 |---|---|---|
 | `lib/mk-script.nix` | `writeShellApplication` wrapper for shebang assets with placeholder rendering | System and desktop modules |
-| `lib/mk-home-script.nix` | Home Manager `mkScript` + `scriptFile` pair | Atomic Note, screen-time, Hyprland, Rofi, Waybar |
+| `lib/mk-home-script.nix` | Home Manager `mkScript` + `scriptFile` pair | Atomic Note, Hyprland, Rofi, Waybar |
