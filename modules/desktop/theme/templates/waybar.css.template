@@ -60,7 +60,6 @@ window#waybar {
 #clock.calendar,
 #tray,
 #pulseaudio,
-#custom-screen_time,
 #custom-memory_info,
 #custom-disk_info,
 #custom-network_info,
@@ -88,7 +87,6 @@ menuitem,
 #clock.calendar,
 #tray,
 #pulseaudio,
-#custom-screen_time,
 #custom-memory_info,
 #custom-disk_info,
 #custom-network_info,
@@ -135,7 +133,6 @@ menuitem,
 #clock.calendar,
 #tray,
 #pulseaudio,
-#custom-screen_time,
 #custom-memory_info,
 #custom-disk_info,
 #custom-network_info,
@@ -165,16 +162,17 @@ menuitem,
   border-radius: 5px;
 }
 
-#custom-screen_time {
-  border-left: none;
-  border-radius: 7px 0 0 7px;
-}
-
 #clock,
 #clock.time,
 #clock.calendar {
   margin-right: 6px;
   border-radius: 0 7px 7px 0;
+}
+
+#clock.time {
+  margin-right: 0;
+  border-left: none;
+  border-radius: 7px 0 0 7px;
 }
 
 #custom-atomic_note {
@@ -248,7 +246,6 @@ menuitem,
 #clock.calendar:hover,
 #tray:hover,
 #pulseaudio:hover,
-#custom-screen_time:hover,
 #custom-memory_info:hover,
 #custom-disk_info:hover,
 #custom-network_info:hover,
@@ -330,19 +327,6 @@ menuitem:hover,
 }
 
 #pulseaudio.muted {
-  color: @signal-muted;
-}
-
-#custom-screen_time.medium {
-  color: @signal-warning;
-}
-
-#custom-screen_time.high {
-  color: @signal-critical;
-  border-bottom: 2px solid @signal-critical;
-}
-
-#custom-screen_time.idle {
   color: @signal-muted;
 }
 
