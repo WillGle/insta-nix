@@ -4,7 +4,7 @@
   "height": 34,
   "modules-left": [
     "hyprland/workspaces",
-    "custom/screen_time",
+    "clock#time",
     "clock#calendar"
   ],
   "modules-center": [
@@ -35,14 +35,10 @@
     "on-click": "setsid -f $HOME/.local/bin/rofi-calendar",
     "tooltip-format": "<b><span foreground='#58a6ff'>CALENDAR</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{:%A, %d %B %Y}</tt>\n\n<span size='small' alpha='65%'>Click: open calendar</span>"
   },
-  "custom/screen_time": {
-    "exec": "$HOME/.local/bin/waybar-screen-time",
-    "return-type": "json",
+  "clock#time": {
+    "format": " {:%H:%M}",
     "interval": 30,
-    "signal": 7,
-    "on-click": "$HOME/.local/bin/waybar-screen-time toggle",
-    "on-click-right": "setsid -f $HOME/.local/bin/rofi-screen-time",
-    "tooltip": true
+    "tooltip": false
   },
   // Memory
   "custom/memory_info": {
