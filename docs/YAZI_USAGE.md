@@ -64,7 +64,7 @@ Configured via Home Manager in `modules/cli/terminal.nix`:
 
 ### 🪟 Opening Files (`Enter`)
 
-Images, audio and video use `xdg-open`, with handlers from `xdg.mimeApps.defaultApplications` in `modules/cli/xdg.nix`: **Loupe** for images, **VLC** for video, **Tauon** for audio.
+Images, audio and video use `xdg-open`, with handlers from the system MIME defaults in `modules/desktop/mime.nix`: **Loupe** for images, **VLC** for video, **Tauon** for audio.
 
 Note that Yazi's own default sends `{audio,video}/*` straight to `mpv` instead, bypassing xdg entirely; since `mpv` isn't installed here, `Enter` on a video used to do nothing. The `open.prepend_rules` entry in `modules/cli/terminal.nix` is what overrides that.
 

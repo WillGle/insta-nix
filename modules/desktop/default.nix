@@ -29,6 +29,7 @@ in
     ./theme
     ./packages.nix
     ./bluetooth.nix
+    ./mime.nix
   ];
 
   home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
