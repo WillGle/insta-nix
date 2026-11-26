@@ -19,7 +19,7 @@ git-ignored.
 - [`FLATPAK.md`](./FLATPAK.md) — Flatpak and non-nixpkgs package inventory.
 - [`YAZI_USAGE.md`](./YAZI_USAGE.md) — Yazi keys and file-manager integrations.
 - [`ATOMIC_NOTE_USAGE.md`](./ATOMIC_NOTE_USAGE.md) — Waybar task queue.
-- Screen Time — [upstream docs](https://github.com/WillGle/screen-time-rofi#readme).
+- Rofi apps and Screen Time — [upstream docs](https://github.com/WillGle/rofi-hub).
 
 ## Archive
 

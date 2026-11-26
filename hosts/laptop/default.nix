@@ -25,7 +25,14 @@
 
   primaryUser.username = "will";
 
-  services.rofi-hub.enable = true;
+  services.rofi-apps = {
+    calendar.enable = true;
+    clipboard.enable = true;
+    keybinds.enable = true;
+    network.enable = true;
+    screen-time.enable = true;
+    menu.enable = true;
+  };
 
   networking = {
     hostName = "laptop";

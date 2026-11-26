@@ -113,8 +113,9 @@ source.
 - **LLM** — `llmfit`, `llm-pull`, `llm-list`, `llm-fit`.
 - **Power** — `native-power-profile`, `toggle-battery-reserve`.
 - **Desktop** — `waybar-*`, Hyprland helper scripts.
-- **Screen Time** — `Super+I` or `rofi-screen-time`; provided by the `rofi-hub`
-  NixOS module. [Upstream docs](https://github.com/WillGle/screen-time-rofi#readme)
+- **Rofi apps** — `rofi-hub-menu`, `rofi-calendar`, `rofi-clipboard`,
+  `rofi-keybinds`, `rofi-network`, and `rofi-screen-time` (`Super+I`); provided
+  by the `rofi-apps` NixOS modules.
 - **Wallpaper** — Nautilus **Set as Background**, `wallpaper pick`, or
   `wallpaper set <image>`. `wallpaper set` copies the image to
   `~/.local/state/theme/wallpapers/`, Matugen updates the palette, and
