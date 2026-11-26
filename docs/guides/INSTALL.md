@@ -51,7 +51,7 @@ Example: install the full laptop host:
 sudo bash install.sh --disk /dev/nvme0n1 --host laptop
 ```
 
-The installer generates a new `hardware.nix` from the actual hardware. For
+The installer generates a new `hardware.nix` from the actual hardware. On
 `laptop`, this replaces the current hardware policy in the temporary
 checkout; only use it if you accept that.
 

@@ -431,14 +431,9 @@ if ! journalctl -k -b --no-pager -o short-iso >"$journal_baseline_log" 2>"$journ
   die 'cannot capture the baseline kernel journal'
 fi
 
-product="$(< /sys/class/dmi/id/product_name)"
-cpu_model="$(awk -F: '/^model name[[:space:]]*:/ && !found { sub(/^[[:space:]]*/, "", $2); print $2; found=1 } END { if (!found) print "unknown" }' /proc/cpuinfo)"
 cpu_threads="$(nproc --all)"
 cpu_temp_raw="$(read_cpu_temp_raw 2>/dev/null || true)"
 
-[ "$product" = GENERIC_PRODUCT ] || die "unexpected product: $product"
-[ "$cpu_model" = 'AMD CPU' ] || \
-  die "unexpected CPU model: $cpu_model"
 [ "$cpu_threads" -eq 16 ] || die "expected 16 CPU threads, got $cpu_threads"
 [ -d /sys/devices/system/cpu/cpu15 ] || die 'CPU15 is not present'
 is_ac_online || die 'CO smoke test requires an online AC adapter'
@@ -468,8 +463,6 @@ record_command "$NATIVE_PROFILE --verify"
   printf 'started_utc=%s\n' "$run_started_iso"
   printf 'host=%s\n' "$(hostname)"
   printf 'kernel='; uname -srvm
-  printf 'product=%s\n' "$product"
-  printf 'cpu_model=%s\n' "$cpu_model"
   printf 'cpu_threads=%s\n' "$cpu_threads"
   printf 'initial_native_profile=%s\n' "$initial_profile"
   printf 'initial_powerprofilesd_profile=%s\n' "$initial_ppd_profile"

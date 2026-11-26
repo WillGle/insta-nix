@@ -43,16 +43,13 @@ Hosts do not import feature Home Manager modules.
 | `modules/desktop/theme/default.nix` | NixOS | Theme option schema and assertions | Desktop default |
 | `modules/desktop/theme/defaults.nix` | Nix | Default color, font, cursor, and wallpaper values | Theme default |
 | `modules/desktop/theme/home.nix` | Home Manager | Template deployment, generated links, theme-apply/wallpaper scripts | Desktop home |
-| `modules/desktop/theme/lib/palette.sh` | Shell library | Runtime Matugen palette loader | Rofi-hub calendar |
 | `modules/desktop/hyprland/default.nix` | Home Manager | Hyprland config/assets, helper scripts, session target | Desktop home |
 | `modules/desktop/hyprland/input-method.nix` | Home Manager | Fcitx5 session-start boundary | Hyprland module |
 | `modules/desktop/waybar/default.nix` | Home Manager | Waybar config, bar helpers, user unit lifecycle | Desktop home |
-| `modules/desktop/rofi/default.nix` | Home Manager | Rofi themes/config and hub menu scripts | Desktop home |
-| `modules/desktop/rofi/libexec` | Shell assets | Calendar, clipboard, keybinds, network menus | Rofi module |
-| `modules/desktop/rofi/lib/menu.sh` | Shell library | Rofi paths, dmenu protocol, markup, row emission, theme resolution | Rofi menus, Waybar helpers |
+| `modules/desktop/rofi/default.nix` | Home Manager | Rofi base theme/config and general modes | Desktop home |
 | `modules/desktop/apps/default.nix` | Home Manager | Atomic Note aggregation | Desktop home |
 | `modules/desktop/apps/atomic-note` | Home Manager | `atomic-note` script and assets | Apps default |
-| `modules/desktop/lib/network.sh` | Shell library | NetworkManager query helpers | Rofi network, Waybar network info |
+| `modules/desktop/lib/network.sh` | Shell library | NetworkManager query helpers | Waybar network info |
 
 ## System
 

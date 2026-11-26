@@ -1,6 +1,6 @@
 # Insta-Nix
 
-Personal NixOS configuration for a AMD laptop and a minimal UEFI
+Personal NixOS configuration for an AMD laptop and a minimal UEFI
 install target.
 
 ## Hosts

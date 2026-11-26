@@ -1,6 +1,6 @@
 # Local LLM on laptop
 
-Run `llama.cpp` Vulkan on the AMD GPU. The tools and 22 GiB GTT
+Run `llama.cpp` Vulkan on the integrated AMD GPU. The tools and 22 GiB GTT
 (`ttm.pages_limit=5767168`) are already in the NixOS configuration.
 
 ## Tools
@@ -87,7 +87,7 @@ pi -p --model qwen3-coder-30b-a3b "your request"
 2. Plug in AC power.
 3. Do not tune GTT manually; the kernel already reserves 22 GiB.
 
-## Model selection for the AMD GPU
+## Model selection for the integrated GPU
 
 Decode speed is limited by LPDDR5 bandwidth (~102 GB/s):
 
@@ -106,7 +106,7 @@ decode (t/s) ≈ memory bandwidth / model size
 ## Policy
 
 - Do not use Ollama; all clients go through the `llama-server` router.
-- Do not train/fine-tune on this machine: GENERIC_GPU often hits MES hangs with
+- Do not train/fine-tune on this machine: iGPU often hits MES hangs with
   ROCm PyTorch. Train in the cloud, then export GGUF for local inference.
 
 ## Quick checks

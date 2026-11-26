@@ -38,36 +38,13 @@ esac
 
 [ "$EUID" -eq 0 ] || die 'co-curve-control must run as root'
 
-read_cpu_model() {
-  local line value
-
-  while IFS= read -r line; do
-    case "$line" in
-      model\ name[[:space:]]*:*)
-        value="${line#*:}"
-        value="${value#"${value%%[![:space:]]*}"}"
-        printf '%s\n' "$value"
-        return 0
-        ;;
-    esac
-  done < /proc/cpuinfo
-  return 1
-}
-
 validate_hardware() {
-  local product codename model cpu_dir core_id package_id thread_count=0
+  local codename cpu_dir core_id package_id thread_count=0
   declare -A core_ids=()
 
   [ -d "$DRIVER_DIR" ] || die 'ryzen_smu driver is not loaded'
   [ -r "$RSMU_CMD_FILE" ] && [ -w "$RSMU_CMD_FILE" ] || die 'rsmu_cmd is not writable'
   [ -r "$SMU_ARGS_FILE" ] && [ -w "$SMU_ARGS_FILE" ] || die 'smu_args is not writable'
-
-  product="$(< /sys/class/dmi/id/product_name)"
-  [ "$product" = GENERIC_PRODUCT ] || die "unsupported product: $product"
-
-  model="$(read_cpu_model)" || die 'cannot read CPU model'
-  [ "$model" = 'AMD CPU' ] || \
-    die "unsupported CPU model: $model"
 
   codename="$(< "$CODENAME_FILE")"
   codename="${codename#"${codename%%[![:space:]]*}"}"
@@ -88,8 +65,8 @@ validate_hardware() {
   [ "$thread_count" -eq 16 ] || die "expected 16 CPU threads, got $thread_count"
   [ "${#core_ids[@]}" -eq 8 ] || die "expected 8 CPU cores, got ${#core_ids[@]}"
 
-  printf 'hardware=product_%s cpu_generic codename_%s cores_%s threads_%s\n' \
-    "$product" "$codename" "${#core_ids[@]}" "$thread_count"
+  printf 'hardware=codename_%s cores_%s threads_%s\n' \
+    "$codename" "${#core_ids[@]}" "$thread_count"
 }
 
 write_u32_le() {

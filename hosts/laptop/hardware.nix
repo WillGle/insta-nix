@@ -30,7 +30,7 @@
   };
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/GENERIC_ROOT_UUID";
+    device = "/dev/nvme1n1p2";
     fsType = "ext4";
     options = [
       "noatime"
@@ -39,7 +39,7 @@
   };
 
   fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/GENERIC_ESP_ID";
+    device = "/dev/nvme1n1p1";
     fsType = "vfat";
     options = [
       "fmask=0077"

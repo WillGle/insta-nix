@@ -41,7 +41,7 @@
   };
 
   fileSystems."/mnt/vault" = {
-    device = "/dev/disk/by-uuid/GENERIC_VAULT_UUID";
+    device = "/dev/nvme0n1p1";
     fsType = "ext4";
     options = [
       "defaults"

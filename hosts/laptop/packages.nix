@@ -32,7 +32,7 @@
     clinfo
     amdgpu_top
     radeontop
-    # ROCm diagnostics only: GENERIC_GPU is unsupported for training.
+    # ROCm diagnostics only: iGPU is unsupported for training.
     # llama.cpp uses Vulkan; OpenCL remains in graphics.extraPackages.
     rocmPackages.rocminfo
     rocmPackages.rocm-smi
