@@ -3,19 +3,20 @@ set -euo pipefail
 export LC_ALL=C
 export PATH="$PATH:/run/current-system/sw/bin"
 
-ROFI_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/network.rasi"
-
 # Resolve shared nmcli helpers to a store path at build time.
 # shellcheck source=/dev/null
 . "@networkLib@"
 # shellcheck source=/dev/null
 . "@menuLib@"
 
+ROFI_THEME="$(rofi_theme_path network)"
+ROFI_CONFIG="$(rofi_config_path)"
+
 ROFI_COMMON=(
   -dmenu
   -i
   -markup-rows
-  -config "$HOME/.config/rofi/config.rasi"
+  -config "$ROFI_CONFIG"
   -theme "$ROFI_THEME"
 )
 
@@ -24,8 +25,7 @@ WAYBAR_NETWORK_SIGNAL="${WAYBAR_NETWORK_SIGNAL:-6}"
 status_message=""
 
 close_existing_rofi() {
-  if pgrep -x rofi >/dev/null 2>&1; then
-    pkill -x rofi
+  if close_running_rofi; then
     sleep 0.1
   fi
 }

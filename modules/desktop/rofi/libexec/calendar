@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# rofi-calendar — a month sheet with a date search box.
+# rofi-hub calendar — a month sheet with a date search box.
 #   type a date + Enter   jump to it: 15/3 · 3/2027 · 15/3/2027 · 2027-03-15 · 15
 #   ←  →                  previous / next month
 #   Ctrl+t                back to today
@@ -15,10 +15,13 @@ set -euo pipefail
 ACCENT="@themeAccent@"
 BASE="@themeBase@"
 SUBTEXT="@themeSubtext@"
-RASI="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/calendar.rasi"
 
 # shellcheck source=/dev/null
 . "@paletteLib@"
+# shellcheck source=/dev/null
+. "@menuLib@"
+
+RASI="$(rofi_theme_path calendar)"
 
 if load_runtime_palette; then
   BASE="${RUNTIME_PALETTE[0]}"
@@ -124,7 +127,7 @@ rofi_args=(
   -markup-rows
   -matching normal
   -select "$BTN_TODAY"
-  -config "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi"
+  -config "$(rofi_config_path)"
   -p "Lịch"
   -mesg "$sheet$note_line
 $hint"

@@ -126,8 +126,8 @@ One runtime path has one canonical owner:
 - Local LLM: `llmfit`, `llm-pull`, `llm-list`, and `llm-fit`.
 - Power: `native-power-profile` and `toggle-battery-reserve`.
 - Desktop: `waybar-*` and Hyprland helper scripts.
-- Screen Time: open with `Super+I` or `rofi-screen-time`. Installed and updated
-  with the app's release installer (`install.sh`), not Home Manager.
+- Screen Time: open with `Super+I` or `rofi-screen-time`. Provided by the
+  `rofi-hub` NixOS module, including its user service.
   [Screen Time docs](https://github.com/WillGle/screen-time-rofi#readme)
 - Wallpaper: Nautilus **Set as Background**, `wallpaper pick`, or `wallpaper set <image>`.
   The GTK Wallpaper portal writes `~/.config/background`; Home Manager's

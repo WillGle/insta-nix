@@ -53,11 +53,32 @@
         "type": "github"
       }
     },
+    "rofi-hub": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1795631329,
+        "narHash": "sha256-GwUHYbsvuL4UReDUiFCT2eK2EUawe40AX3AuWAljrRc=",
+        "owner": "WillGle",
+        "repo": "rofi-hub",
+        "rev": "61f0a2f07fd8eda289ba44db5fdb3d21831f4748",
+        "type": "github"
+      },
+      "original": {
+        "owner": "WillGle",
+        "repo": "rofi-hub",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
-        "nixpkgs-unstable": "nixpkgs-unstable"
+        "nixpkgs-unstable": "nixpkgs-unstable",
+        "rofi-hub": "rofi-hub"
       }
     }
   },

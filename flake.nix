@@ -9,6 +9,11 @@
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    rofi-hub = {
+      url = "github:WillGle/rofi-hub";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -16,6 +21,7 @@
       nixpkgs,
       nixpkgs-unstable,
       home-manager,
+      rofi-hub,
       ...
     }@inputs:
     let

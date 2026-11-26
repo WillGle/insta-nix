@@ -1,5 +1,6 @@
 {
   config,
+  inputs,
   pkgs,
   lib,
   ...
@@ -19,9 +20,12 @@
     ../../modules/system/ssh
     ../../users/will/default.nix
     ../../modules/system/development
+    inputs.rofi-hub.nixosModules.default
   ];
 
   primaryUser.username = "will";
+
+  services.rofi-hub.enable = true;
 
   networking = {
     hostName = "laptop";

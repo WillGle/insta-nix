@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if pgrep -x rofi >/dev/null 2>&1; then
-  pkill -x rofi
+# Internal rofi-hub command: clipboard history.
+# shellcheck source=/dev/null
+. "@menuLib@"
+
+if close_running_rofi; then
   exit 0
 fi
+
+config="$(rofi_config_path)"
+theme="$(rofi_theme_path clipboard)"
 
 entries="$(cliphist list)"
 selection="$(
   printf '%s\n' "$entries" | rofi -dmenu -i \
     -no-custom \
     -p "Clipboard" \
-    -config ~/.config/rofi/config.rasi \
-    -theme ~/.config/rofi/clipboard.rasi
+    -config "$config" \
+    -theme "$theme"
 )" && rc=0 || rc=$?
 
 case "$rc" in

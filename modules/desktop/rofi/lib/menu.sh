@@ -36,6 +36,27 @@ row_markup() {
   fi
 }
 
+# Resolve the shared Rofi paths from the session XDG environment.
+rofi_config_path() {
+  printf '%s/rofi/config.rasi' "${XDG_CONFIG_HOME:-${HOME}/.config}"
+}
+
+rofi_theme_path() {
+  local name="${1:?theme name required}"
+  printf '%s/rofi/%s.rasi' "${XDG_CONFIG_HOME:-${HOME}/.config}" "$name"
+}
+
+# Rofi owns one interactive instance; a second launcher press closes it.
+rofi_running() {
+  pgrep -x rofi >/dev/null 2>&1
+}
+
+close_running_rofi() {
+  rofi_running || return 1
+  pkill -x rofi
+  return 0
+}
+
 # Resolve the first readable theme path from the provided candidates.
 resolve_rofi_theme() {
   local candidate
@@ -53,7 +74,7 @@ run_rofi_menu() {
   local prompt="${1:-}"
   local message="${2:-}"
   local binary="${ROFI_BIN:-rofi}"
-  local config="${ROFI_CONFIG:-${XDG_CONFIG_HOME:-${HOME}/.config}/rofi/config.rasi}"
+  local config="${ROFI_CONFIG:-$(rofi_config_path)}"
   local theme="${ROFI_THEME:-}"
   local -a args=(
     -dmenu

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=/dev/null
+. "@menuLib@"
+
 HYPR_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.conf"
-ROFI_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/keybinds.rasi"
+ROFI_THEME="$(rofi_theme_path keybinds)"
 THEME_STATIC_ENV="${HOME}/.config/theme/static.env"
 if [ -r "$THEME_STATIC_ENV" ]; then
   # shellcheck disable=SC1090
@@ -27,7 +30,7 @@ ROFI_COMMON=(
   -i
   -no-custom
   -markup-rows
-  -config "$HOME/.config/rofi/config.rasi"
+  -config "$(rofi_config_path)"
   -theme "$ROFI_THEME"
 )
 
@@ -80,13 +83,14 @@ awk -v accent="$ACCENT_COLOR" '
     if (disp == "togglefloating") return "Toggle Float"
     if (disp == "exit") return "Exit Session"
     if (disp == "exec") {
-      if (arg ~ /rofi.*power-menu/) return "Power Menu"
-      if (arg ~ /rofi-show drun/) return "App Launcher"
-      if (arg ~ /rofi-show calc/) return "Calculator"
-      if (arg ~ /rofi-show emoji/) return "Emoji Picker"
-      if (arg ~ /rofi-network/) return "Network Manager"
-      if (arg ~ /rofi-clipboard/) return "Clipboard History"
-      if (arg ~ /rofi-show window/) return "Window Switcher"
+      if (arg ~ /rofi-hub (launcher|drun)/) return "App Launcher"
+      if (arg ~ /rofi-hub calc/) return "Calculator"
+      if (arg ~ /rofi-hub emoji/) return "Emoji Picker"
+      if (arg ~ /rofi-hub network/) return "Network Manager"
+      if (arg ~ /rofi-hub clipboard/) return "Clipboard History"
+      if (arg ~ /rofi-hub window/) return "Window Switcher"
+      if (arg ~ /rofi-hub calendar/) return "Calendar"
+      if (arg ~ /rofi-hub power/) return "Power Menu"
       if (arg ~ /toggle_waybar/) return "Toggle Waybar"
       if (arg ~ /monitor-setup/) return "Monitor Setup"
       if (arg ~ /theme-lock/) return "Lock Screen"

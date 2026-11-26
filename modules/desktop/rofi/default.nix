@@ -13,15 +13,13 @@ let
   generatedLink = path: config.lib.file.mkOutOfStoreSymlink "${themeGeneratedDir}/${path}";
 
   # Drop the asset shebang; writeShellApplication supplies it and strict mode.
-  rofiScriptBody =
-    path: lib.concatStringsSep "\n" (lib.drop 1 (lib.splitString "\n" (builtins.readFile path)));
-
   scripts = import ../../../lib/mk-home-script.nix {
     inherit pkgs lib;
     defaultDir = ./assets;
   };
   inherit (scripts) mkScript scriptFile;
 
+  menuLib = ./lib/menu.sh;
   networkLib = ../lib/network.sh;
 in
 {
@@ -70,46 +68,44 @@ in
   };
 
   home.file = {
-    # Package scripts for build-time shellcheck. Use session rofi for plugins.
-    ".local/bin/rofi-show" = {
-      source = lib.getExe (
-        pkgs.writeShellApplication {
-          name = "rofi-show";
-          runtimeInputs = with pkgs; [ procps ];
-          text = rofiScriptBody ./assets/rofi-show;
-        }
-      );
-      executable = true;
-    };
-    ".local/bin/rofi-clipboard" = {
-      source = lib.getExe (
-        pkgs.writeShellApplication {
-          name = "rofi-clipboard";
-          runtimeInputs = with pkgs; [
-            cliphist
-            procps
-            wl-clipboard
-          ];
-          text = rofiScriptBody ./assets/rofi-clipboard;
-        }
-      );
-      executable = true;
-    };
-    ".local/bin/rofi-calendar" = scriptFile (mkScript {
-      name = "rofi-calendar";
+    ".local/lib/rofi-hub/clipboard" = scriptFile (mkScript {
+      name = "rofi-hub-clipboard";
+      file = "clipboard";
+      dir = ./libexec;
+      vars = { inherit menuLib; };
+      runtimeInputs = with pkgs; [
+        cliphist
+        procps
+        wl-clipboard
+      ];
+    });
+
+    ".local/lib/rofi-hub/calendar" = scriptFile (mkScript {
+      name = "rofi-hub-calendar";
+      file = "calendar";
+      dir = ./libexec;
+      vars = {
+        inherit
+          menuLib
+          themeAccent
+          themeBase
+          themeSubtext
+          ;
+        paletteLib = "${../theme/lib/palette.sh}";
+      };
       runtimeInputs = with pkgs; [
         coreutils
         gawk
         jq
         util-linux
       ];
-      vars = {
-        paletteLib = "${../theme/lib/palette.sh}";
-        inherit themeAccent themeBase themeSubtext;
-      };
     });
-    ".local/bin/rofi-keybinds" = scriptFile (mkScript {
-      name = "rofi-keybinds";
+
+    ".local/lib/rofi-hub/keybinds" = scriptFile (mkScript {
+      name = "rofi-hub-keybinds";
+      file = "keybinds";
+      dir = ./libexec;
+      vars = { inherit menuLib; };
       runtimeInputs = with pkgs; [
         coreutils
         gawk
@@ -119,12 +115,12 @@ in
         procps
       ];
     });
-    ".local/bin/rofi-network" = scriptFile (mkScript {
-      name = "rofi-network";
-      vars = {
-        menuLib = "${./lib/menu.sh}";
-        networkLib = "${networkLib}";
-      };
+
+    ".local/lib/rofi-hub/network" = scriptFile (mkScript {
+      name = "rofi-hub-network";
+      file = "network";
+      dir = ./libexec;
+      vars = { inherit menuLib networkLib; };
       runtimeInputs = with pkgs; [
         coreutils
         gawk

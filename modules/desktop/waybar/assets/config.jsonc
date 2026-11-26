@@ -32,7 +32,7 @@
   "clock#calendar": {
     "format": " {:%a %d %b}",
     "interval": 60,
-    "on-click": "setsid -f $HOME/.local/bin/rofi-calendar",
+    "on-click": "setsid -f rofi-hub calendar",
     "tooltip-format": "<b><span foreground='#58a6ff'>CALENDAR</span></b>\n<span alpha='30%'>──────────────────────────</span>\n<tt>{:%A, %d %B %Y}</tt>\n\n<span size='small' alpha='65%'>Click: open calendar</span>"
   },
   "clock#time": {
@@ -129,7 +129,7 @@
     "interval": 10,
     "signal": 6,
     // Left click opens network settings; right click opens Bluetooth.
-    "on-click": "$HOME/.local/bin/rofi-network",
+    "on-click": "rofi-hub network",
     "on-click-right": "$HOME/.local/bin/bluetooth-gui",
     "tooltip": true
   },
@@ -143,7 +143,7 @@
     "exec": "$HOME/.local/bin/waybar-systemd-failed",
     "return-type": "json",
     "interval": 10,
-    "on-click": "setsid -f $HOME/.local/bin/rofi-keybinds",
+    "on-click": "setsid -f rofi-hub keybinds",
     "tooltip": true
   },
   "tray": {}
