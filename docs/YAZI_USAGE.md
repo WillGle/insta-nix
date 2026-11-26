@@ -1,81 +1,73 @@
-# Yazi Usage Guide
+# Yazi usage
 
-Configured in `modules/cli/terminal.nix`. Key bindings below match Yazi 26.5.6 defaults; uppercase keys are distinct.
+Configured in `modules/cli/terminal.nix`. Core keys match Yazi 26.5.6 defaults;
+integrations such as zoxide, fzf, fd, and ripgrep are added by the module.
 
-## 1. Core Navigation (Vim-style)
+## Navigation
 
-Yazi is designed for keyboard efficiency using standard Vim keys:
+| Key | Action |
+|---|---|
+| `k` / `↑` | Move up |
+| `j` / `↓` | Move down |
+| `h` / `←` | Parent directory |
+| `l` / `→` | Enter directory or open file |
+| `Enter` | Open file or enter directory |
+| `gg` / `G` | Top / bottom |
+| `gh` | Home directory |
+| `q` | Quit |
+| `~` | Help |
 
-- `k` / `↑` : Move up
-- `j` / `↓` : Move down
-- `h` / `←` : Go to parent directory
-- `l` / `→` : Enter directory or open file
-- `Enter` : Open file or enter directory
-- `q` : Quit Yazi
-- `g g` : Go to top
-- `G` : Go to bottom
+## Files
 
-## 2. Selection & Operations
+| Key | Action |
+|---|---|
+| `Space` | Select current file |
+| `v` | Visual selection mode |
+| `y` | Copy |
+| `x` | Cut |
+| `p` | Paste |
+| `d` | Delete (trash) |
+| `r` | Rename |
+| `a` | Create file; end with `/` for a directory |
 
-- `Space` : Toggle selection of current file
-- `v` : Enter **Visual Mode** (select multiple files by moving)
-- `y` : **Copy** selected files
-- `x` : **Cut** (Move) selected files
-- `p` : **Paste** files
-- `d` : **Delete** files (moves to trash)
-- `r` : **Rename** file
-- `a` : Create a file; end the name with `/` to create a directory
+## Search and jump
 
-## 3. Tier 1: CLI Integrations
+| Key | Action |
+|---|---|
+| `Z` | Jump with zoxide |
+| `z` | Fuzzy find with fzf |
+| `s` | Search filenames with fd |
+| `S` | Search contents with ripgrep |
+| `/` | Find next match in current listing |
+| `f` | Filter current listing |
+| `Ctrl+s` | Cancel search |
 
-The package includes these tools:
+## Behavior
 
-### ⚡ Smart Jump (`zoxide`)
+- Hidden files are shown by default.
+- Sort by modified time; directories stay on top.
+- Shell integration uses `fish`.
+- **Enter** on images, audio, and video uses `xdg-open` with the MIME defaults
+  from `modules/desktop/mime.nix`: Loupe, VLC, Tauon.
+- Yazi's default sends audio/video to `mpv`; `open.prepend_rules` in
+  `modules/cli/terminal.nix` overrides that because `mpv` is not installed.
 
-- **Key**: `Z`
-- **Usage**: Search previously visited directories through zoxide.
+## Previews
 
-### 🔍 Fuzzy Finder (`fzf` & `fd`)
+- Foot supports Sixel; Yazi detects terminal image support.
+- Images render up to 1000x1000.
+- `tasks.image_bound` is 40000x40000 and `tasks.image_alloc` is 2 GiB. These
+  limit dimensions and decode memory, not file size.
+- RAW files use the `magick` previewer with libraw.
 
-- **Keys**: `z` opens fzf; `s` searches filenames with fd.
-- **Other navigation**: `/` finds the next matching filename in the current listing; `f` filters the listing.
+## Theme
 
-### Content Search (`ripgrep`)
+- Yazi's default flavor, with the accent color from `theme.colors.accent`.
+- Status bar shows file size (`linemode = size`).
+- Accent is fixed at rebuild time; wallpaper changes do not update Yazi at
+  runtime.
 
-- **Key**: `S` searches file contents with ripgrep. `Ctrl+s` cancels an ongoing search.
+## Tips
 
-## 4. Tier 2: Intelligent Defaults
-
-Configured via Home Manager in `modules/cli/terminal.nix`:
-
-- **Hidden Files**: Automatically shown by default.
-- **Sorting**: Files are sorted by **Modified Time** (`mtime`); reverse sorting is not enabled.
-- **Directories First**: Folders are always grouped at the top.
-- **Shell Integration**: Deeply integrated with your `fish` shell.
-
-## 5. Tier 3: Aesthetics & Rich Previews
-
-### 🖼️ High-Fidelity Previews
-
-- **Images**: Foot supports **Sixel** previews; Yazi detects the terminal's image capabilities.
-- **Dimensions**: Previews are rendered at up to 1000x1000px for crisp detail.
-- **Large photos**: `tasks.image_bound` is 40000x40000 (default: 10000x10000), and `tasks.image_alloc` is 2 GiB (default: 512 MiB). These limit image dimensions and decode memory, not file size on disk.
-- **RAW**: `.CR2/.CR3/.NEF/.ARW/.DNG/.RAF/.ORF/.RW2/...` use the `magick` previewer with libraw support. Filename rules avoid unreliable RAW MIME detection. Initial decoding time depends on the file and hardware.
-
-### 🪟 Opening Files (`Enter`)
-
-Images, audio and video use `xdg-open`, with handlers from the system MIME defaults in `modules/desktop/mime.nix`: **Loupe** for images, **VLC** for video, **Tauon** for audio.
-
-Note that Yazi's own default sends `{audio,video}/*` straight to `mpv` instead, bypassing xdg entirely; since `mpv` isn't installed here, `Enter` on a video used to do nothing. The `open.prepend_rules` entry in `modules/cli/terminal.nix` is what overrides that.
-
-### 🎨 Visual Theme
-
-- **Theme**: Uses Yazi's default flavor, with a custom hover color from `theme.colors.accent`.
-- **Status Bar**: Shows the **File Size** (`linemode = size`) on the right side of the list.
-- **Selection Highlight**: Uses the accent configured at rebuild time with black text. Wallpaper changes do not update Yazi's theme at runtime.
-
-## 6. Pro Tips
-
-- Use `g h` to go to your Home directory; `~` opens help.
-- Use `f` to filter the current listing; `Ctrl+s` cancels a search.
-- Since you are on **Foot**, mouse scrolling and clicking work out of the box for quick navigation.
+- `f` filters the current listing; `Ctrl+s` cancels a search.
+- On Foot, mouse scrolling and clicking work out of the box.

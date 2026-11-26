@@ -1,49 +1,32 @@
-# Flatpak và gói ngoài nixpkgs
+# Flatpak and non-nixpkgs packages
 
-Danh sách này dùng để cài lại thủ công các ứng dụng **không do NixOS/Home
-Manager quản lý**. Flatpak là mutable state: `nixos-rebuild switch` chỉ cài
-phần mềm Flatpak, không cài lại các app bên dưới.
+Use this list to reinstall apps **not managed by NixOS/Home Manager**. Flatpak
+is mutable state: `nixos-rebuild switch` installs the Flatpak runtime but does
+not reinstall these apps.
 
-- Flatpak được bật toàn hệ thống trong `modules/desktop/default.nix`.
-- Các app người dùng cài ở **user scope**; riêng Signal cài ở **system scope**.
-- Phiên bản ghi ngày **2026-11-11**. Flathub branch `stable` tự cập nhật, nên
-  phiên bản thực tế có thể mới hơn.
+- Flatpak is enabled system-wide in `modules/desktop/default.nix`.
+- User apps are installed in **user scope**; Signal uses **system scope**.
+- Versions recorded on **2026-11-11**; the `stable` branch updates itself.
 
-## Ứng dụng Flatpak
+## Apps
 
-| Ứng dụng | Flatpak ID | Phạm vi | Branch | Phiên bản | Ghi chú |
-|---|---|---|---|---|---|
-| Brave | `com.brave.Browser` | user | stable | 1.99.55 | Trình duyệt mặc định cho HTTP/HTTPS trong `modules/desktop/mime.nix` |
-| Discord | `com.discordapp.Discord` | user | stable | 1.0.168 | |
-| Visual Studio Code | `com.visualstudio.code` | user | stable | 1.139.1 | |
-| Obsidian | `md.obsidian.Obsidian` | user | stable | 1.15.0 | |
-| LosslessCut | `no.mifi.losslesscut` | user | stable | 3.69.0 | |
-| Blender | `org.blender.Blender` | user | stable | 5.2 | Bản LTS 5.2.0 |
-| FreeCAD | `org.freecad.FreeCAD` | user | stable | 1.1.4 | |
-| KiCad | `org.kicad.KiCad` | user | stable | 10.0.8 | Kèm thư viện Footprints, Symbols, Templates, Packages3D |
-| LibrePCB | `org.librepcb.LibrePCB` | user | stable | 2.1.1 | |
-| OpenSCAD | `org.openscad.OpenSCAD` | user | stable | 2021.01 | Bản stable mới nhất của upstream |
-| Signal Desktop | `org.signal.Signal` | system | stable | 8.34.0 | Cài riêng ở system scope |
+| App | Flatpak ID | Scope | Version | Notes |
+|---|---|---|---|---|
+| Brave | `com.brave.Browser` | user | 1.99.55 | Default for HTTP/HTTPS |
+| Discord | `com.discordapp.Discord` | user | 1.0.168 | |
+| VS Code | `com.visualstudio.code` | user | 1.139.1 | |
+| Obsidian | `md.obsidian.Obsidian` | user | 1.15.0 | |
+| LosslessCut | `no.mifi.losslesscut` | user | 3.69.0 | |
+| Blender | `org.blender.Blender` | user | 5.2 | LTS 5.2.0 |
+| FreeCAD | `org.freecad.FreeCAD` | user | 1.1.4 | |
+| KiCad | `org.kicad.KiCad` | user | 10.0.8 | Includes libraries |
+| LibrePCB | `org.librepcb.LibrePCB` | user | 2.1.1 | |
+| OpenSCAD | `org.openscad.OpenSCAD` | user | 2021.01 | Current upstream stable |
+| Signal | `org.signal.Signal` | system | 8.34.0 | Separate install |
 
-KiCad tự cài các extension thư viện khi cài app. Kiểm tra:
+## Reinstall
 
-```bash
-flatpak list --user --runtime --columns=application,branch \
-  | grep org.kicad.KiCad.Library
-```
-
-Kết quả mong đợi:
-
-```text
-org.kicad.KiCad.Library.Footprints     stable
-org.kicad.KiCad.Library.Packages3D     stable
-org.kicad.KiCad.Library.Symbols        stable
-org.kicad.KiCad.Library.Templates      stable
-```
-
-## Cài lại
-
-### 1. Thêm Flathub
+### 1. Add Flathub
 
 ```bash
 flatpak remote-add --if-not-exists --user \
@@ -53,7 +36,7 @@ sudo flatpak remote-add --if-not-exists --system \
   flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 ```
 
-### 2. Cài app user scope
+### 2. User apps
 
 ```bash
 flatpak install --user -y flathub \
@@ -69,15 +52,15 @@ flatpak install --user -y flathub \
   org.openscad.OpenSCAD
 ```
 
-### 3. Cài app system scope
+### 3. Signal
 
 ```bash
 sudo flatpak install --system -y flathub org.signal.Signal
 ```
 
-### 4. Cài thư viện KiCad nếu thiếu
+### 4. KiCad libraries
 
-Bình thường không cần bước này vì chúng được cài kèm. Nếu thiếu:
+KiCad normally installs them. If missing:
 
 ```bash
 flatpak install --user -y flathub \
@@ -87,7 +70,14 @@ flatpak install --user -y flathub \
   org.kicad.KiCad.Library.Templates/x86_64/stable
 ```
 
-## Cập nhật và kiểm tra
+Check:
+
+```bash
+flatpak list --user --runtime --columns=application,branch \
+  | grep org.kicad.KiCad.Library
+```
+
+## Update and clean up
 
 ```bash
 flatpak update --user
@@ -95,48 +85,43 @@ sudo flatpak update --system
 
 flatpak list --user --app --columns=application,name,version,branch,origin
 flatpak list --system --app --columns=application,name,version,branch,origin
-```
 
-Xoá runtime không còn dùng:
-
-```bash
 flatpak uninstall --unused --user
 sudo flatpak uninstall --unused --system
 ```
 
-Luôn truyền `--user` hoặc `--system` khi chạy lệnh Flatpak, vì cả hai
-installation đều có remote tên `flathub`. Nếu không, Flatpak sẽ hỏi chọn
-installation.
+Always pass `--user` or `--system`: both installations have a remote named
+`flathub`, so Flatpak would otherwise ask which one to use.
 
-## Dữ liệu ứng dụng
+## Data
 
-- Dữ liệu app user: `~/.var/app/<flatpak-id>`
-- Cài đặt Flatpak user: `~/.local/share/flatpak`
-- Cài đặt Flatpak system: `/var/lib/flatpak`
+- User apps: `~/.var/app/<flatpak-id>`
+- User Flatpak: `~/.local/share/flatpak`
+- System Flatpak: `/var/lib/flatpak`
 
-`flatpak uninstall` mặc định **giữ** dữ liệu trong `~/.var/app`. Chỉ dùng
-`--delete-data` khi thực sự muốn xoá. Khi chuyển máy, sao lưu `~/.var/app` nếu
-cần giữ cấu hình và dữ liệu ứng dụng.
+`flatpak uninstall` keeps data in `~/.var/app`; use `--delete-data` only when
+you really want to remove it. Back up `~/.var/app` when moving machines.
 
-## Gói ngoài nixpkgs nhưng vẫn do Nix quản lý
+## Non-nixpkgs packages managed by Nix
 
-Các gói sau không lấy trực tiếp từ nixpkgs nhưng được build từ source/AppImage
-trong repo. `nixos-rebuild switch` tự cài lại, **không cần cài thủ công**:
+These build from source/AppImage in the repo; `nixos-rebuild switch` installs
+them automatically:
 
-| Gói | Nguồn | Định nghĩa |
+| Package | Source | Definition |
 |---|---|---|
-| `misterdownloadmanager` | AppImage upstream | `pkgs/misterdownloadmanager` |
-| `lightworks-with-desktop` | Lightworks kèm desktop file/icon | `pkgs/lightworks` |
-| `blueman` | nixpkgs, override bỏ autostart trùng | `pkgs/blueman` |
-| `fcitx5` | nixpkgs, override bỏ autostart trùng | `pkgs/fcitx5` |
+| `misterdownloadmanager` | Upstream AppImage | `pkgs/misterdownloadmanager` |
+| `lightworks-with-desktop` | Lightworks + desktop file/icon | `pkgs/lightworks` |
+| `blueman` | nixpkgs, duplicate autostart removed | `pkgs/blueman` |
+| `fcitx5` | nixpkgs, duplicate autostart removed | `pkgs/fcitx5` |
 
-Các công cụ trong `~/.local/bin` do uv/pip/npm hoặc script cá nhân tạo ra là
-external user tooling, ngoài phạm vi file này.
+Tools in `~/.local/bin` created by uv/pip/npm or personal scripts are external
+user tooling and outside this file.
 
-## Khôi phục sau khi cài lại máy
+## Restore after reinstall
 
-1. Cài NixOS và chạy `sudo nixos-rebuild switch --flake git+file:///etc/nixos#laptop`.
-2. Thêm remote Flathub như mục 1.
-3. Cài app user scope và Signal như mục 2–3.
-4. Phục hồi `~/.var/app` từ backup nếu cần giữ dữ liệu app.
-5. Chạy `flatpak update --user` và `sudo flatpak update --system`.
+1. Install NixOS and run
+   `sudo nixos-rebuild switch --flake git+file:///etc/nixos#laptop`.
+2. Add the Flathub remotes.
+3. Install the user apps and Signal.
+4. Restore `~/.var/app` if you need app data.
+5. Run `flatpak update --user` and `sudo flatpak update --system`.

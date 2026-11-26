@@ -1,83 +1,87 @@
-# How To Use Atomic Note
+# Atomic Note
 
-Atomic Note is a small task queue integrated into Waybar and managed through `atomic-note`.
+Small task queue integrated into Waybar and managed with `atomic-note`.
 
-## Integration Notes
+## Files
 
-Atomic Note currently depends on these files:
+- `modules/desktop/apps/atomic-note/assets/atomic-note` — storage, Waybar JSON,
+  Rofi menus.
+- `modules/desktop/waybar/assets/config.jsonc` — `custom/atomic_note` module.
+- `modules/desktop/apps/atomic-note/default.nix` — installs
+  `~/.local/bin/atomic-note`.
 
-- `modules/desktop/apps/atomic-note/assets/atomic-note`: main script for task storage, Waybar JSON rendering, and the Rofi menus
-- `modules/desktop/waybar/assets/config.jsonc`: Waybar module wiring for `custom/atomic_note`
-- `modules/desktop/apps/atomic-note/default.nix`: installs the script as `~/.local/bin/atomic-note`
+`~/.local/bin/atomic-note` is Home Manager-managed. Editing the repo copy does
+not update the live command until the configuration is applied.
 
-Because `~/.local/bin/atomic-note` is Home Manager-managed, editing the repo copy alone does not update the live command until you apply the system configuration.
+## Waybar
 
-## Waybar Behavior
+- Shows the first task in display order: highest priority, then file order.
+  `Move to top` pins a task first.
+- Appends the remaining count in parentheses.
+- Hover shows every task with its priority glyph.
+- Left-click opens the Rofi menu; right-click quick-adds; middle-click completes
+  the shown task.
+- Refreshes on signal 5 after every change, and polls every 30 seconds.
 
-- The module shows the **first task in display order**: highest priority first, then file order. A new task leads its priority group; `Move to top` puts a task first overall.
-- If more tasks exist, the remaining count is appended in parentheses.
-- Hovering shows **every** task in display order with its priority glyph.
-- **Left-click** opens the Rofi menu. **Right-click** quick-adds. **Middle-click** marks the task shown on the bar as done (`Alt+z` in the menu undoes it).
-- The module refreshes on signal 5, which the script sends after every change (including when the editor opened by `atomic-note file` closes); it also polls every 30 s.
+Priority styling:
 
-Waybar styling follows the shown task's priority:
-
-- `Critical`: error/red
-- `High`: warning/orange
-- `Moderate`: accent/blue
-- `Low`: success/green
-- `Empty`: subdued/gray
+| Priority | Color |
+|---|---|
+| Critical | error/red |
+| High | warning/orange |
+| Moderate | accent/blue |
+| Low | success/green |
+| Empty | subdued/gray |
 
 ## Commands
 
 ```bash
-atomic-note rofi                 # menu (also: edit, or no argument)
-atomic-note add "!! Fix prod"    # quick add; prefix sets the priority
-atomic-note add "Reply" high     # explicit priority argument wins
-atomic-note done-top             # complete the task shown on the bar
-atomic-note undo                 # restore the most recent done/clear batch
-atomic-note file                 # open ~/.atomic_tasks in a terminal editor
+atomic-note rofi                 # menu (same as no argument)
+atomic-note add "!! Fix prod"    # quick add with prefix
+atomic-note add "Reply" high     # explicit priority wins
+atomic-note done-top             # complete the task on the bar
+atomic-note undo                 # restore the last done/clear batch
+atomic-note file                 # edit ~/.atomic_tasks
 atomic-note list
 atomic-note clear
 ```
 
-`atomic-note render-waybar` is the internal subcommand used by Waybar.
+`atomic-note render-waybar` is internal, used by Waybar.
 
-## Quick Add
+## Quick add
 
-One screen: type the task and press Enter. A prefix sets the priority, so there is no picker:
+Type the task and press Enter. The prefix sets priority; no picker needed.
 
 | Prefix | Priority |
-| --- | --- |
+|---|---|
 | `!! text` | Critical |
 | `! text` | High |
 | *(none)* | Moderate |
 | `- text` | Low |
-| `[critical] text` … | the bracket spelling still works |
+| `[critical] text` | Critical (bracket form also works) |
 
-The priority argument to `add` (`critical`/`high`/`moderate`/`low`, `p0`–`p3`, `a`–`d`) overrides any prefix.
+`add` also accepts `critical`/`high`/`moderate`/`low`, `p0`–`p3`, or `a`–`d`;
+the explicit argument overrides the prefix.
 
-## Rofi Menu
+## Rofi menu
 
-Layout, top to bottom:
+Top to bottom:
 
-1. Action row: `Add  Alt+a` · `Open  Alt+o` · `Clear  Alt+x`
+1. Actions: `Add  Alt+a` · `Open  Alt+o` · `Clear  Alt+x`
 2. Filter box
-3. Status line with counts and the key hints
-4. One sorted list of tasks
-
-Keys act on the highlighted row:
+3. Status line with counts and key hints
+4. Sorted task list
 
 | Key | Action |
-| --- | --- |
-| `Enter` | per-task menu (Mark done · Edit · Change priority · Move to top) |
-| `Alt+d` | mark done |
-| `Alt+e` | edit text |
-| `Alt+↑` | move to top |
-| `Alt+1` … `Alt+4` | set priority Critical / High / Moderate / Low |
-| `Alt+z` | undo the most recent done/clear |
-| `Alt+a` / `Alt+o` / `Alt+x` | add / open file / clear (clear asks first) |
-| `Esc` | close |
+|---|---|
+| `Enter` | Per-task menu: done, edit, priority, move to top |
+| `Alt+d` | Mark done |
+| `Alt+e` | Edit text |
+| `Alt+↑` | Move to top |
+| `Alt+1`…`Alt+4` | Critical / High / Moderate / Low |
+| `Alt+z` | Undo last done/clear |
+| `Alt+a` / `Alt+o` / `Alt+x` | Add / open file / clear |
+| `Esc` | Close |
 
 ## Storage
 
@@ -87,27 +91,27 @@ Keys act on the highlighted row:
 [Critical] Fix prod incident
 ```
 
-Older short forms `[A]`–`[D]` are still recognised.
+Older short forms `[A]`–`[D]` still work. Completed and cleared tasks go to
+`~/.atomic_tasks.done` as `<batch epoch><TAB>line`; `undo` restores the most
+recent batch.
 
-Completed and cleared tasks go to `~/.atomic_tasks.done` as `<batch epoch><TAB>line`; `undo` (or `Alt+z` in the menu) restores the most recent batch — one done task, or everything from one clear.
+## Common flows
 
-## Common Flows
+### Capture quickly
 
-### Capture Something Quickly
+Right-click the Waybar module, type `!! the thing`, press Enter.
 
-1. Right-click the module.
-2. Type `!! the thing` (or plain text for Moderate) and press Enter.
+### Finish the task on the bar
 
-### Finish The Task On The Bar
+Middle-click the module. If you change your mind, open the menu and press
+`Alt+z`.
 
-Middle-click the module. Changed your mind: open the menu and press `Alt+z`.
+### Work through the list
 
-### Work Through The List
+Left-click the module. Use `Alt+d` to complete, `Alt+1`–`Alt+4` to reprioritize,
+and `Alt+↑` to pin a task first.
 
-1. Left-click the module.
-2. `Alt+d` on each finished task; `Alt+1`…`Alt+4` to re-prioritise; `Alt+↑` to pin one first.
-
-### Edit The Raw File
+### Edit the raw file
 
 ```bash
 atomic-note file

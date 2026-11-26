@@ -1,40 +1,39 @@
-# Quy trình thêm máy mới (Host Onboarding)
+# Add a host (Host Onboarding)
 
-Hướng dẫn tích hợp cấu hình của một máy trạm mới vào kho lưu trữ NixOS theo kiến trúc hiện tại.
+Steps for adding a host to the flake. If the machine does not have NixOS yet,
+install it with [`INSTALL.md`](./INSTALL.md) first.
 
-Nếu máy chưa có NixOS, cài bằng [`INSTALL.md`](./INSTALL.md) trước. Installer
-mặc định dùng host `minimal`; sau khi reboot, `/etc/nixos` đã có sẵn để rebuild.
+## Prerequisites
 
-## Điều kiện tiên quyết
+- Pick a `<host-id>` and `primaryUser.username`.
+- Have a hardware config from `nixos-generate-config`.
 
-- Xác định định danh duy nhất cho máy mới (`<host-id>`).
-- Xác định user chính (`primaryUser.username`).
-- Cấu hình phần cứng hợp lệ tạo bởi `nixos-generate-config`.
+## 1. Create the host directory
 
-## Các bước thực hiện
-
-### 1. Tạo thư mục host
 ```bash
 mkdir -p hosts/<host-id>
 ```
 
-### 2. Cấu hình các tệp thành phần trong `hosts/<host-id>/`
-- `hardware.nix`: Thông số phần cứng từ `nixos-generate-config` (fileSystems, driver, initrd). Installer tạo file này tự động; chỉ sửa khi thêm phần cứng mới.
-- `default.nix`: Composition, identity và policy gắn với máy:
-  - `primaryUser.username = "<username>";`
-  - `networking.hostName`, firewall;
-  - `fileSystems`/`swapDevices` bổ sung;
-  - user groups và shell;
-  - boot loader, Nix resource tuning, udev quirk.
-- `packages.nix` (tùy chọn): package/tool chỉ dùng trên máy này. Nạp file này từ
-  `default.nix` nếu dùng.
-- Không tạo `home.nix` cho host. Module NixOS tự wire Home Manager dưới
-  `home-manager.users.${config.primaryUser.username}`; host không compose
-  desktop/CLI/maintenance Home Manager.
-- Không đặt app asset dưới host. Asset nằm cạnh module sở hữu trong `modules/desktop/<feature>/` hoặc `modules/system/<role>/`.
+Create these files:
 
-### 3. Thiết lập điểm nạp chính tại `hosts/<host-id>/default.nix`
-Cấu hình tối thiểu:
+- `hardware.nix` — `fileSystems`, drivers, and `initrd` from
+  `nixos-generate-config`. The installer creates it automatically; edit only
+  when adding hardware.
+- `default.nix` — identity, composition, and policy:
+  - `primaryUser.username`;
+  - `networking.hostName`, firewall;
+  - additional `fileSystems`/`swapDevices`;
+  - user groups and shell;
+  - boot loader, Nix resource tuning, udev quirks.
+- `packages.nix` (optional) — tools used only on this machine; import it from
+  `default.nix`.
+
+Do not create a host `home.nix`. The NixOS module wires Home Manager under
+`home-manager.users.${config.primaryUser.username}`. Do not put assets under
+the host; keep them next to the module that owns them.
+
+## 2. Write `hosts/<host-id>/default.nix`
+
 ```nix
 { ... }:
 {
@@ -43,7 +42,6 @@ Cấu hình tối thiểu:
     ../../base/default.nix
     ../../users/will/default.nix
     ../../modules/system/ssh
-    # Nạp thêm các vai trò dùng chung nếu cần:
     # ../../modules/system/development
     # ../../modules/system/hardware
     # ../../modules/desktop/default.nix
@@ -53,35 +51,27 @@ Cấu hình tối thiểu:
 
   primaryUser.username = "<username>";
   networking.hostName = "<host-id>";
-
   system.stateVersion = "25.11";
 }
 ```
 
-*Lưu ý kiến trúc:* Host chọn `modules/system/ssh` nếu cần SSH quản trị.
-Baseline `base/` dùng chung không bật desktop; host chọn desktop và phần cứng
-cần thiết. Không dùng module LLM/native-power riêng của laptop cho máy khác nếu
-chưa kiểm tra phụ thuộc.
+The host selects the desktop and hardware it needs. Do not reuse the laptop's
+LLM/native-power modules on another machine without checking dependencies.
 
-### 4. Khai báo máy trong `flake.nix`
-Hệ thống sử dụng hàm helper `mkHost` trong `flake.nix`. Thêm cấu hình máy mới vào mục `nixosConfigurations`:
+## 3. Add the host to `flake.nix`
 
 ```nix
 nixosConfigurations.<host-id> = mkHost {
   hostModule = ./hosts/<host-id>/default.nix;
-  # Dùng chung identity/packages/CLI của user; bỏ qua nếu máy không cần Home Manager.
+  # Omit if the machine does not need Home Manager.
   homeModule = ./users/will/home.nix;
 };
 ```
 
-## Kiểm tra và Xác minh
+## 4. Validate
 
-Thêm các tệp nguồn host mới vào Git bằng `git add <các-đường-dẫn-nguồn>` trước
-khi kiểm tra; flake Git không nhìn thấy tệp chưa được track. Chỉ thêm nguồn cấu
-hình dự định quản lý, không thêm state cục bộ hay thông tin xác thực. Tránh
-`path:/etc/nixos` vì nó có thể đưa cả tệp bị ignore vào Nix store.
-
-Chạy kiểm tra flake và biên dịch thử nghiệm cấu hình:
+`git add` new source files first; the flake Git source does not see untracked
+files.
 
 ```bash
 ./scripts/validate.sh
@@ -89,8 +79,4 @@ nix build --no-link --no-write-lock-file \
   git+file:///etc/nixos#nixosConfigurations.<host-id>.config.system.build.toplevel
 ```
 
-## Tài liệu liên quan
-
-- [`INSTALL.md`](./INSTALL.md): Cài NixOS từ Linux hiện có.
-- [`../../modules/README.md`](../../modules/README.md): Inventory module, layer, owner.
-- [`../README.md`](../README.md): Tổng quan cấu trúc tài liệu.
+Avoid `path:/etc/nixos`; it can copy ignored files into the Nix store.
