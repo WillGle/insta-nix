@@ -25,5 +25,5 @@ git-ignored.
 
 - [`archive/REMOTE_MIGRATION.md`](./archive/REMOTE_MIGRATION.md) — legacy remote
   migration note.
-- [`archive/rocm/README.md`](./archive/rocm/README.md) — ROCm investigation
-  archive.
+
+ROCm investigation notes are kept local-only and are not tracked.

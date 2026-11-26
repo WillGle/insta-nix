@@ -5,3 +5,12 @@ local-private/
 secrets-local/
 docs/internal/
 .agents
+
+# High-privacy generated or historical data: benchmark journals and ROCm
+# notes can contain hardware serials, MAC/BSSID, hostnames, and boot IDs.
+docs/bench/
+docs/archive/rocm/
+*.log
+
+# Personal wallpapers and images belong outside the public repository.
+theme/assets/
