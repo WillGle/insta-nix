@@ -12,7 +12,7 @@ let
     "x-scheme-handler/sgnl" = "org.signal.Signal.desktop";
     "x-scheme-handler/signalcaptcha" = "org.signal.Signal.desktop";
     "text/plain" = "com.visualstudio.code.desktop";
-    "application/pdf" = "draw.desktop";
+    "application/pdf" = "org.gnome.Evince.desktop";
 
     "image/jpeg" = "org.gnome.Loupe.desktop";
     "image/png" = "org.gnome.Loupe.desktop";
