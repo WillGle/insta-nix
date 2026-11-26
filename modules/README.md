@@ -29,13 +29,14 @@ home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
 | `modules/cli` | Home Manager | `default.nix` | Shell, terminal, XDG aggregation | `users/will/home.nix` |
 | `modules/cli/shell` | Home Manager | `default.nix` | Fish, Starship, FZF, Zoxide, Direnv, Fastfetch, aliases | `modules/cli` |
 | `modules/cli/terminal.nix` | Home Manager | file | Foot, Tmux, Yazi | `modules/cli` |
-| `modules/cli/xdg.nix` | Home Manager | file | MIME defaults, XDG dirs, terminal dconf | `modules/cli` |
+| `modules/cli/xdg.nix` | Home Manager | file | XDG dirs, terminal dconf | `modules/cli` |
 
 ## Desktop
 
 | Module | Layer | Entrypoint | Owns | Consumers |
 |---|---|---|---|---|
-| `modules/desktop/default.nix` | NixOS | `default.nix` | SDDM, audio, input method, portal, Qt, nix-ld, desktop platform; wires HM `home.nix` | Hosts with desktop |
+| `modules/desktop/default.nix` | NixOS | `default.nix` | SDDM, audio, input method, portal, Qt, nix-ld, MIME defaults, desktop platform; wires HM `home.nix` | Hosts with desktop |
+| `modules/desktop/mime.nix` | NixOS | imported by desktop | System-wide MIME defaults in `/etc/xdg/mimeapps.list` | `modules/desktop/default.nix` |
 | `modules/desktop/home.nix` | Home Manager | `home.nix` | Theme/session/hyprland/waybar/rofi/apps aggregation | `modules/desktop/default.nix` |
 | `modules/desktop/packages.nix` | NixOS | imported by desktop | Desktop integration packages, fonts, cursors, Rofi override | `modules/desktop/default.nix` |
 | `modules/desktop/bluetooth.nix` | NixOS + HM dconf | imported by desktop | Blueman service, D-Bus/systemd packages, dconf plugin list | `modules/desktop/default.nix` |
@@ -43,12 +44,13 @@ home-manager.users.${config.primaryUser.username}.imports = [ ./home.nix ];
 | `modules/desktop/theme/default.nix` | NixOS | `default.nix` | Theme option schema and assertions | `modules/desktop/default.nix` |
 | `modules/desktop/theme/defaults.nix` | Nix | imported by theme | Default color/font/cursor/wallpaper values | `modules/desktop/theme/default.nix` |
 | `modules/desktop/theme/home.nix` | Home Manager | `home.nix` | Template deployment, generated links, theme-apply/wallpaper scripts | `modules/desktop/home.nix` |
-| `modules/desktop/theme/lib/palette.sh` | Shell library | sourced | Runtime Matugen palette loader | rofi-calendar |
+| `modules/desktop/theme/lib/palette.sh` | Shell library | sourced | Runtime Matugen palette loader | rofi-hub calendar |
 | `modules/desktop/hyprland/default.nix` | Home Manager | `default.nix` | Hyprland config/assets, helper scripts, session target | `modules/desktop/home.nix` |
 | `modules/desktop/hyprland/input-method.nix` | Home Manager | imported by hyprland | Fcitx5 session-start boundary | Hyprland module |
 | `modules/desktop/waybar/default.nix` | Home Manager | `default.nix` | Waybar config, bar helpers, user unit lifecycle | `modules/desktop/home.nix` |
-| `modules/desktop/rofi/default.nix` | Home Manager | `default.nix` | Rofi platform, generic menus/themes, network helper | `modules/desktop/home.nix` |
-| `modules/desktop/rofi/lib/menu.sh` | Shell library | sourced | Rofi dmenu protocol, markup escaping, row emission, theme resolution | rofi-network, Waybar helpers |
+| `modules/desktop/rofi/default.nix` | Home Manager | `default.nix` | Rofi platform, `rofi-hub` dispatcher, menus/themes | `modules/desktop/home.nix` |
+| `modules/desktop/rofi/libexec` | Shell assets | built by `mk-script` | Repo-owned hub menus: calendar, clipboard, keybinds, network | `rofi-hub` |
+| `modules/desktop/rofi/lib/menu.sh` | Shell library | sourced | Rofi paths, dmenu protocol, markup escaping, row emission, theme resolution | rofi-hub, Waybar helpers |
 | `modules/desktop/apps/default.nix` | Home Manager | `default.nix` | Atomic Note aggregation | `modules/desktop/home.nix` |
 | `modules/desktop/apps/atomic-note` | Home Manager | `default.nix` | `atomic-note` script and assets | `modules/desktop/apps` |
 | `modules/desktop/lib/network.sh` | Shell library | sourced | NetworkManager query helpers | Rofi network menu, Waybar network info |
