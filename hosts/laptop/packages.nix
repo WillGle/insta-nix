@@ -58,6 +58,7 @@
     bash
     git
     gh
+    gnumake
 
     # Packet capture
     tcpdump
