@@ -1,17 +1,19 @@
 # Atomic Note
 
-Small task queue integrated into Waybar and managed with `atomic-note`.
+Small task queue integrated into Waybar and provided by the
+[rofi-hub](https://github.com/WillGle/rofi-hub) flake as
+`services.rofi-apps.atomic-note`.
 
 ## Files
 
-- `modules/desktop/apps/atomic-note/assets/atomic-note` — storage, Waybar JSON,
-  Rofi menus.
+- rofi-hub `crates/atomic-note` — storage, Waybar JSON, Rofi menu, and priority
+  glyphs.
 - `modules/desktop/waybar/assets/config.jsonc` — `custom/atomic_note` module.
-- `modules/desktop/apps/atomic-note/default.nix` — installs
-  `~/.local/bin/atomic-note`.
+- `hosts/laptop/default.nix` — enables `services.rofi-apps.atomic-note`.
 
-`~/.local/bin/atomic-note` is Home Manager-managed. Editing the repo copy does
-not update the live command until the configuration is applied.
+`atomic-note` is installed in the system profile. Do not add a second
+`~/.local/bin/atomic-note`; the Waybar module calls the system command so the
+menu uses the shared Rofi theme and app-owned theme state.
 
 ## Waybar
 

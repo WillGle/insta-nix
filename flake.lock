@@ -60,11 +60,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795707166,
-        "narHash": "sha256-hk6dfTkMFoZwlDhIo7Ra3z0HsJFGAJQXvAgDXTWj63M=",
+        "lastModified": 1795782012,
+        "narHash": "sha256-z9wtxrh0U7ylkrF53nVwwrIxIciqjuSRUqCbbH++5pU=",
         "owner": "WillGle",
         "repo": "rofi-hub",
-        "rev": "597798555a4145d69eb715efc39ab9da75f4934f",
+        "rev": "a78c57a2ceceeabad6a769e17cdfeb08ec23013f",
         "type": "github"
       },
       "original": {

@@ -114,8 +114,8 @@ source.
 - **Power** — `native-power-profile`, `toggle-battery-reserve`.
 - **Desktop** — `waybar-*`, Hyprland helper scripts.
 - **Rofi apps** — `rofi-hub-menu`, `rofi-calendar`, `rofi-clipboard`,
-  `rofi-keybinds`, `rofi-network`, and `rofi-screen-time` (`Super+I`); provided
-  by the `rofi-apps` NixOS modules.
+  `rofi-keybinds`, `rofi-network`, `atomic-note` (Waybar task queue), and
+  `rofi-screen-time` (`Super+I`); provided by the `rofi-apps` NixOS modules.
 - **Wallpaper** — Nautilus **Set as Background**, `wallpaper pick`, or
   `wallpaper set <image>`. `wallpaper set` copies the image to
   `~/.local/state/theme/wallpapers/`, Matugen updates the palette, and

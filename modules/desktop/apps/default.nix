@@ -1,5 +1,0 @@
-_: {
-  imports = [
-    ./atomic-note
-  ];
-}

@@ -36,7 +36,7 @@ Hosts do not import feature Home Manager modules.
 |---|---|---|---|
 | `modules/desktop/default.nix` | NixOS | SDDM, audio, input method, portal, Qt, nix-ld, MIME defaults, desktop platform; wires HM `home.nix` | Hosts with desktop |
 | `modules/desktop/mime.nix` | NixOS | System MIME defaults in `/etc/xdg/mimeapps.list` | Desktop default |
-| `modules/desktop/home.nix` | Home Manager | Theme, session, Hyprland, Waybar, Rofi, apps aggregation | Desktop default |
+| `modules/desktop/home.nix` | Home Manager | Theme, session, Hyprland, Waybar, Rofi | Desktop default |
 | `modules/desktop/packages.nix` | NixOS | Desktop integration packages, fonts, cursors, Rofi override | Desktop default |
 | `modules/desktop/bluetooth.nix` | NixOS + HM dconf | Blueman service, D-Bus/systemd packages, dconf plugin list | Desktop default |
 | `modules/desktop/session.nix` | Home Manager | Wallpaper, theme, Hyprpaper, Dunst, Udiskie, Blueman, Cliphist, Polkit user services | Desktop home |
@@ -47,8 +47,6 @@ Hosts do not import feature Home Manager modules.
 | `modules/desktop/hyprland/input-method.nix` | Home Manager | Fcitx5 session-start boundary | Hyprland module |
 | `modules/desktop/waybar/default.nix` | Home Manager | Waybar config, bar helpers, user unit lifecycle | Desktop home |
 | `modules/desktop/rofi/default.nix` | Home Manager | Rofi base theme/config and general modes | Desktop home |
-| `modules/desktop/apps/default.nix` | Home Manager | Atomic Note aggregation | Desktop home |
-| `modules/desktop/apps/atomic-note` | Home Manager | `atomic-note` script and assets | Apps default |
 | `modules/desktop/lib/network.sh` | Shell library | NetworkManager query helpers | Waybar network info |
 
 ## System
@@ -75,4 +73,4 @@ Hosts do not import feature Home Manager modules.
 | Helper | Owns | Used by |
 |---|---|---|
 | `lib/mk-script.nix` | `writeShellApplication` wrapper for shebang assets with placeholder rendering | System and desktop modules |
-| `lib/mk-home-script.nix` | Home Manager `mkScript` + `scriptFile` pair | Atomic Note, Hyprland, Rofi, Waybar |
+| `lib/mk-home-script.nix` | Home Manager `mkScript` + `scriptFile` pair | Hyprland, Rofi, Waybar |

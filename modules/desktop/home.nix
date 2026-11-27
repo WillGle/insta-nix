@@ -5,6 +5,5 @@ _: {
     ./hyprland/default.nix
     ./waybar/default.nix
     ./rofi/default.nix
-    ./apps
   ];
 }

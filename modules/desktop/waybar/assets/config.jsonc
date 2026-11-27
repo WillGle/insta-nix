@@ -110,15 +110,15 @@
     "tooltip": true
   },
   "custom/atomic_note": {
-    "exec": "$HOME/.local/bin/atomic-note render-waybar",
+    "exec": "atomic-note render-waybar",
     "max-length": 40,
     "return-type": "json",
     // Signal 5 refreshes changes, including editor exit; avoid frequent polling.
     "interval": 30,
-    "on-click": "$HOME/.local/bin/atomic-note rofi",
-    "on-click-right": "$HOME/.local/bin/atomic-note add",
+    "on-click": "atomic-note rofi",
+    "on-click-right": "atomic-note add",
     // Middle click completes the task; undo is available in the menu.
-    "on-click-middle": "$HOME/.local/bin/atomic-note done-top",
+    "on-click-middle": "atomic-note done-top",
     "signal": 5,
     "tooltip": true
   },

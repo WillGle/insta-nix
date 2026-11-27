@@ -26,6 +26,7 @@
   primaryUser.username = "will";
 
   services.rofi-apps = {
+    atomic-note.enable = true;
     calendar.enable = true;
     clipboard.enable = true;
     keybinds.enable = true;
