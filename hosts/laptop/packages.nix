@@ -45,6 +45,9 @@
     xz
     zip
     zstd
+    # Stable nixpkgs marks surf broken after the WebKitGTK 4.0 removal; this
+    # is the stable 2.1 release with the upstream WebKitGTK 4.1 build fix.
+    (pkgs.callPackage ../../pkgs/surf { })
 
     # Filesystem
     dosfstools
